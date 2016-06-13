@@ -1,11 +1,40 @@
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#
+# *****************************************************************************
+
+"""Define SECoP Device classes
+
+also define helpers to derive properties of the device"""
+
 from lib import attrdict
 
 class Status(object):
-    OK = 200
-    MOVING = 210
-    WARN = 220
-    UNSTABLE = 230
-    ERROR = 240
+    """Map Menaing of a devices status to some constants
+
+    which may be used for transport"""
+    OK = 100
+    MOVING = 200
+    WARN = 300
+    UNSTABLE = 350
+    ERROR = 400
     UNKNOWN = 999
 
 status = Status()
@@ -13,53 +42,64 @@ status = Status()
 
 # XXX: deriving PARS/CMDS should be done in a suitable metaclass....
 class Device(object):
+    """Minimalist Device
+
+    all others derive from this"""
     name = None
     def read_status(self):
-        raise NotImplemented
+        raise NotImplementedError('All Devices need a Status!')
     def read_name(self):
         return self.name
 
 class Readable(Device):
+    """A Readable Device"""
     unit = ''
     def read_value(self):
-        raise NotImplemented
+        raise NotImplementedError('A Readable MUST provide a value')
     def read_unit(self):
         return self.unit
 
 class Writeable(Readable):
+    """Writeable can be told to change it's vallue"""
+    target = None
     def read_target(self):
         return self.target
     def write_target(self, target):
         self.target = target
 
 class Driveable(Writeable):
-    def do_wait(self):
-        raise NotImplemented
+    """A Moveable which may take a while to reach its target,
+
+    hence stopping it may be desired"""
     def do_stop(self):
-        raise NotImplemented
+        raise NotImplementedError('A Driveable MUST implement the STOP() '
+                                  'command')
 
 
 def get_device_pars(dev):
-    # returns a mapping of the devices parameter names to some 'description'
+    """return a mapping of the devices parameter names to some
+    'description'"""
     res = {}
     for n in dir(dev):
         if n.startswith('read_'):
             pname = n[5:]
-            entry = attrdict(readonly=True, description=getattr(dev,n).__doc__)
+            entry = attrdict(readonly=True, description=getattr(dev, n).__doc__)
             if hasattr(dev, 'write_%s' % pname):
                 entry['readonly'] = False
             res[pname] = entry
     return res
-    
+
 def get_device_cmds(dev):
-    # returns a mapping of the devices commands names to some 'description'
+    """return a mapping of the devices command names to some
+    'description'"""
     res = {}
     for n in dir(dev):
         if n.startswith('do_'):
             cname = n[5:]
-            func = getattr(dev,n)
-            entry = attrdict(description=func.__doc__, args='unknown') # XXX: use inspect!
+            func = getattr(dev, n)
+            # XXX: use inspect!
+            entry = attrdict(description=func.__doc__, args='unknown')
             res[cname] = entry
     return res
-    
+
 

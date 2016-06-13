@@ -1,50 +1,38 @@
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#
+# *****************************************************************************
+
+"""Define helpers"""
 
 class attrdict(dict):
     def __getattr__(self, key):
         return self[key]
+    def __setattr__(self, key, value):
+        self[key] = value
 
 if __name__ == '__main__':
-    print "minimal testing: transport"
-    testcases = dict(
-        error=[ErrorReply(), 
-               NoSuchDeviceErrorReply('device3'),
-               NoSuchParamErrorReply('device2', 'param3'), 
-               ParamReadonlyErrorReply('device1', 'param1'),
-               UnsupportedFeatureErrorReply('feature5'), 
-               NoSuchCommandErrorReply('device1','fance_command'), 
-               CommandFailedErrorReply('device1','stop'), 
-               InvalidParamValueErrorReply('device1','param2','STRING_Value'),
-              ],
-        reply=[Reply(), 
-               ListDevicesReply('device1', 'device2'), 
-               ListDeviceParamsReply('device', ['param1', 'param2']), 
-               ReadValueReply('device2', 3.1415), 
-               ReadParamReply('device1', 'param2', 2.718), 
-               WriteParamReply('device1', 'param2', 2.718), 
-               RequestAsyncDataReply('device1', 'XXX: what to put here?'), 
-               AsyncDataUnit('device1', 'param2', 2.718), 
-               ListOfFeaturesReply('feature1', 'feature2'), 
-               ActivateFeatureReply(),
-              ],
-        request=[Request(), 
-                 ListDevicesRequest(), 
-                 ListDeviceParamsRequest('device1'), 
-                 ReadValueRequest('device2'), 
-                 ReadParamRequest('device1', 'param2'), 
-                 WriteParamRequest('device1', 'param2', 2.718), 
-                 RequestAsyncDataRequest('device1', ['param1', 'param2']), 
-                 ListOfFeaturesRequest(), 
-                 ActivateFeatureRequest('feature1'),
-                ],
-    )
-    for msgtype, msgs in testcases.items():
-        print "___ testing %ss ___" % msgtype
-        for msg in msgs:
-            print msg.__class__.__name__, 'is', msgtype,
-            decoded = parse(msg)
-            if decoded[0] != msgtype:
-                print "\tFAIL, got %r but expected %r" %(decoded[0], msgtype)
-            else:
-                print "\tOk"
-        print
+    print "minimal testing: lib"
+    d = attrdict(a=1, b=2)
+    _ = d.a + d['b']
+    d.c = 9
+    d['d'] = 'c'
+    assert d[d.d] == 9
 

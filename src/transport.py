@@ -27,7 +27,6 @@
 
 import time
 import socket
-import threading
 import SocketServer
 try:
     import cPickle as pickle
@@ -55,8 +54,8 @@ def encodeMessageFrame(msg):
 def decodeMessageFrame(frame):
     """remove transport layer encapsulation/framing of messages"""
     if '\n' in frame:
-       # WARNING: ignores everything after first '\n'
-       return frame.split('\n', 1)[0]
+        # WARNING: ignores everything after first '\n'
+        return frame.split('\n', 1)[0]
     # invalid/incomplete frames return nothing here atm.
     return None
 
@@ -78,8 +77,9 @@ class SECoPClient(object):
     def close(self):
         if not self._socket:
             raise Exception('%r is not connected!' % self)
-        self._socket.close(socket.SH_RDONLY)
-        self._socket.close(socket.SH_RDWR)
+        self._socket.shutdown(socket.SHUT_WR)
+        self._socket.shutdown(socket.SHUT_RDWR)
+        self._socket.close()
         self._socket = None
 
     def _sendRequest(self, request):
@@ -93,7 +93,7 @@ class SECoPClient(object):
         rawdata = ''
         while True:
             data = self._socket.recv(MAX_MESSAGE_SIZE)
-            if not(data):
+            if not data:
                 time.sleep(0.1)
                 # XXX: needs timeout mechanism!
                 continue
@@ -101,7 +101,7 @@ class SECoPClient(object):
             msg = decodeMessageFrame(rawdata)
             if msg:
                 return decodeMessage(msg)
-    
+
     def _negotiateServerSettings(self):
         self._sendRequest(ListOfFeaturesRequest())
         print self._recvReply()
@@ -112,11 +112,11 @@ class SECoPRequestHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         """handle a new tcp-connection"""
         # self.client_address
-        socket = self.request
+        mysocket = self.request
         frame = ''
         # start serving
         while True:
-            _frame = socket.recv(MAX_MESSAGE_SIZE)
+            _frame = mysocket.recv(MAX_MESSAGE_SIZE)
             if not _frame:
                 time.sleep(0.1)
                 continue
@@ -125,19 +125,20 @@ class SECoPRequestHandler(SocketServer.BaseRequestHandler):
             if msg:
                 requestObj = decodeMessage(msg)
                 replyObj = self.handle_request(requestObj)
-                self.send(encodeMessageFrame(encodeMessage(replyObj)))
+                mysocket.send(encodeMessageFrame(encodeMessage(replyObj)))
                 frame = ''
 
     def handle_request(self, requestObj):
         # XXX: handle connection/Server specific Requests
         # pass other (Device) requests to the DeviceServer
         return self.server.handle(requestObj)
-        
+
 
 class SECoPServer(SocketServer.ThreadingTCPServer, DeviceServer):
     daemon_threads = False
 
 def startup_server():
-    srv = SECoPServer(('localhost', DEF_PORT), SECoPRequestHandler, bind_and_activate=True)
+    srv = SECoPServer(('localhost', DEF_PORT), SECoPRequestHandler,
+                      bind_and_activate=True)
     srv.serve_forever()
     srv.server_close()
