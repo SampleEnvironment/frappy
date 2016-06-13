@@ -1,0 +1,5 @@
+# for generating docu
+markdown>=2.6
+# for zmq
+#pyzmq>=13.1.0
+
