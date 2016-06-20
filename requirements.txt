@@ -1,5 +1,9 @@
 # for generating docu
 markdown>=2.6
+# general stuff
+psutil
+# daemonizing not yet functional (logging problems)
+#daemonize
 # for zmq
 #pyzmq>=13.1.0
 

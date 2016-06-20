@@ -136,9 +136,14 @@ class SECoPRequestHandler(SocketServer.BaseRequestHandler):
 
 class SECoPServer(SocketServer.ThreadingTCPServer, DeviceServer):
     daemon_threads = False
-
-def startup_server():
-    srv = SECoPServer(('localhost', DEF_PORT), SECoPRequestHandler,
-                      bind_and_activate=True)
-    srv.serve_forever()
-    srv.server_close()
+    def __init__(self, logger, serveropts):
+        bindto = serveropts.pop('bindto', 'localhost')
+        portnum = DEF_PORT
+        if ':' in bindto:
+            bindto, _port = bindto.rsplit(':')
+            portnum = int(_port)
+        logger.debug("binding to %s:%d" % (bindto, portnum))
+        super(SECoPServer, self).__init__((bindto, portnum),
+              SECoPRequestHandler, bind_and_activate=True)
+        logger.info("SECoPServer initiated")
+        logger.debug('serveropts remaining: %r' % serveropts)
