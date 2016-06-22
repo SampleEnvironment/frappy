@@ -22,23 +22,25 @@
 
 """Define basic SECoP DeviceServer"""
 
-import logging
 import time
 
-from messages import parse, ListDevicesRequest, ListDeviceParamsRequest, \
+from protocol.messages import parse, ListDevicesRequest, ListDeviceParamsRequest, \
     ReadParamRequest, ErrorReply, MessageHandler
 
 
 
 class DeviceServer(MessageHandler):
-    def __init__(self):
+    def __init__(self, logger, serveropts):
         self._devices = {}
-        self.log = logging
+        self.log = logger
+        # XXX: check serveropts and raise if problems exist
+        # mandatory serveropts: interface=tcpip, encoder=pickle, frame=eol
+        # XXX: remaining opts are checked by the corresponding interface server
 
-        self.log.basicConfig(level=logging.WARNING,
-                    format='%(asctime)s %(levelname)s %(message)s')
+    def serve_forever(self):
+        self.log.error("Serving not yet implemented!")
 
-    def registerDevice(self, deviceobj, devicename):
+    def register_device(self, deviceobj, devicename):
     # make the server export a deviceobj under a given name.
     # all exportet properties are taken from the device
         if devicename in self._devices:
@@ -47,7 +49,7 @@ class DeviceServer(MessageHandler):
             self._devices[devicename] = deviceobj
             deviceobj.name = devicename
 
-    def unRegisterDevice(self, device_obj_or_name):
+    def unregister_device(self, device_obj_or_name):
         if not device_obj_or_name in self._devices:
             self.log.error('IGN: Device %r not registered!' %
                            device_obj_or_name)
@@ -55,12 +57,12 @@ class DeviceServer(MessageHandler):
             del self._devices[device_obj_or_name]
             # may need to do more
 
-    def getDevice(self, devname):
+    def get_device(self, devname):
         """returns the requested deviceObj or None"""
         devobj = self._devices.get(devname, None)
         return devobj
 
-    def listDevices(self):
+    def list_devices(self):
         return list(self._devices.keys())
 
     def handle(self, msg):
@@ -85,7 +87,8 @@ class DeviceServer(MessageHandler):
 
 
 if __name__ == '__main__':
-    from device import Driveable, status
+    from devices.core import Driveable
+    from protocol import status
     class TestDevice(Driveable):
         name = 'Unset'
         unit = 'Oinks'
@@ -119,8 +122,8 @@ if __name__ == '__main__':
 
     print "minimal testing: server"
     srv = DeviceServer()
-    srv.registerDevice(TestDevice(), 'dev1')
-    srv.registerDevice(TestDevice(), 'dev2')
+    srv.register_device(TestDevice(), 'dev1')
+    srv.register_device(TestDevice(), 'dev2')
     devices = parse(srv.handle(ListDevicesRequest()))[2]['list_of_devices']
     print 'Srv exports these devices:', devices
     for dev in sorted(devices):

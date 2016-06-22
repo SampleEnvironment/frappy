@@ -1,6 +1,8 @@
 Markdown docu to be generated
 =============================
 
+[Notes](notes.html)
+
 
 TODO's
 ======

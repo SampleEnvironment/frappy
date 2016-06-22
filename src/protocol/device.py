@@ -25,19 +25,7 @@
 also define helpers to derive properties of the device"""
 
 from lib import attrdict
-
-class Status(object):
-    """Map Menaing of a devices status to some constants
-
-    which may be used for transport"""
-    OK = 100
-    MOVING = 200
-    WARN = 300
-    UNSTABLE = 350
-    ERROR = 400
-    UNKNOWN = 999
-
-status = Status()
+from protocol import status
 
 
 # XXX: deriving PARS/CMDS should be done in a suitable metaclass....
