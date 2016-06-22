@@ -23,42 +23,51 @@
 
 import random
 
-from devices.core import Readable, Driveable, CONFIG, PARAM
+from devices.core import Readable, Driveable, PARAM
 from validators import floatrange
+
 
 class LN2(Readable):
     """Just a readable.
 
-    class name indicates it to be a sensor for LN2, but the implementation may do anything"""
+    class name indicates it to be a sensor for LN2,
+    but the implementation may do anything
+    """
     def read_value(self, maxage=0):
         return round(100*random.random(), 1)
+
 
 class Heater(Driveable):
     """Just a driveable.
 
-    class name indicates it to be some heating element, but the implementation may do anything"""
-    CONFIG = {
-        'maxheaterpower' : CONFIG('maximum allowed heater power',
-                                  validator=floatrange(0, 100), unit='W'),
+    class name indicates it to be some heating element,
+    but the implementation may do anything
+    """
+    PARAMS = {
+        'maxheaterpower': PARAM('maximum allowed heater power',
+                                 validator=floatrange(0, 100), unit='W'),
     }
+
     def read_value(self, maxage=0):
         return round(100*random.random(), 1)
 
     def write_target(self, target):
         pass
+
 
 class Temp(Driveable):
     """Just a driveable.
 
-    class name indicates it to be some temperature controller, but the implementation may do anything"""
-    CONFIG = {
-        'sensor' : CONFIG("Sensor number or calibration id",
-                          validator=str),
+    class name indicates it to be some temperature controller,
+    but the implementation may do anything
+    """
+    PARAMS = {
+        'sensor': PARAM("Sensor number or calibration id",
+                         validator=str, readonly=True),
     }
+
     def read_value(self, maxage=0):
         return round(100*random.random(), 1)
 
     def write_target(self, target):
         pass
-
-

@@ -19,20 +19,13 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
+"""provide server interfaces to be used by clients"""
 
-"""Define Client side proxies"""
+from tcp import TCPServer
 
-# nothing here yet.
+INTERFACES = {
+    'tcp': TCPServer,
+}
 
-
-def get_client(interfacespec):
-    """returns a client connected to the remote interface"""
-    pass
-
-
-class DeviceProxy(object):
-    """(In python) dynamically constructed object
-
-    allowing access to the servers devices via the SECoP Protocol inbetween
-    """
-    pass
+# for 'from protocol.interface import *' to only import the dict
+__ALL__ = ['INTERFACES']

@@ -1,6 +1,6 @@
+#!/usr/bin/env python
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
-#
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation; either version 2 of the License, or (at your option) any later
@@ -20,19 +20,7 @@
 #
 # *****************************************************************************
 
-"""Define Client side proxies"""
+"""provides transport layer encapsulation for SECoP"""
 
-# nothing here yet.
-
-
-def get_client(interfacespec):
-    """returns a client connected to the remote interface"""
-    pass
-
-
-class DeviceProxy(object):
-    """(In python) dynamically constructed object
-
-    allowing access to the servers devices via the SECoP Protocol inbetween
-    """
-    pass
+from framing import FRAMERS
+from encoding import ENCODERS

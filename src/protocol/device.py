@@ -22,7 +22,9 @@
 
 """Define SECoP Device classes
 
-also define helpers to derive properties of the device"""
+"""
+# XXX: is this still needed ???
+# see devices.core ....
 
 from lib import attrdict
 from protocol import status
@@ -34,26 +36,35 @@ class Device(object):
 
     all others derive from this"""
     name = None
+
     def read_status(self):
         raise NotImplementedError('All Devices need a Status!')
+
     def read_name(self):
         return self.name
+
 
 class Readable(Device):
     """A Readable Device"""
     unit = ''
+
     def read_value(self):
         raise NotImplementedError('A Readable MUST provide a value')
+
     def read_unit(self):
         return self.unit
+
 
 class Writeable(Readable):
     """Writeable can be told to change it's vallue"""
     target = None
+
     def read_target(self):
         return self.target
+
     def write_target(self, target):
         self.target = target
+
 
 class Driveable(Writeable):
     """A Moveable which may take a while to reach its target,
@@ -62,32 +73,3 @@ class Driveable(Writeable):
     def do_stop(self):
         raise NotImplementedError('A Driveable MUST implement the STOP() '
                                   'command')
-
-
-def get_device_pars(dev):
-    """return a mapping of the devices parameter names to some
-    'description'"""
-    res = {}
-    for n in dir(dev):
-        if n.startswith('read_'):
-            pname = n[5:]
-            entry = attrdict(readonly=True, description=getattr(dev, n).__doc__)
-            if hasattr(dev, 'write_%s' % pname):
-                entry['readonly'] = False
-            res[pname] = entry
-    return res
-
-def get_device_cmds(dev):
-    """return a mapping of the devices command names to some
-    'description'"""
-    res = {}
-    for n in dir(dev):
-        if n.startswith('do_'):
-            cname = n[5:]
-            func = getattr(dev, n)
-            # XXX: use inspect!
-            entry = attrdict(description=func.__doc__, args='unknown')
-            res[cname] = entry
-    return res
-
-

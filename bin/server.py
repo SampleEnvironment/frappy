@@ -33,34 +33,34 @@ pid_path = path.join(basepath, 'pid')
 log_path = path.join(basepath, 'log')
 sys.path[0] = path.join(basepath, 'src')
 
-
+import logger
 import argparse
 from lib import check_pidfile, start_server, kill_server
 
-parser = argparse.ArgumentParser(description = "Manage a SECoP server")
+parser = argparse.ArgumentParser(description="Manage a SECoP server")
 loggroup = parser.add_mutually_exclusive_group()
-loggroup.add_argument("-v", "--verbose", help="Output lots of diagnostic information", 
-                    action='store_true', default=False)
-loggroup.add_argument("-q", "--quiet", help="suppress non-error messages", action='store_true',
-                    default=False)
-parser.add_argument("action", help="What to do with the server: (re)start, status or stop",
-                    choices=['start', 'status', 'stop', 'restart'], default="status")
-parser.add_argument("name", help="Name of the instance. Uses etc/name.cfg for configuration\n"
+loggroup.add_argument("-v", "--verbose",
+                      help="Output lots of diagnostic information",
+                      action='store_true', default=False)
+loggroup.add_argument("-q", "--quiet", help="suppress non-error messages",
+                      action='store_true', default=False)
+parser.add_argument("action",
+                    help="What to do: (re)start, status or stop",
+                    choices=['start', 'status', 'stop', 'restart'],
+                    default="status")
+parser.add_argument("name",
+                    help="Name of the instance.\n"
+                    " Uses etc/name.cfg for configuration\n"
                     "may be omitted to mean ALL (which are configured)",
                     nargs='?', default='')
 args = parser.parse_args()
 
 
-import logging
-loglevel =  logging.DEBUG if args.verbose else (logging.ERROR if args.quiet else logging.INFO)
-logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s %(message)s')
-logger = logging.getLogger('server')
-logger.setLevel(loglevel)
-fh = logging.FileHandler(path.join(log_path, 'server.log'), 'w')
-fh.setLevel(loglevel)
-logger.addHandler(fh)
+loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
+logger = logger.get_logger('startup', loglevel)
 
 logger.debug("action specified %r" % args.action)
+
 
 def handle_servername(name, action):
     pidfile = path.join(pid_path, name + '.pid')
@@ -97,7 +97,7 @@ if not args.name:
             if fn.endswith('.cfg'):
                 handle_servername(fn[:-4], args.action)
             else:
-                logger.debug('configfile with strange extension found: %r' 
+                logger.debug('configfile with strange extension found: %r'
                              % path.basename(fn))
         # ignore subdirs!
         while(dirs):
