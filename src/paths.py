@@ -20,19 +20,14 @@
 #
 # *****************************************************************************
 
-"""Define Client side proxies"""
+"""Pathes. how to find what and where..."""
 
-# nothing here yet.
-
-
-def get_client(interfacespec):
-    """returns a client connected to the remote interface"""
-    pass
+import sys
+from os import path
 
 
-class DeviceProxy(object):
-    """(In python) dynamically constructed object
-
-    allowing access to the servers devices via the SECoP Protocol inbetween
-    """
-    pass
+basepath = path.abspath(path.join(sys.path[0], '..'))
+etc_path = path.join(basepath, 'etc')
+pid_path = path.join(basepath, 'pid')
+log_path = path.join(basepath, 'log')
+sys.path[0] = path.join(basepath, 'src')

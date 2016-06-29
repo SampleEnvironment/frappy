@@ -32,62 +32,65 @@ from validators import floatrange, positive, mapping
 from lib import clamp
 
 
-hack = []
-
 class Cryostat(Driveable):
-    """simulated cryostat with heat capacity on the sample, cooling power and thermal transfer functions"""
-    CONFIG = dict(
+    """simulated cryostat with:
+
+    - heat capacity of the sample
+    - cooling power
+    - thermal transfer between regulation and samplen
+    """
+    PARAMS = dict(
         jitter=CONFIG("amount of random noise on readout values",
-                      validator=floatrange(0, 1), default=1,
-                     ),
-        T_start=CONFIG("starting temperature for simulation",
-                       validator=positive, default=2,
+                      validator=floatrange(0, 1),
+                      export=False,
                       ),
+        T_start=CONFIG("starting temperature for simulation",
+                       validator=positive, export=False,
+                       ),
         looptime=CONFIG("timestep for simulation",
                         validator=positive, default=1, unit="s",
-                       ),
-    )
-    PARAMS = dict(
+                        export=False,
+                        ),
         ramp=PARAM("ramping speed in K/min",
                    validator=floatrange(0, 1e3), default=1,
-                  ),
+                   ),
         setpoint=PARAM("ramping speed in K/min",
                        validator=float, default=1, readonly=True,
-                      ),
+                       ),
         maxpower=PARAM("Maximum heater power in W",
                        validator=float, default=0, readonly=True, unit="W",
-                      ),
+                       ),
         heater=PARAM("current heater setting in %",
                      validator=float, default=0, readonly=True, unit="%",
-                    ),
+                     ),
         heaterpower=PARAM("current heater power in W",
                           validator=float, default=0, readonly=True, unit="W",
-                         ),
+                          ),
         target=PARAM("target temperature in K",
                      validator=float, default=0, unit="K",
-                    ),
+                     ),
         p=PARAM("regulation coefficient 'p' in %/K",
                 validator=positive, default=40, unit="%/K",
-               ),
+                ),
         i=PARAM("regulation coefficient 'i'",
                 validator=floatrange(0, 100), default=10,
-               ),
+                ),
         d=PARAM("regulation coefficient 'd'",
                 validator=floatrange(0, 100), default=2,
-               ),
+                ),
         mode=PARAM("mode of regulation",
                    validator=mapping('ramp', 'pid', 'openloop'), default='pid',
-                  ),
+                   ),
 
         tolerance=PARAM("temperature range for stability checking",
-                     validator=floatrange(0, 100), default=0.1, unit='K',
-                    ),
+                        validator=floatrange(0, 100), default=0.1, unit='K',
+                        ),
         window=PARAM("time window for stability checking",
                      validator=floatrange(1, 900), default=30, unit='s',
-                    ),
+                     ),
         timeout=PARAM("max waiting time for stabilisation check",
-                     validator=floatrange(1, 36000), default=900, unit='s',
-                    ),
+                      validator=floatrange(1, 36000), default=900, unit='s',
+                      ),
     )
 
     def init(self):
@@ -95,16 +98,15 @@ class Cryostat(Driveable):
         self._thread = threading.Thread(target=self.thread)
         self._thread.daemon = True
         self._thread.start()
-        #XXX: hack!!! use a singleton as registry for the other devices to access this one...
-        hack.append(self)
 
     def read_status(self):
-        # instead of asking a 'Hardware' take the value from the simulation thread
+        # instead of asking a 'Hardware' take the value from the simulation
         return self.status
 
     def read_value(self, maxage=0):
         # return regulation value (averaged regulation temp)
-        return self.regulationtemp + self.config_jitter * (0.5 - random.random())
+        return self.regulationtemp + \
+            self.config_jitter * (0.5 - random.random())
 
     def read_target(self, maxage=0):
         return self.target
@@ -119,12 +121,13 @@ class Cryostat(Driveable):
 
     def write_maxpower(self, newpower):
         # rescale heater setting in % to keep the power
-        self.heater = max(0, min(100, self.heater * self.maxpower / float(newpower)))
+        heat = max(0, min(100, self.heater * self.maxpower / float(newpower)))
+        self.heater = heat
         self.maxpower = newpower
 
     def doStop(self):
-        # stop the ramp by setting current value as target
-        # XXX: there may be use case where setting the current temp may be better
+        # stop the ramp by setting current setpoint as target
+        # XXX: discussion: take setpoint or current value ???
         self.write_target(self.setpoint)
 
     #
@@ -176,7 +179,8 @@ class Cryostat(Driveable):
         # local state keeping:
         regulation = self.regulationtemp
         sample = self.sampletemp
-        window = [] # keep history values for stability check
+        # keep history values for stability check
+        window = []
         timestamp = time.time()
         heater = 0
         lastflow = 0
@@ -210,7 +214,8 @@ class Cryostat(Driveable):
             newregulation = max(0, regulation +
                                 regdelta / self.__coolerCP(regulation) * h)
             # b) see
-            # http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
+            # http://brettbeauregard.com/blog/2011/04/
+            # improving-the-beginners-pid-introduction/
             if self.mode != 'openloop':
                 # fix artefacts due to too big timesteps
                 # actually i would prefer reducing looptime, but i have no
@@ -320,4 +325,3 @@ class Cryostat(Driveable):
         self._stopflag = True
         if self._thread and self._thread.isAlive():
             self._thread.join()
-

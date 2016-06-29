@@ -22,15 +22,16 @@
 
 """Define helpers"""
 
-import logging
-from os import path
 
 class attrdict(dict):
     """a normal dict, providing access also via attributes"""
+
     def __getattr__(self, key):
         return self[key]
+
     def __setattr__(self, key, value):
         self[key] = value
+
 
 def clamp(_min, value, _max):
     """return the median of 3 values,
@@ -41,25 +42,14 @@ def clamp(_min, value, _max):
     # return median, i.e. clamp the the value between min and max
     return sorted([_min, value, _max])[1]
 
+
 def get_class(spec):
     """loads a class given by string in dotted notaion (as python would do)"""
     modname, classname = spec.rsplit('.', 1)
     import importlib
-#    module = importlib.import_module(modname)
-    module = __import__(spec)
+    module = importlib.import_module(modname)
+#    module = __import__(spec)
     return getattr(module, classname)
-
-def make_logger(inst='server', name='', base_path='', loglevel=logging.INFO):
-    # XXX: rework this! (outsource to a logging module...)
-    if name:
-        inst = '%s %s' % (inst, name)
-    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s %(message)s')
-    logger = logging.getLogger(inst)
-    logger.setLevel(loglevel)
-    fh = logging.FileHandler(path.join(base_path, 'log', (name or inst) + '.log'))
-    fh.setLevel(loglevel)
-    logger.addHandler(fh)
-    return logger
 
 
 # moved below definitions to break import cycle
@@ -73,4 +63,3 @@ if __name__ == '__main__':
     d.c = 9
     d['d'] = 'c'
     assert d[d.d] == 9
-

@@ -22,11 +22,14 @@
 # *****************************************************************************
 """error class for our little framework"""
 
+
 class SECoPServerError(Exception):
     pass
 
+
 class ConfigError(SECoPServerError):
     pass
+
 
 class ProgrammingError(SECoPServerError):
     pass

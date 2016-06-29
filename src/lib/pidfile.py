@@ -33,12 +33,14 @@ def read_pidfile(pidfile):
     try:
         with open(pidfile, 'r') as f:
             return int(f.read())
-    except OSError:
+    except (OSError, IOError):
         return None
+
 
 def remove_pidfile(pidfile):
     """remove the given pidfile, typically at end of the process"""
     os.remove(pidfile)
+
 
 def write_pidfile(pidfile, pid):
     """write the given pid to the given pidfile"""
@@ -46,8 +48,8 @@ def write_pidfile(pidfile, pid):
         f.write('%d\n' % pid)
     atexit.register(remove_pidfile, pidfile)
 
+
 def check_pidfile(pidfile):
     """check if the process from a given pidfile is still running"""
     pid = read_pidfile(pidfile)
     return False if pid is None else psutil.pid_exists(pid)
-

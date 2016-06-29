@@ -22,30 +22,77 @@
 """Define validators."""
 
 
-# a Validator validates a given object and raises an ValueError if it doesn't fit
+# a Validator returns a validated object or raises an ValueError
 # easy python validators: int(), float(), str()
+# also validators should have a __repr__ returning a 'python' string
+# which recreates them
 
-class floatrange(object):
-    def __init__(self, lower, upper):
-        self.lower = float(lower)
-        self.upper = float(upper)
+class Validator(object):
+    # list of tuples: (name, converter)
+    params = []
+    valuetype = float
+
+    def __init__(self, *args, **kwds):
+        plist = self.params[:]
+        if len(args) > len(plist):
+            raise ProgrammingError('%s takes %d parameters only (%d given)' % (
+                                   self.__class__.__name__,
+                                   len(plist), len(args)))
+        for pval in args:
+            pname, pconv = plist.pop(0)
+            if pname in kwds:
+                raise ProgrammingError('%s: positional parameter %s als given '
+                                       'as keyword!' % (
+                                           self.__class__.__name__,
+                                           pname))
+            self.__dict__[pname] = pconv(pval)
+        for pname, pconv in plist:
+            if pname in kwds:
+                pval = kwds.pop(pname)
+                self.__dict__[pname] = pconv(pval)
+            else:
+                raise ProgrammingError('%s: param %s left unspecified!' % (
+                                       self.__class__.__name__,
+                                       pname))
+
+        if kwds:
+            raise ProgrammingError('%s got unknown arguments: %s' % (
+                                   self.__class__.__name__,
+                                   ', '.join(list(kwds.keys()))))
+
+    def __repr__(self):
+        params = ['%s=%r' % (pn, self.__dict__[pn]) for pn in self.params]
+        return ('%s(%s)' % (self.__class__.__name__, ', '.join(params)))
+
     def __call__(self, value):
-        value = float(value)
-        if not self.lower <= value <= self.upper:
-            raise ValueError('Floatrange: value %r must be within %f and %f' % (value, self.lower, self.upper))
-        return value
+        return self.check(self.valuetype(value))
 
 
-def positive(obj):
-    if obj <= 0:
+class floatrange(Validator):
+    params = [('lower', float), ('upper', float)]
+
+    def check(self, value):
+        if self.lower <= value <= self.upper:
+            return value
+        raise ValueError('Floatrange: value %r must be within %f and %f' %
+                         (value, self.lower, self.upper))
+
+
+class positive(Validator):
+    def check(self, value):
+        if value > 0:
+            return value
         raise ValueError('Value %r must be positive!' % obj)
-    return obj
 
-def nonnegative(obj):
-    if obj < 0:
-        raise ValueError('Value %r must be zero or positive!' % obj)
-    return obj
 
+class nonnegative(Validator):
+    def check(self, value):
+        if value >= 0:
+            return value
+        raise ValueError('Value %r must be positive!' % obj)
+
+
+# more complicated validator may not be able to use validator base class
 class mapping(object):
     def __init__(self, *args, **kwds):
         self.mapping = {}
@@ -67,5 +114,9 @@ class mapping(object):
     def __call__(self, obj):
         if obj in self.mapping:
             return obj
-        raise ValueError("%r should be one of %r" % (obj, list(self.mapping.keys())))
+        raise ValueError("%r should be one of %r" %
+                         (obj, list(self.mapping.keys())))
 
+    def __repr__(self):
+        params = ['%s=%r' % (mname, mval) for mname, mval in self.mapping]
+        return ('%s(%s)' % (self.__class__.__name__, ', '.join(params)))

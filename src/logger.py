@@ -20,19 +20,28 @@
 #
 # *****************************************************************************
 
-"""Define Client side proxies"""
+"""Loggers"""
 
-# nothing here yet.
+import logging
+from os import path
 
-
-def get_client(interfacespec):
-    """returns a client connected to the remote interface"""
-    pass
+from paths import log_path
 
 
-class DeviceProxy(object):
-    """(In python) dynamically constructed object
+def get_logger(inst='', loglevel=logging.INFO):
+    loglevelmap = {'debug': logging.DEBUG,
+                   'info': logging.INFO,
+                   'warning': logging.WARNING,
+                   'error': logging.ERROR,
+                   }
+    loglevel = loglevelmap.get(loglevel, loglevel)
+    logging.basicConfig(level=loglevel,
+                        format='#[%(asctime)-15s][%(levelname)s]: %(message)s')
 
-    allowing access to the servers devices via the SECoP Protocol inbetween
-    """
-    pass
+    logger = logging.getLogger(inst)
+    logger.setLevel(loglevel)
+    fh = logging.FileHandler(path.join(log_path, inst + '.log'))
+    fh.setLevel(loglevel)
+    logger.addHandler(fh)
+    logging.root.addHandler(fh)  # ???
+    return logger

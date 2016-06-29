@@ -19,20 +19,9 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
+"""provide a zmq server"""
 
-"""Define Client side proxies"""
+# tbd.
 
-# nothing here yet.
-
-
-def get_client(interfacespec):
-    """returns a client connected to the remote interface"""
-    pass
-
-
-class DeviceProxy(object):
-    """(In python) dynamically constructed object
-
-    allowing access to the servers devices via the SECoP Protocol inbetween
-    """
-    pass
+# use zmq frames??
+# handle async and sync with different zmq ports?
