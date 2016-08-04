@@ -18,11 +18,13 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #
 # *****************************************************************************
 
 import os
 import sys
+import argparse
 from os import path
 
 # Pathes magic to make python find out stuff.
@@ -33,75 +35,84 @@ pid_path = path.join(basepath, 'pid')
 log_path = path.join(basepath, 'log')
 sys.path[0] = path.join(basepath, 'src')
 
-import logger
-import argparse
-from lib import check_pidfile, start_server, kill_server
-
-parser = argparse.ArgumentParser(description="Manage a SECoP server")
-loggroup = parser.add_mutually_exclusive_group()
-loggroup.add_argument("-v", "--verbose",
-                      help="Output lots of diagnostic information",
-                      action='store_true', default=False)
-loggroup.add_argument("-q", "--quiet", help="suppress non-error messages",
-                      action='store_true', default=False)
-parser.add_argument("action",
-                    help="What to do: (re)start, status or stop",
-                    choices=['start', 'status', 'stop', 'restart'],
-                    default="status")
-parser.add_argument("name",
-                    help="Name of the instance.\n"
-                    " Uses etc/name.cfg for configuration\n"
-                    "may be omitted to mean ALL (which are configured)",
-                    nargs='?', default='')
-args = parser.parse_args()
+import loggers
+from server import Server
 
 
-loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
-logger = logger.get_logger('startup', loglevel)
 
-logger.debug("action specified %r" % args.action)
+def parseArgv(argv):
+    parser = argparse.ArgumentParser(description="Manage a SECoP server")
+    loggroup = parser.add_mutually_exclusive_group()
+    loggroup.add_argument("-v", "--verbose",
+                          help="Output lots of diagnostic information",
+                          action='store_true', default=False)
+    loggroup.add_argument("-q", "--quiet", help="suppress non-error messages",
+                          action='store_true', default=False)
+    parser.add_argument("action",
+                        help="What to do: (re)start, status or stop",
+                        choices=['start', 'status', 'stop', 'restart'],
+                        default="status")
+    parser.add_argument("name",
+                        help="Name of the instance.\n"
+                        " Uses etc/name.cfg for configuration\n"
+                        "may be omitted to mean ALL (which are configured)",
+                        nargs='?', default='')
+    parser.add_argument('-d',
+                        '--daemonize',
+                        action='store_true',
+                        help='Run as daemon',
+                        default=False)
+    return parser.parse_args()
 
 
-def handle_servername(name, action):
-    pidfile = path.join(pid_path, name + '.pid')
-    cfgfile = path.join(etc_path, name + '.cfg')
-    if action == "restart":
-        handle_servername(name, 'stop')
-        handle_servername(name, 'start')
-        return
-    elif action == "start":
-        logger.info("Starting server %s" % name)
-        # XXX also do it !
-        start_server(name, basepath, loglevel)
-    elif action == "stop":
-        pid = check_pidfile(pidfile)
-        if pid:
-            logger.info("Stopping server %s" % name)
-            # XXX also do it!
-            stop_server(pidfile)
-        else:
-            logger.info("Server %s already dead" % name)
-    elif action == "status":
-        if check_pidfile(pidfile):
-            logger.info("Server %s is running." % name)
-        else:
-            logger.info("Server %s is DEAD!" % name)
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    args = parseArgv(argv[1:])
+
+    loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
+    loggers.initLogging('secop', loglevel, path.join(log_path))
+    logger = loggers.log
+
+    srvNames = []
+
+    if not args.name:
+        print('No name given, iterating over all specified servers')
+        for dirpath, dirs, files in os.walk(etc_path):
+            for fn in files:
+                if fn.endswith('.cfg'):
+                    srvNames.append(fn[:-4])
+                else:
+                    logger.debug('configfile with strange extension found: %r'
+                                 % path.basename(fn))
+            # ignore subdirs!
+            while (dirs):
+                dirs.pop()
     else:
-        logger.error("invalid action specified: How can this ever happen???")
+        srvNames = [args.name]
 
-print "================================"
-if not args.name:
-    logger.debug("No name given, iterating over all specified servers")
-    for dirpath, dirs, files in os.walk(etc_path):
-        for fn in files:
-            if fn.endswith('.cfg'):
-                handle_servername(fn[:-4], args.action)
+    srvs = []
+    for entry in srvNames:
+        srv = Server(entry, basepath)
+        srvs.append(srv)
+
+        if args.action == "restart":
+            srv.stop()
+            srv.start()
+        elif args.action == "start":
+            if len(srvNames) > 1 or args.daemonize:
+                srv.start()
             else:
-                logger.debug('configfile with strange extension found: %r'
-                             % path.basename(fn))
-        # ignore subdirs!
-        while(dirs):
-            dirs.pop()
-else:
-    handle_servername(args.name, args.action)
-print "================================"
+                srv.run()
+        elif args.action == "stop":
+            srv.stop()
+        elif args.action == "status":
+            if srv.isAlive():
+                logger.info("Server %s is running." % entry)
+            else:
+                logger.info("Server %s is DEAD!" % entry)
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

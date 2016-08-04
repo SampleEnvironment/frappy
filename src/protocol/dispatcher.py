@@ -161,7 +161,7 @@ class Dispatcher(object):
             dn.append(devname)
             dev = self.get_device(devname)
             descriptive_data = {
-                'class': dev.__class__,
+                'class': dev.__class__.__name__,
                 #'bases': dev.__bases__,
                 'parameters': dev.PARAMS.keys(),
                 'commands': dev.CMDS.keys(),

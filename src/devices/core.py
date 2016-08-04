@@ -161,7 +161,7 @@ class Device(object):
 
     def init(self):
         # may be overriden in other classes
-        pass
+        self.log.debug('init()')
 
 
 class Readable(Device):
