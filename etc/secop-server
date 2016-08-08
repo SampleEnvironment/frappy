@@ -1,0 +1,124 @@
+#!/usr/bin/env python
+#  -*- coding: utf-8 -*-
+### BEGIN INIT INFO
+# Provides: secop-server
+# Required-Start: $local_fs $remote_fs $network $named $time
+# Required-Stop: $local_fs $remote_fs $network
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Description: Secop servers
+### END INIT INFO
+# *****************************************************************************
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#
+# *****************************************************************************
+
+import sys
+import argparse
+import os.path
+import glob
+import signal
+
+
+CFG_DIR='/etc/secop'
+PID_DIR = '/var/run'
+SRV_EXEC = 'secop-server'
+
+inplace_basedir = os.path.join(os.path.dirname(__file__), '..')
+if os.path.isfile(os.path.join(inplace_basedir, 'src', '__init__.py')):
+    CFG_DIR = os.path.join(inplace_basedir, 'etc')
+    PID_DIR = os.path.join(inplace_basedir, 'pid')
+    SRV_EXEC = os.path.join(inplace_basedir, 'bin/secop-server')
+
+
+def parseArgv(argv):
+    parser = argparse.ArgumentParser(description='Manage a SECoP server')
+    parser.add_argument('action',
+                        type=str,
+                        choices=['start', 'stop', 'restart', 'status'],
+                        help='What to do with the desired server', )
+    parser.add_argument('name',
+                        nargs='*',
+                        help='Name of the instance.\n'
+                        ' Uses etc/name.cfg for configuration\n',)
+    return parser.parse_args()
+
+
+def getServerNames():
+    return sorted([os.path.basename(entry)[:-4]
+            for entry in glob.glob(os.path.join(CFG_DIR, '*.cfg'))])
+
+
+def getSrvPid(name):
+    pidfile = os.path.join(PID_DIR, '%s.pid' % name)
+    if not os.path.isfile(pidfile):
+        return None
+    with open(pidfile) as f:
+        return int(f.read())
+
+
+def startServer(name):
+    pid = getSrvPid(name)
+
+    if pid:
+        print('%s: already running (pid: %s)' % (name, pid))
+    else:
+        print('%s: starting ...' % name)
+        os.system('%s -d %s' % (SRV_EXEC, name))
+
+
+def stopServer(name):
+    pid = getSrvPid(name)
+    if pid:
+        print('%s: stopping ...' % name)
+        os.kill(pid, signal.SIGTERM)
+    else:
+        print('%s: already stopped' % name)
+
+
+def determineServerStatus(name):
+    pid = getSrvPid(name)
+
+    if pid:
+        print('%s: running (pid: %s)' % (name, pid))
+    else:
+        print('%s: dead' % name)
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    args = parseArgv(argv[1:])
+
+    actionMap = {
+        'start' : startServer,
+        'stop': stopServer,
+        'status': determineServerStatus,
+    }
+
+    srvs = args.name
+    if not srvs:
+        srvs = getServerNames()
+
+    for entry in srvs:
+        actionMap[args.action](entry)
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

@@ -87,6 +87,13 @@ class SecopLogger(Logger):
 
         return child
 
+    def getLogfileStreams(self):
+        result = []
+        for entry in self._collectHandlers():
+            if isinstance(entry, LogfileHandler):
+                result.append(entry.stream)
+        return result
+
     def _collectHandlers(self):
         result = []
 

@@ -26,9 +26,8 @@ import os
 import psutil
 import ConfigParser
 
-# apt install python-daemon !!!do not use pip install daemon <- wrong version!
-import daemon
-#from daemon import pidlockfile
+from daemon import DaemonContext
+from daemon.pidfile import TimeoutPIDLockFile
 
 import loggers
 from lib import read_pidfile, write_pidfile, get_class, check_pidfile
@@ -54,39 +53,20 @@ class Server(object):
         self._interface = None
 
     def start(self):
-        pidfile = pidlockfile.TimeoutPIDLockFile(self._pidfile, 3)
+        piddir = os.path.dirname(self._pidfile)
+        if not os.path.isdir(piddir):
+            os.makedirs(piddir)
+        pidfile = TimeoutPIDLockFile(self._pidfile)
 
-        with daemon.DaemonContext(
-                # files_preserve=[logFileHandler.stream],
-                pidfile=pidfile,
-        ):
-            try:
-                # write_pidfile(pidfilename, os.getpid())
-                self.run()
-            except Exception as e:
-                self.log.exception(e)
+        if pidfile.is_locked():
+            self.log.error('Pidfile already exists. Exiting')
 
-    def stop(self):
-        pid = read_pidfile(self._pidfile)
-        if pid is None:
-            # already dead/not started yet
-            return
-        # get process for this pid
-        for proc in psutil.process_iter():
-            if proc.pid == pid:
-                break
-        proc.terminate()
-        proc.wait(3)
-        proc.kill()
-
-    def isAlive(self):
-        if check_pidfile(self._pidfile):
-            return True
-        return False
+        with DaemonContext(working_directory=self._workdir,
+                           pidfile=pidfile,
+                           files_preserve=self.log.getLogfileStreams()):
+            self.run()
 
     def run(self):
-        # write pidfile before doing actual things
-        write_pidfile(self._pidfile, os.getpid())
         self._processCfg()
 
         self.log.info('startup done, handling transport messages')

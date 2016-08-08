@@ -2,8 +2,7 @@
 markdown>=2.6
 # general stuff
 psutil
-# daemonizing not yet functional (logging problems)
-#daemonize
+python-daemon
 # for zmq
 #pyzmq>=13.1.0
 

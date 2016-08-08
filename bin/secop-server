@@ -48,15 +48,10 @@ def parseArgv(argv):
                           action='store_true', default=False)
     loggroup.add_argument("-q", "--quiet", help="suppress non-error messages",
                           action='store_true', default=False)
-    parser.add_argument("action",
-                        help="What to do: (re)start, status or stop",
-                        choices=['start', 'status', 'stop', 'restart'],
-                        default="status")
     parser.add_argument("name",
+                        type=str,
                         help="Name of the instance.\n"
-                        " Uses etc/name.cfg for configuration\n"
-                        "may be omitted to mean ALL (which are configured)",
-                        nargs='?', default='')
+                        " Uses etc/name.cfg for configuration\n",)
     parser.add_argument('-d',
                         '--daemonize',
                         action='store_true',
@@ -73,45 +68,16 @@ def main(argv=None):
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
     loggers.initLogging('secop', loglevel, path.join(log_path))
-    logger = loggers.log
 
-    srvNames = []
+    srv = Server(args.name, basepath)
 
-    if not args.name:
-        print('No name given, iterating over all specified servers')
-        for dirpath, dirs, files in os.walk(etc_path):
-            for fn in files:
-                if fn.endswith('.cfg'):
-                    srvNames.append(fn[:-4])
-                else:
-                    logger.debug('configfile with strange extension found: %r'
-                                 % path.basename(fn))
-            # ignore subdirs!
-            while (dirs):
-                dirs.pop()
+    if args.daemonize:
+        srv.start()
     else:
-        srvNames = [args.name]
-
-    srvs = []
-    for entry in srvNames:
-        srv = Server(entry, basepath)
-        srvs.append(srv)
-
-        if args.action == "restart":
-            srv.stop()
-            srv.start()
-        elif args.action == "start":
-            if len(srvNames) > 1 or args.daemonize:
-                srv.start()
-            else:
-                srv.run()
-        elif args.action == "stop":
-            srv.stop()
-        elif args.action == "status":
-            if srv.isAlive():
-                logger.info("Server %s is running." % entry)
-            else:
-                logger.info("Server %s is DEAD!" % entry)
+        try:
+            srv.run()
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':
