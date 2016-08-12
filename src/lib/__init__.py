@@ -52,10 +52,6 @@ def get_class(spec):
     return getattr(module, classname)
 
 
-# moved below definitions to break import cycle
-from pidfile import *
-from startup import *
-
 if __name__ == '__main__':
     print "minimal testing: lib"
     d = attrdict(a=1, b=2)

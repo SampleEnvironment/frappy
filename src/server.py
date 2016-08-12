@@ -30,7 +30,7 @@ from daemon import DaemonContext
 from daemon.pidfile import TimeoutPIDLockFile
 
 import loggers
-from lib import read_pidfile, write_pidfile, get_class, check_pidfile
+from lib import get_class
 from protocol.dispatcher import Dispatcher
 from protocol.interface import INTERFACES
 from protocol.transport import ENCODERS, FRAMERS
