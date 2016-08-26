@@ -27,45 +27,66 @@
 # all others MUST derive from those, the 'interface'-class is still derived
 # from these base classes (how to do this?)
 
+import time
 import types
 import inspect
 
 from errors import ConfigError, ProgrammingError
 from protocol import status
+from validators import mapping
 
+EVENT_ONLY_ON_CHANGED_VALUES = True
 
 # storage for PARAMeter settings:
-# if readonly is False, the value can be changed (by code, or remte)
+# if readonly is False, the value can be changed (by code, or remote)
 # if no default is given, the parameter MUST be specified in the configfile
-# during startup, currentvalue is initialized with the default value or
-# from the config file
+# during startup, value is initialized with the default value or
+# from the config file if specified there
+
+
 class PARAM(object):
-    def __init__(self, description, validator=None, default=Ellipsis,
-                 unit=None, readonly=False, export=True):
+
+    def __init__(self, description, validator=float, default=Ellipsis,
+                 unit=None, readonly=True, export=True):
+        if isinstance(description, PARAM):
+            # make a copy of a PARAM object
+            self.__dict__.update(description.__dict__)
+            return
         self.description = description
         self.validator = validator
         self.default = default
         self.unit = unit
         self.readonly = readonly
         self.export = export
-        # internal caching...
-        self.currentvalue = default
+        # internal caching: value and timestamp of last change...
+        self.value = default
+        self.timestamp = 0
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(
+            ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
 
 # storage for CMDs settings (description + call signature...)
 class CMD(object):
+
     def __init__(self, description, arguments, result):
         # descriptive text for humans
         self.description = description
         # list of validators for arguments
-        self.argumenttype = arguments
-        # validator for results
+        self.arguments = arguments
+        # validator for result
         self.resulttype = result
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(
+            ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
 
 # Meta class
 # warning: MAGIC!
 class DeviceMeta(type):
+
     def __new__(mcs, name, bases, attrs):
         newtype = type.__new__(mcs, name, bases, attrs)
         if '__constructed__' in attrs:
@@ -81,22 +102,56 @@ class DeviceMeta(type):
             setattr(newtype, entry, newentry)
 
         # check validity of PARAM entries
-        for pname, info in newtype.PARAMS.items():
-            if not isinstance(info, PARAM):
+        for pname, pobj in newtype.PARAMS.items():
+            # XXX: allow dicts for overriding certain aspects only.
+            if not isinstance(pobj, PARAM):
                 raise ProgrammingError('%r: device PARAM %r should be a '
                                        'PARAM object!' % (name, pname))
-            #XXX: greate getters and setters, setters should send async updates
+            # XXX: create getters for the units of params ??
+            # wrap of reading/writing funcs
+            rfunc = attrs.get('read_' + pname, None)
 
-            def getter():
-                return self.PARAMS[pname].currentvalue
+            def wrapped_rfunc(self, maxage=0, pname=pname, rfunc=rfunc):
+                if rfunc:
+                    value = rfunc(self, maxage)
+                    setattr(self, pname, value)
+                    return value
+                else:
+                    # return cached value
+                    return self.PARAMS[pname].value
+            if rfunc:
+                wrapped_rfunc.__doc__ = rfunc.__doc__
+            setattr(newtype, 'read_' + pname, wrapped_rfunc)
 
-            def setter(value):
-                p = self.PARAMS[pname]
-                p.currentvalue = p.validator(value) if p.validator else value
-                # also send notification
-                self.DISPATCHER.announce_update(self, pname, value)
+            if not pobj.readonly:
+                wfunc = attrs.get('write_' + pname, None)
 
-            attrs[pname] = property(getter, setter)
+                def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
+                    self.log.debug("setter: set %s to %r" % (pname, value))
+                    if wfunc:
+                        value = wfunc(self, value) or value
+                    # XXX: use setattr or direct manipulation
+                    # of self.PARAMS[pname]?
+                    setattr(self, pname, value)
+                    return value
+                if wfunc:
+                    wrapped_wfunc.__doc__ = wfunc.__doc__
+                setattr(newtype, 'write_' + pname, wrapped_wfunc)
+
+            def getter(self, pname=pname):
+                return self.PARAMS[pname].value
+
+            def setter(self, value, pname=pname):
+                pobj = self.PARAMS[pname]
+                value = pobj.validator(value) if pobj.validator else value
+                pobj.timestamp = time.time()
+                if not EVENT_ONLY_ON_CHANGED_VALUES or (value != pobj.value):
+                    pobj.value = value
+                    # also send notification
+                    self.log.debug('%s is now %r' % (pname, value))
+                    self.DISPATCHER.announce_update(self, pname, pobj)
+
+            setattr(newtype, pname, property(getter, setter))
 
         # also collect/update information about CMD's
         setattr(newtype, 'CMDS', getattr(newtype, 'CMDS', {}))
@@ -114,6 +169,15 @@ class DeviceMeta(type):
 
 
 # Basic device class
+#
+# within devices, parameters should only be addressed as self.<pname>
+# i.e. self.value, self.target etc...
+# these are accesses to the cached version.
+# they can also be written to
+# (which auto-calls self.write_<pname> and generate an async update)
+# if you want to 'update from the hardware', call self.read_<pname>
+# the return value of this method will be used as the new cached value and
+# be returned.
 class Device(object):
     """Basic Device, doesn't do much"""
     __metaclass__ = DeviceMeta
@@ -123,7 +187,7 @@ class Device(object):
     DISPATCHER = None
 
     def __init__(self, logger, cfgdict, devname, dispatcher):
-        # remember the server object (for the async callbacks)
+        # remember the dispatcher object (for the async callbacks)
         self.DISPATCHER = dispatcher
         self.log = logger
         self.name = devname
@@ -137,13 +201,17 @@ class Device(object):
         # is not specified in cfgdict
         for k, v in self.PARAMS.items():
             if k not in cfgdict:
-                if v.default is Ellipsis:
+                if v.default is Ellipsis and k != 'value':
                     # Ellipsis is the one single value you can not specify....
                     raise ConfigError('Device %s: Parameter %r has no default '
                                       'value and was not given in config!'
                                       % (self.name, k))
                 # assume default value was given
                 cfgdict[k] = v.default
+
+            # replace CLASS level PARAM objects with INSTANCE level ones
+            self.PARAMS[k] = PARAM(self.PARAMS[k])
+
         # now 'apply' config:
         # pass values through the validators and store as attributes
         for k, v in cfgdict.items():
@@ -156,7 +224,6 @@ class Device(object):
                 except ValueError as e:
                     raise ConfigError('Device %s: config parameter %r:\n%r'
                                       % (self.name, k, e))
-            # XXX: with or without prefix?
             setattr(self, k, v)
 
     def init(self):
@@ -172,14 +239,14 @@ class Readable(Device):
     PARAMS = {
         'value': PARAM('current value of the device', readonly=True, default=0.),
         'status': PARAM('current status of the device', default=status.OK,
+                        validator=mapping(**{'idle': status.OK,
+                                             'BUSY': status.BUSY,
+                                             'WARN': status.WARN,
+                                             'UNSTABLE': status.UNSTABLE,
+                                             'ERROR': status.ERROR,
+                                             'UNKNOWN': status.UNKNOWN}),
                         readonly=True),
     }
-
-    def read_value(self, maxage=0):
-        raise NotImplementedError
-
-    def read_status(self):
-        return status.OK
 
 
 class Driveable(Readable):
@@ -188,8 +255,6 @@ class Driveable(Readable):
     providing a settable 'target' parameter to those of a Readable
     """
     PARAMS = {
-        'target': PARAM('target value of the device', default=0.),
+        'target': PARAM('target value of the device', default=0.,
+                        readonly=False),
     }
-
-    def write_target(self, value):
-        raise NotImplementedError

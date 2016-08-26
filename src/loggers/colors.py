@@ -27,12 +27,12 @@
 _codes = {}
 
 _attrs = {
-    'reset':     '39;49;00m',
-    'bold':      '01m',
-    'faint':     '02m',
-    'standout':  '03m',
+    'reset': '39;49;00m',
+    'bold': '01m',
+    'faint': '02m',
+    'standout': '03m',
     'underline': '04m',
-    'blink':     '05m',
+    'blink': '05m',
 }
 
 for _name, _value in _attrs.items():

@@ -2,7 +2,7 @@
 markdown>=2.6
 # general stuff
 psutil
-python-daemon
+python-daemon >=2.0
 # for zmq
 #pyzmq>=13.1.0
 

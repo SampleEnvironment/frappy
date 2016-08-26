@@ -28,3 +28,10 @@ WARN = 300
 UNSTABLE = 350
 ERROR = 400
 UNKNOWN = -1
+
+#OK = 'idle'
+#BUSY = 'busy'
+#WARN = 'alarm'
+#UNSTABLE = 'unstable'
+#ERROR = 'ERROR'
+#UNKNOWN = 'unknown'

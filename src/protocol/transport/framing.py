@@ -32,6 +32,7 @@ class Framer(object):
     note: not all MessageEncoders can use all Framers,
           but the intention is to have this for as many as possible.
     """
+
     def encode(self, *frames):
         """return the wire-data for the given messageframes"""
         raise NotImplemented
@@ -126,9 +127,67 @@ class RLEFramer(Framer):
         self.frames_to_go = 0
 
 
+class DemoFramer(Framer):
+    """Text based message framer
+
+    frmes are delimited by '\n'
+    messages are delimited by '\n\n'
+    '\r' is ignored
+    """
+
+    def __init__(self):
+        self.data = b''
+        self.decoded = []
+
+    def encode(self, frames):
+        """add transport layer encapsulation/framing of messages"""
+        if isinstance(frames, (tuple, list)):
+            return b'\n'.join(frames) + b'\n\n'
+        return b'%s\n\n' % frames
+
+    def decode(self, data):
+        """remove transport layer encapsulation/framing of messages
+
+        returns a list of messageframes which got decoded from data!
+        """
+        self.data += data
+        res = []
+        while b'\n' in self.data:
+            frame, self.data = self.data.split(b'\n', 1)
+            if frame.endswith('\r'):
+                frame = frame[:-1]
+            if self.data.startswith('\r'):
+                self.data = self.data[1:]
+            res.append(frame)
+        return res
+
+    def decode2(self, data):
+        """remove transport layer encapsulation/framing of messages
+
+        returns a _list_ of messageframes which got decoded from data!
+        """
+        self.data += data.replace(b'\r', '')
+        while b'\n' in self.data:
+            frame, self.data = self.data.split(b'\n', 1)
+            if frame:
+                # not an empty line -> belongs to this set of messages
+                self.decoded.append(frame)
+            else:
+                # empty line -> our set of messages is finished decoding
+                res = self.decoded
+                self.decoded = []
+                return res
+        return None
+
+    def reset(self):
+        self.data = b''
+        self.decoded = []
+
+
 FRAMERS = {
     'eol': EOLFramer,
     'rle': RLEFramer,
+    'demo': DemoFramer,
 }
 
 __ALL__ = ['FRAMERS']

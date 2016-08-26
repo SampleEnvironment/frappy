@@ -40,12 +40,11 @@ for dirpath, dirnames, filenames in os.walk(DOC_SRC):
     except OSError:
         pass
 
-    
     for fn in filenames:
         full_name = path.join(dirpath, fn)
         sub_name = path.relpath(full_name, DOC_SRC)
         final_name = path.join(DOC_DST, sub_name)
- 
+
         if not fn.endswith('md'):
             # just copy everything else
             with open(full_name, 'rb') as fi:

@@ -37,17 +37,19 @@ Interface to the devices:
  - remove_device(devname_or_obj): removes the device (during shutdown)
 
 internal stuff which may be called
- - get_devices(): return a list of devices + descriptive data as dict
- - get_device_params():
+ - list_devices(): return a list of devices + descriptive data as dict
+ - list_device_params():
    return a list of paramnames for this device + descriptive data
 """
 
+import time
 import threading
 
 from messages import *
 
 
 class Dispatcher(object):
+
     def __init__(self, logger, options):
         self.log = logger
         # XXX: move framing and encoding to interface!
@@ -73,7 +75,12 @@ class Dispatcher(object):
         with self._dispatcher_lock:
             # de-frame data
             frames = self.framing.decode(data)
+            if frames is None:
+                # not enough data (yet) -> return and come back with more
+                return None
             self.log.debug('Dispatcher: frames=%r' % frames)
+            if not frames:
+                conn.queue_reply(self._format_reply(HelpReply()))
             for frame in frames:
                 reply = None
                 # decode frame
@@ -82,45 +89,53 @@ class Dispatcher(object):
                 # act upon requestobj
                 msgtype = msg.TYPE
                 msgname = msg.NAME
-                msgargs = msg
                 # generate reply (coded and framed)
                 if msgtype != 'request':
-                    reply = ProtocolErrorReply(msg)
+                    reply = ProtocolError(msg)
                 else:
                     self.log.debug('Looking for handle_%s' % msgname)
                     handler = getattr(self, 'handle_%s' % msgname, None)
                     if handler:
-                        reply = handler(msgargs)
+                        reply = handler(conn, msg)
                     else:
                         self.log.debug('Can not handle msg %r' % msg)
-                        reply = self.unhandled(msgname, msgargs)
+                        reply = self.unhandled(msgname, msg)
                 if reply:
                     conn.queue_reply(self._format_reply(reply))
-            # queue reply viy conn.queue_reply(data)
+            # queue reply via conn.queue_reply(data)
 
     def _format_reply(self, reply):
+        self.log.debug('formatting reply %r' % reply)
         msg = self.encoding.encode(reply)
+        self.log.debug('encoded is %r' % msg)
         frame = self.framing.encode(msg)
+        self.log.debug('frame is %r' % frame)
         return frame
 
-    def announce_update(self, device, pname, value):
+    def announce_update(self, devobj, pname, pobj):
         """called by devices param setters to notify subscribers of new values
         """
-        eventname = '%s/%s' % (self.get_device(device).name, pname)
+        devname = devobj.name
+        eventname = '%s/%s' % (devname, pname)
         subscriber = self._dispatcher_subscriptions.get(eventname, None)
         if subscriber:
-            reply = AsyncDataUnit(device=self.get_device(device).name,
-                                  param=pname,
-                                  value=str(value),
-                                  timestamp=time.time(),
+            reply = AsyncDataUnit(devname=devname,
+                                  pname=pname,
+                                  value=str(pobj.value),
+                                  timestamp=pobj.timestamp,
                                   )
             data = self._format_reply(reply)
             for conn in subscriber:
                 conn.queue_async_reply(data)
 
-    def subscribe(self, conn, device, pname):
-        eventname = '%s/%s' % (self.get_device(device).name, pname)
-        self._dispatcher_subscriptions.getdefault(eventname, set()).add(conn)
+    def subscribe(self, conn, devname, pname):
+        eventname = '%s/%s' % (devname, pname)
+        self._dispatcher_subscriptions.setdefault(eventname, set()).add(conn)
+
+    def unsubscribe(self, conn, devname, pname):
+        eventname = '%s/%s' % (devname, pname)
+        if eventname in self._dispatcher_subscriptions:
+            self._dispatcher_subscriptions.remove(conn)
 
     def add_connection(self, conn):
         """registers new connection"""
@@ -133,6 +148,8 @@ class Dispatcher(object):
         # XXX: also clean _dispatcher_subscriptions !
 
     def register_device(self, devobj, devname, export=True):
+        self.log.debug('registering Device %r as %s (export=%r)' %
+                       (devobj, devname, export))
         self._dispatcher_devices[devname] = devobj
         if export:
             self._dispatcher_export.append(devname)
@@ -171,100 +188,295 @@ class Dispatcher(object):
         return dn, dd
 
     def list_device_params(self, devname):
+        self.log.debug('list_device_params(%r)' % devname)
         if devname in self._dispatcher_export:
             # XXX: omit export=False params!
-            return self.get_device(devname).PARAMS
+            res = {}
+            for paramname, param in self.get_device(devname).PARAMS.items():
+                if param.export == True:
+                    res[paramname] = param
+            self.log.debug('list params for device %s -> %r' %
+                           (devname, res))
+            return res
+        self.log.debug('-> device is not to be exported!')
         return {}
 
+    # demo stuff
+    def _setDeviceValue(self, devobj, value):
+        # set the device value. return readback value
+        # if return == None -> Ellispis (readonly!)
+        if self._getDeviceParam(devobj, 'target') != Ellipsis:
+            return self._setDeviceParam(devobj, 'target', value)
+        return Ellipsis
+
+    def _getDeviceValue(self, devobj):
+        # get the device value
+        # if return == None -> Ellipsis
+        return self._getDeviceParam(devobj, 'value')
+
+    def _setDeviceParam(self, devobj, pname, value):
+        # set the device param. return readback value
+        # if return == None -> Ellipsis (readonly!)
+        pobj = devobj.PARAMS.get(pname, Ellipsis)
+        if pobj == Ellipsis:
+            return pobj
+        if pobj.readonly:
+            return self._getDeviceParam(devobj, pname)
+        writefunc = getattr(devobj, 'write_%s' % pname, None)
+        validator = pobj.validator
+        value = validator(value)
+
+        if writefunc:
+            value = writefunc(value) or value
+        else:
+            setattr(devobj, pname, value)
+
+        return self._getDeviceParam(devobj, pname)
+
+    def _getDeviceParam(self, devobj, pname):
+        # get the device value
+        # if return == None -> Ellipsis
+        readfunc = getattr(devobj, 'read_%s' % pname, None)
+        if readfunc:
+            # should also update the pobj (via the setter from the metaclass)
+            readfunc()
+        pobj = devobj.PARAMS.get(pname, None)
+        if pobj:
+            return (pobj.value, pobj.timestamp)
+        return getattr(devobj, pname, Ellipsis)
+
+    def handle_Demo(self, conn, msg):
+        novalue = msg.novalue
+        devname = msg.devname
+        paramname = msg.paramname
+        propname = msg.propname
+        assign = msg.assign
+
+        res = []
+        if novalue in ('+', '-'):
+            # XXX: handling of subscriptions: propname is ignored
+            if devname is None:
+                # list all subscriptions for this connection
+                for evname, conns in self._dispatcher_subscriptions.items():
+                    if conn in conns:
+                        res.append('+%s:%s' % evname.split('/'))
+            devices = self._dispatcher_export if devname == '*' else [devname]
+            for devname in devices:
+                devobj = self.get_device(devname)
+                if devname != '*' and devobj is None:
+                    return NoSuchDeviceError(devname)
+                if paramname is None:
+                    pnames = ['value', 'status']
+                elif paramname == '*':
+                    pnames = devobj.PARAMS.keys()
+                else:
+                    pnames = [paramname]
+                for pname in pnames:
+                    pobj = devobj.PARAMS.get(pname, None)
+                    if pobj and not pobj.export:
+                        continue
+                    if paramname != '*' and pobj is None:
+                        return NoSuchParamError(devname, paramname)
+
+                    if novalue == '+':
+                        # subscribe
+                        self.subscribe(conn, devname, pname)
+                        res.append('+%s:%s' % (devname, pname))
+                    elif novalue == '-':
+                        # unsubscribe
+                        self.unsubscribe(conn, devname, pname)
+                        res.append('-%s:%s' % (devname, pname))
+            return DemoReply(res)
+
+        if devname is None:
+            return Error('no devname given!')
+        devices = self._dispatcher_export if devname == '*' else [devname]
+        for devname in devices:
+            devobj = self.get_device(devname)
+            if devname != '*' and devobj is None:
+                return NoSuchDeviceError(devname)
+            if paramname is None:
+                # Access Devices
+                val = self._setDeviceValue(
+                    devobj, assign) if assign else self._getDeviceValue(devobj)
+                if val == Ellipsis:
+                    if assign:
+                        return ParamReadonlyError(devname, 'target')
+                    return NoSuchDevice(devname)
+                formatfunc = lambda x: '' if novalue else ('=%r;t=%r' % x)
+                res.append(devname + formatfunc(val))
+
+            else:
+                pnames = devobj.PARAMS.keys(
+                ) if paramname == '*' else [paramname]
+                for pname in pnames:
+                    pobj = devobj.PARAMS.get(pname, None)
+                    if pobj and not pobj.export:
+                        continue
+                    if paramname != '*' and pobj is None:
+                        return NoSuchParamError(devname, paramname)
+                    if propname is None:
+                        # access params
+                        callfunc = lambda x, y: self._setDeviceParam(x, y, assign) \
+                            if assign else self._getDeviceParam(x, y)
+                        formatfunc = lambda x: '' if novalue else (
+                            '=%r;t=%r' % x)
+                        try:
+                            res.append(('%s:%s' % (devname, pname)) +
+                                       formatfunc(callfunc(devobj, pname)))
+                        except TypeError as e:
+                            return InternalError(e)
+                    else:
+                        props = pobj.__dict__.keys(
+                        ) if propname == '*' else [propname]
+                        for prop in props:
+                            # read props
+                            try:
+                                if novalue:
+                                    res.append(
+                                        '%s:%s:%s' %
+                                        (devname, pname, prop))
+                                else:
+                                    res.append(
+                                        '%s:%s:%s=%r' %
+                                        (devname, pname, prop, getattr(
+                                            pobj, prop)))
+                            except TypeError as e:
+                                return InternalError(e)
+
+        # now clean responce a little
+        res = [
+            e.replace(
+                '/v=',
+                '=') for e in sorted(
+                (e.replace(
+                    ':value=',
+                    '/v=') for e in res))]
+        return DemoReply(res)
+
     # now the (defined) handlers for the different requests
-    def handle_Help(self, msg):
+    def handle_Help(self, conn, msg):
         return HelpReply()
 
-    def handle_ListDevices(self, msgargs):
+    def handle_ListDevices(self, conn, msg):
+        # XXX: What about the descriptive data????
         # XXX: choose!
-        #return ListDevicesReply(self.list_device_names())
-        return ListDevicesReply(*self.list_devices())
+        return ListDevicesReply(self.list_device_names())
+        # return ListDevicesReply(*self.list_devices())
 
-    def handle_ListDeviceParams(self, msgargs):
-        devobj = self.get_device(msgargs.device)
-        if devobj:
-            return ListDeviceParamsReply(msgargs.device,
-                                         self.get_device_params(devobj))
+    def handle_ListDeviceParams(self, conn, msg):
+        # reply with a list of the parameter names for a given device
+        self.log.error('Keep: ListDeviceParams')
+        if msg.device in self._dispatcher_export:
+            params = self.list_device_params(msg.device)
+            return ListDeviceParamsReply(msg.device, params.keys())
         else:
-            return NoSuchDeviceErrorReply(msgargs.device)
+            return NoSuchDeviceError(msg.device)
 
-    def handle_ReadValue(self, msgargs):
-        devobj = self.get_device(msgargs.device)
-        if devobj:
-            return ReadValueReply(msgargs.device, devobj.read_value(),
+    def handle_ReadAllDevices(self, conn, msg):
+        # reply with a bunch of ReadValueReplies, reading ALL devices
+        result = []
+        for devname in sorted(self.list_device_names()):
+            devobj = self.get_device(devname)
+            value = self._getdeviceValue(devobj)
+            if value is not Ellipsis:
+                result.append(ReadValueReply(devname, value,
+                                             timestamp=time.time()))
+        return ReadAllDevicesReply(readValueReplies=result)
+
+    def handle_ReadValue(self, conn, msg):
+        devname = msg.device
+        devobj = self.get_device(devname)
+        if devobj is None:
+            return NoSuchDeviceError(devname)
+
+        value = self._getdeviceValue(devname)
+        if value is not Ellipsis:
+            return ReadValueReply(devname, value,
                                   timestamp=time.time())
-        else:
-            return NoSuchDeviceErrorReply(msgargs.device)
 
-    def handle_ReadParam(self, msgargs):
-        devobj = self.get_device(msgargs.device)
-        if devobj:
-            readfunc = getattr(devobj, 'read_%s' % msgargs.param, None)
-            if readfunc:
-                return ReadParamReply(msgargs.device, msgargs.param,
-                                      readfunc(), timestamp=time.time())
-            else:
-                return NoSuchParamErrorReply(msgargs.device, msgargs.param)
-        else:
-            return NoSuchDeviceErrorReply(msgargs.device)
+        return InternalError('undefined device value')
 
-    def handle_WriteParam(self, msgargs):
-        devobj = self.get_device(msgargs.device)
-        if devobj:
-            writefunc = getattr(devobj, 'write_%s' % msgargs.param, None)
-            if writefunc:
-                readbackvalue = writefunc(msgargs.value) or msgargs.value
-                # trigger async updates
-                setattr(devobj, msgargs.param, readbackvalue)
-                return WriteParamReply(msgargs.device, msgargs.param,
-                                       readbackvalue,
-                                       timestamp=time.time())
-            else:
-                if getattr(devobj, 'read_%s' % msgargs.param, None):
-                    return ParamReadonlyErrorReply(msgargs.device,
-                                                   msgargs.param)
-                else:
-                    return NoSuchParamErrorReply(msgargs.device,
-                                                 msgargs.param)
-        else:
-            return NoSuchDeviceErrorReply(msgargs.device)
+    def handle_WriteValue(self, conn, msg):
+        value = msg.value
+        devname = msg.device
+        devobj = self.get_device(devname)
+        if devobj is None:
+            return NoSuchDeviceError(devname)
 
-    def handle_RequestAsyncData(self, msgargs):
-        return ErrorReply('AsyncData is not (yet) supported')
+        pobj = getattr(devobj.PARAMS, 'target', None)
+        if pobj is None:
+            return NoSuchParamError(devname, 'target')
 
-    def handle_ListOfFeatures(self, msgargs):
+        if pobj.readonly:
+            return ParamReadonlyError(devname, 'target')
+
+        validator = pobj.validator
+        try:
+            value = validator(value)
+        except Exception as e:
+            return InvalidParamValueError(devname, 'target', value, e)
+
+        value = self._setDeviceValue(devobj, value) or value
+        WriteValueReply(devname, value, timestamp=time.time())
+
+    def handle_ReadParam(self, conn, msg):
+        devname = msg.device
+        pname = msg.param
+        devobj = self.get_device(devname)
+        if devobj is None:
+            return NoSuchDeviceError(devname)
+
+        pobj = getattr(devobj.PARAMS, pname, None)
+        if pobj is None:
+            return NoSuchParamError(devname, pname)
+
+        value = self._getdeviceParam(devobj, pname)
+        if value is not Ellipsis:
+            return ReadParamReply(devname, pname, value,
+                                  timestamp=time.time())
+
+        return InternalError('undefined device value')
+
+    def handle_WriteParam(self, conn, msg):
+        value = msg.value
+        pname = msg.param
+        devname = msg.device
+        devobj = self.get_device(devname)
+        if devobj is None:
+            return NoSuchDeviceError(devname)
+
+        pobj = getattr(devobj.PARAMS, pname, None)
+        if pobj is None:
+            return NoSuchParamError(devname, pname)
+
+        if pobj.readonly:
+            return ParamReadonlyError(devname, pname)
+
+        validator = pobj.validator
+        try:
+            value = validator(value)
+        except Exception as e:
+            return InvalidParamValueError(devname, pname, value, e)
+
+        value = self._setDeviceParam(devobj, pname, value) or value
+        WriteParamReply(devname, pname, value, timestamp=time.time())
+
+    # XXX: !!!
+    def handle_RequestAsyncData(self, conn, msg):
+        return Error('AsyncData is not (yet) supported')
+
+    def handle_ListOfFeatures(self, conn, msg):
         # no features supported (yet)
         return ListOfFeaturesReply([])
 
-    def handle_ActivateFeature(self, msgargs):
-        return ErrorReply('Features are not (yet) supported')
+    def handle_ActivateFeature(self, conn, msg):
+        return Error('Features are not (yet) supported')
 
-    def unhandled(self, msgname, msgargs):
+    def unhandled(self, msgname, conn, msg):
         """handler for unhandled Messages
 
         (no handle_<messagename> method was defined)
         """
         self.log.error('IGN: got unhandled request %s' % msgname)
-        return ErrorReply('Got Unhandled Request')
-
-    def parse_message(self, message):
-        # parses a message and returns
-        # msgtype, msgname and parameters of message (as dict)
-        msgtype = 'unknown'
-        msgname = 'unknown'
-        if isinstance(message, ErrorReply):
-            msgtype = message.TYPE
-            msgname = message.__class__.__name__[:-len('Reply')]
-        elif isinstance(message, Request):
-            msgtype = message.TYPE
-            msgname = message.__class__.__name__[:-len('Request')]
-        elif isinstance(message, Reply):
-            msgtype = message.TYPE
-            msgname = message.__class__.__name__[:-len('Reply')]
-        return msgtype, msgname, \
-            attrdict([(k, getattr(message, k)) for k in message.ARGS])
+        return Error('Got Unhandled Request')
