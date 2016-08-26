@@ -1,0 +1,13 @@
+:reply_items=
+ts
+mf
+tc1
+*
+mf:*
+mf:target=12
+mf:*
+mf:target:*
+:reply_items=t
+*
+!*
+*:*:*
