@@ -26,6 +26,7 @@ import random
 from devices.core import Readable, Driveable, PARAM
 from validators import floatrange
 
+from epics import PV
 
 class LN2(Readable):
     """Just a readable.
@@ -71,3 +72,23 @@ class Temp(Driveable):
 
     def write_target(self, target):
         pass
+
+
+
+class EPICS_PV(Driveable):
+    """pyepics test device."""
+
+    PARAMS = {
+        'sensor': PARAM("Sensor number or calibration id",
+                         validator=str, readonly=True),
+        'max_rpm': PARAM("Maximum allowed rpm",
+                         validator=str, readonly=True),
+    }
+
+    def read_value(self, maxage=0):
+        p1 = PV('testpv.VAL')
+        return p1.value
+
+    def write_target(self, target):
+        p1 = PV('test.VAL')
+        p1.value = target
