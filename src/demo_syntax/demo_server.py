@@ -33,26 +33,37 @@ else:
 
 
 class SecopError(Exception):
+
     def __init__(self, message, text):
         Exception.__init__(self, message, text)
 
+
 class UnknownDeviceError(SecopError):
+
     def __init__(self, message, args):
         SecopError.__init__(self, "NoSuchDevice", args[0])
 
+
 class UnknownParamError(SecopError):
+
     def __init__(self, message, args):
         SecopError.__init__(self, "NoSuchParam", "%s:%s" % args)
 
+
 class UnknownPropError(SecopError):
+
     def __init__(self, message, args):
         SecopError.__init__(self, "NoSuchProperty", "%s:%s:%s" % args)
 
+
 class SyntaxError(SecopError):
+
     def __init__(self, message):
         SecopError.__init__(self, "SyntaxError", message)
 
+
 class OtherError(SecopError):
+
     def __init__(self, message):
         SecopError.__init__(self, "OtherError", message)
 
@@ -64,11 +75,13 @@ def encode(input):
         return enc
     return inp
 
+
 def gettype(obj):
     typ = str(type(obj).__name__)
     if typ == "unicode":
         typ = "string"
     return typ
+
 
 def wildcard(dictionary, pattern):
     list = []
@@ -84,16 +97,19 @@ def wildcard(dictionary, pattern):
         elif p in dictionary:
             list.append(p)
         else:
-           raise KeyError(pattern)
+            raise KeyError(pattern)
     return list
 
 
 class SecopClientProps(object):
+
     def __init__(self):
-        self.reply_items = {".":"t", "writable":1}
-        self.compact_output = {".":0, "writable":1}
+        self.reply_items = {".": "t", "writable": 1}
+        self.compact_output = {".": 0, "writable": 1}
+
 
 class SecopLineHandler(lineserver.LineHandler):
+
     def __init__(self, *args, **kwargs):
         lineserver.LineHandler.__init__(self, *args, **kwargs)
         self.props = SecopClientProps()
@@ -101,7 +117,7 @@ class SecopLineHandler(lineserver.LineHandler):
     def handle_line(self, msg):
         try:
             if msg[-1:] == "\r":  # strip CR at end (for CRLF)
-                msg=msg[:-1]
+                msg = msg[:-1]
             if msg[:1] == "+":
                 self.subscribe(msg[1:].split(":"))
             elif msg[:1] == "-":
@@ -111,13 +127,12 @@ class SecopLineHandler(lineserver.LineHandler):
             else:
                 j = msg.find("=")
                 if j >= 0:
-                    self.write(msg[0:j], msg[j+1:])
+                    self.write(msg[0:j], msg[j + 1:])
                 else:
                     self.read(msg)
         except SecopError as e:
             self.send_line("~%s~ %s" % (e.args[0], e.args[1]))
         self.send_line("")
-
 
     def get_device(self, d):
         if d == "":
@@ -127,7 +142,7 @@ class SecopLineHandler(lineserver.LineHandler):
         try:
             return secNodeDict[d]
         except KeyError:
-            raise UnknownDeviceError("",(d))
+            raise UnknownDeviceError("", (d))
 
     def get_param(self, d, p):
         if p == "":
@@ -135,7 +150,7 @@ class SecopLineHandler(lineserver.LineHandler):
         try:
             return self.get_device(d)[p]
         except KeyError:
-            raise UnknownParamError("",(d,p))
+            raise UnknownParamError("", (d, p))
 
     def get_prop(self, d, p, y):
         if y == "":
@@ -144,10 +159,10 @@ class SecopLineHandler(lineserver.LineHandler):
             paramDict = self.get_param(d, p)
             return (paramDict, paramDict[y])
         except KeyError:
-            raise UnknownPropertyError("",(d,p,y))
+            raise UnknownPropertyError("", (d, p, y))
 
     def clear_output_path(self):
-    # used for compressing only
+        # used for compressing only
         self.outpath = [".", ".", "."]
         try:
             self.compact = self.props.compact_output["."] != 0
@@ -155,7 +170,7 @@ class SecopLineHandler(lineserver.LineHandler):
             self.compact = False
 
     def output_path(self, d, p=".", y="."):
-    # compose path from arguments. compress if compact is True
+        # compose path from arguments. compress if compact is True
         if d == self.outpath[0]:
             msg = ":"
         else:
@@ -185,19 +200,20 @@ class SecopLineHandler(lineserver.LineHandler):
         path = pathArg.split(":")
         while len(path) < 3:
             path.append("")
-        d,p,y = path
+        d, p, y = path
         parDict = self.get_param(d, p)
         if (y != "." and y != "") or not parDict.get("writable", 0):
-            self.send_line("? %s is not writable" % self.output_path(d,p,y))
+            self.send_line("? %s is not writable" % self.output_path(d, p, y))
         typ = type(parDict["."])
         try:
             val = (typ)(value)
         except ValueError:
-            raise SyntaxError("can not convert '%s' to %s" % (value, gettype(value)))
+            raise SyntaxError("can not convert '%s' to %s" %
+                              (value, gettype(value)))
         parDict["."] = val
         parDict["t"] = datetime.utcnow()
-        self.send_line(self.output_path(d, p, ".") + "=" + encode(parDict["."]))
-
+        self.send_line(self.output_path(d, p, ".") +
+                       "=" + encode(parDict["."]))
 
     def read(self, pathArg):
         self.clear_output_path()
@@ -240,7 +256,8 @@ class SecopLineHandler(lineserver.LineHandler):
             if path[2] == "":
                 msg = self.output_path(d, p, "") + "=" + encode(paramDict["."])
                 for y in replyitems:
-                    if y == ".": continue  # do not show the value twice
+                    if y == ".":
+                        continue  # do not show the value twice
                     try:
                         msg += ";" + y + "=" + encode(paramDict[y])
                     except KeyError:
@@ -296,7 +313,8 @@ else:
     server = lineserver.LineServer("localhost", port, SecopLineHandler)
 
 
-secNodeDict=json.load(open("secnode.json", "r"), object_pairs_hook=OrderedDict)
+secNodeDict = json.load(open("secnode.json", "r"),
+                        object_pairs_hook=OrderedDict)
 #json.dump(secNodeDict, open("secnode_out.json", "w"), indent=2, separators=(",",":"))
 for d in secNodeDict:
     devDict = secNodeDict[d]

@@ -29,7 +29,7 @@ from devices.core import Readable, Driveable, PARAM
 try:
     from epics import PV
 except ImportError:
-    PV=None
+    PV = None
 
 
 class EPICS_PV(Driveable):

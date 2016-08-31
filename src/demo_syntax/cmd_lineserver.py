@@ -1,5 +1,6 @@
 import fileinput
 
+
 class LineHandler():
 
     def __init__(self, *args, **kwargs):
@@ -14,6 +15,7 @@ class LineHandler():
         '''
         self.send_line("> " + line)
 
+
 class LineServer():
 
     def __init__(self, isfile, lineHandlerClass):
@@ -26,7 +28,7 @@ class LineServer():
             try:
                 if self.isfile:
                     line = raw_input("")
-                    print "> "+line
+                    print "> " + line
                 else:
                     line = raw_input("> ")
             except EOFError:

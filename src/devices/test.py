@@ -72,5 +72,3 @@ class Temp(Driveable):
 
     def write_target(self, target):
         pass
-
-
