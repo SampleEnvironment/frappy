@@ -193,6 +193,11 @@ class Device(object):
         self.DISPATCHER = dispatcher
         self.log = logger
         self.name = devname
+        # make local copies of PARAMS
+        params = {}
+        for k,v in self.PARAMS.items():
+            params[k] = PARAM(v)
+        self.PARAMS = params
         # check config for problems
         # only accept config items specified in PARAMS
         for k, v in cfgdict.items():
