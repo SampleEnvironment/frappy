@@ -33,7 +33,7 @@ import inspect
 
 from errors import ConfigError, ProgrammingError
 from protocol import status
-from validators import mapping
+from validators import mapping, vector
 
 EVENT_ONLY_ON_CHANGED_VALUES = True
 
@@ -263,6 +263,14 @@ class Readable(Device):
                                              'ERROR': status.ERROR,
                                              'UNKNOWN': status.UNKNOWN}),
                         readonly=True),
+        'status2': PARAM('current status of the device', default=(status.OK, ''),
+                         validator=vector(mapping(**{'idle': status.OK,
+                                                     'BUSY': status.BUSY,
+                                                     'WARN': status.WARN,
+                                                     'UNSTABLE': status.UNSTABLE,
+                                                     'ERROR': status.ERROR,
+                                                     'UNKNOWN': status.UNKNOWN}), str),
+                         readonly=True),
     }
 
 
