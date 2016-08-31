@@ -21,18 +21,18 @@
 
 ## A Server ##
 
- * get daemonizing working
- * handle -d (nodaemon) and -D (default, daemonize) cmd line args
- * support Async data units
- * support feature publishing and selection
  * rewrite MessageHandler to be agnostic of server
-
+ * move encoding to interface
+ * allow multiple interfaces per server
+ * fix error handling an make it consistent
 
 ## Device framework ##
 
- * unify PARAMS and CONFIG (if no default value is given, 
-it needs to be specified in cfgfile, otherwise its optional)
  * supply properties for PARAMS to auto-generate async data units
+ * self-polling support
+ * generic devicethreads
+ * proxydevice
+ * make get_device uri-aware
 
 
 ## Testsuite ##
@@ -45,7 +45,6 @@ it needs to be specified in cfgfile, otherwise its optional)
 
  * mabe use sphinx to generate docu: a pdf can then be auto-generated....
  * transfer build docu into wiki via automated jobfile
-Problem: wiki does not understand .md or .html
 
 
  

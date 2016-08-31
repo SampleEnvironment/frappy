@@ -32,6 +32,7 @@ MAX_MESSAGE_SIZE = 1024
 
 
 class TCPRequestHandler(SocketServer.BaseRequestHandler):
+
     def setup(self):
         self.log = self.server.log
         self._queue = collections.deque(maxlen=100)

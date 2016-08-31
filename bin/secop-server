@@ -67,7 +67,7 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
-    loggers.initLogging('secop', loglevel, path.join(log_path))
+    loggers.initLogging('secop', loglevel, log_path)
 
     srv = Server(args.name, basepath)
 

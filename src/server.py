@@ -38,6 +38,7 @@ from errors import ConfigError
 
 
 class Server(object):
+
     def __init__(self, name, workdir, parentLogger=None):
         self._name = name
         self._workdir = workdir
@@ -115,14 +116,23 @@ class Server(object):
             devclass = devopts.pop('class')
             # create device
             self.log.debug('Creating Device %r' % devname)
+            export = devopts.pop('export', '1')
+            export = export.lower() in ('1', 'on', 'true', 'yes')
+            if 'default' in devopts:
+                devopts['value'] = devopts.pop('default')
+            # strip '"
+            for k, v in devopts.items():
+                for d in ("'", '"'):
+                    if v.startswith(d) and v.endswith(d):
+                        devopts[k] = v[1:-1]
             devobj = devclass(self.log.getChild(devname), devopts, devname,
                               self._dispatcher)
-            devs.append([devname, devobj])
+            devs.append([devname, devobj, export])
 
         # connect devices with dispatcher
-        for devname, devobj in devs:
+        for devname, devobj, export in devs:
             self.log.info('registering device %r' % devname)
-            self._dispatcher.register_device(devobj, devname)
+            self._dispatcher.register_device(devobj, devname, export)
             # also call init on the devices
             devobj.init()
 
@@ -152,5 +162,3 @@ class Server(object):
                 cls.__name__,
                 ', '.join(options.keys())))
         return obj
-
-

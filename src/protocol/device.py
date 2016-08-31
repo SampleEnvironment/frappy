@@ -70,6 +70,7 @@ class Driveable(Writeable):
     """A Moveable which may take a while to reach its target,
 
     hence stopping it may be desired"""
+
     def do_stop(self):
         raise NotImplementedError('A Driveable MUST implement the STOP() '
                                   'command')

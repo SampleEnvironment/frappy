@@ -146,7 +146,7 @@ class Cryostat(Driveable):
     def __heatLink(self, coolertemp, sampletemp):
         """heatflow from sample to cooler. may be negative..."""
         flow = (sampletemp - coolertemp) * \
-               ((coolertemp + sampletemp) ** 2)/400.
+               ((coolertemp + sampletemp) ** 2) / 400.
         cp = clamp(self.__coolerCP(coolertemp) * self.__sampleCP(sampletemp),
                    1, 10)
         return clamp(flow, -cp, cp)
@@ -156,7 +156,7 @@ class Cryostat(Driveable):
             12 * temp / ((temp - 12.)**2 + 10) + 0.5
 
     def __sampleLeak(self, temp):
-        return 0.02/temp
+        return 0.02 / temp
 
     def thread(self):
         self.sampletemp = self.config_T_start
@@ -304,8 +304,8 @@ class Cryostat(Driveable):
             # obtain min/max
             deviation = 0
             for _, T in window:
-                if abs(T-self.target) > deviation:
-                    deviation = abs(T-self.target)
+                if abs(T - self.target) > deviation:
+                    deviation = abs(T - self.target)
             if (len(window) < 3) or deviation > self.tolerance:
                 self.status = status.BUSY, 'unstable'
             elif self.setpoint == self.target:

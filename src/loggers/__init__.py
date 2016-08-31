@@ -35,14 +35,13 @@ from logging import Logger, Formatter, Handler, DEBUG, INFO, WARNING, ERROR, \
 from . import colors
 
 
-
 LOGFMT = '%(asctime)s : %(levelname)-7s : %(name)-15s: %(message)s'
 DATEFMT = '%H:%M:%S'
 DATESTAMP_FMT = '%Y-%m-%d'
 SECONDS_PER_DAY = 60 * 60 * 24
 
 LOGLEVELS = {'debug': DEBUG, 'info': INFO, 'warning': WARNING, 'error': ERROR}
-INVLOGLEVELS = {value : key for key, value in LOGLEVELS.items()}
+INVLOGLEVELS = {value: key for key, value in LOGLEVELS.items()}
 
 
 log = None
@@ -58,7 +57,10 @@ def initLogging(rootname='secop', rootlevel='info', logdir='/tmp/log'):
     log.addHandler(ColoredConsoleHandler())
 
     # logfile for fg and bg process
-    log.addHandler(LogfileHandler(logdir, rootname))
+    if logdir.startswith('/var/log'):
+        log.addHandler(LogfileHandler(logdir, rootname))
+    else:
+        log.addHandler(LogfileHandler(logdir, ''))
 
 
 def getLogger(name, subdir=False):
@@ -72,7 +74,6 @@ class SecopLogger(Logger):
     def __init__(self, *args, **kwargs):
         Logger.__init__(self, *args, **kwargs)
         SecopLogger._storeLoggerNameLength(self)
-
 
     def getChild(self, suffix, ownDir=False):
         child = Logger.getChild(self, suffix)
@@ -109,7 +110,6 @@ class SecopLogger(Logger):
         # store max logger name length for formatting
         if len(logObj.name) > SecopLogger.maxLogNameLength:
             SecopLogger.maxLogNameLength = len(logObj.name)
-
 
 
 class ConsoleFormatter(Formatter):

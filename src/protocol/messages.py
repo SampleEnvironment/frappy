@@ -48,11 +48,18 @@ class Message(object):
                                 'argument %r' % k)
             names.remove(k)
             self.__dict__[k] = v
-        if names:
-            raise TypeError('__init__() takes at least %d arguments (%d given)'
-                            % len(self.ARGS), len(args)+len(kwds))
+        for name in names:
+            self.__dict__[name] = None
+#        if names:
+#            raise TypeError('__init__() takes at least %d arguments (%d given)'
+#                            % (len(self.ARGS), len(args)+len(kwds)))
         self.NAME = (self.__class__.__name__[:-len(self.TYPE)] or
                      self.__class__.__name__)
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + \
+            ', '.join('%s=%r' % (k, getattr(self, k))
+                      for k in self.ARGS if getattr(self, k) is not None) + ')'
 
 
 class Request(Message):
@@ -65,6 +72,16 @@ class Reply(Message):
 
 class ErrorReply(Message):
     TYPE = ERROR
+
+# for DEMO
+
+
+class DemoRequest(Request):
+    ARGS = ['novalue', 'devname', 'paramname', 'propname', 'assign']
+
+
+class DemoReply(Reply):
+    ARGS = ['lines']
 
 
 # actuall message objects
@@ -92,6 +109,30 @@ class ReadValueReply(Reply):
     ARGS = ['device', 'value', 'timestamp', 'error', 'unit']
 
 
+class WriteValueRequest(Request):
+    ARGS = ['device', 'value', 'unit']  # unit???
+
+
+class WriteValueReply(Reply):
+    ARGS = ['device', 'value', 'timestamp', 'error', 'unit']
+
+
+class ReadAllDevicesRequest(Request):
+    ARGS = ['maxage']
+
+
+class ReadAllDevicesReply(Reply):
+    ARGS = ['readValueReplies']
+
+
+class ListParamPropsRequest(Request):
+    ARGS = ['device', 'param']
+
+
+class ListParamPropsReply(Request):
+    ARGS = ['device', 'param', 'props']
+
+
 class ReadParamRequest(Request):
     ARGS = ['device', 'param', 'maxage']
 
@@ -117,7 +158,7 @@ class RequestAsyncDataReply(Reply):
 
 
 class AsyncDataUnit(ReadParamReply):
-    ARGS = ['device', 'param', 'value', 'timestamp', 'error', 'unit']
+    ARGS = ['devname', 'pname', 'value', 'timestamp', 'error', 'unit']
 
 
 class ListOfFeaturesRequest(Request):
@@ -138,40 +179,47 @@ class ActivateFeatureReply(Reply):
     pass
 
 
-class ProtocollError(ErrorReply):
-    ARGS = ['msgtype', 'msgname', 'msgargs']
-
+# ERRORS
+########
 
 class ErrorReply(Reply):
     ARGS = ['error']
 
 
-class NoSuchDeviceErrorReply(ErrorReply):
+class InternalError(ErrorReply):
+    ARGS = ['error']
+
+
+class ProtocollError(ErrorReply):
+    ARGS = ['error']
+
+
+class NoSuchDeviceError(ErrorReply):
     ARGS = ['device']
 
 
-class NoSuchParamErrorReply(ErrorReply):
+class NoSuchParamError(ErrorReply):
     ARGS = ['device', 'param']
 
 
-class ParamReadonlyErrorReply(ErrorReply):
+class ParamReadonlyError(ErrorReply):
     ARGS = ['device', 'param']
 
 
-class UnsupportedFeatureErrorReply(ErrorReply):
+class UnsupportedFeatureError(ErrorReply):
     ARGS = ['feature']
 
 
-class NoSuchCommandErrorReply(ErrorReply):
+class NoSuchCommandError(ErrorReply):
     ARGS = ['device', 'command']
 
 
-class CommandFailedErrorReply(ErrorReply):
+class CommandFailedError(ErrorReply):
     ARGS = ['device', 'command']
 
 
-class InvalidParamValueErrorReply(ErrorReply):
-    ARGS = ['device', 'param', 'value']
+class InvalidParamValueError(ErrorReply):
+    ARGS = ['device', 'param', 'value', 'error']
 
 # Fun!
 

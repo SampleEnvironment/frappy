@@ -28,14 +28,16 @@ from validators import floatrange
 
 from epics import PV
 
+
 class LN2(Readable):
     """Just a readable.
 
     class name indicates it to be a sensor for LN2,
     but the implementation may do anything
     """
+
     def read_value(self, maxage=0):
-        return round(100*random.random(), 1)
+        return round(100 * random.random(), 1)
 
 
 class Heater(Driveable):
@@ -46,11 +48,11 @@ class Heater(Driveable):
     """
     PARAMS = {
         'maxheaterpower': PARAM('maximum allowed heater power',
-                                 validator=floatrange(0, 100), unit='W'),
+                                validator=floatrange(0, 100), unit='W'),
     }
 
     def read_value(self, maxage=0):
-        return round(100*random.random(), 1)
+        return round(100 * random.random(), 1)
 
     def write_target(self, target):
         pass
@@ -64,15 +66,14 @@ class Temp(Driveable):
     """
     PARAMS = {
         'sensor': PARAM("Sensor number or calibration id",
-                         validator=str, readonly=True),
+                        validator=str, readonly=True),
     }
 
     def read_value(self, maxage=0):
-        return round(100*random.random(), 1)
+        return round(100 * random.random(), 1)
 
     def write_target(self, target):
         pass
-
 
 
 class EPICS_PV(Driveable):
@@ -80,7 +81,7 @@ class EPICS_PV(Driveable):
 
     PARAMS = {
         'sensor': PARAM("Sensor number or calibration id",
-                         validator=str, readonly=True),
+                        validator=str, readonly=True),
         'max_rpm': PARAM("Maximum allowed rpm",
                          validator=str, readonly=True),
     }
