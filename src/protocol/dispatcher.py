@@ -201,50 +201,49 @@ class Dispatcher(object):
         self.log.debug('-> device is not to be exported!')
         return {}
 
-    # demo stuff
-    def _setDeviceValue(self, devobj, value):
-        # set the device value. return readback value
-        # if return == None -> Ellispis (readonly!)
-        if self._getDeviceParam(devobj, 'target') != Ellipsis:
-            return self._setDeviceParam(devobj, 'target', value)
-        return Ellipsis
+    def _setParamValue(self, devname, pname, value):
+        devobj = self.get_device(devname)
+        if devobj is None:
+            return NoSuchDeviceError(devname)
 
-    def _getDeviceValue(self, devobj):
-        # get the device value
-        # if return == None -> Ellipsis
-        return self._getDeviceParam(devobj, 'value')
-
-    def _setDeviceParam(self, devobj, pname, value):
-        # set the device param. return readback value
-        # if return == None -> Ellipsis (readonly!)
-        pobj = devobj.PARAMS.get(pname, Ellipsis)
-        if pobj == Ellipsis:
-            return pobj
+        pobj = getattr(devobj.PARAMS, pname, None)
+        if pobj is None:
+            return NoSuchParamError(devname, pname)
         if pobj.readonly:
-            return self._getDeviceParam(devobj, pname)
+            return ParamReadonlyError(devname, pname)
+
         writefunc = getattr(devobj, 'write_%s' % pname, None)
-        validator = pobj.validator
-        value = validator(value)
+        try:
+            if writefunc:
+                value = writefunc(value)
+            else:
+                setattr(devobj, pname, value)
+        except ValueError:
+            return InvalidParamValueError(devname, pname, value, e)
+        except Exception as e:
+            return InternalError(e)
 
-        if writefunc:
-            value = writefunc(value) or value
-        else:
-            setattr(devobj, pname, value)
+        return WriteParamReply(devname, pname, pobj.value, timestamp=pobj.timestamp)
 
-        return self._getDeviceParam(devobj, pname)
+    def _getParamValue(self, devname, pname):
+        devobj = self.get_device(devname)
+        if devobj is None:
+            return NoSuchDeviceError(devname)
 
-    def _getDeviceParam(self, devobj, pname):
-        # get the device value
-        # if return == None -> Ellipsis
+        pobj = devobj.PARAMS.get(pname, None)
+        if pobj is None:
+            return NoSuchParamError(devname, pname)
+
         readfunc = getattr(devobj, 'read_%s' % pname, None)
         if readfunc:
             # should also update the pobj (via the setter from the metaclass)
-            readfunc()
-        pobj = devobj.PARAMS.get(pname, None)
-        if pobj:
-            return (pobj.value, pobj.timestamp)
-        return getattr(devobj, pname, Ellipsis)
+            try:
+                readfunc()
+            except Exception as e:
+                return InternalError(e)
+        return ReadParamReply(devname, pname, pobj.value, timestamp=pobj.timestamp)
 
+    # demo stuff
     def handle_Demo(self, conn, msg):
         novalue = msg.novalue
         devname = msg.devname
@@ -344,7 +343,7 @@ class Dispatcher(object):
                             except TypeError as e:
                                 return InternalError(e)
 
-        # now clean responce a little
+        # now clean responce a little and sort value to top....
         res = [
             e.replace(
                 '/v=',
@@ -361,106 +360,52 @@ class Dispatcher(object):
     def handle_ListDevices(self, conn, msg):
         # XXX: What about the descriptive data????
         # XXX: choose!
-        return ListDevicesReply(self.list_device_names())
-        # return ListDevicesReply(*self.list_devices())
+        # return ListDevicesReply(self.list_device_names())
+        return ListDevicesReply(*self.list_devices())
 
     def handle_ListDeviceParams(self, conn, msg):
         # reply with a list of the parameter names for a given device
-        self.log.error('Keep: ListDeviceParams')
-        if msg.device in self._dispatcher_export:
-            params = self.list_device_params(msg.device)
-            return ListDeviceParamsReply(msg.device, params.keys())
+        devname = msg.device
+        if devname in self._dispatcher_export:
+            params = self.list_device_params(devname).keys()
+            return ListDeviceParamsReply(devname, params)
         else:
-            return NoSuchDeviceError(msg.device)
+            return NoSuchDeviceError(device)
 
     def handle_ReadAllDevices(self, conn, msg):
         # reply with a bunch of ReadValueReplies, reading ALL devices
         result = []
         for devname in sorted(self.list_device_names()):
-            devobj = self.get_device(devname)
-            value = self._getdeviceValue(devobj)
-            if value is not Ellipsis:
-                result.append(ReadValueReply(devname, value,
-                                             timestamp=time.time()))
+            value = self._getParamValue(devname, 'value')
+            result.append(value)
         return ReadAllDevicesReply(readValueReplies=result)
 
     def handle_ReadValue(self, conn, msg):
         devname = msg.device
         devobj = self.get_device(devname)
-        if devobj is None:
-            return NoSuchDeviceError(devname)
-
-        value = self._getdeviceValue(devname)
-        if value is not Ellipsis:
-            return ReadValueReply(devname, value,
-                                  timestamp=time.time())
-
-        return InternalError('undefined device value')
+        res = self._getParamValue(devname, 'value')
+        if not isinstance(res, ReadParamReply):
+            return res
+        return WriteValueReply(devname, res.value, res.timestamp)
 
     def handle_WriteValue(self, conn, msg):
         value = msg.value
         devname = msg.device
-        devobj = self.get_device(devname)
-        if devobj is None:
-            return NoSuchDeviceError(devname)
-
-        pobj = getattr(devobj.PARAMS, 'target', None)
-        if pobj is None:
-            return NoSuchParamError(devname, 'target')
-
-        if pobj.readonly:
-            return ParamReadonlyError(devname, 'target')
-
-        validator = pobj.validator
-        try:
-            value = validator(value)
-        except Exception as e:
-            return InvalidParamValueError(devname, 'target', value, e)
-
-        value = self._setDeviceValue(devobj, value) or value
-        WriteValueReply(devname, value, timestamp=time.time())
+        res = self._setParamValue(devname, 'target', value)
+        if not isinstance(res, WriteParamReply):
+            return res
+        return WriteValueReply(devname, res.value, res.timestamp)
 
     def handle_ReadParam(self, conn, msg):
         devname = msg.device
         pname = msg.param
-        devobj = self.get_device(devname)
-        if devobj is None:
-            return NoSuchDeviceError(devname)
-
-        pobj = getattr(devobj.PARAMS, pname, None)
-        if pobj is None:
-            return NoSuchParamError(devname, pname)
-
-        value = self._getdeviceParam(devobj, pname)
-        if value is not Ellipsis:
-            return ReadParamReply(devname, pname, value,
-                                  timestamp=time.time())
-
-        return InternalError('undefined device value')
+        return self._getParamValue(devname, pname)
 
     def handle_WriteParam(self, conn, msg):
         value = msg.value
         pname = msg.param
         devname = msg.device
-        devobj = self.get_device(devname)
-        if devobj is None:
-            return NoSuchDeviceError(devname)
-
-        pobj = getattr(devobj.PARAMS, pname, None)
-        if pobj is None:
-            return NoSuchParamError(devname, pname)
-
-        if pobj.readonly:
-            return ParamReadonlyError(devname, pname)
-
-        validator = pobj.validator
-        try:
-            value = validator(value)
-        except Exception as e:
-            return InvalidParamValueError(devname, pname, value, e)
-
-        value = self._setDeviceParam(devobj, pname, value) or value
-        WriteParamReply(devname, pname, value, timestamp=time.time())
+        return self._setParamValue(devname, pname, value)
 
     # XXX: !!!
     def handle_RequestAsyncData(self, conn, msg):

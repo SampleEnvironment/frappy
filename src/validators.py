@@ -162,7 +162,7 @@ class vector(object):
         if len(args) != len(self.validators):
             raise ValueError('Vector: need exactly %d elementes (got %d)' %
                              len(self.validators), len(args))
-        return [v(e) for v, e in zip(self.validators, args)]
+        return tuple(v(e) for v, e in zip(self.validators, args))
 
     def __repr__(self):
         return ('%s(%s)' % (self.__class__.__name__, self.argstr))
