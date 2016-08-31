@@ -207,7 +207,7 @@ class Dispatcher(object):
         if devobj is None:
             return NoSuchDeviceError(devname)
 
-        pobj = getattr(devobj.PARAMS, pname, None)
+        pobj = devobj.PARAMS.get(pname, None)
         if pobj is None:
             return NoSuchParamError(devname, pname)
         if pobj.readonly:
