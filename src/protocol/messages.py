@@ -161,24 +161,6 @@ class AsyncDataUnit(ReadParamReply):
     ARGS = ['devname', 'pname', 'value', 'timestamp', 'error', 'unit']
 
 
-class ListOfFeaturesRequest(Request):
-    pass
-
-
-class ListOfFeaturesReply(Reply):
-    ARGS = ['features']
-
-
-class ActivateFeatureRequest(Request):
-    ARGS = ['feature']
-
-
-class ActivateFeatureReply(Reply):
-    # Ack style or Error
-    # maybe should reply with active features?
-    pass
-
-
 # ERRORS
 ########
 
@@ -232,9 +214,3 @@ class HelpReply(Reply):
     pass
 
 
-FEATURES = [
-    'Feature1',
-    'Feature2',
-    'Feature3',
-    'Future',
-]

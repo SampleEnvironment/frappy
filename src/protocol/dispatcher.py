@@ -466,13 +466,6 @@ class Dispatcher(object):
     def handle_RequestAsyncData(self, conn, msg):
         return Error('AsyncData is not (yet) supported')
 
-    def handle_ListOfFeatures(self, conn, msg):
-        # no features supported (yet)
-        return ListOfFeaturesReply([])
-
-    def handle_ActivateFeature(self, conn, msg):
-        return Error('Features are not (yet) supported')
-
     def unhandled(self, msgname, conn, msg):
         """handler for unhandled Messages
 
