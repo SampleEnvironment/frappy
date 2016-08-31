@@ -145,7 +145,8 @@ class Dispatcher(object):
         """removes now longer functional connection"""
         if conn in self._dispatcher_connections:
             self._dispatcher_connections.remove(conn)
-        # XXX: also clean _dispatcher_subscriptions !
+        for _evt, conns in self._dispatcher_subscriptions.items():
+            conns.discard(conn)
 
     def register_device(self, devobj, devname, export=True):
         self.log.debug('registering Device %r as %s (export=%r)' %
