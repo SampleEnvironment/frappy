@@ -127,7 +127,9 @@ class DeviceMeta(type):
                 wfunc = attrs.get('write_' + pname, None)
 
                 def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
-                    self.log.debug("setter: set %s to %r" % (pname, value))
+                    self.log.debug("wfunc: set %s to %r" % (pname, value))
+                    pobj = self.PARAMS[pname]
+                    value = pobj.validator(value) if pobj.validator else value
                     if wfunc:
                         value = wfunc(self, value) or value
                     # XXX: use setattr or direct manipulation
