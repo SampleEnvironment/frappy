@@ -184,7 +184,10 @@ class Device(object):
     """Basic Device, doesn't do much"""
     __metaclass__ = DeviceMeta
     # PARAMS and CMDS are auto-merged upon subclassing
-    PARAMS = {}
+    PARAMS = {
+        'baseclass': PARAM('protocol defined interface class',
+                           default="Device", validator=str),
+    }
     CMDS = {}
     DISPATCHER = None
 
@@ -195,8 +198,13 @@ class Device(object):
         self.name = devname
         # make local copies of PARAMS
         params = {}
-        for k,v in self.PARAMS.items():
+        for k, v in self.PARAMS.items():
             params[k] = PARAM(v)
+        mycls = self.__class__
+        myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
+        params['class'] = PARAM(
+            'implementaion specific class name', default=myclassname, validator=str)
+
         self.PARAMS = params
         # check config for problems
         # only accept config items specified in PARAMS
@@ -244,6 +252,8 @@ class Readable(Device):
     providing the readonly parameter 'value' and 'status'
     """
     PARAMS = {
+        'baseclass': PARAM('protocol defined interface class',
+                           default="Readable", validator=str),
         'value': PARAM('current value of the device', readonly=True, default=0.),
         'status': PARAM('current status of the device', default=status.OK,
                         validator=mapping(**{'idle': status.OK,
@@ -262,6 +272,8 @@ class Driveable(Readable):
     providing a settable 'target' parameter to those of a Readable
     """
     PARAMS = {
+        'baseclass': PARAM('protocol defined interface class',
+                           default="Driveable", validator=str),
         'target': PARAM('target value of the device', default=0.,
                         readonly=False),
     }
