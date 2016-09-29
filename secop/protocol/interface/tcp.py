@@ -30,12 +30,17 @@ import SocketServer
 DEF_PORT = 10767
 MAX_MESSAGE_SIZE = 1024
 
+from secop.protocol.encoding import ENCODERS
+from secop.protocol.framing import FRAMERS
+from secop.protocol.messages import HelpMessage
 
 class TCPRequestHandler(SocketServer.BaseRequestHandler):
 
     def setup(self):
         self.log = self.server.log
         self._queue = collections.deque(maxlen=100)
+        self.framing = self.server.framingCLS()
+        self.encoding = self.server.encodingCLS()
 
     def handle(self):
         """handle a new tcp-connection"""
@@ -44,16 +49,24 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
         clientaddr = self.client_address
         serverobj = self.server
         self.log.debug("handling new connection from %s" % repr(clientaddr))
+      
         # notify dispatcher of us
         serverobj.dispatcher.add_connection(self)
 
         mysocket.settimeout(.3)
-        mysocket.setblocking(False)
+#        mysocket.setblocking(False)
         # start serving
         while True:
             # send replys fist, then listen for requests, timing out after 0.1s
             while self._queue:
-                mysocket.sendall(self._queue.popleft())
+                # put message into encoder to get frame(s)
+                # put frame(s) into framer to get bytestring
+                # send bytestring
+                outmsg = self._queue.popleft()
+                outframes = self.encoding.encode(outmsg)
+                outdata = self.framing.encode(outframes)
+                mysocket.sendall(outdata)
+
             # XXX: improve: use polling/select here?
             try:
                 data = mysocket.recv(MAX_MESSAGE_SIZE)
@@ -62,8 +75,19 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
             # XXX: should use select instead of busy polling
             if not data:
                 continue
+            # put data into (de-) framer,
+            # put frames into (de-) coder and if a message appear,
+            # call dispatcher.handle_request(self, message)
             # dispatcher will queue the reply before returning
-            serverobj.dispatcher.handle_request(self, data)
+            frames = self.framing.decode(data)
+            if frames is not None:
+                if not frames: # empty list
+                    self.queue_reply(HelpMessage(MSGTYPE=reply))
+                for frame in frames:
+                    reply = None
+                    msg = self.encoding.decode(frame)
+                    if msg:
+                        serverobj.dispatcher.handle_request(self, msg)
 
     def queue_async_reply(self, data):
         """called by dispatcher for async data units"""
@@ -81,6 +105,8 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
         # close socket
         try:
             self.request.shutdown(socket.SHUT_RDWR)
+        except Exception:
+            pass
         finally:
             self.request.close()
 
@@ -89,15 +115,21 @@ class TCPServer(SocketServer.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, logger, serveropts, dispatcher):
+    def __init__(self, logger, interfaceopts, dispatcher):
         self.dispatcher = dispatcher
         self.log = logger
-        bindto = serveropts.pop('bindto', 'localhost')
-        portnum = int(serveropts.pop('bindport', DEF_PORT))
+        bindto = interfaceopts.pop('bindto', 'localhost')
+        portnum = int(interfaceopts.pop('bindport', DEF_PORT))
         if ':' in bindto:
             bindto, _port = bindto.rsplit(':')
             portnum = int(_port)
+        # tcp is a byte stream, so we need Framers (to get frames)
+        # and encoders (to en/decode messages from frames)
+        self.framingCLS = FRAMERS[interfaceopts.pop('framing', 'none')]
+        self.encodingCLS = ENCODERS[interfaceopts.pop('encoding', 'pickle')]
         self.log.debug("TCPServer binding to %s:%d" % (bindto, portnum))
+        self.log.debug("TCPServer using framing=%s" % self.framingCLS.__name__)
+        self.log.debug("TCPServer using encoding=%s" % self.encodingCLS.__name__)
         SocketServer.ThreadingTCPServer.__init__(self, (bindto, portnum),
                                                  TCPRequestHandler,
                                                  bind_and_activate=True)

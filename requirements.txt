@@ -1,8 +1,8 @@
 # for generating docu
 markdown>=2.6
-# general stuff
+# daemonizing
 psutil
 python-daemon >=2.0
-# for zmq
+# for zmq interface
 #pyzmq>=13.1.0
 

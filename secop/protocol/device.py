@@ -26,8 +26,8 @@
 # XXX: is this still needed ???
 # see devices.core ....
 
-from lib import attrdict
-from protocol import status
+from secop.lib import attrdict
+from secop.protocol import status
 
 
 # XXX: deriving PARS/CMDS should be done in a suitable metaclass....

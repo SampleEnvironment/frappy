@@ -20,42 +20,51 @@
 #
 # *****************************************************************************
 
-"""Define helpers"""
+"""Define (internal) SECoP Errors"""
 
 
-class attrdict(dict):
-    """a normal dict, providing access also via attributes"""
-
-    def __getattr__(self, key):
-        return self[key]
-
-    def __setattr__(self, key, value):
-        self[key] = value
+class SECOPError(RuntimeError):
+    def __init__(self, *args, **kwds):
+        self.args = args
+        for k,v in kwds.items():
+            setattr(self, k, v)
 
 
-def clamp(_min, value, _max):
-    """return the median of 3 values,
-
-    i.e. value if min <= value <= max, else min or max depending on which side
-    value lies outside the [min..max] interval
-    """
-    # return median, i.e. clamp the the value between min and max
-    return sorted([_min, value, _max])[1]
+class InternalError(SECOPError):
+    pass
 
 
-def get_class(spec):
-    """loads a class given by string in dotted notaion (as python would do)"""
-    modname, classname = spec.rsplit('.', 1)
-    import importlib
-    module = importlib.import_module(modname)
-#    module = __import__(spec)
-    return getattr(module, classname)
+class ProtocollError(SECOPError):
+    pass
+
+
+# XXX: unifiy NoSuch...Error ?
+class NoSuchModuleError(SECOPError):
+    pass
+
+
+class NoSuchParamError(SECOPError):
+    pass
+
+
+class NoSuchCommandError(SECOPError):
+    pass
+
+
+class ReadonlyError(SECOPError):
+    pass
+
+
+class CommandFailedError(SECOPError):
+    pass
+
+
+class InvalidParamValueError(SECOPError):
+    pass
 
 
 if __name__ == '__main__':
-    print "minimal testing: lib"
-    d = attrdict(a=1, b=2)
-    _ = d.a + d['b']
-    d.c = 9
-    d['d'] = 'c'
-    assert d[d.d] == 9
+    print("Minimal testing of errors....")
+
+    print "OK"
+    print

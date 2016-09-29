@@ -30,12 +30,13 @@
 import time
 import types
 import inspect
+import threading
 
-from errors import ConfigError, ProgrammingError
-from protocol import status
-from validators import mapping, vector
+from secop.errors import ConfigError, ProgrammingError
+from secop.protocol import status
+from secop.validators import enum, vector, floatrange
 
-EVENT_ONLY_ON_CHANGED_VALUES = True
+EVENT_ONLY_ON_CHANGED_VALUES = False
 
 # storage for PARAMeter settings:
 # if readonly is False, the value can be changed (by code, or remote)
@@ -159,13 +160,15 @@ class DeviceMeta(type):
         setattr(newtype, 'CMDS', getattr(newtype, 'CMDS', {}))
         for name in attrs:
             if name.startswith('do'):
+                if name[2:] in newtype.CMDS:
+                    continue
                 value = getattr(newtype, name)
                 if isinstance(value, types.MethodType):
                     argspec = inspect.getargspec(value)
                     if argspec[0] and argspec[0][0] == 'self':
                         del argspec[0][0]
-                        newtype.CMDS[name] = CMD(value.get('__doc__', name),
-                                                 *argspec)
+                        newtype.CMDS[name[2:]] = CMD(getattr(value, '__doc__'), 
+                                                 argspec.args, None)  # XXX: find resulttype!
         attrs['__constructed__'] = True
         return newtype
 
@@ -202,8 +205,8 @@ class Device(object):
             params[k] = PARAM(v)
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
-        params['class'] = PARAM(
-            'implementaion specific class name', default=myclassname, validator=str)
+        params['class'] = PARAM('implementation specific class name',
+                                default=myclassname, validator=str)
 
         self.PARAMS = params
         # check config for problems
@@ -240,9 +243,14 @@ class Device(object):
                     raise ConfigError('Device %s: config parameter %r:\n%r'
                                       % (self.name, k, e))
             setattr(self, k, v)
+        self._requestLock = threading.RLock()
 
     def init(self):
-        # may be overriden in other classes
+        # may be overriden in derived classes to init stuff
+        self.log.debug('init()')
+
+    def _pollThread(self):
+        # may be overriden in derived classes to init stuff
         self.log.debug('init()')
 
 
@@ -255,25 +263,40 @@ class Readable(Device):
         'baseclass': PARAM('protocol defined interface class',
                            default="Readable", validator=str),
         'value': PARAM('current value of the device', readonly=True, default=0.),
+        'pollinterval': PARAM('sleeptime between polls', readonly=False, default=5, validator=floatrange(1,120),),
         'status': PARAM('current status of the device', default=status.OK,
-                        validator=mapping(**{'idle': status.OK,
-                                             'BUSY': status.BUSY,
-                                             'WARN': status.WARN,
-                                             'UNSTABLE': status.UNSTABLE,
-                                             'ERROR': status.ERROR,
-                                             'UNKNOWN': status.UNKNOWN}),
+                        validator=enum(**{'idle': status.OK,
+                                          'BUSY': status.BUSY,
+                                          'WARN': status.WARN,
+                                          'UNSTABLE': status.UNSTABLE,
+                                          'ERROR': status.ERROR,
+                                          'UNKNOWN': status.UNKNOWN}),
                         readonly=True),
         'status2': PARAM('current status of the device', default=(status.OK, ''),
-                         validator=vector(mapping(**{'idle': status.OK,
-                                                     'BUSY': status.BUSY,
-                                                     'WARN': status.WARN,
-                                                     'UNSTABLE': status.UNSTABLE,
-                                                     'ERROR': status.ERROR,
-                                                     'UNKNOWN': status.UNKNOWN}), str),
+                         validator=vector(enum(**{'idle': status.OK,
+                                                  'BUSY': status.BUSY,
+                                                  'WARN': status.WARN,
+                                                  'UNSTABLE': status.UNSTABLE,
+                                                  'ERROR': status.ERROR,
+                                                  'UNKNOWN': status.UNKNOWN}), str),
                          readonly=True),
     }
 
-
+    def init(self):
+        Device.init(self)
+        self._pollthread = threading.Thread(target=self._pollThread)
+        self._pollthread.daemon = True
+        self._pollthread.start()
+        
+    def _pollThread(self):
+        while True:
+            time.sleep(self.pollinterval)
+            for pname in self.PARAMS:
+                if pname != 'pollinterval':
+                    rfunc = getattr(self, 'read_%s' % pname, None)
+                    if rfunc:
+                        rfunc()
+            
 class Driveable(Readable):
     """Basic Driveable device
 
@@ -285,3 +308,5 @@ class Driveable(Readable):
         'target': PARAM('target value of the device', default=0.,
                         readonly=False),
     }
+    def doStop(self):
+        time.sleep(1)  # for testing !

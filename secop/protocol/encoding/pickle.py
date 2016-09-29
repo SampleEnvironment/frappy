@@ -1,6 +1,6 @@
+#!/usr/bin/env python
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
-#
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation; either version 2 of the License, or (at your option) any later
@@ -20,19 +20,28 @@
 #
 # *****************************************************************************
 
-"""Define Client side proxies"""
+"""Encoding/decoding Messages"""
 
-# nothing here yet.
+# implement as class as they may need some internal 'state' later on
+# (think compressors)
+
+from secop.protocol.encoding import MessageEncoder
+from secop.protocol import messages
+from secop.lib.parsing import *
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 
-def get_client(interfacespec):
-    """returns a client connected to the remote interface"""
-    pass
 
+class PickleEncoder(MessageEncoder):
 
-class DeviceProxy(object):
-    """(In python) dynamically constructed object
+    def encode(self, messageobj):
+        """msg object -> transport layer message"""
+        return pickle.dumps(messageobj)
 
-    allowing access to the servers devices via the SECoP Protocol inbetween
-    """
-    pass
+    def decode(self, encoded):
+        """transport layer message -> msg object"""
+        return pickle.loads(encoded)

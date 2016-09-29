@@ -17,35 +17,41 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#
 # *****************************************************************************
 
-"""testing devices"""
+"""Encoding/decoding Frames"""
 
-import random
-
-from devices.core import Readable, Driveable, PARAM
+from secop.protocol.framing import Framer
 
 
-try:
-    from epics import PV
-except ImportError:
-    PV = None
+class EOLFramer(Framer):
+    """Text based message framer
 
+    messages are delimited by '\r\n'
+    upon reception the end of a message is detected by '\r\n','\n' or '\n\r'
+    """
+    data = b''
 
-class EPICS_PV(Driveable):
-    """pyepics test device."""
+    def encode(self, *frames):
+        """add transport layer encapsulation/framing of messages"""
+        return b'%s\r\n' % b'\r\n'.join(frames)
 
-    PARAMS = {
-        'sensor': PARAM("Sensor number or calibration id",
-                        validator=str, readonly=True),
-        'max_rpm': PARAM("Maximum allowed rpm",
-                         validator=str, readonly=True),
-    }
+    def decode(self, data):
+        """remove transport layer encapsulation/framing of messages
 
-    def read_value(self, maxage=0):
-        p1 = PV('testpv.VAL')
-        return p1.value
+        returns a list of messageframes which got decoded from data!
+        """
+        self.data += data
+        res = []
+        while b'\n' in self.data:
+            frame, self.data = self.data.split(b'\n', 1)
+            if frame.endswith('\r'):
+                frame = frame[:-1]
+            if self.data.startswith('\r'):
+                self.data = self.data[1:]
+            res.append(frame)
+        return res
 
-    def write_target(self, target):
-        p1 = PV('test.VAL')
-        p1.value = target
+    def reset(self):
+        self.data = b''

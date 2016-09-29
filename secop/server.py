@@ -23,18 +23,21 @@
 
 """Define helpers"""
 import os
+import time
 import psutil
+import threading
 import ConfigParser
 
 from daemon import DaemonContext
 from daemon.pidfile import TimeoutPIDLockFile
 
 import loggers
-from lib import get_class
-from protocol.dispatcher import Dispatcher
-from protocol.interface import INTERFACES
-from protocol.transport import ENCODERS, FRAMERS
-from errors import ConfigError
+from secop.lib import get_class
+from secop.protocol.dispatcher import Dispatcher
+from secop.protocol.interface import INTERFACES
+#from secop.protocol.encoding import ENCODERS
+#from secop.protocol.framing import FRAMERS
+from secop.errors import ConfigError
 
 
 class Server(object):
@@ -71,7 +74,20 @@ class Server(object):
         self._processCfg()
 
         self.log.info('startup done, handling transport messages')
-        self._interface.serve_forever()
+        self._threads = set()
+        for _if in self._interfaces:
+            self.log.debug('starting thread for interface %r' % _if)
+            t = threading.Thread(target=_if.serve_forever)
+            t.daemon = True
+            t.start()
+            self._threads.add(t)
+        while self._threads:
+            time.sleep(1)
+            for t in self._threads:
+                if not t.is_alive():
+                    self.log.debug('thread %r died (%d still running)' % (t,len(self._threads)))
+                    t.join()
+                    self._threads.discard(t)
 
     def _processCfg(self):
         self.log.debug('Parse config file %s ...' % self._cfgfile)
@@ -81,16 +97,12 @@ class Server(object):
             self.log.error('Couldn\'t read cfg file !')
             raise ConfigError('Couldn\'t read cfg file %r' % self._cfgfile)
 
-        if not parser.has_section('server'):
-            raise ConfigError(
-                'cfg file %r needs a \'server\' section!' % self._cfgfile)
+        self._interfaces = []
 
         deviceopts = []
-        serveropts = {}
+        interfaceopts = []
+        equipment_id = 'unknown'
         for section in parser.sections():
-            if section == 'server':
-                # store for later
-                serveropts = dict(item for item in parser.items('server'))
             if section.lower().startswith('device '):
                 # device section
                 # omit leading 'device ' string
@@ -105,8 +117,23 @@ class Server(object):
                 devopts['class'] = get_class(devopts['class'])
                 # all went well so far
                 deviceopts.append([devname, devopts])
+            if section.lower().startswith('interface '):
+                # interface section
+                # omit leading 'interface ' string
+                ifname = section[len('interface '):]
+                ifopts = dict(item for item in parser.items(section))
+                if 'interface' not in ifopts:
+                    self.log.error('Interface %s needs an interface option!')
+                    raise ConfigError(
+                        'cfgfile %r: Interface %s needs an interface option!'
+                        % (self._cfgfile, ifname))
+                # all went well so far
+                interfaceopts.append([ifname, ifopts])
+        if parser.has_option('equipment', 'id'):
+            equipment_id = parser.get('equipment', 'id')
 
-        self._processServerOptions(serveropts)
+        self._dispatcher = self._buildObject('Dispatcher', Dispatcher, dict(equipment_id=equipment_id))
+        self._processInterfaceOptions(interfaceopts)
         self._processDeviceOptions(deviceopts)
 
     def _processDeviceOptions(self, deviceopts):
@@ -132,26 +159,24 @@ class Server(object):
         # connect devices with dispatcher
         for devname, devobj, export in devs:
             self.log.info('registering device %r' % devname)
-            self._dispatcher.register_device(devobj, devname, export)
+            self._dispatcher.register_module(devobj, devname, export)
             # also call init on the devices
             devobj.init()
+        # call a possibly empty postinit on each device after registering all
+        for _devname, devobj, _export in devs:
+            postinit = getattr(devobj, 'postinit', None)
+            if postinit:
+                postinit()
 
-    def _processServerOptions(self, serveropts):
-        # eval serveropts
-        framingClass = FRAMERS[serveropts.pop('framing')]
-        encodingClass = ENCODERS[serveropts.pop('encoding')]
-        interfaceClass = INTERFACES[serveropts.pop('interface')]
-
-        self._dispatcher = self._buildObject('Dispatcher', Dispatcher,
-                                             dict(encoding=encodingClass(),
-                                                  framing=framingClass()))
-
-        # split 'server' section to allow more than one interface
-        # also means to move encoding and framing to the interface,
-        # so that the dispatcher becomes agnostic
-        self._interface = self._buildObject('Interface', interfaceClass,
-                                            serveropts,
-                                            self._dispatcher)
+    def _processInterfaceOptions(self, interfaceopts):
+        # eval interfaces
+        self._interfaces = []
+        for ifname, ifopts in interfaceopts:
+            ifclass = ifopts.pop('interface')
+            ifclass = INTERFACES[ifclass]
+            interface = self._buildObject(ifname, ifclass,
+                                          ifopts, self._dispatcher)
+            self._interfaces.append(interface)
 
     def _buildObject(self, name, cls, options, *args):
         self.log.debug('Creating %s ...' % name)

@@ -26,10 +26,10 @@ import time
 import random
 import threading
 
-from devices.core import Driveable, CONFIG, PARAM
-from protocol import status
-from validators import floatrange, positive, mapping
-from lib import clamp
+from secop.devices.core import Driveable, CONFIG, PARAM
+from secop.protocol import status
+from secop.validators import floatrange, positive, enum
+from secop.lib import clamp
 
 
 class Cryostat(Driveable):
@@ -79,7 +79,7 @@ class Cryostat(Driveable):
                 validator=floatrange(0, 100), default=2,
                 ),
         mode=PARAM("mode of regulation",
-                   validator=mapping('ramp', 'pid', 'openloop'), default='pid',
+                   validator=enum('ramp', 'pid', 'openloop'), default='pid',
                    ),
 
         tolerance=PARAM("temperature range for stability checking",

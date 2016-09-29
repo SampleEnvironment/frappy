@@ -18,7 +18,6 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
-#   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #
 # *****************************************************************************
 
@@ -27,7 +26,7 @@ import sys
 import argparse
 from os import path
 
-# Pathes magic to make python find out stuff.
+# Path magic to make python find our stuff.
 # also remember our basepath (for etc, pid lookup, etc)
 basepath = path.abspath(path.join(sys.path[0], '..'))
 etc_path = path.join(basepath, 'etc')
@@ -36,13 +35,13 @@ log_path = path.join(basepath, 'log')
 #sys.path[0] = path.join(basepath, 'src')
 sys.path[0] = basepath
 
-from secop import loggers
-from secop.server import Server
+import loggers
+from secop.client import ClientConsole
 
 
 
 def parseArgv(argv):
-    parser = argparse.ArgumentParser(description="Manage a SECoP server")
+    parser = argparse.ArgumentParser(description="Connect to a SECoP server")
     loggroup = parser.add_mutually_exclusive_group()
     loggroup.add_argument("-v", "--verbose",
                           help="Output lots of diagnostic information",
@@ -53,11 +52,6 @@ def parseArgv(argv):
                         type=str,
                         help="Name of the instance.\n"
                         " Uses etc/name.cfg for configuration\n",)
-    parser.add_argument('-d',
-                        '--daemonize',
-                        action='store_true',
-                        help='Run as daemon',
-                        default=False)
     return parser.parse_args()
 
 
@@ -68,17 +62,15 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
-    loggers.initLogging('secop', loglevel, log_path)
+    loggers.initLogging('console', loglevel, log_path)
 
-    srv = Server(args.name, basepath)
+    
+    console = ClientConsole(args.name, basepath)
 
-    if args.daemonize:
-        srv.start()
-    else:
-        try:
-            srv.run()
-        except KeyboardInterrupt:
-            pass
+    try:
+        console.run()
+    except KeyboardInterrupt:
+        console.close()
 
 
 if __name__ == '__main__':

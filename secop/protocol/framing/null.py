@@ -20,7 +20,21 @@
 #
 # *****************************************************************************
 
-"""provides transport layer encapsulation for SECoP"""
+"""Encoding/decoding Frames"""
 
-from framing import FRAMERS
-from encoding import ENCODERS
+from secop.protocol.framing import Framer
+
+
+class NullFramer(Framer):
+    """do-nothing-framer
+
+    assumes messages are framed by themselfs or the interface does it already.
+    """
+
+    def encode(self, *frames):
+        """add transport layer encapsulation/framing of messages"""
+        return ''.join(frames)
+
+    def decode(self, data):
+        """remove transport layer encapsulation/framing of messages"""
+        return [data]

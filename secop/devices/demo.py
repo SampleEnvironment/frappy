@@ -25,9 +25,9 @@ import time
 import random
 import threading
 
-from devices.core import Readable, Driveable, PARAM
-from validators import *
-from protocol import status
+from secop.devices.core import Readable, Driveable, PARAM
+from secop.validators import *
+from secop.protocol import status
 
 
 class Switch(Driveable):
@@ -35,9 +35,9 @@ class Switch(Driveable):
     """
     PARAMS = {
         'value': PARAM('current state (on or off)',
-                       validator=mapping(on=1, off=0), default=0),
+                       validator=enum(on=1, off=0), default=0),
         'target': PARAM('wanted state (on or off)',
-                        validator=mapping(on=1, off=0), default=0,
+                        validator=enum(on=1, off=0), default=0,
                         readonly=False),
         'switch_on_time': PARAM('how long to wait after switching the switch on', validator=floatrange(0, 60), unit='s', default=10, export=False),
         'switch_off_time': PARAM('how long to wait after switching the switch off', validator=floatrange(0, 60), unit='s', default=10, export=False),
@@ -90,7 +90,7 @@ class MagneticField(Driveable):
         'ramp': PARAM('moving speed in T/min', unit='T/min',
                       validator=floatrange(0, 1), default=0.1, readonly=False),
         'mode': PARAM('what to do after changing field', default=0,
-                      validator=mapping(persistent=1, hold=0), readonly=False),
+                      validator=enum(persistent=1, hold=0), readonly=False),
         'heatswitch': PARAM('heat switch device',
                             validator=str, export=False),
     }
@@ -255,7 +255,7 @@ class ValidatorTest(Readable):
     """
     PARAMS = {
         'oneof': PARAM('oneof', validator=oneof(int, 'X', 2.718), readonly=False, default=4.0),
-        'mapping': PARAM('mapping', validator=mapping('boo', 'faar', z=9), readonly=False, default=1),
+        'enum': PARAM('enum', validator=enum('boo', 'faar', z=9), readonly=False, default=1),
         'vector': PARAM('vector of int, float and str', validator=vector(int, float, str), readonly=False, default=(1, 2.3, 'a')),
         'array': PARAM('array: 2..3 time oneof(0,1)', validator=array(oneof(2, 3), oneof(0, 1)), readonly=False, default=[1, 0, 1]),
         'nonnegative': PARAM('nonnegative', validator=nonnegative(), readonly=False, default=0),
