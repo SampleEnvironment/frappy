@@ -61,6 +61,7 @@ def mkthread(func, *args, **kwds):
     t.start()
     return t
 
+
 if __name__ == '__main__':
     print "minimal testing: lib"
     d = attrdict(a=1, b=2)

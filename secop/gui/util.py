@@ -21,6 +21,13 @@
 #
 # *****************************************************************************
 
-import sip
-sip.setapi('QString', 2)
-sip.setapi('QVariant', 2)
+from os import path
+
+from PyQt4 import uic
+
+
+uipath = path.dirname(__file__)
+
+
+def loadUi(widget, uiname, subdir='ui'):
+    uic.loadUi(path.join(uipath, subdir, uiname), widget)

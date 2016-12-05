@@ -3,3 +3,5 @@ html/*
 *.pyc
 pid/*
 
+# ide 
+.idea

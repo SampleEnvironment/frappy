@@ -278,7 +278,7 @@ class Dispatcher(object):
     def _getParamValue(self, modulename, pname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchmoduleError(module=modulename)
+            raise NoSuchModuleError(module=modulename)
 
         pobj = moduleobj.PARAMS.get(pname, None)
         if pobj is None:

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # Copyright (c) 2015-2016 by the authors, see LICENSE
@@ -21,6 +22,32 @@
 #
 # *****************************************************************************
 
-import sip
-sip.setapi('QString', 2)
-sip.setapi('QVariant', 2)
+import sys
+from os import path
+
+# Add import path for inplace usage
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+from secop.gui.mainwindow import MainWindow
+from secop import loggers
+
+from PyQt4.QtGui import QApplication
+
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    loggers.initLogging('gui', 'debug')
+
+    app = QApplication(argv)
+
+    win = MainWindow()
+    win.show()
+
+    return app.exec_()
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
+

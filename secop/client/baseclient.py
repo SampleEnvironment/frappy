@@ -29,6 +29,7 @@ import threading
 import Queue
 
 from secop import loggers
+from secop.validators import validator_from_str
 from secop.lib import mkthread
 from secop.lib.parsing import parse_time, format_time
 from secop.protocol.encoding import ENCODERS
@@ -137,7 +138,7 @@ class Client(object):
     describing_data = {}
     stopflag = False
 
-    def __init__(self, opts):
+    def __init__(self, opts, autoconnect=True):
         self.log = loggers.log.getChild('client', True)
         self._cache = dict()
         if 'device' in opts:
@@ -164,12 +165,14 @@ class Client(object):
         # mapping the modulename to a dict mapping the parameter names to their values
         # note: the module value is stored as the value of the parameter value
         # of the module
-        self.cache = dict()
 
         self._syncLock = threading.RLock()
         self._thread = threading.Thread(target=self._run)
         self._thread.daemon = True
         self._thread.start()
+
+        if autoconnect:
+            self.startup()
 
     def _run(self):
         while not self.stopflag:
@@ -247,7 +250,7 @@ class Client(object):
             self.log.warning("deprecated specifier %r" % spec)
             spec = '%s:value' % spec
         modname, pname = spec.split(':', 1)
-        self.cache.setdefault(modname, {})[pname] = Value(*data)
+        self._cache.setdefault(modname, {})[pname] = Value(*data)
         if spec in self.callbacks:
             for func in self.callbacks[spec]:
                 try:
@@ -264,6 +267,22 @@ class Client(object):
                         'Exception in Single-shot Callback!', err)
                 run.add(func)
             self.single_shots[spec].difference_update(run)
+
+    def _getDescribingModuleData(self, module):
+        return self.describingModulesData[module]
+
+    def _getDescribingParameterData(self, module, parameter):
+        return self._getDescribingModuleData(module)['parameters'][parameter]
+
+    def _issueDescribe(self):
+        _, self.equipment_id, self.describing_data = self.communicate(
+            'describe')
+
+        for module, moduleData in self.describing_data['modules'].items():
+            for parameter, parameterData in moduleData['parameters'].items():
+                validator = validator_from_str(parameterData['validator'])
+                self.describing_data['modules'][module]['parameters'] \
+                    [parameter]['validator'] = validator
 
     def register_callback(self, module, parameter, cb):
         self.log.debug(
@@ -343,13 +362,35 @@ class Client(object):
         # XXX: further notification-callbacks needed ???
 
     def startup(self, async=False):
-        _, self.equipment_id, self.describing_data = self.communicate(
-            'describe')
+        self._issueDescribe()
         # always fill our cache
         self.communicate('activate')
         # deactivate updates if not wanted
         if not async:
             self.communicate('deactivate')
+
+    def queryCache(self, module, parameter=None):
+        result = self._cache.get(module, {})
+
+        if parameter is not None:
+            result = result[parameter]
+
+        return result
+
+    def setParameter(self, module, parameter, value):
+        validator = self._getDescribingParameterData(module,
+                                                     parameter)['validator']
+
+        value = validator(value)
+        self.communicate('change', '%s:%s' % (module, parameter), value)
+
+    @property
+    def describingData(self):
+        return self.describing_data
+
+    @property
+    def describingModulesData(self):
+        return self.describingData['modules']
 
     @property
     def equipmentId(self):

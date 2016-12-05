@@ -30,6 +30,7 @@
 # if a validator does a mapping, it normally maps to the external representation (used for print/log/protocol/...)
 # to get the internal representation (for the code), call method convert
 
+
 class ProgrammingError(Exception):
     pass
 
@@ -156,7 +157,7 @@ class vector(object):
 
     def __init__(self, *args):
         self.validators = args
-        self.argstr = ', '.join([repr(e) for e in args])
+        self.argstr = ', '.join([validator_to_str(e) for e in args])
 
     def __call__(self, args):
         if len(args) != len(self.validators):
@@ -173,7 +174,7 @@ class record(object):
 
     def __init__(self, **kwds):
         self.validators = args
-        self.argstr = ', '.join([repr(e) for e in kwds.items()])
+        self.argstr = ', '.join([validator_to_str(e) for e in kwds.items()])
 
     def __call__(self, arg):
         if len(args) != len(self.validators):
@@ -190,7 +191,7 @@ class oneof(object):
 
     def __init__(self, *args):
         self.oneof = args
-        self.argstr = ', '.join([repr(e) for e in args])
+        self.argstr = ', '.join([validator_to_str(e) for e in args])
 
     def __call__(self, arg):
         for v in self.oneof:
@@ -247,3 +248,12 @@ class enum(object):
 
     def convert(self, arg):
         return self.mapping.get(arg, arg)
+
+
+def validator_to_str(validator):
+    return str(validator) if not isinstance(validator, type) \
+        else validator.__name__
+
+
+def validator_from_str(validator_str):
+    return eval(validator_str)

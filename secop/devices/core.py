@@ -74,7 +74,8 @@ class PARAM(object):
                     readonly=self.readonly,
                     value=self.value,
                     timestamp=self.timestamp,
-                    validator=repr(self.validator),
+                    validator=str(self.validator) if not isinstance(
+                        self.validator, type) else self.validator.__name__
                     )
 
 
