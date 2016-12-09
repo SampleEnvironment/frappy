@@ -103,7 +103,7 @@ class CommandRequest(Message):
 class CommandReply(Message):
     is_reply = True
     command = ''
-    arguments = None
+    result = None
 
 class WriteRequest(Message):
     is_request = True

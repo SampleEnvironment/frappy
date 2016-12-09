@@ -158,8 +158,6 @@ class Dispatcher(object):
 
     def get_module(self, modulename):
         module = self._dispatcher_modules.get(modulename, modulename)
-        if module != modulename:
-            self.log.debug('get_module(%r) -> %r' % (modulename, module))
         return module
 
     def remove_module(self, modulename_or_obj):
@@ -220,8 +218,10 @@ class Dispatcher(object):
 
         # now call func and wrap result as value
         # note: exceptions are handled in handle_request, not here!
-        func = getattr(moduleobj, 'do'+command)        
-        res = Value(modulename, command=command, value=func(*arguments), t=time.time())
+        func = getattr(moduleobj, 'do'+command)
+        res = func(*arguments)
+        res = CommandReply(module=modulename, command=command, result=[res, dict(t=time.time())])
+        # res = Value(modulename, command=command, value=func(*arguments), t=time.time())
         return res
 
     def _setParamValue(self, modulename, pname, value):
@@ -242,8 +242,8 @@ class Dispatcher(object):
         else:
             setattr(moduleobj, pname, value)
         if pobj.timestamp:
-            return Value(modulename, pname, value=pobj.value, t=pobj.timestamp)
-        return Value(modulename, pname, value=pobj.value)
+            return WriteReply(module=modulename, parameter=pname, value=[pobj.value, dict(t=pobj.timestamp)])
+        return WriteReply(module=modulename, parameter=pname, value=[pobj.value, {}])
 
     def _getParamValue(self, modulename, pname):
         moduleobj = self.get_module(modulename)

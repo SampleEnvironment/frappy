@@ -50,19 +50,17 @@ ENABLEEVENTSREPLY = 'active'  # literal, is end-of-initial-data-transfer
 DISABLEEVENTSREQUEST = 'deactivate'  # literal
 DISABLEEVENTSREPLY = 'inactive'  # literal
 COMMANDREQUEST = 'do'  # +module:command +json args (if needed)
-COMMANDREPLY = 'doing'  # +module:command +json args (if needed)
+COMMANDREPLY = 'done'  # +module:command +json args (if needed) # send after the command finished !
 WRITEREQUEST = 'change'  # +module[:parameter] +json_value -> NO direct reply, calls TRIGGER internally!
-WRITEREPLY = 'changing'  # +module[:parameter] +json_value -> NO direct reply, calls TRIGGER internally!
-TRIGGERREQUEST = 'read'  # +module[:parameter] -> NO direct reply, calls TRIGGER internally!
+WRITEREPLY = 'changed'  # +module[:parameter] +json_value # send with the read back value
+TRIGGERREQUEST = 'poll'  # +module[:parameter] -> NO direct reply, calls TRIGGER internally!
+EVENT = 'event'  # +module[:parameter] +json_value (value, qualifiers_as_dict)
 HEARTBEATREQUEST = 'ping'  # +nonce_without_space
 HEARTBEATREPLY = 'pong'  # +nonce_without_space
-EVENTTRIGGERREPLY = 'update'  # +module[:parameter] +json_result_value_with_qualifiers  NO REQUEST (use WRITE/TRIGGER)
-EVENTCOMMANDREPLY = 'done'  # +module:command +json result (if needed)
-#EVENTWRITEREPLY = 'changed'  # +module[:parameter] +json_result_value_with_qualifiers  NO REQUEST (use WRITE/TRIGGER)
 ERRORREPLY = 'ERROR'  # +errorclass +json_extended_info
 HELPREQUEST = 'help' # literal
 HELPREPLY = 'helping'  # +line number +json_text
-ERRORCLASSES = ['NoSuchDevice', 'NoSuchParameter', 'NoSuchCommand', 
+ERRORCLASSES = ['NoSuchDevice', 'NoSuchParameter', 'NoSuchCommand',
                 'CommandFailed', 'ReadOnly', 'BadValue', 'CommunicationFailed',
                 'IsBusy', 'IsError', 'SyntaxError', 'InternalError',
                 'CommandRunning', 'Disabled',]
@@ -80,17 +78,15 @@ class DemoEncoder(MessageEncoder):
         DeactivateRequest: (DISABLEEVENTSREQUEST,),
         DeactivateReply : (DISABLEEVENTSREPLY,),
         CommandRequest : (COMMANDREQUEST, lambda msg: "%s:%s" % (msg.module, msg.command), 'arguments',),
-        CommandReply : (COMMANDREPLY, lambda msg: "%s:%s" % (msg.module, msg.command), 'arguments',),
+        CommandReply : (COMMANDREPLY, lambda msg: "%s:%s" % (msg.module, msg.command), 'result',),
         WriteRequest : (WRITEREQUEST, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value',),
         WriteReply : (WRITEREPLY, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value',),
         PollRequest : (TRIGGERREQUEST, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, ),
         HeartbeatRequest : (HEARTBEATREQUEST, 'nonce',),
         HeartbeatReply : (HEARTBEATREPLY, 'nonce',),
         HelpMessage: (HELPREQUEST, ),
-#        EventMessage : (EVENTREPLY, lambda msg: "%s:%s" % (msg.module, msg.parameter or (msg.command+'()')) 
-#                                                if msg.parameter or msg.command else msg.module, 'value',),
         ErrorMessage : (ERRORREPLY, 'errorclass', 'errorinfo',),
-        Value: (EVENTTRIGGERREPLY, lambda msg: "%s:%s" % (msg.module, msg.parameter or (msg.command+'()')) 
+        Value: (EVENT, lambda msg: "%s:%s" % (msg.module, msg.parameter or (msg.command+'()'))
                                                 if msg.parameter or msg.command else msg.module, 
                             lambda msg: [msg.value, msg.qualifiers] if msg.qualifiers else [msg.value]),
     }
@@ -104,7 +100,7 @@ class DemoEncoder(MessageEncoder):
         DISABLEEVENTSREQUEST: lambda spec, data:DeactivateRequest(),
         DISABLEEVENTSREPLY: lambda spec, data:DeactivateReply(),
         COMMANDREQUEST: lambda spec, data:CommandRequest(module=spec[0], command=spec[1], arguments=data),
-        COMMANDREPLY: lambda spec, data: CommandReply(module=spec[0], command=spec[1], arguments=data),
+        COMMANDREPLY: lambda spec, data: CommandReply(module=spec[0], command=spec[1], result=data),
         WRITEREQUEST: lambda spec, data: WriteRequest(module=spec[0], parameter=spec[1], value=data),
         WRITEREPLY:lambda spec, data:WriteReply(module=spec[0], parameter=spec[1], value=data),
         TRIGGERREQUEST:lambda spec, data:PollRequest(module=spec[0], parameter=spec[1]),
@@ -113,14 +109,12 @@ class DemoEncoder(MessageEncoder):
         HELPREQUEST: lambda spec, data:HelpMessage(),
 #        HELPREPLY: lambda spec, data:None,  # ignore this
         ERRORREPLY:lambda spec, data:ErrorMessage(errorclass=spec[0], errorinfo=data),
-        EVENTTRIGGERREPLY:lambda spec, data:Value(module=spec[0], parameter=spec[1], value=data[0], qualifiers=data[1] if len(data)>1 else {}),
-        EVENTCOMMANDREPLY: lambda spec, data:None,  # ignore this
-#        EVENTWRITEREPLY:lambda spec, data:Value(module=spec[0], parameter=spec[1], value=data[0], qualifiers=data[1] if len(data)>1 else {}),
+        EVENT:lambda spec, data:Value(module=spec[0], parameter=spec[1], value=data[0], qualifiers=data[1] if len(data)>1 else {}),
         }
 
     def __init__(self, *args, **kwds):
         MessageEncoder.__init__(self, *args, **kwds)
-        self.tests()
+        #self.tests()
 
     def encode(self, msg):
         """msg object -> transport layer message"""
@@ -196,7 +190,7 @@ class DemoEncoder(MessageEncoder):
         print "---- Testing decoding  -----"
         for msgtype, _ in sorted(self.DECODEMAP.items()):
             msg = '%s a:b 3' % msgtype
-            if msgtype in [EVENTTRIGGERREPLY]:#, EVENTWRITEREPLY]:
+            if msgtype == EVENT:
                 msg = '%s a:b [3,{"t":193868}]' % msgtype
             print msg
             d=self.decode(msg)
@@ -204,6 +198,4 @@ class DemoEncoder(MessageEncoder):
             print self.encode(d)
             print
         print "---- Testing done -----"
-        
-
 
