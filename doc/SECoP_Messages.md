@@ -15,8 +15,13 @@ formattings:
 Note: numerical values and strings appear 'naturally' formatted in JSON, i.e. 5.0 or "a string"
 
 &lt;keyword&gt; is one of a fixed list of defined keywords, &lt;specifier&gt; is either the
-name of the module optionally followed by ':' + the name of a command or parameter, 
+name of the module optionally followed by ':' + the name of a command or parameter,
 or one of a fixed list of predefined keywords, depending on the message keyword.
+
+At the moment it is considered syntactic sugar to omit the parametername in a request.
+In replies the SEC-node (in the playground) will always use the correct parameter.
+On change-requests the parameter is assumed to be 'target', on trigger-requests it is assumed to be 'value'.
+Clients should not rely on this and explicitly state the parametername!
 
 All keywords are defined to be identifiers in the sense, that they are not longer than 63 characters and consist only of letters, digits and underscore and do not start with a digit. (i.e. T_9 is ok, whereas t{9} is not!)
 
@@ -40,12 +45,12 @@ list of Intents/Actions:
   * TRIGGER &lt;module&gt;[:&lt;param&gt;] -&gt; read_event
 
 At any time an Event may be replied. Each request may also trigger an Error.
-  
-Line-ending is \lf. 
+
+Line-ending is \lf.
 \cr is ignored and never send.
 Warning: One Message per line: Description line can be looooong!!!
-  
-  
+
+
 Allowed combinations as examples:
 (replace &lt;..&gt; with sensible stuff)
 
@@ -57,7 +62,7 @@ Identify
   * queries if SECoP protocol is supported and which version it is
   Format is intentionally choosen to be compatible to SCPI (for this query only).
   It is NOT intended to transport information about the manufacturer of the hardware, but to identify this as a SECoP device and transfer the protocol version!
- 
+
 Describe
 --------
 
@@ -83,25 +88,25 @@ Deactivate Async Events
   * Request: type A: 'deactivate'
   * Reply:   type A: 'inactive'
   * Deactivate sending of async Events. A few events may still be on their way until the 'inactive' message arrives.
-  
-  
+
+
 Execute Command
 ---------------
 
   * Request: type B: 'do &lt;module&gt;:&lt;command&gt;' for commands without arguments
   * Request: type C: 'do &lt;module&gt;:&lt;command&gt; JSON_argument' for commands with arguments
-  * Reply:   type B: 'doing &lt;module&gt;:&lt;command&gt;' for commands without arguments
-  * Reply:   type C: 'doing &lt;module&gt;:&lt;command&gt; JSON_argument' for commands with arguments
-  * start executing a command. When it is finished, an event is send.
+  * Reply:   type C: 'done &lt;module&gt;:&lt;command&gt; JSON_result' after the command finished
+  * start executing a command. When it is finished, the reply is send.
+    The JSON_result is the a list of all return values (if any), appended with qualifiers (timestamp)
 
 
 Write
 -----
 
   * Request: type C: 'change &lt;module&gt;[:&lt;param&gt;] JSON_value'
-  * Reply: type C: 'changing &lt;module&gt;[:&lt;param&gt;] JSON_value'  # direct reply
+  * Reply: type C: 'changed &lt;module&gt;:&lt;param&gt; JSON_read_back_value'
   * initiate setting a new value for the module or a parameter of it.
-  Once this is done, the new value is confirmed by an event.
+  Once this is done, the read_back value is confirmed by the reply.
 
 
 Trigger
@@ -121,32 +126,28 @@ Heartbeat
   * Reply:   type B: 'pong &lt;nonce&gt;'
   * Replies the given argument to check the round-trip-time or to confirm that the connection is still working.
   &lt;nonce&gt; may not contain &lt;space&gt;. It is suggested to limit to a string of up to 63 chars consisting of letters, digits and underscore not beginning with a digit. If &lt;nonce&gt; is not given (Type A), reply without it.
-  
+
 
 EVENT
 -----
 Events can be emitted any time from the SEC-node (except if they would interrupt another message).
 
-  * Request: None. Events can be requested by Command, Change or Trigger or by Activating Async Mode.
-  * Reply:   type C: 'update &lt;module&gt;[:&lt;param&gt;] JSON_VALUE'  # follows a TRIGGER
-  * Reply:   type C: 'changed &lt;module&gt;[:&lt;param&gt;] JSON_VALUE'  # follows a CHANGE
-  * Reply:   type B: 'done &lt;module&gt;:&lt;command&gt;'   # follows a COMMAND without return value
-  * Reply:   type C: 'done &lt;module&gt;:&lt;command&gt; JSON_VALUE'   # follows a COMMAND with return value
-  * Informs the client that a value has changed its value or that a command is finished (and what the return value, if any, was).
+  * Request: None. Events can be requested by Trigger or by Activating Async Mode.
+  * Reply:   type C: 'event &lt;module&gt;:&lt;param&gt; JSON_VALUE'
+  * Informs the client that a parameter got changed its value.
   In any case the JSON_value contain the available qualifiers as well:
     * "t" for the timestamp of the event.
     * "e" for the error of the value.
     * "u" for the unit of the value, if deviating from the descriptive data
     * further qualifiers, if needed, may be specified.
   The qualifiers are a dictionary at position 2 of a list, where the value occupies position 1.
-  This holds true also for complex datatypes!
-  
+  This holds true also for complex datatypes (of value)!
+
   examples:
-  
-  * 'update T1 [3.479, {"t":"149128925.914882", "e":0.01924}]
-  * 'changed T1:p [12, {"t":"149128927.193725"}]'
-  * 'done T1:stop'
-  * 'update Vector [[0.01, 12.49, 3.92], {"t":"149128925.914882"}]'
+
+  * 'event T1:value [3.479, {"t":"149128925.914882", "e":0.01924}]
+  * 'event T1:p [12, {"t":"149128927.193725"}]'
+  * 'event Vector:value [[0.01, 12.49, 3.92], {"t":"149128925.914882"}]'
 
 
 ERROR
@@ -167,11 +168,11 @@ ERROR
     * IsError: The requested action can not be performed while the module is in error state.
     * Disabled: The requested action can not be performed at the moment. (Interlocks?)
     * SyntaxError: A malformed Request was send
-    * InternalError: Something that should never happen just happened. 
+    * InternalError: Something that should never happen just happened.
   The JSON part should reference the offending request and give an explanatory string.
 
   examples:
-  
+
   * 'ERROR Disabled ["change", "V15", "on", "Air pressure too low to actuate the valve.", {"exception":"RuntimeException","file":"devices/blub/valve.py", "line":13127, "frames":[...]}]'
   * 'ERROR NoSuchDevice ["read","v19", "v19 is not configured on this SEC-node"]'
   * 'ERROR SyntaxError "meas:Volt?"
@@ -208,7 +209,7 @@ Discussion & open Points
   * 'change' may be 'write'
   * 'read' may be 'poll'
   * the whole message may be json object (bigger, uglier to read)
-  * which events are broadcast or unicast? 
+  * which events are broadcast or unicast?
   * do we need a way to correlate a reply with a request?
   * ...
 
