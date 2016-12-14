@@ -116,7 +116,7 @@ class Dispatcher(object):
             listeners += list(self._dispatcher_active_connections)
         for conn in listeners:
             conn.queue_async_reply(msg)
-        
+
     def announce_update(self, moduleobj, pname, pobj):
         """called by modules param setters to notify subscribers of new values
         """
@@ -142,7 +142,7 @@ class Dispatcher(object):
             self._dispatcher_connections.remove(conn)
         for _evt, conns in self._dispatcher_subscriptions.items():
             conns.discard(conn)
-    
+
     def activate_connection(self, conn):
         self._dispatcher_active_connections.add(conn)
 
@@ -188,6 +188,22 @@ class Dispatcher(object):
             dd[modulename] = descriptive_data
         return dn, dd
 
+    def get_descriptive_data(self):
+        # XXX: be lazy and cache this?
+        result = {}
+        for modulename in self._dispatcher_export:
+            module = self.get_module(modulename)
+            dd = {'class' : module.__class__.__name__,
+                  'bases' : [b.__name__ for b in module.__class__.__bases__],
+                  'parameters': dict((pn,po.as_dict()) for pn,po in module.PARAMS.items()),
+                  'commands': dict((cn,co.as_dict()) for cn,co in module.CMDS.items()),
+                  'baseclass' : 'Readable',
+                  }
+            result.setdefault('modules', {})[modulename] = dd
+        result['equipment_id'] = self.equipment_id
+        # XXX: what else?
+        return result
+
     def list_module_params(self, modulename):
         self.log.debug('list_module_params(%r)' % modulename)
         if modulename in self._dispatcher_export:
@@ -205,7 +221,7 @@ class Dispatcher(object):
     def _execute_command(self, modulename, command, arguments=None):
         if arguments is None:
             arguments = []
-            
+
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchmoduleError(module=modulename)
@@ -273,8 +289,7 @@ class Dispatcher(object):
 
     def handle_Describe(self, conn, msg):
         # XXX:collect descriptive data
-        # XXX:how to get equipment_id?
-        return DescribeReply(equipment_id = self.equipment_id, description = self.list_modules())
+        return DescribeReply(equipment_id = self.equipment_id, description = self.get_descriptive_data())
 
     def handle_Poll(self, conn, msg):
         # XXX: trigger polling and force sending event
@@ -283,7 +298,7 @@ class Dispatcher(object):
         if conn in self._dispatcher_active_connections:
             return None  # already send to myself
         return res  # send reply to inactive conns
-    
+
     def handle_Write(self, conn, msg):
         # notify all by sending WriteReply
         #msg1 = WriteReply(**msg.as_dict())
@@ -301,7 +316,7 @@ class Dispatcher(object):
         if conn in self._dispatcher_active_connections:
             return None  # already send to myself
         return res  # send reply to inactive conns
-   
+
     def handle_Command(self, conn, msg):
         # notify all by sending CommandReply
         #msg1 = CommandReply(**msg.as_dict())
@@ -314,7 +329,7 @@ class Dispatcher(object):
         #if conn in self._dispatcher_active_connections:
         #    return None  # already send to myself
         return res  # send reply to inactive conns
-    
+
     def handle_Heartbeat(self, conn, msg):
         return HeartbeatReply(**msg.as_dict())
 
@@ -331,14 +346,14 @@ class Dispatcher(object):
                 except SECOPError as e:
                     self.log.error('decide what to do here!')
                     self.log.exception(e)
-                    res = Value(module=modulename, parameter=pname, 
-                                value=pobj.value, t=pobj.timestamp, 
+                    res = Value(module=modulename, parameter=pname,
+                                value=pobj.value, t=pobj.timestamp,
                                 unit=pobj.unit)
                 if res.value != Ellipsis: # means we do not have a value at all so skip this
                     self.broadcast_event(res)
         conn.queue_async_reply(ActivateReply(**msg.as_dict()))
         return None
-        
+
     def handle_Deactivate(self, conn, msg):
         self.deactivate_connection(conn)
         conn.queue_async_reply(DeactivateReply(**msg.as_dict()))
@@ -353,7 +368,7 @@ class Dispatcher(object):
         (no handle_<messagename> method was defined)
         """
         self.log.error('IGN: got unhandled request %s' % msg)
-        return ErrorMessage(errorclass="InternalError", 
+        return ErrorMessage(errorclass="InternalError",
                             errorstring = 'Got Unhandled Request %r' % msg)
 
 

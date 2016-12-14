@@ -67,6 +67,16 @@ class PARAM(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
+    def as_dict(self):
+        # used for serialisation only
+        return dict(description = self.description,
+                    unit = self.unit,
+                    readonly = self.readonly,
+                    value = self.value,
+                    timestamp = self.timestamp,
+                    validator = repr(self.validator),
+                    )
+
 
 # storage for CMDs settings (description + call signature...)
 class CMD(object):
@@ -83,6 +93,12 @@ class CMD(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
+    def as_dict(self):
+        # used for serialisation only
+        return dict(description = self.description,
+                    arguments = repr(self.arguments),
+                    resulttype = repr(self.resulttype),
+                    )
 
 # Meta class
 # warning: MAGIC!

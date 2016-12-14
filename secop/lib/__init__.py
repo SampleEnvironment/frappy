@@ -22,6 +22,7 @@
 
 """Define helpers"""
 
+import threading
 
 class attrdict(dict):
     """a normal dict, providing access also via attributes"""
@@ -51,6 +52,13 @@ def get_class(spec):
 #    module = __import__(spec)
     return getattr(module, classname)
 
+
+def mkthread(func, *args, **kwds):
+    t = threading.Thread(name='%s:%s' % (func.__module__, func.__name__),
+                         target=func, args=args, kwargs=kwds)
+    t.daemon = True
+    t.start()
+    return t
 
 if __name__ == '__main__':
     print "minimal testing: lib"

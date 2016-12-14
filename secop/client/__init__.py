@@ -89,11 +89,12 @@ class ClientConsole(object):
         else:
             help(arg)
 
-import loggers
 import socket
 import threading
 from collections import deque
-from secop.protocol.transport import FRAMERS, ENCODERS
+from secop import loggers
+from secop.protocol.encoding import ENCODERS
+from secop.protocol.framing import FRAMERS
 from secop.protocol.messages import *
 
 
@@ -163,9 +164,6 @@ class TCPConnection(object):
     def unregister_callback(self, callback):
         """unregisters callback for async data"""
         self.callbacks.discard(callback)
-
-
-import loggers
 
 
 class Client(object):

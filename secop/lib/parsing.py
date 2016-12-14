@@ -22,19 +22,106 @@
 
 """Define parsing helpers"""
 
+import re
 import time
-import datetime
+from datetime import tzinfo, timedelta, datetime
+
+# based on http://stackoverflow.com/a/39418771
+class LocalTimezone(tzinfo):
+    ZERO = timedelta(0)
+    STDOFFSET = timedelta(seconds = -time.timezone)
+    if time.daylight:
+        DSTOFFSET = timedelta(seconds = -time.altzone)
+    else:
+        DSTOFFSET = STDOFFSET
+
+    DSTDIFF = DSTOFFSET - STDOFFSET
+
+    def utcoffset(self, dt):
+        if self._isdst(dt):
+            return self.DSTOFFSET
+        else:
+            return self.STDOFFSET
+
+    def dst(self, dt):
+        if self._isdst(dt):
+            return self.DSTDIFF
+        else:
+            return self.ZERO
+
+    def tzname(self, dt):
+        return time.tzname[self._isdst(dt)]
+
+    def _isdst(self, dt):
+        tt = (dt.year, dt.month, dt.day,
+              dt.hour, dt.minute, dt.second,
+              dt.weekday(), 0, 0)
+        stamp = time.mktime(tt)
+        tt = time.localtime(stamp)
+        return tt.tm_isdst > 0
+
+LocalTimezone = LocalTimezone()
+
+def format_time(timestamp=None):
+    # get time in UTC
+    if timestamp is None:
+        d = datetime.now(LocalTimezone)
+    else:
+        d = datetime.fromtimestamp(timestamp, LocalTimezone)
+    return d.isoformat("T")
 
 
-def format_time(timestamp):
-    return datetime.datetime.fromtimestamp(
-        timestamp).strftime("%Y-%m-%d %H:%M:%S.%f")
+class Timezone(tzinfo):
+    def __init__(self, offset, name='unknown timezone'):
+        self.offset = offset
+        self.name = name
+    def tzname(self, dt):
+        return self.name
+    def utcoffset(self, dt):
+        return self.offset
+    def dst(self, dt):
+        return timedelta(0)
+datetime_re = re.compile(
+    r'(?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})'
+    r'[T ](?P<hour>\d{1,2}):(?P<minute>\d{1,2})'
+    r'(?::(?P<second>\d{1,2})(?:\.(?P<microsecond>\d{1,6})\d*)?)?'
+    r'(?P<tzinfo>Z|[+-]\d{2}(?::?\d{2})?)?$'
+)
+
+def _parse_isostring(isostring):
+    """Parses a string and return a datetime.datetime.
+    This function supports time zone offsets. When the input contains one,
+    the output uses a timezone with a fixed offset from UTC.
+    """
+    match = datetime_re.match(isostring)
+    if match:
+        kw = match.groupdict()
+        if kw['microsecond']:
+            kw['microsecond'] = kw['microsecond'].ljust(6, '0')
+        _tzinfo = kw.pop('tzinfo')
+        if _tzinfo == 'Z':
+            _tzinfo = timezone.utc
+        elif _tzinfo is not None:
+            offset_mins = int(_tzinfo[-2:]) if len(_tzinfo) > 3 else 0
+            offset_hours = int(_tzinfo[1:3])
+            offset = timedelta(hours=offset_hours, minutes=offset_mins)
+            if _tzinfo[0] == '-':
+                offset = -offset
+            _tzinfo = Timezone(offset)
+        kw = {k: int(v) for k, v in kw.items() if v is not None}
+        kw['tzinfo'] = _tzinfo
+        return datetime(**kw)
+    raise ValueError("%s is not a valid ISO8601 string I can parse!" % isostring)
+
+def parse_time(isostring):
+    try:
+        return float(isostring)
+    except ValueError:
+        dt = _parse_isostring(isostring)
+        return time.mktime(dt.timetuple()) + dt.microsecond * 1e-6
 
 
-def parse_time(string):
-    d = datetime.datetime.strptime(string, "%Y-%m-%d %H:%M:%S.%f")
-    return time.mktime(d.timetuple()) + 0.000001 * d.microsecond
-
+# possibly unusable stuff below!
 
 def format_args(args):
     if isinstance(args, list):

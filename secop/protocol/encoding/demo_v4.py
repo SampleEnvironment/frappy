@@ -25,6 +25,7 @@
 # implement as class as they may need some internal 'state' later on
 # (think compressors)
 
+from secop.lib.parsing import format_time
 from secop.protocol.encoding import MessageEncoder
 from secop.protocol.messages import *
 from secop.protocol.errors import ProtocollError
@@ -42,7 +43,7 @@ DEMO_RE = re.compile(
 #"""
 # messagetypes:
 IDENTREQUEST = '*IDN?'  # literal
-IDENTREPLY = 'Sine2020WP7.1&ISSE, SECoP, V2016-11-30, rc1'  # literal
+IDENTREPLY = 'SECoP, SECoPTCP, V2016-11-30, rc1'  # literal! first part 'SECoP' is fixed!
 DESCRIPTIONSREQUEST = 'describe'  # literal
 DESCRIPTIONREPLY = 'describing'  # +<id> +json
 ENABLEEVENTSREQUEST = 'activate' # literal
@@ -66,6 +67,12 @@ ERRORCLASSES = ['NoSuchDevice', 'NoSuchParameter', 'NoSuchCommand',
                 'CommandRunning', 'Disabled',]
 # note: above strings need to be unique in the sense, that none is/or starts with another
 
+def encode_value_data(vobj):
+    q = vobj.qualifiers.copy()
+    if 't' in q:
+        q['t'] = format_time(q['t'])
+    return vobj.value, q
+
 class DemoEncoder(MessageEncoder):
     # map of msg to msgtype string as defined above.
     ENCODEMAP = {
@@ -88,7 +95,7 @@ class DemoEncoder(MessageEncoder):
         ErrorMessage : (ERRORREPLY, 'errorclass', 'errorinfo',),
         Value: (EVENT, lambda msg: "%s:%s" % (msg.module, msg.parameter or (msg.command+'()'))
                                                 if msg.parameter or msg.command else msg.module, 
-                            lambda msg: [msg.value, msg.qualifiers] if msg.qualifiers else [msg.value]),
+                            encode_value_data,),
     }
     DECODEMAP = {
         IDENTREQUEST : lambda spec, data: IdentifyRequest(),
