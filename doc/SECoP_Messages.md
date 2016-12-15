@@ -23,7 +23,8 @@ In replies the SEC-node (in the playground) will always use the correct paramete
 On change-requests the parameter is assumed to be 'target', on trigger-requests it is assumed to be 'value'.
 Clients should not rely on this and explicitly state the parametername!
 
-All keywords are defined to be identifiers in the sense, that they are not longer than 63 characters and consist only of letters, digits and underscore and do not start with a digit. (i.e. T_9 is ok, whereas t{9} is not!)
+All names and keywords are defined to be identifiers in the sense, that they are not longer than 63 characters and consist only of letters, digits and underscore and do not start with a digit. (i.e. T_9 is ok, whereas t{9} is not!)
+No rule is without exception, there is exactly ONE special case: the identify request consists of the literal string '*IDN?\n' and its answer is formatted like an valid SCPI response for *IDN?.
 
 We rely on the underlying transport to not split messages, i.e. all messages are transported as a whole and no message interrupts another.
 
@@ -58,7 +59,7 @@ Identify
 --------
 
   * Request: type A: '*IDN?'
-  * Reply:   special: 'Sine2020WP7.1&ISSE, SECoP, V2016-11-30, rc1'
+  * Reply:   special: 'SECoP, SECoPTCP, V2016-11-30, rc1'
   * queries if SECoP protocol is supported and which version it is
   Format is intentionally choosen to be compatible to SCPI (for this query only).
   It is NOT intended to transport information about the manufacturer of the hardware, but to identify this as a SECoP device and transfer the protocol version!

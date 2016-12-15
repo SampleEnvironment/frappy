@@ -36,9 +36,9 @@ from secop.protocol.framing import FRAMERS
 from secop.protocol.messages import *
 
 
-
 class TCPConnection(object):
     # disguise a TCP connection as serial one
+
     def __init__(self, host, port):
         self._host = host
         self._port = int(port)
@@ -73,15 +73,17 @@ class TCPConnection(object):
                 while '\n' in data:
                     line, data = data.split('\n', 1)
                     try:
-                        self._readbuffer.put(line.strip('\r'), block=True, timeout=1)
+                        self._readbuffer.put(
+                            line.strip('\r'), block=True, timeout=1)
                     except Queue.Full:
-                        self.log.debug('rcv queue full! dropping line: %r' % line)
+                        self.log.debug(
+                            'rcv queue full! dropping line: %r' % line)
         finally:
             self._thread = None
 
     def readline(self, block=False):
         """blocks until a full line was read and returns it"""
-        i = 10;
+        i = 10
         while i:
             try:
                 return self._readbuffer.get(block=True, timeout=1)
@@ -109,13 +111,13 @@ class Value(object):
     u = None
     e = None
     fmtstr = '%s'
-    
+
     def __init__(self, value, qualifiers={}):
         self.value = value
         if 't' in qualifiers:
             self.t = parse_time(qualifiers.pop('t'))
         self.__dict__.update(qualifiers)
-        
+
     def __repr__(self):
         r = []
         if self.t is not None:
@@ -160,7 +162,8 @@ class Client(object):
         self.single_shots = dict()
 
         # mapping the modulename to a dict mapping the parameter names to their values
-        # note: the module value is stored as the value of the parameter value of the module
+        # note: the module value is stored as the value of the parameter value
+        # of the module
         self.cache = dict()
 
         self._syncLock = threading.RLock()
@@ -188,7 +191,7 @@ class Client(object):
                 self.secop_id = line
                 continue
             msgtype, spec, data = self._decode_message(line)
-            if msgtype in ('event','changed'):
+            if msgtype in ('event', 'changed'):
                 # handle async stuff
                 self._handle_event(spec, data)
             if msgtype != 'event':
@@ -201,7 +204,6 @@ class Client(object):
                     entry[0].set()
                 else:
                     self.log.error('ignoring unexpected reply %r' % line)
-
 
     def _encode_message(self, requesttype, spec='', data=Ellipsis):
         """encodes the given message to a string
@@ -250,30 +252,37 @@ class Client(object):
                 try:
                     mkthread(func, data)
                 except Exception as err:
-                    self.log.exception('Exception in Single-shot Callback!', err)
+                    self.log.exception(
+                        'Exception in Single-shot Callback!', err)
                 run.add(func)
             self.single_shots[spec].difference_update(run)
 
     def register_callback(self, module, parameter, cb):
-        self.log.debug('registering callback %r for %s:%s' % (cb, module, parameter))
+        self.log.debug(
+            'registering callback %r for %s:%s' %
+            (cb, module, parameter))
         self.callbacks.setdefault('%s:%s' % (module, parameter), set()).add(cb)
 
     def unregister_callback(self, module, parameter, cb):
-        self.log.debug('unregistering callback %r for %s:%s' % (cb, module, parameter))
-        self.callbacks.setdefault('%s:%s' % (module, parameter), set()).discard(cb)
+        self.log.debug(
+            'unregistering callback %r for %s:%s' %
+            (cb, module, parameter))
+        self.callbacks.setdefault('%s:%s' %
+                                  (module, parameter), set()).discard(cb)
 
     def communicate(self, msgtype, spec='', data=Ellipsis):
         # maps each (sync) request to the corresponding reply
-        # XXX: should go to the encoder! and be imported here (or make a translating method)
+        # XXX: should go to the encoder! and be imported here (or make a
+        # translating method)
         REPLYMAP = {
-            "describe":   "describing",
-            "do":         "done",
-            "change":     "changed",
-            "activate":   "active",
+            "describe": "describing",
+            "do": "done",
+            "change": "changed",
+            "activate": "active",
             "deactivate": "inactive",
-            "*IDN?":      "SECoP,",
-            "ping":       "ping",
-            }
+            "*IDN?": "SECoP,",
+            "ping": "ping",
+        }
         if self.stopflag:
             raise RuntimeError('alreading stopping!')
         if msgtype == 'poll':
@@ -282,20 +291,25 @@ class Client(object):
                 spec = spec + ':value'
             event = threading.Event()
             result = ['polled', spec]
-            self.single_shots.setdefault(spec, set()).add(lambda d: (result.append(d), event.set()))
-            self.connection.writeline(self._encode_message(msgtype, spec, data))
+            self.single_shots.setdefault(spec, set()).add(
+                lambda d: (result.append(d), event.set()))
+            self.connection.writeline(
+                self._encode_message(
+                    msgtype, spec, data))
             if event.wait(10):
                 return tuple(result)
             raise RuntimeError("timeout upon waiting for reply!")
 
         rply = REPLYMAP[msgtype]
         if rply in self.expected_replies:
-            raise RuntimeError("can not have more than one requests of the same type at the same time!")
+            raise RuntimeError(
+                "can not have more than one requests of the same type at the same time!")
         event = threading.Event()
         self.expected_replies[rply] = [event]
         self.connection.writeline(self._encode_message(msgtype, spec, data))
-        if event.wait(10): # wait 10s for reply
-            result = rply, self.expected_replies[rply][1], self.expected_replies[rply][2]
+        if event.wait(10):  # wait 10s for reply
+            result = rply, self.expected_replies[rply][
+                1], self.expected_replies[rply][2]
             del self.expected_replies[rply]
             return result
         del self.expected_replies[rply]
@@ -316,9 +330,9 @@ class Client(object):
         self._cache.getdefault(device, {})[param] = value
         # XXX: further notification-callbacks needed ???
 
-
     def startup(self, async=False):
-        _, self.equipment_id, self.describing_data = self.communicate('describe')
+        _, self.equipment_id, self.describing_data = self.communicate(
+            'describe')
         # always fill our cache
         self.communicate('activate')
         # deactivate updates if not wanted
@@ -343,8 +357,8 @@ class Client(object):
         return self.describing_data['modules'][module]['commands'].keys()
 
     def getProperties(self, module, parameter):
-        return self.describing_data['modules'][module]['parameters'][parameter].items()
+        return self.describing_data['modules'][
+            module]['parameters'][parameter].items()
 
     def syncCommunicate(self, msg):
         return self.communicate(msg)
-

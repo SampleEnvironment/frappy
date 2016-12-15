@@ -26,12 +26,17 @@ import re
 import time
 from datetime import tzinfo, timedelta, datetime
 
+# format_time and parse_time could be simplified with external dateutil lib
+# http://stackoverflow.com/a/15228038
+
 # based on http://stackoverflow.com/a/39418771
+
+
 class LocalTimezone(tzinfo):
     ZERO = timedelta(0)
-    STDOFFSET = timedelta(seconds = -time.timezone)
+    STDOFFSET = timedelta(seconds=-time.timezone)
     if time.daylight:
-        DSTOFFSET = timedelta(seconds = -time.altzone)
+        DSTOFFSET = timedelta(seconds=-time.altzone)
     else:
         DSTOFFSET = STDOFFSET
 
@@ -62,6 +67,7 @@ class LocalTimezone(tzinfo):
 
 LocalTimezone = LocalTimezone()
 
+
 def format_time(timestamp=None):
     # get time in UTC
     if timestamp is None:
@@ -70,15 +76,22 @@ def format_time(timestamp=None):
         d = datetime.fromtimestamp(timestamp, LocalTimezone)
     return d.isoformat("T")
 
+# Solution based on
+# https://bugs.python.org/review/15873/diff/16581/Lib/datetime.py#newcode1418Lib/datetime.py:1418
+
 
 class Timezone(tzinfo):
+
     def __init__(self, offset, name='unknown timezone'):
         self.offset = offset
         self.name = name
+
     def tzname(self, dt):
         return self.name
+
     def utcoffset(self, dt):
         return self.offset
+
     def dst(self, dt):
         return timedelta(0)
 datetime_re = re.compile(
@@ -87,6 +100,7 @@ datetime_re = re.compile(
     r'(?::(?P<second>\d{1,2})(?:\.(?P<microsecond>\d{1,6})\d*)?)?'
     r'(?P<tzinfo>Z|[+-]\d{2}(?::?\d{2})?)?$'
 )
+
 
 def _parse_isostring(isostring):
     """Parses a string and return a datetime.datetime.
@@ -111,7 +125,10 @@ def _parse_isostring(isostring):
         kw = {k: int(v) for k, v in kw.items() if v is not None}
         kw['tzinfo'] = _tzinfo
         return datetime(**kw)
-    raise ValueError("%s is not a valid ISO8601 string I can parse!" % isostring)
+    raise ValueError(
+        "%s is not a valid ISO8601 string I can parse!" %
+        isostring)
+
 
 def parse_time(isostring):
     try:

@@ -34,6 +34,7 @@ from secop.protocol.encoding import ENCODERS
 from secop.protocol.framing import FRAMERS
 from secop.protocol.messages import HelpMessage
 
+
 class TCPRequestHandler(SocketServer.BaseRequestHandler):
 
     def setup(self):
@@ -49,7 +50,7 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
         clientaddr = self.client_address
         serverobj = self.server
         self.log.debug("handling new connection from %s" % repr(clientaddr))
-      
+
         # notify dispatcher of us
         serverobj.dispatcher.add_connection(self)
 
@@ -81,7 +82,7 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
             # dispatcher will queue the reply before returning
             frames = self.framing.decode(data)
             if frames is not None:
-                if not frames: # empty list
+                if not frames:  # empty list
                     self.queue_reply(HelpMessage(MSGTYPE=reply))
                 for frame in frames:
                     reply = None
@@ -129,7 +130,8 @@ class TCPServer(SocketServer.ThreadingTCPServer):
         self.encodingCLS = ENCODERS[interfaceopts.pop('encoding', 'pickle')]
         self.log.debug("TCPServer binding to %s:%d" % (bindto, portnum))
         self.log.debug("TCPServer using framing=%s" % self.framingCLS.__name__)
-        self.log.debug("TCPServer using encoding=%s" % self.encodingCLS.__name__)
+        self.log.debug("TCPServer using encoding=%s" %
+                       self.encodingCLS.__name__)
         SocketServer.ThreadingTCPServer.__init__(self, (bindto, portnum),
                                                  TCPRequestHandler,
                                                  bind_and_activate=True)

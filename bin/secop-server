@@ -40,7 +40,6 @@ from secop import loggers
 from secop.server import Server
 
 
-
 def parseArgv(argv):
     parser = argparse.ArgumentParser(description="Manage a SECoP server")
     loggroup = parser.add_mutually_exclusive_group()

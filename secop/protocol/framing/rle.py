@@ -70,5 +70,3 @@ class RLEFramer(Framer):
     def reset(self):
         self.data = b''
         self.frames_to_go = 0
-
-

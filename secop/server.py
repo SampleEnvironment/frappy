@@ -85,7 +85,9 @@ class Server(object):
             time.sleep(1)
             for t in self._threads:
                 if not t.is_alive():
-                    self.log.debug('thread %r died (%d still running)' % (t,len(self._threads)))
+                    self.log.debug(
+                        'thread %r died (%d still running)' %
+                        (t, len(self._threads)))
                     t.join()
                     self._threads.discard(t)
 
@@ -132,7 +134,9 @@ class Server(object):
         if parser.has_option('equipment', 'id'):
             equipment_id = parser.get('equipment', 'id')
 
-        self._dispatcher = self._buildObject('Dispatcher', Dispatcher, dict(equipment_id=equipment_id))
+        self._dispatcher = self._buildObject(
+            'Dispatcher', Dispatcher, dict(
+                equipment_id=equipment_id))
         self._processInterfaceOptions(interfaceopts)
         self._processDeviceOptions(deviceopts)
 

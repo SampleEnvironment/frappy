@@ -69,12 +69,12 @@ class PARAM(object):
 
     def as_dict(self):
         # used for serialisation only
-        return dict(description = self.description,
-                    unit = self.unit,
-                    readonly = self.readonly,
-                    value = self.value,
-                    timestamp = self.timestamp,
-                    validator = repr(self.validator),
+        return dict(description=self.description,
+                    unit=self.unit,
+                    readonly=self.readonly,
+                    value=self.value,
+                    timestamp=self.timestamp,
+                    validator=repr(self.validator),
                     )
 
 
@@ -95,13 +95,15 @@ class CMD(object):
 
     def as_dict(self):
         # used for serialisation only
-        return dict(description = self.description,
-                    arguments = repr(self.arguments),
-                    resulttype = repr(self.resulttype),
+        return dict(description=self.description,
+                    arguments=repr(self.arguments),
+                    resulttype=repr(self.resulttype),
                     )
 
 # Meta class
 # warning: MAGIC!
+
+
 class DeviceMeta(type):
 
     def __new__(mcs, name, bases, attrs):
@@ -183,8 +185,9 @@ class DeviceMeta(type):
                     argspec = inspect.getargspec(value)
                     if argspec[0] and argspec[0][0] == 'self':
                         del argspec[0][0]
-                        newtype.CMDS[name[2:]] = CMD(getattr(value, '__doc__'), 
-                                                 argspec.args, None)  # XXX: find resulttype!
+                        newtype.CMDS[name[2:]] = CMD(
+                            getattr(value, '__doc__'),
+                            argspec.args, None)  # XXX: find resulttype!
         attrs['__constructed__'] = True
         return newtype
 
@@ -279,7 +282,7 @@ class Readable(Device):
         'baseclass': PARAM('protocol defined interface class',
                            default="Readable", validator=str),
         'value': PARAM('current value of the device', readonly=True, default=0.),
-        'pollinterval': PARAM('sleeptime between polls', readonly=False, default=5, validator=floatrange(1,120),),
+        'pollinterval': PARAM('sleeptime between polls', readonly=False, default=5, validator=floatrange(1, 120),),
         'status': PARAM('current status of the device', default=status.OK,
                         validator=enum(**{'idle': status.OK,
                                           'BUSY': status.BUSY,
@@ -303,7 +306,7 @@ class Readable(Device):
         self._pollthread = threading.Thread(target=self._pollThread)
         self._pollthread.daemon = True
         self._pollthread.start()
-        
+
     def _pollThread(self):
         while True:
             time.sleep(self.pollinterval)
@@ -312,7 +315,8 @@ class Readable(Device):
                     rfunc = getattr(self, 'read_%s' % pname, None)
                     if rfunc:
                         rfunc()
-            
+
+
 class Driveable(Readable):
     """Basic Driveable device
 
@@ -324,5 +328,6 @@ class Driveable(Readable):
         'target': PARAM('target value of the device', default=0.,
                         readonly=False),
     }
+
     def doStop(self):
         time.sleep(1)  # for testing !

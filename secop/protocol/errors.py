@@ -24,9 +24,10 @@
 
 
 class SECOPError(RuntimeError):
+
     def __init__(self, *args, **kwds):
         self.args = args
-        for k,v in kwds.items():
+        for k, v in kwds.items():
             setattr(self, k, v)
 
 

@@ -80,5 +80,3 @@ class DemoFramer(Framer):
     def reset(self):
         self.data = b''
         self.decoded = []
-
-

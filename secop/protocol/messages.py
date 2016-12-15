@@ -45,18 +45,19 @@ class Message(object):
 
     def as_dict(self):
         """returns set parameters as dict"""
-        return dict(map(lambda k:(k, getattr(self,k)),self.ARGS))
+        return dict(map(lambda k: (k, getattr(self, k)), self.ARGS))
 
 
 class Value(object):
 
-    def __init__(self, module, parameter=None, command=None, value=Ellipsis, **qualifiers):
+    def __init__(self, module, parameter=None, command=None, value=Ellipsis,
+                 **qualifiers):
         self.module = module
         self.parameter = parameter
         self.command = command
         self.value = value
         self.qualifiers = qualifiers
-        self.msgtype = 'update' # 'changed' or 'done'
+        self.msgtype = 'update'  # 'changed' or 'done'
 
     def __repr__(self):
         devspec = self.module
@@ -65,45 +66,56 @@ class Value(object):
         elif self.command:
             devspec = '%s:%s()' % (devspec, self.command)
         return '%s:Value(%s)' % (devspec, ', '.join(
-            [repr(self.value)] + ['%s=%s' % (k, repr(v)) for k, v in self.qualifiers.items()]))
+            [repr(self.value)] +
+            ['%s=%s' % (k, repr(v)) for k, v in self.qualifiers.items()]))
 
 
 class IdentifyRequest(Message):
     is_request = True
 
+
 class IdentifyReply(Message):
     is_reply = True
     version_string = None
 
+
 class DescribeRequest(Message):
     is_request = True
+
 
 class DescribeReply(Message):
     is_reply = True
     equipment_id = None
     description = None
 
+
 class ActivateRequest(Message):
     is_request = True
+
 
 class ActivateReply(Message):
     is_reply = True
 
+
 class DeactivateRequest(Message):
     is_request = True
 
+
 class DeactivateReply(Message):
     is_reply = True
+
 
 class CommandRequest(Message):
     is_request = True
     command = ''
     arguments = []
 
+
 class CommandReply(Message):
     is_reply = True
     command = ''
     result = None
+
 
 class WriteRequest(Message):
     is_request = True
@@ -111,32 +123,38 @@ class WriteRequest(Message):
     parameter = None
     value = None
 
+
 class WriteReply(Message):
     is_reply = True
     module = None
     parameter = None
     value = None
 
+
 class PollRequest(Message):
     is_request = True
     module = None
     parameter = None
 
+
 class HeartbeatRequest(Message):
     is_request = True
     nonce = 'alive'
+
 
 class HeartbeatReply(Message):
     is_reply = True
     nonce = 'undefined'
 
+
 class EventMessage(Message):
-# use Value directly for Replies !
+    # use Value directly for Replies !
     is_reply = True
     module = None
     parameter = None
     command = None
     value = None  # Value object ! (includes qualifiers!)
+
 
 class ErrorMessage(Message):
     is_error = True
@@ -147,7 +165,6 @@ class ErrorMessage(Message):
 class HelpMessage(Message):
     is_reply = True
     is_request = True
-
 
 
 if __name__ == '__main__':

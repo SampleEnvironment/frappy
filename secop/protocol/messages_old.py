@@ -110,8 +110,10 @@ class Value(object):
             devspec = '%s:%s' % (devspec, self.param)
         if self.prop:
             devspec = '%s:%s' % (devspec, self.prop)
-        return '%s:Value(%s)' % (devspec, ', '.join(
-            [repr(self.value)] + ['%s=%r' % (k, v) for k, v in self.qualifiers.items()]))
+        return '%s:Value(%s)' % (
+            devspec, ', '.join(
+                [repr(self.value)] +
+                ['%s=%r' % (k, v) for k, v in self.qualifiers.items()]))
 
 
 class ListMessage(Message):
@@ -165,32 +167,59 @@ class HelpMessage(Message):
 
 
 class NoSuchDeviceError(ErrorMessage):
+
     def __init__(self, *devs):
-        ErrorMessage.__init__(self, devs=devs, errorstring="Device %r does not exist" % devs[0], errortype='NoSuchDevice')
+        ErrorMessage.__init__(
+            self, devs=devs, errorstring="Device %r does not exist" %
+            devs[0], errortype='NoSuchDevice')
 
 
 class NoSuchParamError(ErrorMessage):
+
     def __init__(self, dev, *params):
-        ErrorMessage.__init__(self, devs=(dev,), params=params, errorstring="Device %r has no parameter %r" % (dev, params[0]), errortype='NoSuchParam')
+        ErrorMessage.__init__(
+            self, devs=(dev,),
+            params=params, errorstring="Device %r has no parameter %r" %
+            (dev, params[0]),
+            errortype='NoSuchParam')
 
 
 class ParamReadonlyError(ErrorMessage):
+
     def __init__(self, dev, *params):
-        ErrorMessage.__init__(self, devs=(dev,), params=params, errorstring="Device %r, parameter %r is not writeable!" % (dev, params[0]), errortype='ParamReadOnly')
+        ErrorMessage.__init__(
+            self, devs=(dev,),
+            params=params,
+            errorstring="Device %r, parameter %r is not writeable!" %
+            (dev, params[0]),
+            errortype='ParamReadOnly')
 
 
 class InvalidParamValueError(ErrorMessage):
+
     def __init__(self, dev, param, value, e):
-        ErrorMessage.__init__(self, devs=(dev,), params=params, values=(value), errorstring=str(e), errortype='InvalidParamValueError')
+        ErrorMessage.__init__(
+            self, devs=(dev,),
+            params=params, values=(value),
+            errorstring=str(e),
+            errortype='InvalidParamValueError')
 
 
 class InternalError(ErrorMessage):
+
     def __init__(self, err, **kwds):
-        ErrorMessage.__init__(self, errorstring=str(err), errortype='InternalError', **kwds)
+        ErrorMessage.__init__(
+            self, errorstring=str(err),
+            errortype='InternalError', **kwds)
 
 
-MESSAGE = dict((cls.MSGTYPE, cls) for cls in [HelpMessage, ErrorMessage, EventMessage, TriggerMessage, UnsubscribeMessage, SubscribeMessage,
-                                              PollMessage, CommandMessage, WriteMessage, ReadMessage, ListMessage])
+MESSAGE = dict(
+    (cls.MSGTYPE, cls)
+    for cls
+    in
+    [HelpMessage, ErrorMessage, EventMessage, TriggerMessage,
+     UnsubscribeMessage, SubscribeMessage, PollMessage, CommandMessage,
+     WriteMessage, ReadMessage, ListMessage])
 
 if __name__ == '__main__':
     print("Minimal testing of messages....")

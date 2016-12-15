@@ -35,7 +35,6 @@ except ImportError:
     import pickle
 
 
-
 class PickleEncoder(MessageEncoder):
 
     def encode(self, messageobj):

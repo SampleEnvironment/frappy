@@ -24,6 +24,7 @@
 
 import threading
 
+
 class attrdict(dict):
     """a normal dict, providing access also via attributes"""
 

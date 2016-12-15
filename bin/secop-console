@@ -32,12 +32,12 @@ basepath = path.abspath(path.join(sys.path[0], '..'))
 etc_path = path.join(basepath, 'etc')
 pid_path = path.join(basepath, 'pid')
 log_path = path.join(basepath, 'log')
-#sys.path[0] = path.join(basepath, 'src')
+# sys.path[0] = path.join(basepath, 'src')
 sys.path[0] = basepath
 
+# do not move above!
 import loggers
 from secop.client import ClientConsole
-
 
 
 def parseArgv(argv):
@@ -64,7 +64,6 @@ def main(argv=None):
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
     loggers.initLogging('console', loglevel, log_path)
 
-    
     console = ClientConsole(args.name, basepath)
 
     try:

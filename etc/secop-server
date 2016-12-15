@@ -36,7 +36,7 @@ import glob
 import signal
 
 
-CFG_DIR='/etc/secop'
+CFG_DIR = '/etc/secop'
 PID_DIR = '/var/run'
 SRV_EXEC = 'secop-server'
 
@@ -62,7 +62,7 @@ def parseArgv(argv):
 
 def getServerNames():
     return sorted([os.path.basename(entry)[:-4]
-            for entry in glob.glob(os.path.join(CFG_DIR, '*.cfg'))])
+                   for entry in glob.glob(os.path.join(CFG_DIR, '*.cfg'))])
 
 
 def getSrvPid(name):
@@ -100,6 +100,7 @@ def determineServerStatus(name):
     else:
         print('%s: dead' % name)
 
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -107,7 +108,7 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     actionMap = {
-        'start' : startServer,
+        'start': startServer,
         'stop': stopServer,
         'status': determineServerStatus,
     }

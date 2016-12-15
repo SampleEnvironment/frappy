@@ -98,7 +98,7 @@ class DemoEncoder(MessageEncoder):
         MessageEncoder.__init__(self, *args, **kwds)
         self.result = []  # for decoding
         self.expect_lines = 1
-        #self.tests()
+        # self.tests()
 
     def encode(self, msg):
         """msg object -> transport layer message"""
@@ -179,8 +179,13 @@ class DemoEncoder(MessageEncoder):
             return '\n'.join(result)
 
         if isinstance(msg, ErrorMessage):
-            return ('%s %s' % (devspec(msg, 'error %s' %
-                                       msg.errortype), msg.errorstring)).strip()
+            return (
+                '%s %s' %
+                (devspec(
+                    msg,
+                    'error %s' %
+                    msg.errortype),
+                    msg.errorstring)).strip()
 
         return 'Can not handle object %r!' % msg
 
@@ -292,7 +297,11 @@ class DemoEncoder(MessageEncoder):
             # construct messageobj
             if msgtype in MESSAGE:
                 return MESSAGE[msgtype](
-                    devs=devs, pars=pars, props=props, result=result, **mgroups)
+                    devs=devs,
+                    pars=pars,
+                    props=props,
+                    result=result,
+                    **mgroups)
 
         return ErrorMessage(errortype="SyntaxError",
                             errorstring="Can't handle %r" % encoded)
