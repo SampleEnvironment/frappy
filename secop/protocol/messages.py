@@ -28,6 +28,7 @@ class Message(object):
     is_request = False
     is_reply = False
     is_error = False
+    qualifiers = {}
 
     def __init__(self, **kwds):
         self.ARGS = set()

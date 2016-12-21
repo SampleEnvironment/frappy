@@ -132,7 +132,7 @@ class Value(object):
 
 
 class Client(object):
-    equipmentId = 'unknown'
+    equipment_id = 'unknown'
     secop_id = 'unknown'
     describing_data = {}
     stopflag = False
@@ -182,12 +182,12 @@ class Client(object):
     def _inner_run(self):
         data = ''
         self.connection.writeline('*IDN?')
-        idstring = self.connection.readline()
-        self.log.info('connected to: ' + idstring.strip())
 
         while not self.stopflag:
             line = self.connection.readline()
+            self.log.debug('got answer %r' % line)
             if line.startswith(('SECoP', 'Sine2020WP7')):
+                self.log.info('connected to: ' + line.strip())
                 self.secop_id = line
                 continue
             msgtype, spec, data = self._decode_message(line)
@@ -196,12 +196,20 @@ class Client(object):
                 self._handle_event(spec, data)
             if msgtype != 'event':
                 # handle sync stuff
-                if msgtype == "ERROR" or msgtype in self.expected_replies:
-                    # XXX: make an assignment of ERROR to an expected reply.
+                if msgtype in self.expected_replies:
                     entry = self.expected_replies[msgtype]
-                    entry.extend([spec, data])
+                    entry.extend([msgtype, spec, data])
                     # wake up calling process
                     entry[0].set()
+                elif msgtype == "ERROR":
+                    # XXX: hack!
+                    if len(self.expected_replies) == 1:
+                        entry = self.expected_replies.values()[0]
+                        entry.extend([msgtype, spec, data])
+                        # wake up calling process
+                        entry[0].set()
+                    # XXX: make an assignment of ERROR to an expected reply.
+                    self.log.error('TODO: handle ERROR replies!')
                 else:
                     self.log.error('ignoring unexpected reply %r' % line)
 
@@ -234,7 +242,7 @@ class Client(object):
 
     def _handle_event(self, spec, data):
         """handles event"""
-        self.log.info('handle_event %r %r' % (spec, data))
+        self.log.debug('handle_event %r %r' % (spec, data))
         if ':' not in spec:
             self.log.warning("deprecated specifier %r" % spec)
             spec = '%s:value' % spec
@@ -281,7 +289,7 @@ class Client(object):
             "activate": "active",
             "deactivate": "inactive",
             "*IDN?": "SECoP,",
-            "ping": "ping",
+            "ping": "pong",
         }
         if self.stopflag:
             raise RuntimeError('alreading stopping!')
@@ -306,14 +314,18 @@ class Client(object):
                 "can not have more than one requests of the same type at the same time!")
         event = threading.Event()
         self.expected_replies[rply] = [event]
+        self.log.debug('prepared reception of %r msg' % rply)
         self.connection.writeline(self._encode_message(msgtype, spec, data))
+        self.log.debug('sent %r msg' % msgtype)
         if event.wait(10):  # wait 10s for reply
-            result = rply, self.expected_replies[rply][
-                1], self.expected_replies[rply][2]
+            self.log.debug('checking reply')
+            result = self.expected_replies[rply][1:4]
             del self.expected_replies[rply]
+#            if result[0] == "ERROR":
+#                raise RuntimeError('Got %s! %r' % (str(result[1]), repr(result[2])))
             return result
         del self.expected_replies[rply]
-        raise RuntimeError("timeout upon waiting for reply!")
+        raise RuntimeError("timeout upon waiting for reply to %r!" % msgtype)
 
     def quit(self):
         # after calling this the client is dysfunctional!
@@ -340,6 +352,10 @@ class Client(object):
             self.communicate('deactivate')
 
     @property
+    def equipmentId(self):
+        return self.equipment_id
+
+    @property
     def protocolVersion(self):
         return self.secop_id
 
@@ -360,5 +376,5 @@ class Client(object):
         return self.describing_data['modules'][
             module]['parameters'][parameter].items()
 
-    def syncCommunicate(self, msg):
-        return self.communicate(msg)
+    def syncCommunicate(self, *msg):
+        return self.communicate(*msg)

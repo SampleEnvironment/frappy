@@ -241,13 +241,8 @@ class Dispatcher(object):
         # note: exceptions are handled in handle_request, not here!
         func = getattr(moduleobj, 'do' + command)
         res = func(*arguments)
-        res = CommandReply(
-            module=modulename,
-            command=command,
-            result=[
-                res,
-                dict(
-                    t=time.time())])
+        res = CommandReply(module=modulename, command=command,
+                           result=res, qualifiers=dict(t=time.time()))
         # res = Value(modulename, command=command, value=func(*arguments), t=time.time())
         return res
 

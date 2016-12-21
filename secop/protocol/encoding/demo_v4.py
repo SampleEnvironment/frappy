@@ -76,6 +76,12 @@ ERRORCLASSES = ['NoSuchDevice', 'NoSuchParameter', 'NoSuchCommand',
 # starts with another
 
 
+def encode_cmd_result(msgobj):
+    q = msgobj.qualifiers.copy()
+    if 't' in q:
+        q['t'] = format_time(q['t'])
+    return msgobj.result, q
+
 def encode_value_data(vobj):
     q = vobj.qualifiers.copy()
     if 't' in q:
@@ -95,7 +101,7 @@ class DemoEncoder(MessageEncoder):
         DeactivateRequest: (DISABLEEVENTSREQUEST,),
         DeactivateReply: (DISABLEEVENTSREPLY,),
         CommandRequest: (COMMANDREQUEST, lambda msg: "%s:%s" % (msg.module, msg.command), 'arguments',),
-        CommandReply: (COMMANDREPLY, lambda msg: "%s:%s" % (msg.module, msg.command), 'result',),
+        CommandReply: (COMMANDREPLY, lambda msg: "%s:%s" % (msg.module, msg.command), encode_cmd_result,),
         WriteRequest: (WRITEREQUEST, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value',),
         WriteReply: (WRITEREPLY, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value',),
         PollRequest: (TRIGGERREQUEST, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, ),
