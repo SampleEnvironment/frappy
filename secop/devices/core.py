@@ -240,7 +240,14 @@ class Device(object):
         # make local copies of PARAMS
         params = {}
         for k, v in self.PARAMS.items()[:]:
-            params[k] = PARAM(v)
+            #params[k] = PARAM(v)
+            # PARAM: type(v) -> PARAM
+            # type(v)(v) -> PARAM(v)
+            # EPICS_PARAM: type(v) -> EPICS_PARAM
+            # type(v)(v) -> EPICS_PARAM(v)
+            param_type = type(v)
+            params[k] = param_type(v)
+
         self.PARAMS = params
 
         # check and apply properties specified in cfgdict
@@ -293,7 +300,9 @@ class Device(object):
                 cfgdict[k] = v.default
 
             # replace CLASS level PARAM objects with INSTANCE level ones
-            self.PARAMS[k] = PARAM(self.PARAMS[k])
+            #self.PARAMS[k] = PARAM(self.PARAMS[k])
+            param_type = type(self.PARAMS[k])
+            self.PARAMS[k] = param_type(self.PARAMS[k])
 
         # now 'apply' config:
         # pass values through the validators and store as attributes
@@ -385,4 +394,3 @@ class Driveable(Readable):
         """if implemented should pause the module
         use start to continue movement
         """
-
