@@ -52,8 +52,6 @@ except ImportError:
             self.pv_name = pv_name
             self.value = 0.0
 
-
-
 class EpicsReadable(Readable):
     """EpicsDriveable handles a Driveable interfacing to EPICS v4"""
     # Commmon PARAMS for all EPICS devices
@@ -96,6 +94,7 @@ class EpicsReadable(Readable):
         else: # Not EPICS v4
             pv = PV(pv_name + ".VAL")
             pv.value = write_value
+
 
     def read_value(self, maxage=0):
         return self._read_pv(self.value_pv)
@@ -217,6 +216,7 @@ class EpicsTempCtrl(EpicsDriveable):
     #def read_heaterrange(self, maxage=0):
     #    return self._read_pv(self.heaterrange_pv)
 
-    # TODO: add support for strings over epics pv 
+    # TODO: add support for strings over epics pv
     #def write_heaterrange(self, range_value):
     #    self._write_pv(self.heaterrange_pv, range_value)
+
