@@ -128,7 +128,7 @@ class TCPServer(SocketServer.ThreadingTCPServer):
         # and encoders (to en/decode messages from frames)
         self.framingCLS = FRAMERS[interfaceopts.pop('framing', 'none')]
         self.encodingCLS = ENCODERS[interfaceopts.pop('encoding', 'pickle')]
-        self.log.debug("TCPServer binding to %s:%d" % (bindto, portnum))
+        self.log.info("TCPServer binding to %s:%d" % (bindto, portnum))
         self.log.debug("TCPServer using framing=%s" % self.framingCLS.__name__)
         self.log.debug("TCPServer using encoding=%s" %
                        self.encodingCLS.__name__)

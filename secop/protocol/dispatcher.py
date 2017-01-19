@@ -43,7 +43,7 @@ import threading
 
 from messages import *
 from errors import *
-
+from secop.lib.parsing import format_time
 
 class Dispatcher(object):
 
@@ -84,16 +84,15 @@ class Dispatcher(object):
                     reply = handler(conn, msg)
                 except SECOPError as err:
                     self.log.exception(err)
-                    reply = ErrorMessage(errorclass=err.__class__.__name__,
-                                         errorinfo=[repr(err), str(msg)])
+                    reply = msg.get_error(errorclass=err.__class__.__name__,
+                                          errorinfo=[repr(err), str(msg)])
                 except (ValueError, TypeError) as err:
-                    #                    self.log.exception(err)
-                    reply = ErrorMessage(errorclass='BadValue',
-                                         errorinfo=[repr(err), str(msg)])
+                    reply = msg.get_error(errorclass='BadValue',
+                                          errorinfo=[repr(err), str(msg)])
                 except Exception as err:
                     self.log.exception(err)
-                    reply = ErrorMessage(errorclass='InternalError',
-                                         errorinfo=[repr(err), str(msg)])
+                    reply = msg.get_error(errorclass='InternalError',
+                                          errorinfo=[repr(err), str(msg)])
             else:
                 self.log.debug('Can not handle msg %r' % msg)
                 reply = self.unhandled(conn, msg)
@@ -159,8 +158,11 @@ class Dispatcher(object):
             self._export.append(modulename)
 
     def get_module(self, modulename):
-        module = self._modules.get(modulename, modulename)
-        return module
+        if modulename in self._modules:
+            return self._modules[modulename]
+        elif modulename in self._modules.values():
+            return modulename
+        raise NoSuchModuleError(module=str(modulename))
 
     def remove_module(self, modulename_or_obj):
         moduleobj = self.get_module(modulename_or_obj) or modulename_or_obj
@@ -226,7 +228,7 @@ class Dispatcher(object):
 
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchmoduleError(module=modulename)
+            raise NoSuchModuleError(module=modulename)
 
         cmdspec = moduleobj.CMDS.get(command, None)
         if cmdspec is None:
@@ -249,7 +251,7 @@ class Dispatcher(object):
     def _setParamValue(self, modulename, pname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchmoduleError(module=modulename)
+            raise NoSuchModuleError(module=modulename)
 
         pobj = moduleobj.PARAMS.get(pname, None)
         if pobj is None:
@@ -267,7 +269,7 @@ class Dispatcher(object):
             return WriteReply(
                 module=modulename, parameter=pname, value=[
                     pobj.value, dict(
-                        t=pobj.timestamp)])
+                        t=format_time(pobj.timestamp))])
         return WriteReply(
             module=modulename,
             parameter=pname,
@@ -389,5 +391,5 @@ class Dispatcher(object):
         (no handle_<messagename> method was defined)
         """
         self.log.error('IGN: got unhandled request %s' % msg)
-        return ErrorMessage(errorclass="InternalError",
-                            errorstring='Got Unhandled Request %r' % msg)
+        return msg.get_error(errorclass="InternalError",
+                             errorinfo="Unhandled Request")

@@ -45,8 +45,9 @@ DEMO_RE = re.compile(
 #"""
 # messagetypes:
 IDENTREQUEST = '*IDN?'  # literal
-# literal! first part 'SECoP' is fixed!
-IDENTREPLY = 'SECoP, SECoPTCP, V2016-11-30, rc1'
+# literal! first part is fixed!
+#IDENTREPLY = 'SECoP, SECoPTCP, V2016-11-30, rc1'
+IDENTREPLY = 'SINE2020&ISSE,SECoP,V2016-11-30,rc1'
 DESCRIPTIONSREQUEST = 'describe'  # literal
 DESCRIPTIONREPLY = 'describing'  # +<id> +json
 ENABLEEVENTSREQUEST = 'activate'  # literal
@@ -61,11 +62,11 @@ WRITEREQUEST = 'change'
 # +module[:parameter] +json_value # send with the read back value
 WRITEREPLY = 'changed'
 # +module[:parameter] -> NO direct reply, calls TRIGGER internally!
-TRIGGERREQUEST = 'poll'
-EVENT = 'event'  # +module[:parameter] +json_value (value, qualifiers_as_dict)
+TRIGGERREQUEST = 'read'
+EVENT = 'update'  # +module[:parameter] +json_value (value, qualifiers_as_dict)
 HEARTBEATREQUEST = 'ping'  # +nonce_without_space
 HEARTBEATREPLY = 'pong'  # +nonce_without_space
-ERRORREPLY = 'ERROR'  # +errorclass +json_extended_info
+ERRORREPLY = 'error'  # +errorclass +json_extended_info
 HELPREQUEST = 'help'  # literal
 HELPREPLY = 'helping'  # +line number +json_text
 ERRORCLASSES = ['NoSuchDevice', 'NoSuchParameter', 'NoSuchCommand',
@@ -88,6 +89,10 @@ def encode_value_data(vobj):
         q['t'] = format_time(q['t'])
     return vobj.value, q
 
+def encode_error_msg(emsg):
+    # note: result is JSON-ified....
+    return [emsg.origin, dict( (k,getattr(emsg, k)) for k in emsg.ARGS if k != 'origin')]
+
 
 class DemoEncoder(MessageEncoder):
     # map of msg to msgtype string as defined above.
@@ -103,12 +108,12 @@ class DemoEncoder(MessageEncoder):
         CommandRequest: (COMMANDREQUEST, lambda msg: "%s:%s" % (msg.module, msg.command), 'arguments',),
         CommandReply: (COMMANDREPLY, lambda msg: "%s:%s" % (msg.module, msg.command), encode_cmd_result,),
         WriteRequest: (WRITEREQUEST, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value',),
-        WriteReply: (WRITEREPLY, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value',),
+        WriteReply: (WRITEREPLY, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value', ),
         PollRequest: (TRIGGERREQUEST, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, ),
         HeartbeatRequest: (HEARTBEATREQUEST, 'nonce',),
         HeartbeatReply: (HEARTBEATREPLY, 'nonce',),
         HelpMessage: (HELPREQUEST, ),
-        ErrorMessage: (ERRORREPLY, 'errorclass', 'errorinfo',),
+        ErrorMessage: (ERRORREPLY, "errorclass", encode_error_msg,),
         Value: (EVENT, lambda msg: "%s:%s" % (msg.module, msg.parameter or (msg.command + '()'))
                 if msg.parameter or msg.command else msg.module,
                 encode_value_data,),
@@ -185,7 +190,8 @@ class DemoEncoder(MessageEncoder):
         if msgspec is None and data:
             return ErrorMessage(errorclass='InternalError',
                                 errorinfo='Regex matched json, but not spec!',
-                                is_request=True)
+                                is_request=True,
+                                origin=encoded)
 
         if msgtype in self.DECODEMAP:
             if msgspec and ':' in msgspec:
@@ -197,13 +203,17 @@ class DemoEncoder(MessageEncoder):
                     data = json.loads(data)
                 except ValueError as err:
                     return ErrorMessage(errorclass='BadValue',
-                                        errorinfo=[repr(err), str(encoded)])
-            return self.DECODEMAP[msgtype](msgspec, data)
+                                        errorinfo=[repr(err), str(encoded)],
+                                        origin=encoded)
+            msg = self.DECODEMAP[msgtype](msgspec, data)
+            msg.setvalue("origin",encoded)
+            return msg
         return ErrorMessage(
             errorclass='SyntaxError',
             errorinfo='%r: No Such Messagetype defined!' %
             encoded,
-            is_request=True)
+            is_request=True,
+            origin=encoded)
 
     def tests(self):
         print "---- Testing encoding  -----"

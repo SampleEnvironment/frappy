@@ -29,6 +29,7 @@ class Message(object):
     is_reply = False
     is_error = False
     qualifiers = {}
+    origin = "<unknown source>"
 
     def __init__(self, **kwds):
         self.ARGS = set()
@@ -68,11 +69,39 @@ class Value(object):
             devspec = '%s:%s()' % (devspec, self.command)
         return '%s:Value(%s)' % (devspec, ', '.join(
             [repr(self.value)] +
-            ['%s=%s' % (k, repr(v)) for k, v in self.qualifiers.items()]))
+            ['%s=%s' % (k, format_time(v) if k=="timestamp" else repr(v)) for k, v in self.qualifiers.items()]))
 
 
-class IdentifyRequest(Message):
+class Request(Message):
     is_request = True
+    def get_reply(self):
+        """returns a Reply object prefilled with the attributes from this request."""
+        m = Message()
+        m.is_request = False
+        m.is_reply = True
+        m.is_error = False
+        m.qualifiers = self.qualifiers
+        m.origin = self.origin
+        for k in self.ARGS:
+            m.setvalue(k, self.__dict__[k])
+        return m
+
+    def get_error(self, errorclass, errorinfo):
+        """returns a Reply object prefilled with the attributes from this request."""
+        m = ErrorMessage()
+        m.qualifiers = self.qualifiers
+        m.origin = self.origin
+        for k in self.ARGS:
+            m.setvalue(k, self.__dict__[k])
+        m.setvalue("errorclass", errorclass[:-5] 
+					if errorclass.endswith('rror') 
+					else errorclass)
+        m.setvalue("errorinfo", errorinfo)
+        return m
+ 
+
+class IdentifyRequest(Request):
+    pass
 
 
 class IdentifyReply(Message):
@@ -80,8 +109,8 @@ class IdentifyReply(Message):
     version_string = None
 
 
-class DescribeRequest(Message):
-    is_request = True
+class DescribeRequest(Request):
+    pass
 
 
 class DescribeReply(Message):
@@ -90,24 +119,23 @@ class DescribeReply(Message):
     description = None
 
 
-class ActivateRequest(Message):
-    is_request = True
+class ActivateRequest(Request):
+    pass
 
 
 class ActivateReply(Message):
     is_reply = True
 
 
-class DeactivateRequest(Message):
-    is_request = True
+class DeactivateRequest(Request):
+    pass
 
 
 class DeactivateReply(Message):
     is_reply = True
 
 
-class CommandRequest(Message):
-    is_request = True
+class CommandRequest(Request):
     command = ''
     arguments = []
 
@@ -118,8 +146,7 @@ class CommandReply(Message):
     result = None
 
 
-class WriteRequest(Message):
-    is_request = True
+class WriteRequest(Request):
     module = None
     parameter = None
     value = None
@@ -132,14 +159,13 @@ class WriteReply(Message):
     value = None
 
 
-class PollRequest(Message):
+class PollRequest(Request):
     is_request = True
     module = None
     parameter = None
 
 
-class HeartbeatRequest(Message):
-    is_request = True
+class HeartbeatRequest(Request):
     nonce = 'alive'
 
 
@@ -163,16 +189,7 @@ class ErrorMessage(Message):
     errorinfo = None
 
 
-class HelpMessage(Message):
-    is_reply = True
-    is_request = True
+class HelpMessage(Request):
+    is_reply = True  #!sic!
 
 
-if __name__ == '__main__':
-    print("Minimal testing of messages....")
-    m = Message(MSGTYPE='test', a=1, b=2, c='x')
-    print m
-    print ReadMessage(devs=['a'], result=[Value(12.3)])
-
-    print "OK"
-    print

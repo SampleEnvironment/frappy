@@ -32,6 +32,7 @@ import types
 import inspect
 import threading
 
+from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
 from secop.protocol import status
 from secop.validators import enum, vector, floatrange
@@ -73,7 +74,7 @@ class PARAM(object):
                     unit=self.unit,
                     readonly=self.readonly,
                     value=self.value,
-                    timestamp=self.timestamp,
+                    timestamp=format_time(self.timestamp) if self.timestamp else None,
                     validator=str(self.validator) if not isinstance(
                         self.validator, type) else self.validator.__name__
                     )

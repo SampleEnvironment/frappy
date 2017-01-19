@@ -189,28 +189,30 @@ class Client(object):
         while not self.stopflag:
             line = self.connection.readline()
             self.log.debug('got answer %r' % line)
-            if line.startswith(('SECoP', 'Sine2020WP7')):
+            if line.startswith(('SECoP', 'SINE2020&ISSE,SECoP')):
                 self.log.info('connected to: ' + line.strip())
                 self.secop_id = line
                 continue
             msgtype, spec, data = self._decode_message(line)
-            if msgtype in ('event', 'changed'):
+            if msgtype in ('update', 'changed'):
                 # handle async stuff
                 self._handle_event(spec, data)
-            if msgtype != 'event':
+            if msgtype != 'update':
                 # handle sync stuff
                 if msgtype in self.expected_replies:
                     entry = self.expected_replies[msgtype]
                     entry.extend([msgtype, spec, data])
                     # wake up calling process
                     entry[0].set()
-                elif msgtype == "ERROR":
+                elif msgtype == "error":
                     # XXX: hack!
                     if len(self.expected_replies) == 1:
                         entry = self.expected_replies.values()[0]
                         entry.extend([msgtype, spec, data])
                         # wake up calling process
                         entry[0].set()
+                    else: # try to find the right request....
+                        print data[0] # should be the origin request
                     # XXX: make an assignment of ERROR to an expected reply.
                     self.log.error('TODO: handle ERROR replies!')
                 else:
@@ -312,12 +314,12 @@ class Client(object):
         }
         if self.stopflag:
             raise RuntimeError('alreading stopping!')
-        if msgtype == 'poll':
+        if msgtype == 'read':
             # send a poll request and then check incoming events
             if ':' not in spec:
                 spec = spec + ':value'
             event = threading.Event()
-            result = ['polled', spec]
+            result = ['update', spec]
             self.single_shots.setdefault(spec, set()).add(
                 lambda d: (result.append(d), event.set()))
             self.connection.writeline(

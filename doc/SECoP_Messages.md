@@ -146,9 +146,9 @@ Events can be emitted any time from the SEC-node (except if they would interrupt
 
   examples:
 
-  * 'event T1:value [3.479, {"t":"149128925.914882", "e":0.01924}]
-  * 'event T1:p [12, {"t":"149128927.193725"}]'
-  * 'event Vector:value [[0.01, 12.49, 3.92], {"t":"149128925.914882"}]'
+  * 'update T1:value [3.479, {"t":"149128925.914882", "e":0.01924}]
+  * 'update T1:p [12, {"t":"149128927.193725"}]'
+  * 'update Vector:value [[0.01, 12.49, 3.92], {"t":"149128925.914882"}]'
 
 
 ERROR
