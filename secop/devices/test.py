@@ -24,7 +24,7 @@
 import random
 
 from secop.devices.core import Readable, Driveable, PARAM
-from secop.validators import floatrange
+from secop.validators import floatrange, positive
 
 
 class LN2(Readable):
@@ -65,6 +65,8 @@ class Temp(Driveable):
     PARAMS = {
         'sensor': PARAM("Sensor number or calibration id",
                         validator=str, readonly=True),
+        'target': PARAM("Target temperature", default=300.0,
+                        validator=positive, readonly=False, unit='K'),
     }
 
     def read_value(self, maxage=0):

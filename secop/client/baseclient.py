@@ -35,6 +35,7 @@ from secop.lib.parsing import parse_time, format_time
 from secop.protocol.encoding import ENCODERS
 from secop.protocol.framing import FRAMERS
 from secop.protocol.messages import *
+from secop.protocol.errors import EXCEPTIONS
 
 
 class TCPConnection(object):
@@ -115,9 +116,9 @@ class Value(object):
 
     def __init__(self, value, qualifiers={}):
         self.value = value
-        if 't' in qualifiers:
-            self.t = parse_time(qualifiers.pop('t'))
         self.__dict__.update(qualifiers)
+        if 't' in qualifiers:
+            self.t = parse_time(qualifiers['t'])
 
     def __repr__(self):
         r = []
@@ -153,9 +154,12 @@ class Client(object):
             port = int(opts.pop('port', 10767))
             self.contactPoint = "tcp://%s:%d" % (host, port)
             self.connection = TCPConnection(host, port)
-        # maps an expected reply to an list containing a single Event()
-        # upon rcv of that reply, the event is set and the listitem 0 is
-        # appended with the reply-tuple
+        # maps an expected reply to a list containing a single Event()
+        # upon rcv of that reply, entry is appended with False and
+        # the data of the reply.
+        # if an error is received, the entry is appended with True and an
+        # appropriate Exception.
+        # Then the Event is set.
         self.expected_replies = {}
 
         # maps spec to a set of callback functions (or single_shot callbacks)
@@ -193,47 +197,60 @@ class Client(object):
                 self.log.info('connected to: ' + line.strip())
                 self.secop_id = line
                 continue
-            msgtype, spec, data = self._decode_message(line)
+            msgtype, spec, data = self.decode_message(line)
             if msgtype in ('update', 'changed'):
                 # handle async stuff
                 self._handle_event(spec, data)
-            if msgtype != 'update':
-                # handle sync stuff
-                if msgtype in self.expected_replies:
-                    entry = self.expected_replies[msgtype]
-                    entry.extend([msgtype, spec, data])
-                    # wake up calling process
-                    entry[0].set()
-                elif msgtype == "error":
-                    # XXX: hack!
-                    if len(self.expected_replies) == 1:
-                        entry = self.expected_replies.values()[0]
-                        entry.extend([msgtype, spec, data])
-                        # wake up calling process
-                        entry[0].set()
-                    else: # try to find the right request....
-                        print data[0] # should be the origin request
-                    # XXX: make an assignment of ERROR to an expected reply.
-                    self.log.error('TODO: handle ERROR replies!')
-                else:
-                    self.log.error('ignoring unexpected reply %r' % line)
+            # handle sync stuff
+            self._handle_sync_reply(msgtype, spec, data)
 
-    def _encode_message(self, requesttype, spec='', data=Ellipsis):
+    def _handle_sync_reply(self, msgtype, spec, data):
+        # handle sync stuff
+        if msgtype == "error":
+            # find originating msgtype and map to expected_reply_type
+            # errormessages carry to offending request as the first
+            # result in the resultist
+            _msgtype, _spec, _data = self.decode_message(data[0])
+            _reply = self._get_reply_from_request(_msgtype)
+
+            entry = self.expected_replies.get((_reply, _spec), None)
+            if entry:
+                self.log.error("request %r resulted in Error %r" %
+                               (data[0], spec))
+                entry.extend([True, EXCEPTIONS[spec](data)])
+                entry[0].set()
+                return
+            self.log.error("got an unexpected error %s %r" %
+                           (spec, data[0]))
+            return
+        if msgtype == "describing":
+            data = [spec, data]
+            spec = ''
+        entry = self.expected_replies.get((msgtype, spec), None)
+        if entry:
+            self.log.debug("got expected reply '%s %s'" %
+                           (msgtype, spec) if spec else
+                           "got expected reply '%s'" % msgtype)
+            entry.extend([False, data])
+            entry[0].set()
+            return
+
+    def encode_message(self, requesttype, spec='', data=None):
         """encodes the given message to a string
         """
         req = [str(requesttype)]
         if spec:
             req.append(str(spec))
-        if data is not Ellipsis:
+        if data is not None:
             req.append(json.dumps(data))
         req = ' '.join(req)
         return req
 
-    def _decode_message(self, msg):
+    def decode_message(self, msg):
         """return a decoded message tripel"""
         msg = msg.strip()
         if ' ' not in msg:
-            return msg, None, None
+            return msg, '', None
         msgtype, spec = msg.split(' ', 1)
         data = None
         if ' ' in spec:
@@ -277,8 +294,7 @@ class Client(object):
         return self._getDescribingModuleData(module)['parameters'][parameter]
 
     def _issueDescribe(self):
-        _, self.equipment_id, self.describing_data = self.communicate(
-            'describe')
+        self.equipment_id, self.describing_data = self.communicate('describe')
 
         for module, moduleData in self.describing_data['modules'].items():
             for parameter, parameterData in moduleData['parameters'].items():
@@ -299,53 +315,71 @@ class Client(object):
         self.callbacks.setdefault('%s:%s' %
                                   (module, parameter), set()).discard(cb)
 
-    def communicate(self, msgtype, spec='', data=Ellipsis):
+    def _get_reply_from_request(self, requesttype):
         # maps each (sync) request to the corresponding reply
-        # XXX: should go to the encoder! and be imported here (or make a
-        # translating method)
+        # XXX: should go to the encoder! and be imported here
         REPLYMAP = {
             "describe": "describing",
             "do": "done",
             "change": "changed",
             "activate": "active",
             "deactivate": "inactive",
-            "*IDN?": "SECoP,",
+            "read": "update",
+            #"*IDN?": "SECoP,",  # XXX: !!!
             "ping": "pong",
         }
+        return REPLYMAP.get(requesttype, requesttype)
+
+    def communicate(self, msgtype, spec='', data=None):
+        self.log.debug('communicate: %r %r %r' % (msgtype, spec, data))
         if self.stopflag:
             raise RuntimeError('alreading stopping!')
-        if msgtype == 'read':
-            # send a poll request and then check incoming events
-            if ':' not in spec:
-                spec = spec + ':value'
-            event = threading.Event()
-            result = ['update', spec]
-            self.single_shots.setdefault(spec, set()).add(
-                lambda d: (result.append(d), event.set()))
-            self.connection.writeline(
-                self._encode_message(
-                    msgtype, spec, data))
-            if event.wait(10):
-                return tuple(result)
-            raise RuntimeError("timeout upon waiting for reply!")
+        if msgtype == "*IDN?":
+            return self.secop_id
 
-        rply = REPLYMAP[msgtype]
-        if rply in self.expected_replies:
+        if msgtype not in ('*IDN?', 'describe', 'activate',
+                           'deactivate', 'do', 'change', 'read', 'ping', 'help'):
+            raise EXCEPTIONS['Protocol'](errorclass='Protocol',
+                                         errorinfo='%r: No Such Messagetype defined!' %
+                                         msgtype,
+                                         origin=self.encode_message(msgtype, spec, data))
+
+        # sanitize input + handle syntactic sugar
+        msgtype = str(msgtype)
+        spec = str(spec)
+        if msgtype == 'change' and ':' not in spec:
+            spec = spec + ':target'
+        if msgtype == 'read' and ':' not in spec:
+            spec = spec + ':value'
+
+        # check if a such a request is already out
+        rply = self._get_reply_from_request(msgtype)
+        if (rply, spec) in self.expected_replies:
             raise RuntimeError(
                 "can not have more than one requests of the same type at the same time!")
+
+        # prepare sending request
         event = threading.Event()
-        self.expected_replies[rply] = [event]
+        self.expected_replies[(rply, spec)] = [event]
         self.log.debug('prepared reception of %r msg' % rply)
-        self.connection.writeline(self._encode_message(msgtype, spec, data))
-        self.log.debug('sent %r msg' % msgtype)
-        if event.wait(10):  # wait 10s for reply
+
+        # send request
+        msg = self.encode_message(msgtype, spec, data)
+        self.connection.writeline(msg)
+        self.log.debug('sent msg %r' % msg)
+
+        # wait for reply. timeout after 10s
+        if event.wait(10):
             self.log.debug('checking reply')
-            result = self.expected_replies[rply][1:4]
-            del self.expected_replies[rply]
-#            if result[0] == "ERROR":
-#                raise RuntimeError('Got %s! %r' % (str(result[1]), repr(result[2])))
+            event, is_error, result = self.expected_replies.pop((rply, spec))
+            if is_error:
+                # if error, result contains the rigth Exception to raise
+                raise result
             return result
-        del self.expected_replies[rply]
+
+        # timed out
+        del self.expected_replies[(rply, spec)]
+        # XXX: raise a TimedOut ?
         raise RuntimeError("timeout upon waiting for reply to %r!" % msgtype)
 
     def quit(self):
@@ -378,6 +412,9 @@ class Client(object):
             result = result[parameter]
 
         return result
+
+    def getParameter(self, module, parameter):
+        return self.communicate('read', '%s:%s' % (module, parameter))
 
     def setParameter(self, module, parameter, value):
         validator = self._getDescribingParameterData(module,
@@ -417,7 +454,11 @@ class Client(object):
 
     def getProperties(self, module, parameter):
         return self.describing_data['modules'][
-            module]['parameters'][parameter].items()
+            module]['parameters'][parameter]
 
     def syncCommunicate(self, *msg):
         return self.communicate(*msg)
+
+    def ping(self, pingctr=[0]):
+        pingctr[0] = pingctr[0] + 1
+        self.communicate("ping", pingctr[0])

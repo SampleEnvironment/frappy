@@ -26,10 +26,12 @@ from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
 
 from secop.gui.util import loadUi
 
-class ParameterButtons(QWidget):
-    setRequested = pyqtSignal(str, str, str)  # module, parameter, setpoint
 
-    def __init__(self, module, parameter, initval='', parent=None):
+class ParameterButtons(QWidget):
+    setRequested = pyqtSignal(str, str, str)  # module, parameter, target
+
+    def __init__(self, module, parameter, initval='',
+                 readonly=True, parent=None):
         super(ParameterButtons, self).__init__(parent)
         loadUi(self, 'parambuttons.ui')
 
@@ -37,20 +39,24 @@ class ParameterButtons(QWidget):
         self._parameter = parameter
 
         self.currentLineEdit.setText(str(initval))
+        if readonly:
+            self.setPushButton.setEnabled(False)
+            self.setLineEdit.setEnabled(False)
 
     def on_setPushButton_clicked(self):
         self.setRequested.emit(self._module, self._parameter,
-                             self.setLineEdit.text())
+                               self.setLineEdit.text())
 
 
 class ModuleCtrl(QWidget):
+
     def __init__(self, node, module, parent=None):
         super(ModuleCtrl, self).__init__(parent)
         loadUi(self, 'modulectrl.ui')
         self._node = node
         self._module = module
 
-        self._paramWidgets = {} # widget cache do avoid garbage collection
+        self._paramWidgets = {}  # widget cache do avoid garbage collection
 
         self.moduleNameLabel.setText(module)
         self._initModuleWidgets()
@@ -68,8 +74,12 @@ class ModuleCtrl(QWidget):
             label = QLabel(param + ':')
             label.setFont(font)
 
+            props = self._node.getProperties(self._module, param)
+
             buttons = ParameterButtons(self._module, param,
-                                       initValues[param].value)
+                                       initValues[param].value,
+                                       props['readonly'])
+
             buttons.setRequested.connect(self._node.setParameter)
 
             self.paramGroupBox.layout().addWidget(label, row, 0)

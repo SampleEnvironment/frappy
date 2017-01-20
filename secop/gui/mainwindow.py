@@ -27,6 +27,7 @@ from PyQt4.QtCore import pyqtSignature as qtsig, QObject, pyqtSignal
 from secop.gui.util import loadUi
 from secop.gui.nodectrl import NodeCtrl
 from secop.gui.modulectrl import ModuleCtrl
+from secop.gui.paramview import ParameterView
 from secop.client.baseclient import Client as SECNode
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
@@ -35,7 +36,7 @@ ITEM_TYPE_PARAMETER = QTreeWidgetItem.UserType + 3
 
 
 class QSECNode(SECNode, QObject):
-    newData = pyqtSignal(str, str, object) # module, parameter, data
+    newData = pyqtSignal(str, str, object)  # module, parameter, data
 
     def __init__(self, opts, autoconnect=False, parent=None):
         SECNode.__init__(self, opts, autoconnect)
@@ -79,7 +80,7 @@ class MainWindow(QMainWindow):
     @qtsig('')
     def on_actionAdd_SEC_node_triggered(self):
         host, ok = QInputDialog.getText(self, 'Add SEC node',
-                                    'Enter SEC node hostname:')
+                                        'Enter SEC node hostname:')
 
         if not ok:
             return
@@ -91,6 +92,10 @@ class MainWindow(QMainWindow):
             self._displayNode(current.text(0))
         elif current.type() == ITEM_TYPE_MODULE:
             self._displayModule(current.parent().text(0), current.text(0))
+        elif current.type() == ITEM_TYPE_PARAMETER:
+            self._displayParameter(current.parent().parent().text(0),
+                                   current.parent().text(0),
+                                   current.text(0))
 
     def _addNode(self, host):
 
@@ -99,9 +104,10 @@ class MainWindow(QMainWindow):
         if ':' in host:
             host, port = host.split(':', 1)
             port = int(port)
-        node = QSECNode({'connectto':host, 'port':port}, parent=self)
+        node = QSECNode({'connectto': host, 'port': port}, parent=self)
         host = '%s:%d' % (host, port)
 
+        host = '%s (%s)' % (node.equipment_id, host)
         self._nodes[host] = node
 
         # fill tree
@@ -126,6 +132,13 @@ class MainWindow(QMainWindow):
 
     def _displayModule(self, node, module):
         self._replaceCtrlWidget(ModuleCtrl(self._nodes[node], module))
+
+    def _displayParameter(self, node, module, parameter):
+        self._replaceCtrlWidget(
+            ParameterView(
+                self._nodes[node],
+                module,
+                parameter))
 
     def _replaceCtrlWidget(self, new):
         old = self.splitter.widget(1).layout().takeAt(0)

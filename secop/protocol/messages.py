@@ -69,11 +69,12 @@ class Value(object):
             devspec = '%s:%s()' % (devspec, self.command)
         return '%s:Value(%s)' % (devspec, ', '.join(
             [repr(self.value)] +
-            ['%s=%s' % (k, format_time(v) if k=="timestamp" else repr(v)) for k, v in self.qualifiers.items()]))
+            ['%s=%s' % (k, format_time(v) if k == "timestamp" else repr(v)) for k, v in self.qualifiers.items()]))
 
 
 class Request(Message):
     is_request = True
+
     def get_reply(self):
         """returns a Reply object prefilled with the attributes from this request."""
         m = Message()
@@ -93,12 +94,12 @@ class Request(Message):
         m.origin = self.origin
         for k in self.ARGS:
             m.setvalue(k, self.__dict__[k])
-        m.setvalue("errorclass", errorclass[:-5] 
-					if errorclass.endswith('rror') 
-					else errorclass)
+        m.setvalue("errorclass", errorclass[:-5]
+                   if errorclass.endswith('rror')
+                   else errorclass)
         m.setvalue("errorinfo", errorinfo)
         return m
- 
+
 
 class IdentifyRequest(Request):
     pass
@@ -190,6 +191,4 @@ class ErrorMessage(Message):
 
 
 class HelpMessage(Request):
-    is_reply = True  #!sic!
-
-
+    is_reply = True  # !sic!

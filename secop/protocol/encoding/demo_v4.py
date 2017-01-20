@@ -28,7 +28,7 @@
 from secop.lib.parsing import format_time
 from secop.protocol.encoding import MessageEncoder
 from secop.protocol.messages import *
-from secop.protocol.errors import ProtocollError
+#from secop.protocol.errors import ProtocolError
 
 import ast
 import re
@@ -71,7 +71,7 @@ HELPREQUEST = 'help'  # literal
 HELPREPLY = 'helping'  # +line number +json_text
 ERRORCLASSES = ['NoSuchDevice', 'NoSuchParameter', 'NoSuchCommand',
                 'CommandFailed', 'ReadOnly', 'BadValue', 'CommunicationFailed',
-                'IsBusy', 'IsError', 'SyntaxError', 'InternalError',
+                'IsBusy', 'IsError', 'ProtocolError', 'InternalError',
                 'CommandRunning', 'Disabled', ]
 # note: above strings need to be unique in the sense, that none is/or
 # starts with another
@@ -83,15 +83,18 @@ def encode_cmd_result(msgobj):
         q['t'] = format_time(q['t'])
     return msgobj.result, q
 
+
 def encode_value_data(vobj):
     q = vobj.qualifiers.copy()
     if 't' in q:
         q['t'] = format_time(q['t'])
     return vobj.value, q
 
+
 def encode_error_msg(emsg):
     # note: result is JSON-ified....
-    return [emsg.origin, dict( (k,getattr(emsg, k)) for k in emsg.ARGS if k != 'origin')]
+    return [emsg.origin, dict((k, getattr(emsg, k))
+                              for k in emsg.ARGS if k != 'origin')]
 
 
 class DemoEncoder(MessageEncoder):
@@ -163,6 +166,14 @@ class DemoEncoder(MessageEncoder):
                    ENABLEEVENTSREQUEST, DISABLEEVENTSREQUEST)
             return '\n'.join('%s %d %s' % (HELPREPLY, i + 1, l.strip())
                              for i, l in enumerate(text.split('\n')[:-1]))
+        if isinstance(msg, HeartbeatRequest):
+            if msg.nonce:
+                return 'ping %s' % msg.nonce
+            return 'ping'
+        if isinstance(msg, HeartbeatReply):
+            if msg.nonce:
+                return 'pong %s' % msg.nonce
+            return 'pong'
         for msgcls, parts in self.ENCODEMAP.items():
             if isinstance(msg, msgcls):
                 # resolve lambdas
@@ -183,12 +194,12 @@ class DemoEncoder(MessageEncoder):
                 return IdentifyReply(version_string=encoded)
 
             return HelpMessage()
-            return ErrorMessage(errorclass='SyntaxError',
-                                errorinfo='Regex did not match!',
-                                is_request=True)
+#            return ErrorMessage(errorclass='Protocol',
+#                                errorinfo='Regex did not match!',
+#                                is_request=True)
         msgtype, msgspec, data = match.groups()
         if msgspec is None and data:
-            return ErrorMessage(errorclass='InternalError',
+            return ErrorMessage(errorclass='Internal',
                                 errorinfo='Regex matched json, but not spec!',
                                 is_request=True,
                                 origin=encoded)
@@ -206,10 +217,10 @@ class DemoEncoder(MessageEncoder):
                                         errorinfo=[repr(err), str(encoded)],
                                         origin=encoded)
             msg = self.DECODEMAP[msgtype](msgspec, data)
-            msg.setvalue("origin",encoded)
+            msg.setvalue("origin", encoded)
             return msg
         return ErrorMessage(
-            errorclass='SyntaxError',
+            errorclass='Protocol',
             errorinfo='%r: No Such Messagetype defined!' %
             encoded,
             is_request=True,

@@ -30,15 +30,14 @@
 # if a validator does a mapping, it normally maps to the external representation (used for print/log/protocol/...)
 # to get the internal representation (for the code), call method convert
 
-
-class ProgrammingError(Exception):
-    pass
+from errors import ProgrammingError
 
 
 class Validator(object):
     # list of tuples: (name, converter)
     params = []
     valuetype = float
+    argstr = ''
 
     def __init__(self, *args, **kwds):
         plist = self.params[:]
@@ -49,7 +48,7 @@ class Validator(object):
         for pval in args:
             pname, pconv = plist.pop(0)
             if pname in kwds:
-                raise ProgrammingError('%s: positional parameter %s als given '
+                raise ProgrammingError('%s: positional parameter %s is given '
                                        'as keyword!' % (
                                            self.__class__.__name__,
                                            pname))
@@ -67,18 +66,23 @@ class Validator(object):
             raise ProgrammingError('%s got unknown arguments: %s' % (
                                    self.__class__.__name__,
                                    ', '.join(list(kwds.keys()))))
-
-    def __repr__(self):
-        params = ['%s=%r' % (pn[0], self.__dict__[pn[0]])
-                  for pn in self.params]
-        return ('%s(%s)' % (self.__class__.__name__, ', '.join(params)))
+        params = []
+        for pn, pt in self.params:
+            pv = getattr(self, pn)
+            if callable(pv):
+                params.append('%s=%s' % (pn, validator_to_str(pv)))
+            else:
+                params.append('%s=%r' % (pn, pv))
+        self.argstr = ', '.join(params)
 
     def __call__(self, value):
         return self.check(self.valuetype(value))
 
-    def convert(self, value):
-        # transforms the 'internal' representation into the 'external'
-        return self.valuetype(value)
+    def __repr__(self):
+        return self.to_string()
+
+    def to_string(self):
+        return ('%s(%s)' % (self.__class__.__name__, self.argstr))
 
 
 class floatrange(Validator):
@@ -102,22 +106,6 @@ class intrange(Validator):
                          (value, self.lower, self.upper))
 
 
-class positive(Validator):
-
-    def check(self, value):
-        if value > 0:
-            return value
-        raise ValueError('Value %r must be > 0!' % value)
-
-
-class nonnegative(Validator):
-
-    def check(self, value):
-        if value >= 0:
-            return value
-        raise ValueError('Value %r must be >= 0!' % value)
-
-
 class array(Validator):
     """integral amount of data-elements which are described by the SAME validator
 
@@ -129,12 +117,15 @@ class array(Validator):
 
     def check(self, values):
         requested_size = len(values)
-        try:
-            allowed_size = self.size(requested_size)
-        except ValueError as e:
-            raise ValueError(
-                'illegal number of elements %d, need %r: (%s)' %
-                (requested_size, self.size, e))
+        if callable(self.size):
+            try:
+                allowed_size = self.size(requested_size)
+            except ValueError as e:
+                raise ValueError(
+                    'illegal number of elements %d, need %r: (%s)' %
+                    (requested_size, self.size, e))
+        else:
+            allowed_size = self.size
         if requested_size != allowed_size:
             raise ValueError(
                 'need %d elements (got %d)' %
@@ -152,8 +143,9 @@ class array(Validator):
 
 
 # more complicated validator may not be able to use validator base class
-class vector(object):
+class vector(Validator):
     """fixed length, eache element has its own validator"""
+    valuetype = tuple
 
     def __init__(self, *args):
         self.validators = args
@@ -165,33 +157,30 @@ class vector(object):
                              len(self.validators), len(args))
         return tuple(v(e) for v, e in zip(self.validators, args))
 
-    def __repr__(self):
-        return ('%s(%s)' % (self.__class__.__name__, self.argstr))
 
-
-class record(object):
+# XXX: fixme!
+class record(Validator):
     """fixed length, eache element has its own name and validator"""
 
     def __init__(self, **kwds):
-        self.validators = args
-        self.argstr = ', '.join([validator_to_str(e) for e in kwds.items()])
+        self.validators = kwds
+        self.argstr = ', '.join(
+            ['%s=%s' % (e[0], validator_to_str(e[1])) for e in kwds.items()])
 
-    def __call__(self, arg):
+    def __call__(self, **args):
         if len(args) != len(self.validators):
             raise ValueError('Vector: need exactly %d elementes (got %d)' %
                              len(self.validators), len(args))
         return tuple(v(e) for v, e in zip(self.validators, args))
 
-    def __repr__(self):
-        return ('%s(%s)' % (self.__class__.__name__, self.argstr))
 
-
-class oneof(object):
+class oneof(Validator):
     """needs to comply with one of the given validators/values"""
 
     def __init__(self, *args):
         self.oneof = args
-        self.argstr = ', '.join([validator_to_str(e) for e in args])
+        self.argstr = ', '.join(
+            [validator_to_str(e) if callable(e) else repr(e) for e in args])
 
     def __call__(self, arg):
         for v in self.oneof:
@@ -206,11 +195,8 @@ class oneof(object):
                 return v
         raise ValueError('Oneof: %r should be one of: %s' % (arg, self.argstr))
 
-    def __repr__(self):
-        return ('%s(%s)' % (self.__class__.__name__, self.argstr))
 
-
-class enum(object):
+class enum(Validator):
 
     def __init__(self, *args, **kwds):
         self.mapping = {}
@@ -226,8 +212,11 @@ class enum(object):
             self.mapping[args.pop(0)] = i
         # generate reverse mapping too for use by protocol
         self.revmapping = {}
-        for k, v in self.mapping.items():
+        params = []
+        for k, v in sorted(self.mapping.items(), key=lambda x: x[1]):
             self.revmapping[v] = k
+            params.append('%s=%r' % (k, v))
+        self.argstr = ', '.join(params)
 
     def __call__(self, obj):
         try:
@@ -238,22 +227,68 @@ class enum(object):
             return obj
         if obj in self.revmapping:
             return self.revmapping[obj]
-        raise ValueError("%r should be one of %r" %
-                         (obj, list(self.mapping.keys())))
-
-    def __repr__(self):
-        params = ['%s=%r' % (mname, mval)
-                  for mname, mval in self.mapping.items()]
-        return ('%s(%s)' % (self.__class__.__name__, ', '.join(params)))
+        raise ValueError("%r should be one of %s" %
+                         (obj, ', '.join(map(repr, self.mapping.keys()))))
 
     def convert(self, arg):
         return self.mapping.get(arg, arg)
 
 
+# Validators without parameters:
+def positive(value=Ellipsis):
+    if value != Ellipsis:
+        if value > 0:
+            return value
+        raise ValueError('Value %r must be > 0!' % value)
+    return -1e-38  # small number > 0
+positive.__repr__ = lambda x: validator_to_str(x)
+
+
+def nonnegative(value=Ellipsis):
+    if value != Ellipsis:
+        if value >= 0:
+            return value
+        raise ValueError('Value %r must be >= 0!' % value)
+    return 0.0
+nonnegative.__repr__ = lambda x: validator_to_str(x)
+
+
+# helpers
+
 def validator_to_str(validator):
-    return str(validator) if not isinstance(validator, type) \
-        else validator.__name__
+    if isinstance(validator, Validator):
+        return validator.to_string()
+    if hasattr(validator, 'func_name'):
+        return getattr(validator, 'func_name')
+    for s in 'int str float'.split(' '):
+        t = eval(s)
+        if validator == t or isinstance(validator, t):
+            return s
+    print "##########", type(validator), repr(validator)
 
 
+# XXX: better use a mapping here!
 def validator_from_str(validator_str):
     return eval(validator_str)
+
+if __name__ == '__main__':
+    print "minimal testing: validators"
+    for val, good, bad in [(floatrange(3.09, 5.47), 4.13, 9.27),
+                           (intrange(3, 5), 4, 8),
+                           (array(size=3, datatype=int), (1, 2, 3), (1, 2, 3, 4)),
+                           (vector(int, int), (12, 6), (1.23, 'X')),
+                           (oneof('a', 'b', 'c', 1), 'b', 'x'),
+                           #(record(a=int, b=float), dict(a=2,b=3.97), dict(c=9,d='X')),
+                           (positive, 2, 0),
+                           (nonnegative, 0, -1),
+                           (enum(a=1, b=20), 1, 12),
+                           ]:
+        print validator_to_str(val), repr(validator_from_str(validator_to_str(val)))
+        print val(good), 'OK'
+        try:
+            val(bad)
+            print "FAIL"
+            raise ProgrammingError
+        except Exception as e:
+            print bad, e, 'OK'
+        print

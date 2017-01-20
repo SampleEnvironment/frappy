@@ -30,12 +30,26 @@ class SECOPError(RuntimeError):
         for k, v in kwds.items():
             setattr(self, k, v)
 
+    def __repr__(self):
+        args = ', '.join(map(repr, self.args))
+        kwds = ', '.join(['%s=%r' % i for i in self.__dict__.items()])
+        res = []
+        if args:
+            res.append(args)
+        if kwds:
+            res.append(kwds)
+        return '%s(%s)' % (self.name, ', '.join(res))
+
+    @property
+    def name(self):
+        return self.__class__.__name__[:-len('Error')]
+
 
 class InternalError(SECOPError):
     pass
 
 
-class ProtocollError(SECOPError):
+class ProtocolError(SECOPError):
     pass
 
 
@@ -56,6 +70,10 @@ class ReadonlyError(SECOPError):
     pass
 
 
+class BadValueError(SECOPError):
+    pass
+
+
 class CommandFailedError(SECOPError):
     pass
 
@@ -63,6 +81,18 @@ class CommandFailedError(SECOPError):
 class InvalidParamValueError(SECOPError):
     pass
 
+
+EXCEPTIONS = dict(
+    Internal=InternalError,
+    Protocol=ProtocolError,
+    NoSuchModule=NoSuchModuleError,
+    NoSuchParam=NoSuchParamError,
+    NoSuchCommand=NoSuchCommandError,
+    BadValue=BadValueError,
+    Readonly=ReadonlyError,
+    CommandFailed=CommandFailedError,
+    InvalidParam=InvalidParamValueError,
+)
 
 if __name__ == '__main__':
     print("Minimal testing of errors....")

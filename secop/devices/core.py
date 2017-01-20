@@ -35,7 +35,7 @@ import threading
 from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
 from secop.protocol import status
-from secop.validators import enum, vector, floatrange
+from secop.validators import enum, vector, floatrange, validator_to_str
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
 
@@ -74,9 +74,9 @@ class PARAM(object):
                     unit=self.unit,
                     readonly=self.readonly,
                     value=self.value,
-                    timestamp=format_time(self.timestamp) if self.timestamp else None,
-                    validator=str(self.validator) if not isinstance(
-                        self.validator, type) else self.validator.__name__
+                    timestamp=format_time(
+                        self.timestamp) if self.timestamp else None,
+                    validator=validator_to_str(self.validator),
                     )
 
 
@@ -260,7 +260,7 @@ class Device(object):
                 # only check if validator given
                 try:
                     v = validator(v)
-                except ValueError as e:
+                except (ValueError, TypeError) as e:
                     raise ConfigError('Device %s: config parameter %r:\n%r'
                                       % (self.name, k, e))
             setattr(self, k, v)
@@ -285,22 +285,22 @@ class Readable(Device):
                            default="Readable", validator=str),
         'value': PARAM('current value of the device', readonly=True, default=0.),
         'pollinterval': PARAM('sleeptime between polls', readonly=False, default=5, validator=floatrange(1, 120),),
-        'status': PARAM('current status of the device', default=status.OK,
-                        validator=enum(**{'idle': status.OK,
-                                          'BUSY': status.BUSY,
-                                          'WARN': status.WARN,
-                                          'UNSTABLE': status.UNSTABLE,
-                                          'ERROR': status.ERROR,
-                                          'UNKNOWN': status.UNKNOWN}),
+        #        'status': PARAM('current status of the device', default=status.OK,
+        #                        validator=enum(**{'idle': status.OK,
+        #                                          'BUSY': status.BUSY,
+        #                                          'WARN': status.WARN,
+        #                                          'UNSTABLE': status.UNSTABLE,
+        #                                          'ERROR': status.ERROR,
+        #                                          'UNKNOWN': status.UNKNOWN}),
+        #                        readonly=True),
+        'status': PARAM('current status of the device', default=(status.OK, ''),
+                        validator=vector(enum(**{'idle': status.OK,
+                                                 'BUSY': status.BUSY,
+                                                 'WARN': status.WARN,
+                                                 'UNSTABLE': status.UNSTABLE,
+                                                 'ERROR': status.ERROR,
+                                                 'UNKNOWN': status.UNKNOWN}), str),
                         readonly=True),
-        'status2': PARAM('current status of the device', default=(status.OK, ''),
-                         validator=vector(enum(**{'idle': status.OK,
-                                                  'BUSY': status.BUSY,
-                                                  'WARN': status.WARN,
-                                                  'UNSTABLE': status.UNSTABLE,
-                                                  'ERROR': status.ERROR,
-                                                  'UNKNOWN': status.UNKNOWN}), str),
-                         readonly=True),
     }
 
     def init(self):

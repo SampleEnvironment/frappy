@@ -27,7 +27,7 @@
 
 from secop.protocol.encoding import MessageEncoder
 from secop.protocol.messages import *
-from secop.protocol.errors import ProtocollError
+from secop.protocol.errors import ProtocolError
 
 import ast
 import re
@@ -389,7 +389,7 @@ class DemoEncoder_MZ(MessageEncoder):
             # errors
             ErrorReply: lambda msg: "",
             InternalError: lambda msg: "",
-            ProtocollError: lambda msg: "",
+            ProtocolError: lambda msg: "",
             CommandFailedError: lambda msg: "error CommandError %s:%s %s" % (msg.device, msg.param, msg.error),
             NoSuchCommandError: lambda msg: "error NoSuchCommand %s:%s" % (msg.device, msg.param, msg.error),
             NoSuchDeviceError: lambda msg: "error NoSuchModule %s" % msg.device,

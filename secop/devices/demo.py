@@ -68,21 +68,27 @@ class Switch(Driveable):
 
     def read_status(self, maxage=0):
         self.log.info("read status")
-        self._update()
+        info = self._update()
         if self.target == self.value:
-            return status.OK
-        return status.BUSY
+            return status.OK, ''
+        return status.BUSY, info
 
     def _update(self):
         started = self.PARAMS['target'].timestamp
+        info = ''
         if self.target > self.value:
+            info = 'waiting for ON'
             if time.time() > started + self.switch_on_time:
-                self.log.debug('is switched ON')
+                info = 'is switched ON'
                 self.value = self.target
         elif self.target < self.value:
+            info = 'waiting for OFF'
             if time.time() > started + self.switch_off_time:
-                self.log.debug('is switched OFF')
+                info = 'is switched OFF'
                 self.value = self.target
+        if info:
+            self.log.debug(info)
+        return info
 
 
 class MagneticField(Driveable):
@@ -101,7 +107,7 @@ class MagneticField(Driveable):
 
     def init(self):
         self._state = 'idle'
-        self._heatswitch = self.DISPATCHER.get_device(self.heatswitch)
+        self._heatswitch = self.DISPATCHER.get_module(self.heatswitch)
         _thread = threading.Thread(target=self._thread)
         _thread.daemon = True
         _thread.start()
@@ -116,7 +122,8 @@ class MagneticField(Driveable):
         # note: we may also return the read-back value from the hw here
 
     def read_status(self, maxage=0):
-        return status.OK if self._state == 'idle' else status.BUSY
+        return (status.OK, '') if self._state == 'idle' else (
+            status.BUSY, self._state)
 
     def _thread(self):
         loopdelay = 1
@@ -202,9 +209,9 @@ class SampleTemp(Driveable):
             ts = time.time()
             if self.value == self.target:
                 if self.status != status.OK:
-                    self.status = status.OK
+                    self.status = status.OK, ''
             else:
-                self.status = status.BUSY
+                self.status = status.BUSY, 'ramping'
                 step = self.ramp * loopdelay / 60.
                 step = max(min(self.target - self.value, step), -step)
                 self.value += step
@@ -230,14 +237,14 @@ class Label(Readable):
     def read_value(self, maxage=0):
         strings = [self.system]
 
-        dev_ts = self.DISPATCHER.get_device(self.subdev_ts)
+        dev_ts = self.DISPATCHER.get_module(self.subdev_ts)
         if dev_ts:
             strings.append('at %.3f %s' %
                            (dev_ts.read_value(), dev_ts.PARAMS['value'].unit))
         else:
             strings.append('No connection to sample temp!')
 
-        dev_mf = self.DISPATCHER.get_device(self.subdev_mf)
+        dev_mf = self.DISPATCHER.get_module(self.subdev_mf)
         if dev_mf:
             mf_stat = dev_mf.read_status()
             mf_mode = dev_mf.mode
@@ -262,8 +269,8 @@ class ValidatorTest(Readable):
         'enum': PARAM('enum', validator=enum('boo', 'faar', z=9), readonly=False, default=1),
         'vector': PARAM('vector of int, float and str', validator=vector(int, float, str), readonly=False, default=(1, 2.3, 'a')),
         'array': PARAM('array: 2..3 time oneof(0,1)', validator=array(oneof(2, 3), oneof(0, 1)), readonly=False, default=[1, 0, 1]),
-        'nonnegative': PARAM('nonnegative', validator=nonnegative(), readonly=False, default=0),
-        'positive': PARAM('positive', validator=positive(), readonly=False, default=1),
+        'nonnegative': PARAM('nonnegative', validator=nonnegative, readonly=False, default=0),
+        'positive': PARAM('positive', validator=positive, readonly=False, default=1),
         'intrange': PARAM('intrange', validator=intrange(2, 9), readonly=False, default=4),
         'floatrange': PARAM('floatrange', validator=floatrange(-1, 1), readonly=False, default=0,),
     }

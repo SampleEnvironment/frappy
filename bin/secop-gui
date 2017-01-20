@@ -38,7 +38,10 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    loggers.initLogging('gui', 'debug')
+    if '-d' in argv:
+        loggers.initLogging('gui', 'debug')
+    else:
+        loggers.initLogging('gui', 'info')
 
     app = QApplication(argv)
 

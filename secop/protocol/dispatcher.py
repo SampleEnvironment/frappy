@@ -45,6 +45,7 @@ from messages import *
 from errors import *
 from secop.lib.parsing import format_time
 
+
 class Dispatcher(object):
 
     def __init__(self, logger, options):
@@ -205,7 +206,7 @@ class Dispatcher(object):
 
     def get_descriptive_data(self):
         # XXX: be lazy and cache this?
-        result = {'modules':{}}
+        result = {'modules': {}}
         for modulename in self._export:
             module = self.get_module(modulename)
             # some of these need rework !
@@ -335,9 +336,9 @@ class Dispatcher(object):
             res = self._setParamValue(msg.module, 'target', msg.value)
             res.parameter = 'target'
         # self.broadcast_event(res)
-        if conn in self._active_connections:
-            return None  # already send to myself
-        return res  # send reply to inactive conns
+        # if conn in self._active_connections:
+        #    return None  # already send to myself
+        return res
 
     def handle_Command(self, conn, msg):
         # notify all by sending CommandReply

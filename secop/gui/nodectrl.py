@@ -27,8 +27,11 @@ from PyQt4.QtGui import QWidget, QTextCursor, QFont, QFontMetrics
 from PyQt4.QtCore import pyqtSignature as qtsig, Qt
 
 from secop.gui.util import loadUi
+from secop.protocol.errors import SECOPError
+
 
 class NodeCtrl(QWidget):
+
     def __init__(self, node, parent=None):
         super(NodeCtrl, self).__init__(parent)
         loadUi(self, 'nodectrl.ui')
@@ -49,9 +52,12 @@ class NodeCtrl(QWidget):
 
         self._addLogEntry('<span style="font-weight:bold">Request:</span> '
                           '%s:' % msg, raw=True)
-        msg = msg.split(' ', 2)
-        reply = self._node.syncCommunicate(*msg)
-        self._addLogEntry(reply, newline=True, pretty=True)
+#        msg = msg.split(' ', 2)
+        try:
+            reply = self._node.syncCommunicate(*self._node.decode_message(msg))
+            self._addLogEntry(reply, newline=True, pretty=True)
+        except SECOPError as e:
+            self._addLogEntry(e, newline=True, pretty=True, error=True)
 
     @qtsig('')
     def on_clearPushButton_clicked(self):
@@ -64,13 +70,19 @@ class NodeCtrl(QWidget):
         self._addLogEntry('=========================')
         self._addLogEntry('', newline=True)
 
-    def _addLogEntry(self, msg, newline=False, pretty=False, raw=False):
+    def _addLogEntry(self, msg, newline=False,
+                     pretty=False, raw=False, error=False):
 
         if pretty:
             msg = pprint.pformat(msg, width=self._getLogWidth())
 
         if not raw:
-            msg = '<pre>%s</pre>' % Qt.escape(str(msg)).replace('\n', '<br />')
+            if error:
+                msg = '<div style="color:#FF0000"><b><pre>%s</pre></b></div>' % Qt.escape(
+                    str(msg)).replace('\n', '<br />')
+            else:
+                msg = '<pre>%s</pre>' % Qt.escape(str(msg)
+                                                  ).replace('\n', '<br />')
 
         content = ''
         if self.logTextBrowser.toPlainText():
@@ -89,4 +101,3 @@ class NodeCtrl(QWidget):
         # due to monospace)
         result = self.logTextBrowser.width() / fontMetrics.width('a')
         return result
-
