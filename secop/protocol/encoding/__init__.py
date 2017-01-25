@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Encoding/decoding Messages"""
 
 # implement as class as they may need some internal 'state' later on
@@ -38,6 +37,7 @@ class MessageEncoder(object):
     def decode(self, frame):
         """decodes the given frame to a message object"""
         raise NotImplemented
+
 
 from demo_v2 import DemoEncoder as DemoEncoderV2
 from demo_v3 import DemoEncoder as DemoEncoderV3

@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Encoding/decoding Frames"""
 
 
@@ -44,7 +43,6 @@ class Framer(object):
     def reset(self):
         """resets the de/encoding stage (clears internal information)"""
         raise NotImplemented
-
 
 # now some Implementations
 from null import NullFramer

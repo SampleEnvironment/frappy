@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Encoding/decoding Messages"""
 
 # implement as class as they may need some internal 'state' later on
@@ -32,11 +31,11 @@ from secop.lib.parsing import *
 import re
 
 DEMO_RE = re.compile(
-    r'^([!+-])?(\*|[a-z_][a-z_0-9]*)?(?:\:(\*|[a-z_][a-z_0-9]*))?(?:\:(\*|[a-z_][a-z_0-9]*))?(?:\=(.*))?')
+    r'^([!+-])?(\*|[a-z_][a-z_0-9]*)?(?:\:(\*|[a-z_][a-z_0-9]*))?(?:\:(\*|[a-z_][a-z_0-9]*))?(?:\=(.*))?'
+)
 
 
 class DemoEncoder(MessageEncoder):
-
     def decode(sef, encoded):
         # match [!][*|devicename][: *|paramname [: *|propname]] [=value]
         match = DEMO_RE.match(encoded)
@@ -46,8 +45,8 @@ class DemoEncoder(MessageEncoder):
                 print "parsing", assign,
                 assign = parse_args(assign)
                 print "->", assign
-            return messages.DemoRequest(
-                novalue, devname, pname, propname, assign)
+            return messages.DemoRequest(novalue, devname, pname, propname,
+                                        assign)
         return messages.HelpRequest()
 
     def encode(self, msg):
@@ -66,8 +65,13 @@ class DemoEncoder(MessageEncoder):
             return '~InternalError~'
         return result
 
-    def _encode_AsyncDataUnit(self, devname, pname, value, timestamp,
-                              error=None, unit=''):
+    def _encode_AsyncDataUnit(self,
+                              devname,
+                              pname,
+                              value,
+                              timestamp,
+                              error=None,
+                              unit=''):
         return '#%s:%s=%s;t=%.3f' % (devname, pname, value, timestamp)
 
     def _encode_Error(self, error):
@@ -98,5 +102,7 @@ class DemoEncoder(MessageEncoder):
         return '~InvalidValueForParamError~ %s:%s=%r' % (device, param, value)
 
     def _encode_HelpReply(self):
-        return ['Help not yet implemented!',
-                'ask Markus Zolliker about the protocol']
+        return [
+            'Help not yet implemented!',
+            'ask Markus Zolliker about the protocol'
+        ]

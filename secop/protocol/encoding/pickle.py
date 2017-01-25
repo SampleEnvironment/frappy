@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Encoding/decoding Messages"""
 
 # implement as class as they may need some internal 'state' later on
@@ -36,7 +35,6 @@ except ImportError:
 
 
 class PickleEncoder(MessageEncoder):
-
     def encode(self, messageobj):
         """msg object -> transport layer message"""
         return pickle.dumps(messageobj)

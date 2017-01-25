@@ -18,7 +18,6 @@
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 # *****************************************************************************
-
 """testing devices"""
 
 import time
@@ -35,16 +34,20 @@ class Switch(Driveable):
     """
     PARAMS = {
         'value': PARAM('current state (on or off)',
-                       validator=enum(on=1, off=0), default=0),
+                       validator=enum(on=1, off=0), default=0,
+                      ),
         'target': PARAM('wanted state (on or off)',
-                        validator=enum(on=1, off=0),
-                        default=0, readonly=False),
+                        validator=enum(on=1, off=0), default=0,
+                        readonly=False,
+                       ),
         'switch_on_time': PARAM('seconds to wait after activating the switch',
                                 validator=floatrange(0, 60), unit='s',
-                                default=10, export=False),
+                                default=10, export=False,
+                               ),
         'switch_off_time': PARAM('cool-down time in seconds',
                                  validator=floatrange(0, 60), unit='s',
-                                 default=10, export=False),
+                                 default=10, export=False,
+                                ),
     }
 
     def init(self):
@@ -95,14 +98,24 @@ class MagneticField(Driveable):
     """a liquid magnet
     """
     PARAMS = {
-        'value': PARAM('current field in T', unit='T',
-                       validator=floatrange(-15, 15), default=0),
-        'ramp': PARAM('moving speed in T/min', unit='T/min',
-                      validator=floatrange(0, 1), default=0.1, readonly=False),
-        'mode': PARAM('what to do after changing field', default=0,
-                      validator=enum(persistent=1, hold=0), readonly=False),
-        'heatswitch': PARAM('heat switch device',
-                            validator=str, export=False),
+        'value': PARAM('current field in T',
+                       unit='T', validator=floatrange(-15, 15), default=0,
+                      ),
+        'target': PARAM('target field in T',
+                        unit='T', validator=floatrange(-15, 15), default=0,
+                        readonly=False,
+                       ),
+        'ramp': PARAM('ramping speed',
+                      unit='T/min', validator=floatrange(0, 1), default=0.1,
+                      readonly=False,
+                     ),
+        'mode': PARAM('what to do after changing field',
+                      default=1, validator=enum(persistent=1, hold=0),
+                      readonly=False,
+                     ),
+        'heatswitch': PARAM('name of heat switch device',
+                            validator=str, export=False,
+                           ),
     }
 
     def init(self):
@@ -122,8 +135,8 @@ class MagneticField(Driveable):
         # note: we may also return the read-back value from the hw here
 
     def read_status(self, maxage=0):
-        return (status.OK, '') if self._state == 'idle' else (
-            status.BUSY, self._state)
+        return (status.OK, '') if self._state == 'idle' else (status.BUSY,
+                                                              self._state)
 
     def _thread(self):
         loopdelay = 1
@@ -137,9 +150,8 @@ class MagneticField(Driveable):
             if self._state == 'switch_on':
                 # wait until switch is on
                 if self._heatswitch.read_value() == 'on':
-                    self.log.debug(
-                        'heatswitch is on -> ramp to %.3f' %
-                        self.target)
+                    self.log.debug('heatswitch is on -> ramp to %.3f' %
+                                   self.target)
                     self._state = 'ramp'
             if self._state == 'ramp':
                 if self.target == self.value:
@@ -170,10 +182,12 @@ class CoilTemp(Readable):
     """a coil temperature
     """
     PARAMS = {
-        'value': PARAM('Coil temperatur in K', unit='K',
-                       validator=float, default=0),
+        'value': PARAM('Coil temperatur',
+                       unit='K', validator=float, default=0,
+                      ),
         'sensor': PARAM("Sensor number or calibration id",
-                        validator=str, readonly=True),
+                        validator=str, readonly=True,
+                       ),
     }
 
     def read_value(self, maxage=0):
@@ -184,12 +198,16 @@ class SampleTemp(Driveable):
     """a sample temperature
     """
     PARAMS = {
-        'value': PARAM('Sample temperatur in K', unit='K',
-                       validator=float, default=10),
+        'value': PARAM('Sample temperature',
+                       unit='K', validator=float, default=10,
+                      ),
         'sensor': PARAM("Sensor number or calibration id",
-                        validator=str, readonly=True),
-        'ramp': PARAM('moving speed in K/min', validator=floatrange(0, 100),
-                      unit='K/min', default=0.1, readonly=False),
+                        validator=str, readonly=True,
+                       ),
+        'ramp': PARAM('moving speed in K/min',
+                      validator=floatrange(0, 100), unit='K/min', default=0.1,
+                      readonly=False,
+                     ),
     }
 
     def init(self):
@@ -225,13 +243,17 @@ class Label(Readable):
     """
     PARAMS = {
         'system': PARAM("Name of the magnet system",
-                        validator=str, export=False),
+                        validator=str, export=False,
+                       ),
         'subdev_mf': PARAM("name of subdevice for magnet status",
-                           validator=str, export=False),
+                           validator=str, export=False,
+                          ),
         'subdev_ts': PARAM("name of subdevice for sample temp",
-                           validator=str, export=False),
-        'value': PARAM("Value of out label string",
-                       validator=str)
+                           validator=str, export=False,
+                          ),
+        'value': PARAM("final value of label string",
+                       validator=str,
+                      ),
     }
 
     def read_value(self, maxage=0):
@@ -250,10 +272,10 @@ class Label(Readable):
             mf_mode = dev_mf.mode
             mf_val = dev_mf.value
             mf_unit = dev_mf.PARAMS['value'].unit
-            if mf_stat == status.OK:
+            if mf_stat[0] == status.OK:
                 state = 'Persistent' if mf_mode else 'Non-persistent'
             else:
-                state = 'ramping'
+                state = mf_stat[1] or 'ramping'
             strings.append('%s at %.1f %s' % (state, mf_val, mf_unit))
         else:
             strings.append('No connection to magnetic field!')
@@ -265,12 +287,21 @@ class ValidatorTest(Readable):
     """
     """
     PARAMS = {
-        'oneof': PARAM('oneof', validator=oneof(int, 'X', 2.718), readonly=False, default=4.0),
-        'enum': PARAM('enum', validator=enum('boo', 'faar', z=9), readonly=False, default=1),
-        'vector': PARAM('vector of int, float and str', validator=vector(int, float, str), readonly=False, default=(1, 2.3, 'a')),
-        'array': PARAM('array: 2..3 time oneof(0,1)', validator=array(oneof(2, 3), oneof(0, 1)), readonly=False, default=[1, 0, 1]),
-        'nonnegative': PARAM('nonnegative', validator=nonnegative, readonly=False, default=0),
-        'positive': PARAM('positive', validator=positive, readonly=False, default=1),
-        'intrange': PARAM('intrange', validator=intrange(2, 9), readonly=False, default=4),
-        'floatrange': PARAM('floatrange', validator=floatrange(-1, 1), readonly=False, default=0,),
+        'oneof': PARAM('oneof',
+                       validator=oneof(int, 'X', 2.718), readonly=False, default=4.0),
+        'enum': PARAM('enum',
+                      validator=enum('boo', 'faar', z=9), readonly=False, default=1),
+        'vector': PARAM('vector of int, float and str',
+                        validator=vector(int, float, str), readonly=False, default=(1, 2.3, 'a')),
+        'array': PARAM('array: 2..3 times oneof(0,1)',
+                       validator=array(oneof(2, 3), oneof(0, 1)), readonly=False, default=[1, 0, 1]),
+        'nonnegative': PARAM('nonnegative',
+                             validator=nonnegative, readonly=False, default=0),
+        'positive': PARAM('positive',
+                          validator=positive, readonly=False, default=1),
+        'intrange': PARAM('intrange',
+                          validator=intrange(2, 9), readonly=False, default=4),
+        'floatrange': PARAM('floatrange',
+                            validator=floatrange(-1, 1), readonly=False, default=0,
+                           ),
     }

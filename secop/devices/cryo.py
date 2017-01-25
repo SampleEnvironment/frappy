@@ -18,7 +18,6 @@
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 # *****************************************************************************
-
 """playing implementation of a (simple) simulated cryostat"""
 
 from math import atan
@@ -26,10 +25,10 @@ import time
 import random
 import threading
 
-from secop.devices.core import Driveable, CONFIG, PARAM
+from secop.devices.core import Driveable, CMD, PARAM
 from secop.protocol import status
-from secop.validators import floatrange, positive, enum
-from secop.lib import clamp
+from secop.validators import floatrange, positive, enum, nonnegative, vector
+from secop.lib import clamp, mkthread
 
 
 class Cryostat(Driveable):
@@ -40,81 +39,112 @@ class Cryostat(Driveable):
     - thermal transfer between regulation and samplen
     """
     PARAMS = dict(
-        jitter=CONFIG("amount of random noise on readout values",
-                      validator=floatrange(0, 1),
+        jitter=PARAM("amount of random noise on readout values",
+                     validator=floatrange(0, 1), unit="K",
+                     default=0.1, readonly=False, export=False,
+                    ),
+        T_start=PARAM("starting temperature for simulation",
+                      validator=positive, default=10,
                       export=False,
+                     ),
+        looptime=PARAM("timestep for simulation",
+                       validator=floatrange(0.01, 10), unit="s", default=1,
+                       readonly=False, export=False,
                       ),
-        T_start=CONFIG("starting temperature for simulation",
-                       validator=positive, export=False,
-                       ),
-        looptime=CONFIG("timestep for simulation",
-                        validator=positive, default=1, unit="s",
-                        export=False,
-                        ),
-        ramp=PARAM("ramping speed in K/min",
-                   validator=floatrange(0, 1e3), default=1,
+        ramp=PARAM("ramping speed of the setpoint",
+                   validator=floatrange(0, 1e3), unit="K/min", default=1,
+                   readonly=False,
+                  ),
+        setpoint=PARAM("current setpoint during ramping else target",
+                       validator=float, default=1, unit='K',
+                      ),
+        maxpower=PARAM("Maximum heater power",
+                       validator=nonnegative, default=1, unit="W",
+                       readonly=False,
+                      ),
+        heater=PARAM("current heater setting",
+                     validator=floatrange(0, 100), default=0, unit="%",
+                    ),
+        heaterpower=PARAM("current heater power",
+                          validator=nonnegative, default=0, unit="W",
+                         ),
+        target=PARAM("target temperature",
+                     validator=nonnegative, default=0, unit="K",
+                     readonly=False,
+                    ),
+        value=PARAM("regulation temperature",
+                    validator=nonnegative, default=0, unit="K",
                    ),
-        setpoint=PARAM("ramping speed in K/min",
-                       validator=float, default=1, readonly=True,
-                       ),
-        maxpower=PARAM("Maximum heater power in W",
-                       validator=float, default=0, readonly=True, unit="W",
-                       ),
-        heater=PARAM("current heater setting in %",
-                     validator=float, default=0, readonly=True, unit="%",
-                     ),
-        heaterpower=PARAM("current heater power in W",
-                          validator=float, default=0, readonly=True, unit="W",
-                          ),
-        target=PARAM("target temperature in K",
-                     validator=float, default=0, unit="K",
-                     ),
-        p=PARAM("regulation coefficient 'p' in %/K",
-                validator=positive, default=40, unit="%/K",
-                ),
+        pid=PARAM("regulation coefficients",
+                  validator=vector(nonnegative, floatrange(0, 100), floatrange(0, 100)),
+                  default=(40, 10, 2), readonly=False,
+                  # export=False,
+                 ),
+        p=PARAM("regulation coefficient 'p'",
+                validator=nonnegative, default=40, unit="%/K", readonly=False,
+                export=False,
+               ),
         i=PARAM("regulation coefficient 'i'",
-                validator=floatrange(0, 100), default=10,
-                ),
+                validator=floatrange(0, 100), default=10, readonly=False,
+                export=False,
+               ),
         d=PARAM("regulation coefficient 'd'",
-                validator=floatrange(0, 100), default=2,
-                ),
+                validator=floatrange(0, 100), default=2, readonly=False,
+                export=False,
+               ),
         mode=PARAM("mode of regulation",
-                   validator=enum('ramp', 'pid', 'openloop'), default='pid',
-                   ),
-
+                   validator=enum('ramp', 'pid', 'openloop'), default='ramp',
+                   readonly=False,
+                  ),
+        pollinterval=PARAM("polling interval",
+                           validator=positive, default=5,
+                           export=False,
+                          ),
         tolerance=PARAM("temperature range for stability checking",
                         validator=floatrange(0, 100), default=0.1, unit='K',
-                        ),
+                        readonly=False,
+                       ),
         window=PARAM("time window for stability checking",
                      validator=floatrange(1, 900), default=30, unit='s',
-                     ),
+                     readonly=False,
+                     export=False,
+                    ),
         timeout=PARAM("max waiting time for stabilisation check",
                       validator=floatrange(1, 36000), default=900, unit='s',
-                      ),
+                      readonly=False,
+                      export=False,
+                     ),
+    )
+    CMDS = dict(
+        Stop=CMD("Stop ramping the setpoint\n\nby setting the current setpoint as new target",
+                 [], None),
     )
 
     def init(self):
         self._stopflag = False
-        self._thread = threading.Thread(target=self.thread)
-        self._thread.daemon = True
-        self._thread.start()
+        self._thread = mkthread(self.thread)
 
-    def read_status(self):
+    def read_status(self, maxage=0):
         # instead of asking a 'Hardware' take the value from the simulation
         return self.status
 
     def read_value(self, maxage=0):
         # return regulation value (averaged regulation temp)
         return self.regulationtemp + \
-            self.config_jitter * (0.5 - random.random())
+            self.jitter * (0.5 - random.random())
 
     def read_target(self, maxage=0):
         return self.target
 
     def write_target(self, value):
+        value = round(value, 2)
+        if value == self.target:
+            # nothing to do
+            return value
         self.target = value
-        # next request will see this status, until the loop updates it
-        self.status = (status.BUSY, 'new target set')
+        # next read_status will see this status, until the loop updates it
+        self.status = status.BUSY, 'new target set'
+        return value
 
     def read_maxpower(self, maxage=0):
         return self.maxpower
@@ -124,6 +154,14 @@ class Cryostat(Driveable):
         heat = max(0, min(100, self.heater * self.maxpower / float(newpower)))
         self.heater = heat
         self.maxpower = newpower
+        return newpower
+
+    def write_pid(self, newpid):
+        self.p, self.i, self.d = newpid
+        return (self.p, self.i, self.d)
+
+    def read_pid(self, maxage=0):
+        return (self.p, self.i, self.d)
 
     def doStop(self):
         # stop the ramp by setting current setpoint as target
@@ -137,7 +175,7 @@ class Cryostat(Driveable):
         """returns cooling power in W at given temperature"""
         # quadratic up to 42K, is linear from 40W@42K to 100W@600K
         # return clamp((temp-2)**2 / 32., 0., 40.) + temp * 0.1
-        return clamp(15 * atan(temp * 0.01) ** 3, 0., 40.) + temp * 0.1 - 0.2
+        return clamp(15 * atan(temp * 0.01)**3, 0., 40.) + temp * 0.1 - 0.2
 
     def __coolerCP(self, temp):
         """heat capacity of cooler at given temp"""
@@ -147,8 +185,8 @@ class Cryostat(Driveable):
         """heatflow from sample to cooler. may be negative..."""
         flow = (sampletemp - coolertemp) * \
                ((coolertemp + sampletemp) ** 2) / 400.
-        cp = clamp(self.__coolerCP(coolertemp) * self.__sampleCP(sampletemp),
-                   1, 10)
+        cp = clamp(
+            self.__coolerCP(coolertemp) * self.__sampleCP(sampletemp), 1, 10)
         return clamp(flow, -cp, cp)
 
     def __sampleCP(self, temp):
@@ -159,9 +197,9 @@ class Cryostat(Driveable):
         return 0.02 / temp
 
     def thread(self):
-        self.sampletemp = self.config_T_start
-        self.regulationtemp = self.config_T_start
-        self.status = status.OK
+        self.sampletemp = self.T_start
+        self.regulationtemp = self.T_start
+        self.status = status.OK, ''
         while not self._stopflag:
             try:
                 self.__sim()
@@ -176,6 +214,7 @@ class Cryostat(Driveable):
         # c) generating status+updated value+ramp
         # this thread is not supposed to exit!
 
+        self.setpoint = self.target
         # local state keeping:
         regulation = self.regulationtemp
         sample = self.sampletemp
@@ -204,15 +243,14 @@ class Cryostat(Driveable):
             heatflow = self.__heatLink(regulation, sample)
             self.log.debug('sample = %.5f, regulation = %.5f, heatflow = %.5g'
                            % (sample, regulation, heatflow))
-            newsample = max(0,
-                            sample + (self.__sampleLeak(sample) - heatflow) /
-                            self.__sampleCP(sample) * h)
+            newsample = max(0, sample + (self.__sampleLeak(sample) - heatflow)
+                            / self.__sampleCP(sample) * h)
             # avoid instabilities due to too small CP
             newsample = clamp(newsample, sample, regulation)
             regdelta = (heater * 0.01 * self.maxpower + heatflow -
                         self.__coolerPower(regulation))
-            newregulation = max(0, regulation +
-                                regdelta / self.__coolerCP(regulation) * h)
+            newregulation = max(
+                0, regulation + regdelta / self.__coolerCP(regulation) * h)
             # b) see
             # http://brettbeauregard.com/blog/2011/04/
             # improving-the-beginners-pid-introduction/
@@ -231,9 +269,9 @@ class Cryostat(Driveable):
                 # use a simple filter to smooth delta a little
                 delta = (delta + regulation - newregulation) / 2.
 
-                kp = self.p / 10.             # LakeShore P = 10*k_p
+                kp = self.p / 10.  # LakeShore P = 10*k_p
                 ki = kp * abs(self.i) / 500.  # LakeShore I = 500/T_i
-                kd = kp * abs(self.d) / 2.    # LakeShore D = 2*T_d
+                kd = kp * abs(self.d) / 2.  # LakeShore D = 2*T_d
                 P = kp * error
                 I += ki * error * h
                 D = kd * delta / h
@@ -249,7 +287,7 @@ class Cryostat(Driveable):
                 v = P + I + D
                 # in damping mode, use a weighted sum of old + new heaterpower
                 if damper > 1:
-                    v = ((damper ** 2 - 1) * self.heater + v) / damper ** 2
+                    v = ((damper**2 - 1) * self.heater + v) / damper**2
 
                 # damp oscillations due to D switching signs
                 if D * lastD < -0.2:
@@ -274,7 +312,7 @@ class Cryostat(Driveable):
                 heater = self.heater
                 last_heaters = (0, 0)
 
-            heater = round(heater, 3)
+            heater = round(heater, 1)
             sample = newsample
             regulation = newregulation
             lastmode = self.mode
@@ -285,9 +323,8 @@ class Cryostat(Driveable):
                 else:
                     maxdelta = self.ramp / 60. * h
                 try:
-                    self.setpoint = round(self.setpoint +
-                                          clamp(self.target - self.setpoint,
-                                                -maxdelta, maxdelta), 3)
+                    self.setpoint = round(self.setpoint + clamp(
+                        self.target - self.setpoint, -maxdelta, maxdelta), 3)
                     self.log.debug('setpoint changes to %r (target %r)' %
                                    (self.setpoint, self.target))
                 except (TypeError, ValueError):
@@ -319,6 +356,7 @@ class Cryostat(Driveable):
             self.heaterpower = round(heater * self.maxpower * 0.01, 3)
             self.heater = heater
             timestamp = t
+            self.read_value()
 
     def shutdown(self):
         # should be called from server when the server is stopped

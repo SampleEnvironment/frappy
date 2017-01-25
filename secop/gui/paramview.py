@@ -29,7 +29,6 @@ from secop.validators import validator_to_str
 
 
 class ParameterView(QWidget):
-
     def __init__(self, node, module, parameter, parent=None):
         super(ParameterView, self).__init__(parent)
         loadUi(self, 'paramview.ui')
@@ -51,8 +50,8 @@ class ParameterView(QWidget):
         font = self.font()
         font.setBold(True)
 
-        props = self._node._getDescribingParameterData(
-            self._module, self._parameter)
+        props = self._node._getDescribingParameterData(self._module,
+                                                       self._parameter)
         for prop in sorted(props):
             label = QLabel(prop + ':')
             label.setFont(font)

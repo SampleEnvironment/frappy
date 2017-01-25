@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Define SECoP Messages"""
 
 # Request Types
@@ -79,8 +78,9 @@ class Message(object):
             r = 'Device' if self.devs != ['*'] else 'Devices'
 
         t = ''
-        if self.MSGTYPE in [LIST, READ, WRITE, COMMAND,
-                            POLL, SUBSCRIBE, UNSUBSCRIBE, HELP]:
+        if self.MSGTYPE in [
+                LIST, READ, WRITE, COMMAND, POLL, SUBSCRIBE, UNSUBSCRIBE, HELP
+        ]:
             t = 'Request' if not self.result else 'Reply'
 
         if self.errortype is None:
@@ -95,7 +95,6 @@ class Message(object):
 
 
 class Value(object):
-
     def __init__(self, value=Ellipsis, qualifiers=None, **kwds):
         self.dev = ''
         self.param = ''
@@ -111,9 +110,9 @@ class Value(object):
         if self.prop:
             devspec = '%s:%s' % (devspec, self.prop)
         return '%s:Value(%s)' % (
-            devspec, ', '.join(
-                [repr(self.value)] +
-                ['%s=%r' % (k, v) for k, v in self.qualifiers.items()]))
+            devspec,
+            ', '.join([repr(self.value)] +
+                      ['%s=%r' % (k, v) for k, v in self.qualifiers.items()]))
 
 
 class ListMessage(Message):
@@ -167,28 +166,29 @@ class HelpMessage(Message):
 
 
 class NoSuchDeviceError(ErrorMessage):
-
     def __init__(self, *devs):
         ErrorMessage.__init__(
-            self, devs=devs, errorstring="Device %r does not exist" %
-            devs[0], errortype='NoSuchDevice')
+            self,
+            devs=devs,
+            errorstring="Device %r does not exist" % devs[0],
+            errortype='NoSuchDevice')
 
 
 class NoSuchParamError(ErrorMessage):
-
     def __init__(self, dev, *params):
         ErrorMessage.__init__(
-            self, devs=(dev,),
-            params=params, errorstring="Device %r has no parameter %r" %
-            (dev, params[0]),
+            self,
+            devs=(dev, ),
+            params=params,
+            errorstring="Device %r has no parameter %r" % (dev, params[0]),
             errortype='NoSuchParam')
 
 
 class ParamReadonlyError(ErrorMessage):
-
     def __init__(self, dev, *params):
         ErrorMessage.__init__(
-            self, devs=(dev,),
+            self,
+            devs=(dev, ),
             params=params,
             errorstring="Device %r, parameter %r is not writeable!" %
             (dev, params[0]),
@@ -196,30 +196,28 @@ class ParamReadonlyError(ErrorMessage):
 
 
 class InvalidParamValueError(ErrorMessage):
-
     def __init__(self, dev, param, value, e):
         ErrorMessage.__init__(
-            self, devs=(dev,),
-            params=params, values=(value),
+            self,
+            devs=(dev, ),
+            params=params,
+            values=(value),
             errorstring=str(e),
             errortype='InvalidParamValueError')
 
 
 class InternalError(ErrorMessage):
-
     def __init__(self, err, **kwds):
         ErrorMessage.__init__(
-            self, errorstring=str(err),
-            errortype='InternalError', **kwds)
+            self, errorstring=str(err), errortype='InternalError', **kwds)
 
 
-MESSAGE = dict(
-    (cls.MSGTYPE, cls)
-    for cls
-    in
-    [HelpMessage, ErrorMessage, EventMessage, TriggerMessage,
-     UnsubscribeMessage, SubscribeMessage, PollMessage, CommandMessage,
-     WriteMessage, ReadMessage, ListMessage])
+MESSAGE = dict((cls.MSGTYPE, cls)
+               for cls in [
+                   HelpMessage, ErrorMessage, EventMessage, TriggerMessage,
+                   UnsubscribeMessage, SubscribeMessage, PollMessage,
+                   CommandMessage, WriteMessage, ReadMessage, ListMessage
+               ])
 
 if __name__ == '__main__':
     print("Minimal testing of messages....")

@@ -20,7 +20,6 @@
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Define helpers"""
 import os
 import time
@@ -41,7 +40,6 @@ from secop.errors import ConfigError
 
 
 class Server(object):
-
     def __init__(self, name, workdir, parentLogger=None):
         self._name = name
         self._workdir = workdir
@@ -65,9 +63,10 @@ class Server(object):
         if pidfile.is_locked():
             self.log.error('Pidfile already exists. Exiting')
 
-        with DaemonContext(working_directory=self._workdir,
-                           pidfile=pidfile,
-                           files_preserve=self.log.getLogfileStreams()):
+        with DaemonContext(
+                working_directory=self._workdir,
+                pidfile=pidfile,
+                files_preserve=self.log.getLogfileStreams()):
             self.run()
 
     def run(self):
@@ -85,9 +84,8 @@ class Server(object):
             time.sleep(1)
             for t in self._threads:
                 if not t.is_alive():
-                    self.log.debug(
-                        'thread %r died (%d still running)' %
-                        (t, len(self._threads)))
+                    self.log.debug('thread %r died (%d still running)' %
+                                   (t, len(self._threads)))
                     t.join()
                     self._threads.discard(t)
 
@@ -95,9 +93,11 @@ class Server(object):
         self.log.debug('Parse config file %s ...' % self._cfgfile)
 
         parser = ConfigParser.SafeConfigParser()
+        parser.optionxform = str
+
         if not parser.read([self._cfgfile]):
-            self.log.error('Couldn\'t read cfg file !')
-            raise ConfigError('Couldn\'t read cfg file %r' % self._cfgfile)
+            self.log.error("Couldn't read cfg file !")
+            raise ConfigError("Couldn't read cfg file %r" % self._cfgfile)
 
         self._interfaces = []
 
@@ -113,8 +113,8 @@ class Server(object):
                 if 'class' not in devopts:
                     self.log.error('Device %s needs a class option!')
                     raise ConfigError(
-                        'cfgfile %r: Device %s needs a class option!'
-                        % (self._cfgfile, devname))
+                        'cfgfile %r: Device %s needs a class option!' %
+                        (self._cfgfile, devname))
                 # try to import the class, raise if this fails
                 devopts['class'] = get_class(devopts['class'])
                 # all went well so far
@@ -127,16 +127,15 @@ class Server(object):
                 if 'interface' not in ifopts:
                     self.log.error('Interface %s needs an interface option!')
                     raise ConfigError(
-                        'cfgfile %r: Interface %s needs an interface option!'
-                        % (self._cfgfile, ifname))
+                        'cfgfile %r: Interface %s needs an interface option!' %
+                        (self._cfgfile, ifname))
                 # all went well so far
                 interfaceopts.append([ifname, ifopts])
         if parser.has_option('equipment', 'id'):
-            equipment_id = parser.get('equipment', 'id')
+            equipment_id = parser.get('equipment', 'id').replace(' ', '_')
 
         self._dispatcher = self._buildObject(
-            'Dispatcher', Dispatcher, dict(
-                equipment_id=equipment_id))
+            'Dispatcher', Dispatcher, dict(equipment_id=equipment_id))
         self._processInterfaceOptions(interfaceopts)
         self._processDeviceOptions(deviceopts)
 
@@ -156,8 +155,8 @@ class Server(object):
                 for d in ("'", '"'):
                     if v.startswith(d) and v.endswith(d):
                         devopts[k] = v[1:-1]
-            devobj = devclass(self.log.getChild(devname), devopts, devname,
-                              self._dispatcher)
+            devobj = devclass(
+                self.log.getChild(devname), devopts, devname, self._dispatcher)
             devs.append([devname, devobj, export])
 
         # connect devices with dispatcher
@@ -178,8 +177,8 @@ class Server(object):
         for ifname, ifopts in interfaceopts:
             ifclass = ifopts.pop('interface')
             ifclass = INTERFACES[ifclass]
-            interface = self._buildObject(ifname, ifclass,
-                                          ifopts, self._dispatcher)
+            interface = self._buildObject(ifname, ifclass, ifopts,
+                                          self._dispatcher)
             self._interfaces.append(interface)
 
     def _buildObject(self, name, cls, options, *args):
@@ -187,7 +186,6 @@ class Server(object):
         # cls.__init__ should pop all used args from options!
         obj = cls(self.log.getChild(name.lower()), options, *args)
         if options:
-            raise ConfigError('%s: don\'t know how to handle option(s): %s' % (
-                cls.__name__,
-                ', '.join(options.keys())))
+            raise ConfigError('%s: don\'t know how to handle option(s): %s' %
+                              (cls.__name__, ', '.join(options.keys())))
         return obj

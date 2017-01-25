@@ -19,12 +19,10 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Define (internal) SECoP Errors"""
 
 
 class SECOPError(RuntimeError):
-
     def __init__(self, *args, **kwds):
         self.args = args
         for k, v in kwds.items():
@@ -91,8 +89,7 @@ EXCEPTIONS = dict(
     BadValue=BadValueError,
     Readonly=ReadonlyError,
     CommandFailed=CommandFailedError,
-    InvalidParam=InvalidParamValueError,
-)
+    InvalidParam=InvalidParamValueError, )
 
 if __name__ == '__main__':
     print("Minimal testing of errors....")

@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Encoding/decoding Messages"""
 
 # implement as class as they may need some internal 'state' later on
@@ -31,7 +30,6 @@ from secop.lib.parsing import *
 
 
 class TextEncoder(MessageEncoder):
-
     def __init__(self):
         # build safe namespace
         ns = dict()

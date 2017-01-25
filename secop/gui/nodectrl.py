@@ -22,6 +22,7 @@
 # *****************************************************************************
 
 import pprint
+import json
 
 from PyQt4.QtGui import QWidget, QTextCursor, QFont, QFontMetrics
 from PyQt4.QtCore import pyqtSignature as qtsig, Qt
@@ -31,7 +32,6 @@ from secop.protocol.errors import SECOPError
 
 
 class NodeCtrl(QWidget):
-
     def __init__(self, node, parent=None):
         super(NodeCtrl, self).__init__(parent)
         loadUi(self, 'nodectrl.ui')
@@ -50,14 +50,26 @@ class NodeCtrl(QWidget):
         if not msg:
             return
 
-        self._addLogEntry('<span style="font-weight:bold">Request:</span> '
-                          '%s:' % msg, raw=True)
-#        msg = msg.split(' ', 2)
+        self._addLogEntry(
+            '<span style="font-weight:bold">Request:</span> '
+            '%s:' % msg,
+            raw=True)
+        #        msg = msg.split(' ', 2)
         try:
             reply = self._node.syncCommunicate(*self._node.decode_message(msg))
-            self._addLogEntry(reply, newline=True, pretty=True)
+            if msg == 'describe':
+                _, eid, stuff = self._node.decode_message(reply)
+                reply = '%s %s %s' % (_, eid, json.dumps(
+                    stuff, indent=2, separators=(',', ':'), sort_keys=True))
+                self._addLogEntry(reply, newline=True, pretty=False)
+            else:
+                self._addLogEntry(reply, newline=True, pretty=True)
         except SECOPError as e:
-            self._addLogEntry(e, newline=True, pretty=True, error=True)
+            self._addLogEntry(
+                'error %s %s' % (e.name, json.dumps(e.args)),
+                newline=True,
+                pretty=True,
+                error=True)
 
     @qtsig('')
     def on_clearPushButton_clicked(self):
@@ -70,19 +82,23 @@ class NodeCtrl(QWidget):
         self._addLogEntry('=========================')
         self._addLogEntry('', newline=True)
 
-    def _addLogEntry(self, msg, newline=False,
-                     pretty=False, raw=False, error=False):
-
+    def _addLogEntry(self,
+                     msg,
+                     newline=False,
+                     pretty=False,
+                     raw=False,
+                     error=False):
         if pretty:
             msg = pprint.pformat(msg, width=self._getLogWidth())
+            msg = msg[1:-1]
 
         if not raw:
             if error:
                 msg = '<div style="color:#FF0000"><b><pre>%s</pre></b></div>' % Qt.escape(
                     str(msg)).replace('\n', '<br />')
             else:
-                msg = '<pre>%s</pre>' % Qt.escape(str(msg)
-                                                  ).replace('\n', '<br />')
+                msg = '<pre>%s</pre>' % Qt.escape(str(msg)).replace('\n',
+                                                                    '<br />')
 
         content = ''
         if self.logTextBrowser.toPlainText():

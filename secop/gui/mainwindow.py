@@ -21,7 +21,7 @@
 #
 # *****************************************************************************
 
-from PyQt4.QtGui import QMainWindow, QInputDialog, QTreeWidgetItem
+from PyQt4.QtGui import QMainWindow, QInputDialog, QTreeWidgetItem, QMessageBox
 from PyQt4.QtCore import pyqtSignature as qtsig, QObject, pyqtSignal
 
 from secop.gui.util import loadUi
@@ -29,6 +29,8 @@ from secop.gui.nodectrl import NodeCtrl
 from secop.gui.modulectrl import ModuleCtrl
 from secop.gui.paramview import ParameterView
 from secop.client.baseclient import Client as SECNode
+
+import sys
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
 ITEM_TYPE_MODULE = QTreeWidgetItem.UserType + 2
@@ -61,21 +63,34 @@ class QSECNode(SECNode, QObject):
 
 
 class MainWindow(QMainWindow):
-
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
 
         loadUi(self, 'mainwindow.ui')
 
+        self.toolBar.hide()
+        self.lineEdit.hide()
+
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 70)
+        self.splitter.setSizes([50, 500])
 
         self._nodes = {}
         self._nodeCtrls = {}
+        self._topItems = {}
         self._currentWidget = self.splitter.widget(1).layout().takeAt(0)
 
-        # add localhost if available
-        self._addNode('localhost')
+        # add localhost (if available) and SEC nodes given as arguments
+        args = sys.argv[1:]
+        if '-d' in args:
+            args.remove('-d')
+        if not args:
+            args = ['localhost']
+        for host in args:
+            try:
+                self._addNode(host)
+            except Exception as e:
+                print e
 
     @qtsig('')
     def on_actionAdd_SEC_node_triggered(self):
@@ -85,7 +100,11 @@ class MainWindow(QMainWindow):
         if not ok:
             return
 
-        self._addNode(host)
+        try:
+            self._addNode(host)
+        except Exception as e:
+            QMessageBox.critical(self.parent(),
+                                 'Connecting to %s failed!' % host, str(e))
 
     def on_treeWidget_currentItemChanged(self, current, previous):
         if current.type() == ITEM_TYPE_NODE:
@@ -94,8 +113,18 @@ class MainWindow(QMainWindow):
             self._displayModule(current.parent().text(0), current.text(0))
         elif current.type() == ITEM_TYPE_PARAMETER:
             self._displayParameter(current.parent().parent().text(0),
-                                   current.parent().text(0),
-                                   current.text(0))
+                                   current.parent().text(0), current.text(0))
+
+    def _removeSubTree(self, toplevelItem):
+        #....
+        pass
+
+    def _nodeDisconnected_callback(self, host):
+        node = self._nodes[host]
+        topItem = self._topItems[node]
+        self._removeSubTree(topItem)
+        node.quit()
+        QMessageBox(self.parent(), repr(host))
 
     def _addNode(self, host):
 
@@ -109,6 +138,7 @@ class MainWindow(QMainWindow):
 
         host = '%s (%s)' % (node.equipment_id, host)
         self._nodes[host] = node
+        node.register_shutdown_callback(self._nodeDisconnected_callback, host)
 
         # fill tree
         nodeItem = QTreeWidgetItem(None, [host], ITEM_TYPE_NODE)
@@ -120,6 +150,7 @@ class MainWindow(QMainWindow):
                                             ITEM_TYPE_PARAMETER)
 
         self.treeWidget.addTopLevelItem(nodeItem)
+        self._topItems[node] = nodeItem
 
     def _displayNode(self, node):
 
@@ -135,10 +166,7 @@ class MainWindow(QMainWindow):
 
     def _displayParameter(self, node, module, parameter):
         self._replaceCtrlWidget(
-            ParameterView(
-                self._nodes[node],
-                module,
-                parameter))
+            ParameterView(self._nodes[node], module, parameter))
 
     def _replaceCtrlWidget(self, new):
         old = self.splitter.widget(1).layout().takeAt(0)

@@ -19,17 +19,14 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Define Client side proxies"""
 
 # nothing here yet.
-
 
 import code
 
 
 class NameSpace(dict):
-
     def __init__(self):
         dict.__init__(self)
         self.__const = set()
@@ -66,7 +63,6 @@ from os import path
 
 
 class ClientConsole(object):
-
     def __init__(self, cfgname, basepath):
         self.namespace = NameSpace()
         self.namespace.setconst('help', self.helpCmd)
@@ -89,6 +85,7 @@ class ClientConsole(object):
         else:
             help(arg)
 
+
 import socket
 import threading
 from collections import deque
@@ -99,7 +96,6 @@ from secop.protocol.messages import *
 
 
 class TCPConnection(object):
-
     def __init__(self, connect, port, encoding, framing, **kwds):
         self.log = loggers.log.getChild('connection', False)
         self.encoder = ENCODERS[encoding]()
@@ -147,8 +143,7 @@ class TCPConnection(object):
                     cb(msg)
                 except Exception as e:
                     self.log.debug(
-                        "handle_async: got exception %r" %
-                        e, exception=true)
+                        "handle_async: got exception %r" % e, exception=true)
         else:
             self.queue.append(msg)
 
@@ -167,7 +162,6 @@ class TCPConnection(object):
 
 
 class Client(object):
-
     def __init__(self, opts):
         self.log = loggers.log.getChild('client', True)
         self._cache = dict()
@@ -184,7 +178,7 @@ class Client(object):
 
     def populateNamespace(self, namespace):
         self.connection.send(ListDevicesRequest())
-#        reply = self.connection.read()
-#        self.log.info("found devices %r" % reply)
+        #        reply = self.connection.read()
+        #        self.log.info("found devices %r" % reply)
         # create proxies, populate cache....
         namespace.setconst('connection', self.connection)

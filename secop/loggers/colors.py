@@ -20,9 +20,7 @@
 #   Georg Brandl <georg@python.org>
 #
 # *****************************************************************************
-
 """Console coloring handlers."""
-
 
 _codes = {}
 

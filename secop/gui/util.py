@@ -25,7 +25,6 @@ from os import path
 
 from PyQt4 import uic
 
-
 uipath = path.dirname(__file__)
 
 

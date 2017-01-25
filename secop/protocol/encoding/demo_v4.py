@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Encoding/decoding Messages"""
 
 # implement as class as they may need some internal 'state' later on
@@ -47,7 +46,8 @@ DEMO_RE = re.compile(
 IDENTREQUEST = '*IDN?'  # literal
 # literal! first part is fixed!
 #IDENTREPLY = 'SECoP, SECoPTCP, V2016-11-30, rc1'
-IDENTREPLY = 'SINE2020&ISSE,SECoP,V2016-11-30,rc1'
+#IDENTREPLY = 'SINE2020&ISSE,SECoP,V2016-11-30,rc1'
+IDENTREPLY = 'SINE2020&ISSE,SECoP,V2017-01-25,rc1'
 DESCRIPTIONSREQUEST = 'describe'  # literal
 DESCRIPTIONREPLY = 'describing'  # +<id> +json
 ENABLEEVENTSREQUEST = 'activate'  # literal
@@ -69,10 +69,22 @@ HEARTBEATREPLY = 'pong'  # +nonce_without_space
 ERRORREPLY = 'error'  # +errorclass +json_extended_info
 HELPREQUEST = 'help'  # literal
 HELPREPLY = 'helping'  # +line number +json_text
-ERRORCLASSES = ['NoSuchDevice', 'NoSuchParameter', 'NoSuchCommand',
-                'CommandFailed', 'ReadOnly', 'BadValue', 'CommunicationFailed',
-                'IsBusy', 'IsError', 'ProtocolError', 'InternalError',
-                'CommandRunning', 'Disabled', ]
+ERRORCLASSES = [
+    'NoSuchDevice',
+    'NoSuchParameter',
+    'NoSuchCommand',
+    'CommandFailed',
+    'ReadOnly',
+    'BadValue',
+    'CommunicationFailed',
+    'IsBusy',
+    'IsError',
+    'ProtocolError',
+    'InternalError',
+    'CommandRunning',
+    'Disabled',
+]
+
 # note: above strings need to be unique in the sense, that none is/or
 # starts with another
 
@@ -93,33 +105,61 @@ def encode_value_data(vobj):
 
 def encode_error_msg(emsg):
     # note: result is JSON-ified....
-    return [emsg.origin, dict((k, getattr(emsg, k))
-                              for k in emsg.ARGS if k != 'origin')]
+    return [
+        emsg.origin, dict((k, getattr(emsg, k)) for k in emsg.ARGS
+                          if k != 'origin')
+    ]
 
 
 class DemoEncoder(MessageEncoder):
     # map of msg to msgtype string as defined above.
     ENCODEMAP = {
-        IdentifyRequest: (IDENTREQUEST,),
-        IdentifyReply: (IDENTREPLY,),
-        DescribeRequest: (DESCRIPTIONSREQUEST,),
-        DescribeReply: (DESCRIPTIONREPLY, 'equipment_id', 'description',),
-        ActivateRequest: (ENABLEEVENTSREQUEST,),
-        ActivateReply: (ENABLEEVENTSREPLY,),
-        DeactivateRequest: (DISABLEEVENTSREQUEST,),
-        DeactivateReply: (DISABLEEVENTSREPLY,),
-        CommandRequest: (COMMANDREQUEST, lambda msg: "%s:%s" % (msg.module, msg.command), 'arguments',),
-        CommandReply: (COMMANDREPLY, lambda msg: "%s:%s" % (msg.module, msg.command), encode_cmd_result,),
-        WriteRequest: (WRITEREQUEST, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value',),
-        WriteReply: (WRITEREPLY, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, 'value', ),
-        PollRequest: (TRIGGERREQUEST, lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module, ),
-        HeartbeatRequest: (HEARTBEATREQUEST, 'nonce',),
-        HeartbeatReply: (HEARTBEATREPLY, 'nonce',),
+        IdentifyRequest: (IDENTREQUEST, ),
+        IdentifyReply: (IDENTREPLY, ),
+        DescribeRequest: (DESCRIPTIONSREQUEST, ),
+        DescribeReply: (
+            DESCRIPTIONREPLY,
+            'equipment_id',
+            'description', ),
+        ActivateRequest: (ENABLEEVENTSREQUEST, ),
+        ActivateReply: (ENABLEEVENTSREPLY, ),
+        DeactivateRequest: (DISABLEEVENTSREQUEST, ),
+        DeactivateReply: (DISABLEEVENTSREPLY, ),
+        CommandRequest: (
+            COMMANDREQUEST,
+            lambda msg: "%s:%s" % (msg.module, msg.command),
+            'arguments', ),
+        CommandReply: (
+            COMMANDREPLY,
+            lambda msg: "%s:%s" % (msg.module, msg.command),
+            encode_cmd_result, ),
+        WriteRequest: (
+            WRITEREQUEST,
+            lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module,
+            'value', ),
+        WriteReply: (
+            WRITEREPLY,
+            lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module,
+            'value', ),
+        PollRequest: (
+            TRIGGERREQUEST,
+            lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module,
+        ),
+        HeartbeatRequest: (
+            HEARTBEATREQUEST,
+            'nonce', ),
+        HeartbeatReply: (
+            HEARTBEATREPLY,
+            'nonce', ),
         HelpMessage: (HELPREQUEST, ),
-        ErrorMessage: (ERRORREPLY, "errorclass", encode_error_msg,),
-        Value: (EVENT, lambda msg: "%s:%s" % (msg.module, msg.parameter or (msg.command + '()'))
-                if msg.parameter or msg.command else msg.module,
-                encode_value_data,),
+        ErrorMessage: (
+            ERRORREPLY,
+            "errorclass",
+            encode_error_msg, ),
+        Value: (
+            EVENT,
+            lambda msg: "%s:%s" % (msg.module, msg.parameter or (msg.command + '()')) if msg.parameter or msg.command else msg.module,
+            encode_value_data, ),
     }
     DECODEMAP = {
         IDENTREQUEST: lambda spec, data: IdentifyRequest(),
@@ -177,8 +217,10 @@ class DemoEncoder(MessageEncoder):
         for msgcls, parts in self.ENCODEMAP.items():
             if isinstance(msg, msgcls):
                 # resolve lambdas
-                parts = [parts[0]] + [p(msg) if callable(p)
-                                      else getattr(msg, p) for p in parts[1:]]
+                parts = [parts[0]] + [
+                    p(msg) if callable(p) else getattr(msg, p)
+                    for p in parts[1:]
+                ]
                 if len(parts) > 1:
                     parts[1] = str(parts[1])
                 if len(parts) == 3:
@@ -199,10 +241,11 @@ class DemoEncoder(MessageEncoder):
 #                                is_request=True)
         msgtype, msgspec, data = match.groups()
         if msgspec is None and data:
-            return ErrorMessage(errorclass='Internal',
-                                errorinfo='Regex matched json, but not spec!',
-                                is_request=True,
-                                origin=encoded)
+            return ErrorMessage(
+                errorclass='Internal',
+                errorinfo='Regex matched json, but not spec!',
+                is_request=True,
+                origin=encoded)
 
         if msgtype in self.DECODEMAP:
             if msgspec and ':' in msgspec:
@@ -213,16 +256,16 @@ class DemoEncoder(MessageEncoder):
                 try:
                     data = json.loads(data)
                 except ValueError as err:
-                    return ErrorMessage(errorclass='BadValue',
-                                        errorinfo=[repr(err), str(encoded)],
-                                        origin=encoded)
+                    return ErrorMessage(
+                        errorclass='BadValue',
+                        errorinfo=[repr(err), str(encoded)],
+                        origin=encoded)
             msg = self.DECODEMAP[msgtype](msgspec, data)
             msg.setvalue("origin", encoded)
             return msg
         return ErrorMessage(
             errorclass='Protocol',
-            errorinfo='%r: No Such Messagetype defined!' %
-            encoded,
+            errorinfo='%r: No Such Messagetype defined!' % encoded,
             is_request=True,
             origin=encoded)
 

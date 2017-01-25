@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Define helpers"""
 
 import threading
@@ -50,13 +49,16 @@ def get_class(spec):
     modname, classname = spec.rsplit('.', 1)
     import importlib
     module = importlib.import_module('secop.' + modname)
-#    module = __import__(spec)
+    #    module = __import__(spec)
     return getattr(module, classname)
 
 
 def mkthread(func, *args, **kwds):
-    t = threading.Thread(name='%s:%s' % (func.__module__, func.__name__),
-                         target=func, args=args, kwargs=kwds)
+    t = threading.Thread(
+        name='%s:%s' % (func.__module__, func.__name__),
+        target=func,
+        args=args,
+        kwargs=kwds)
     t.daemon = True
     t.start()
     return t

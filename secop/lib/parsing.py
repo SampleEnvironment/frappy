@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Define parsing helpers"""
 
 import re
@@ -58,12 +57,12 @@ class LocalTimezone(tzinfo):
         return time.tzname[self._isdst(dt)]
 
     def _isdst(self, dt):
-        tt = (dt.year, dt.month, dt.day,
-              dt.hour, dt.minute, dt.second,
+        tt = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second,
               dt.weekday(), 0, 0)
         stamp = time.mktime(tt)
         tt = time.localtime(stamp)
         return tt.tm_isdst > 0
+
 
 LocalTimezone = LocalTimezone()
 
@@ -81,7 +80,6 @@ def format_time(timestamp=None):
 
 
 class Timezone(tzinfo):
-
     def __init__(self, offset, name='unknown timezone'):
         self.offset = offset
         self.name = name
@@ -94,12 +92,13 @@ class Timezone(tzinfo):
 
     def dst(self, dt):
         return timedelta(0)
+
+
 datetime_re = re.compile(
     r'(?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})'
     r'[T ](?P<hour>\d{1,2}):(?P<minute>\d{1,2})'
     r'(?::(?P<second>\d{1,2})(?:\.(?P<microsecond>\d{1,6})\d*)?)?'
-    r'(?P<tzinfo>Z|[+-]\d{2}(?::?\d{2})?)?$'
-)
+    r'(?P<tzinfo>Z|[+-]\d{2}(?::?\d{2})?)?$')
 
 
 def _parse_isostring(isostring):
@@ -125,9 +124,8 @@ def _parse_isostring(isostring):
         kw = {k: int(v) for k, v in kw.items() if v is not None}
         kw['tzinfo'] = _tzinfo
         return datetime(**kw)
-    raise ValueError(
-        "%s is not a valid ISO8601 string I can parse!" %
-        isostring)
+    raise ValueError("%s is not a valid ISO8601 string I can parse!" %
+                     isostring)
 
 
 def parse_time(isostring):
@@ -137,8 +135,8 @@ def parse_time(isostring):
         dt = _parse_isostring(isostring)
         return time.mktime(dt.timetuple()) + dt.microsecond * 1e-6
 
-
 # possibly unusable stuff below!
+
 
 def format_args(args):
     if isinstance(args, list):
@@ -168,7 +166,8 @@ class ArgsParser(object):
 
     DIGITS_CHARS = [c for c in '0123456789']
     NAME_CHARS = [
-        c for c in '_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz']
+        c for c in '_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    ]
     NAME_CHARS2 = NAME_CHARS + DIGITS_CHARS
 
     def __init__(self, string=''):
@@ -393,7 +392,7 @@ if __name__ == '__main__':
     print "time_formatting:",
     t = time.time()
     s = format_time(t)
-    assert(abs(t - parse_time(s)) < 1e-6)
+    assert (abs(t - parse_time(s)) < 1e-6)
     print "OK"
 
     print "ArgsParser:"
@@ -408,6 +407,6 @@ if __name__ == '__main__':
         s = format_args(obj)
         p = a.parse(s)
         print p,
-        assert(parse_args(format_args(obj)) == obj)
+        assert (parse_args(format_args(obj)) == obj)
         print "OK"
     print "OK"

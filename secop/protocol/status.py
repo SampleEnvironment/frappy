@@ -23,9 +23,9 @@
 
 # could also be some objects
 OK = 100
-BUSY = 200
-WARN = 300
-UNSTABLE = 350
+WARN = 200
+UNSTABLE = 250
+BUSY = 300
 ERROR = 400
 UNKNOWN = -1
 

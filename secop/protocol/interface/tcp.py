@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """provides tcp interface to the SECoP Server"""
 
 import os
@@ -36,7 +35,6 @@ from secop.protocol.messages import HelpMessage
 
 
 class TCPRequestHandler(SocketServer.BaseRequestHandler):
-
     def setup(self):
         self.log = self.server.log
         self._queue = collections.deque(maxlen=100)
@@ -49,13 +47,13 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
         mysocket = self.request
         clientaddr = self.client_address
         serverobj = self.server
-        self.log.debug("handling new connection from %s" % repr(clientaddr))
+        self.log.info("handling new connection from %s:%d" % clientaddr)
 
         # notify dispatcher of us
         serverobj.dispatcher.add_connection(self)
 
         mysocket.settimeout(.3)
-#        mysocket.setblocking(False)
+        #        mysocket.setblocking(False)
         # start serving
         while True:
             # send replys fist, then listen for requests, timing out after 0.1s
@@ -66,7 +64,10 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
                 outmsg = self._queue.popleft()
                 outframes = self.encoding.encode(outmsg)
                 outdata = self.framing.encode(outframes)
-                mysocket.sendall(outdata)
+                try:
+                    mysocket.sendall(outdata)
+                except Exception:
+                    return
 
             # XXX: improve: use polling/select here?
             try:
@@ -101,6 +102,7 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
 
     def finish(self):
         """called when handle() terminates, i.e. the socket closed"""
+        self.log.info('closing connection from %s:%d' % self.client_address)
         # notify dispatcher
         self.server.dispatcher.remove_connection(self)
         # close socket
@@ -132,7 +134,6 @@ class TCPServer(SocketServer.ThreadingTCPServer):
         self.log.debug("TCPServer using framing=%s" % self.framingCLS.__name__)
         self.log.debug("TCPServer using encoding=%s" %
                        self.encodingCLS.__name__)
-        SocketServer.ThreadingTCPServer.__init__(self, (bindto, portnum),
-                                                 TCPRequestHandler,
-                                                 bind_and_activate=True)
+        SocketServer.ThreadingTCPServer.__init__(
+            self, (bindto, portnum), TCPRequestHandler, bind_and_activate=True)
         self.log.info("TCPServer initiated")

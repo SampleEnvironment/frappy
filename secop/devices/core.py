@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Define Baseclasses for real devices implemented in the server"""
 
 # XXX: connect with 'protocol'-Devices.
@@ -47,9 +46,13 @@ EVENT_ONLY_ON_CHANGED_VALUES = False
 
 
 class PARAM(object):
-
-    def __init__(self, description, validator=float, default=Ellipsis,
-                 unit=None, readonly=True, export=True):
+    def __init__(self,
+                 description,
+                 validator=float,
+                 default=Ellipsis,
+                 unit=None,
+                 readonly=True,
+                 export=True):
         if isinstance(description, PARAM):
             # make a copy of a PARAM object
             self.__dict__.update(description.__dict__)
@@ -70,19 +73,17 @@ class PARAM(object):
 
     def as_dict(self):
         # used for serialisation only
-        return dict(description=self.description,
-                    unit=self.unit,
-                    readonly=self.readonly,
-                    value=self.value,
-                    timestamp=format_time(
-                        self.timestamp) if self.timestamp else None,
-                    validator=validator_to_str(self.validator),
-                    )
+        return dict(
+            description=self.description,
+            unit=self.unit,
+            readonly=self.readonly,
+            value=self.value,
+            timestamp=format_time(self.timestamp) if self.timestamp else None,
+            validator=validator_to_str(self.validator), )
 
 
 # storage for CMDs settings (description + call signature...)
 class CMD(object):
-
     def __init__(self, description, arguments, result):
         # descriptive text for humans
         self.description = description
@@ -97,17 +98,16 @@ class CMD(object):
 
     def as_dict(self):
         # used for serialisation only
-        return dict(description=self.description,
-                    arguments=repr(self.arguments),
-                    resulttype=repr(self.resulttype),
-                    )
+        return dict(
+            description=self.description,
+            arguments=repr(self.arguments),
+            resulttype=repr(self.resulttype), )
 
 # Meta class
 # warning: MAGIC!
 
 
 class DeviceMeta(type):
-
     def __new__(mcs, name, bases, attrs):
         newtype = type.__new__(mcs, name, bases, attrs)
         if '__constructed__' in attrs:
@@ -140,6 +140,7 @@ class DeviceMeta(type):
                 else:
                     # return cached value
                     return self.PARAMS[pname].value
+
             if rfunc:
                 wrapped_rfunc.__doc__ = rfunc.__doc__
             setattr(newtype, 'read_' + pname, wrapped_rfunc)
@@ -157,6 +158,7 @@ class DeviceMeta(type):
                     # of self.PARAMS[pname]?
                     setattr(self, pname, value)
                     return value
+
                 if wfunc:
                     wrapped_wfunc.__doc__ = wfunc.__doc__
                 setattr(newtype, 'write_' + pname, wrapped_wfunc)
@@ -188,8 +190,8 @@ class DeviceMeta(type):
                     if argspec[0] and argspec[0][0] == 'self':
                         del argspec[0][0]
                         newtype.CMDS[name[2:]] = CMD(
-                            getattr(value, '__doc__'),
-                            argspec.args, None)  # XXX: find resulttype!
+                            getattr(value, '__doc__'), argspec.args,
+                            None)  # XXX: find resulttype!
         attrs['__constructed__'] = True
         return newtype
 
@@ -209,8 +211,9 @@ class Device(object):
     __metaclass__ = DeviceMeta
     # PARAMS and CMDS are auto-merged upon subclassing
     PARAMS = {
-        'baseclass': PARAM('protocol defined interface class',
-                           default="Device", validator=str),
+        "interfaceclass": PARAM("protocol defined interface class",
+                                default="Device",
+                                validator=str),
     }
     CMDS = {}
     DISPATCHER = None
@@ -226,8 +229,10 @@ class Device(object):
             params[k] = PARAM(v)
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
-        params['class'] = PARAM('implementation specific class name',
-                                default=myclassname, validator=str)
+        params['implementationclass'] = PARAM(
+            'implementation specific class name',
+            default=myclassname,
+            validator=str)
 
         self.PARAMS = params
         # check config for problems
@@ -243,8 +248,8 @@ class Device(object):
                 if v.default is Ellipsis and k != 'value':
                     # Ellipsis is the one single value you can not specify....
                     raise ConfigError('Device %s: Parameter %r has no default '
-                                      'value and was not given in config!'
-                                      % (self.name, k))
+                                      'value and was not given in config!' %
+                                      (self.name, k))
                 # assume default value was given
                 cfgdict[k] = v.default
 
@@ -261,8 +266,8 @@ class Device(object):
                 try:
                     v = validator(v)
                 except (ValueError, TypeError) as e:
-                    raise ConfigError('Device %s: config parameter %r:\n%r'
-                                      % (self.name, k, e))
+                    raise ConfigError('Device %s: config parameter %r:\n%r' %
+                                      (self.name, k, e))
             setattr(self, k, v)
         self._requestLock = threading.RLock()
 
@@ -281,10 +286,17 @@ class Readable(Device):
     providing the readonly parameter 'value' and 'status'
     """
     PARAMS = {
-        'baseclass': PARAM('protocol defined interface class',
-                           default="Readable", validator=str),
-        'value': PARAM('current value of the device', readonly=True, default=0.),
-        'pollinterval': PARAM('sleeptime between polls', readonly=False, default=5, validator=floatrange(1, 120),),
+        'interfaceclass': PARAM(
+            'protocol defined interface class',
+            default="Readable",
+            validator=str),
+        'value': PARAM(
+            'current value of the device', readonly=True, default=0.),
+        'pollinterval': PARAM(
+            'sleeptime between polls',
+            readonly=False,
+            default=5,
+            validator=floatrange(0.1, 120), ),
         #        'status': PARAM('current status of the device', default=status.OK,
         #                        validator=enum(**{'idle': status.OK,
         #                                          'BUSY': status.BUSY,
@@ -293,14 +305,19 @@ class Readable(Device):
         #                                          'ERROR': status.ERROR,
         #                                          'UNKNOWN': status.UNKNOWN}),
         #                        readonly=True),
-        'status': PARAM('current status of the device', default=(status.OK, ''),
-                        validator=vector(enum(**{'idle': status.OK,
-                                                 'BUSY': status.BUSY,
-                                                 'WARN': status.WARN,
-                                                 'UNSTABLE': status.UNSTABLE,
-                                                 'ERROR': status.ERROR,
-                                                 'UNKNOWN': status.UNKNOWN}), str),
-                        readonly=True),
+        'status': PARAM(
+            'current status of the device',
+            default=(status.OK, ''),
+            validator=vector(
+                enum(**{
+                    'idle': status.OK,
+                    'BUSY': status.BUSY,
+                    'WARN': status.WARN,
+                    'UNSTABLE': status.UNSTABLE,
+                    'ERROR': status.ERROR,
+                    'UNKNOWN': status.UNKNOWN
+                }), str),
+            readonly=True),
     }
 
     def init(self):
@@ -310,6 +327,7 @@ class Readable(Device):
         self._pollthread.start()
 
     def _pollThread(self):
+        """super simple and super stupid per-module polling thread"""
         while True:
             time.sleep(self.pollinterval)
             for pname in self.PARAMS:
@@ -325,11 +343,25 @@ class Driveable(Readable):
     providing a settable 'target' parameter to those of a Readable
     """
     PARAMS = {
-        'baseclass': PARAM('protocol defined interface class',
-                           default="Driveable", validator=str),
-        'target': PARAM('target value of the device', default=0.,
-                        readonly=False),
+        "interfaceclass": PARAM("protocol defined interface class",
+                                default="Driveable",
+                                validator=str,
+                               ),
+        'target': PARAM('target value of the device',
+                        default=0.,
+                        readonly=False,
+                       ),
     }
 
+    def doStart(self):
+        """normally does nothing,
+
+        but there may be modules which _start_ the action here
+        """
+
     def doStop(self):
+        """Testing command implementation
+
+        wait a second"""
         time.sleep(1)  # for testing !
+

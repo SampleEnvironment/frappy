@@ -19,12 +19,10 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Pathes. how to find what and where..."""
 
 import sys
 from os import path
-
 
 basepath = path.abspath(path.join(sys.path[0], '..'))
 etc_path = path.join(basepath, 'etc')

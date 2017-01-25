@@ -21,7 +21,6 @@
 # *****************************************************************************
 """Define validators."""
 
-
 # a Validator returns a validated object or raises an ValueError
 # easy python validators: int(), float(), str()
 # also validators should have a __repr__ returning a 'python' string
@@ -43,29 +42,25 @@ class Validator(object):
         plist = self.params[:]
         if len(args) > len(plist):
             raise ProgrammingError('%s takes %d parameters only (%d given)' % (
-                                   self.__class__.__name__,
-                                   len(plist), len(args)))
+                self.__class__.__name__, len(plist), len(args)))
         for pval in args:
             pname, pconv = plist.pop(0)
             if pname in kwds:
                 raise ProgrammingError('%s: positional parameter %s is given '
-                                       'as keyword!' % (
-                                           self.__class__.__name__,
-                                           pname))
+                                       'as keyword!' %
+                                       (self.__class__.__name__, pname))
             self.__dict__[pname] = pconv(pval)
         for pname, pconv in plist:
             if pname in kwds:
                 pval = kwds.pop(pname)
                 self.__dict__[pname] = pconv(pval)
             else:
-                raise ProgrammingError('%s: param %s left unspecified!' % (
-                                       self.__class__.__name__,
-                                       pname))
+                raise ProgrammingError('%s: param %s left unspecified!' %
+                                       (self.__class__.__name__, pname))
 
         if kwds:
             raise ProgrammingError('%s got unknown arguments: %s' % (
-                                   self.__class__.__name__,
-                                   ', '.join(list(kwds.keys()))))
+                self.__class__.__name__, ', '.join(list(kwds.keys()))))
         params = []
         for pn, pt in self.params:
             pv = getattr(self, pn)
@@ -89,10 +84,17 @@ class floatrange(Validator):
     params = [('lower', float), ('upper', float)]
 
     def check(self, value):
-        if self.lower <= value <= self.upper:
-            return value
-        raise ValueError('Floatrange: value %r must be within %f and %f' %
-                         (value, self.lower, self.upper))
+        try:
+            value = float(value)
+            if self.lower <= value <= self.upper:
+                return value
+            raise ValueError(
+                'Floatrange: value %r must be a float within %f and %f' %
+                (value, self.lower, self.upper))
+        except TypeError:
+            raise ValueError(
+                'Floatrange: value %r must be a float within %f and %f' %
+                (value, self.lower, self.upper))
 
 
 class intrange(Validator):
@@ -100,10 +102,11 @@ class intrange(Validator):
     valuetype = int
 
     def check(self, value):
-        if self.lower <= value <= self.upper:
+        if self.lower <= int(value) <= self.upper:
             return value
-        raise ValueError('Intrange: value %r must be within %f and %f' %
-                         (value, self.lower, self.upper))
+        raise ValueError(
+            'Intrange: value %r must be an integer within %f and %f' %
+            (value, self.lower, self.upper))
 
 
 class array(Validator):
@@ -112,8 +115,7 @@ class array(Validator):
     The size of the array can also be described by an validator
     """
     valuetype = list
-    params = [('size', lambda x: x),
-              ('datatype', lambda x: x)]
+    params = [('size', lambda x: x), ('datatype', lambda x: x)]
 
     def check(self, values):
         requested_size = len(values)
@@ -121,15 +123,13 @@ class array(Validator):
             try:
                 allowed_size = self.size(requested_size)
             except ValueError as e:
-                raise ValueError(
-                    'illegal number of elements %d, need %r: (%s)' %
-                    (requested_size, self.size, e))
+                raise ValueError('illegal number of elements %d, need %r: (%s)'
+                                 % (requested_size, self.size, e))
         else:
             allowed_size = self.size
         if requested_size != allowed_size:
-            raise ValueError(
-                'need %d elements (got %d)' %
-                (allowed_size, requested_size))
+            raise ValueError('need %d elements (got %d)' %
+                             (allowed_size, requested_size))
         # apply data-type validator to all elements and return
         res = []
         for idx, el in enumerate(values):
@@ -152,10 +152,13 @@ class vector(Validator):
         self.argstr = ', '.join([validator_to_str(e) for e in args])
 
     def __call__(self, args):
+        if type(args) in (str, unicode):
+            args = eval(args)
         if len(args) != len(self.validators):
             raise ValueError('Vector: need exactly %d elementes (got %d)' %
                              len(self.validators), len(args))
-        return tuple(v(e) for v, e in zip(self.validators, args))
+        res = tuple(v(e) for v, e in zip(self.validators, args))
+        return res
 
 
 # XXX: fixme!
@@ -197,7 +200,6 @@ class oneof(Validator):
 
 
 class enum(Validator):
-
     def __init__(self, *args, **kwds):
         self.mapping = {}
         # use given kwds directly
@@ -238,22 +240,26 @@ class enum(Validator):
 def positive(value=Ellipsis):
     if value != Ellipsis:
         if value > 0:
-            return value
+            return float(value)
         raise ValueError('Value %r must be > 0!' % value)
     return -1e-38  # small number > 0
+
+
 positive.__repr__ = lambda x: validator_to_str(x)
 
 
 def nonnegative(value=Ellipsis):
     if value != Ellipsis:
         if value >= 0:
-            return value
+            return float(value)
         raise ValueError('Value %r must be >= 0!' % value)
     return 0.0
+
+
 nonnegative.__repr__ = lambda x: validator_to_str(x)
 
-
 # helpers
+
 
 def validator_to_str(validator):
     if isinstance(validator, Validator):
@@ -269,21 +275,28 @@ def validator_to_str(validator):
 
 # XXX: better use a mapping here!
 def validator_from_str(validator_str):
+    validator_str = validator_str.replace("<type 'str'>", "str")
+    validator_str = validator_str.replace("<type 'float'>", "float")
     return eval(validator_str)
+
 
 if __name__ == '__main__':
     print "minimal testing: validators"
-    for val, good, bad in [(floatrange(3.09, 5.47), 4.13, 9.27),
-                           (intrange(3, 5), 4, 8),
-                           (array(size=3, datatype=int), (1, 2, 3), (1, 2, 3, 4)),
-                           (vector(int, int), (12, 6), (1.23, 'X')),
-                           (oneof('a', 'b', 'c', 1), 'b', 'x'),
-                           #(record(a=int, b=float), dict(a=2,b=3.97), dict(c=9,d='X')),
-                           (positive, 2, 0),
-                           (nonnegative, 0, -1),
-                           (enum(a=1, b=20), 1, 12),
-                           ]:
-        print validator_to_str(val), repr(validator_from_str(validator_to_str(val)))
+    for val, good, bad in [
+        (floatrange(3.09, 5.47), 4.13, 9.27),
+        (intrange(3, 5), 4, 8),
+        (array(
+            size=3, datatype=int), (1, 2, 3), (1, 2, 3, 4)),
+        (vector(int, int), (12, 6), (1.23, 'X')),
+        (oneof('a', 'b', 'c', 1), 'b', 'x'),
+            #(record(a=int, b=float), dict(a=2,b=3.97), dict(c=9,d='X')),
+        (positive, 2, 0),
+        (nonnegative, 0, -1),
+        (enum(
+            a=1, b=20), 1, 12),
+    ]:
+        print validator_to_str(val), repr(
+            validator_from_str(validator_to_str(val)))
         print val(good), 'OK'
         try:
             val(bad)

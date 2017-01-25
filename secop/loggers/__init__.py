@@ -20,7 +20,6 @@
 #
 # *****************************************************************************
 
-
 import os
 import sys
 import time
@@ -34,7 +33,6 @@ from logging import Logger, Formatter, Handler, DEBUG, INFO, WARNING, ERROR, \
 
 from . import colors
 
-
 LOGFMT = '%(asctime)s : %(levelname)-7s : %(name)-15s: %(message)s'
 DATEFMT = '%H:%M:%S'
 DATESTAMP_FMT = '%Y-%m-%d'
@@ -42,7 +40,6 @@ SECONDS_PER_DAY = 60 * 60 * 24
 
 LOGLEVELS = {'debug': DEBUG, 'info': INFO, 'warning': WARNING, 'error': ERROR}
 INVLOGLEVELS = {value: key for key, value in LOGLEVELS.items()}
-
 
 log = None
 
@@ -142,16 +139,16 @@ class ConsoleFormatter(Formatter):
         elif levelno <= INFO:
             fmtstr = '%s%%(message)s' % namefmt
         elif levelno <= WARNING:
-            fmtstr = self.colorize('fuchsia', '%s%%(levelname)s: %%(message)s'
-                                   % namefmt)
+            fmtstr = self.colorize('fuchsia',
+                                   '%s%%(levelname)s: %%(message)s' % namefmt)
         else:
             # Add exception type to error (if caused by exception)
             msgPrefix = ''
             if record.exc_info:
                 msgPrefix = '%s: ' % record.exc_info[0].__name__
 
-            fmtstr = self.colorize('red', '%s%%(levelname)s: %s%%(message)s'
-                                   % (namefmt, msgPrefix))
+            fmtstr = self.colorize('red', '%s%%(levelname)s: %s%%(message)s' %
+                                   (namefmt, msgPrefix))
         fmtstr = datefmt + fmtstr
         if not getattr(record, 'nonl', False):
             fmtstr += '\n'
@@ -209,8 +206,8 @@ class LogfileFormatter(Formatter):
         if self.extended_traceback:
             s = format_extended_traceback(*ei)
         else:
-            s = ''.join(traceback.format_exception(ei[0], ei[1], ei[2],
-                                                   sys.maxsize))
+            s = ''.join(
+                traceback.format_exception(ei[0], ei[1], ei[2], sys.maxsize))
             if s.endswith('\n'):
                 s = s[:-1]
         return s
@@ -268,8 +265,8 @@ class LogfileHandler(StreamHandler):
         StreamHandler.__init__(self)
         # determine time of first midnight from now on
         t = time.localtime()
-        self.rollover_at = time.mktime((t[0], t[1], t[2], 0, 0, 0,
-                                        t[6], t[7], t[8])) + SECONDS_PER_DAY
+        self.rollover_at = time.mktime(
+            (t[0], t[1], t[2], 0, 0, 0, t[6], t[7], t[8])) + SECONDS_PER_DAY
         self.setFormatter(LogfileFormatter(LOGFMT, DATEFMT))
         self.disabled = False
 
@@ -338,8 +335,9 @@ class ColoredConsoleHandler(StreamHandler):
 
     def __init__(self):
         StreamHandler.__init__(self, sys.stdout)
-        self.setFormatter(ConsoleFormatter(datefmt=DATEFMT,
-                                           colorize=colors.colorize))
+        self.setFormatter(
+            ConsoleFormatter(
+                datefmt=DATEFMT, colorize=colors.colorize))
 
     def emit(self, record):
         msg = self.format(record)

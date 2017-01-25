@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Encoding/decoding Messages"""
 
 # implement as class as they may need some internal 'state' later on
@@ -93,7 +92,6 @@ DEMO_RE_OTHER = re.compile(
 
 
 class DemoEncoder(MessageEncoder):
-
     def __init__(self, *args, **kwds):
         MessageEncoder.__init__(self, *args, **kwds)
         self.result = []  # for decoding
@@ -112,8 +110,8 @@ class DemoEncoder(MessageEncoder):
             r.append("help ... more to come")
             return '\n'.join(r)
 
-        if isinstance(msg, (ListMessage, SubscribeMessage,
-                            UnsubscribeMessage, TriggerMessage)):
+        if isinstance(msg, (ListMessage, SubscribeMessage, UnsubscribeMessage,
+                            TriggerMessage)):
             msgtype = msg.MSGTYPE
             if msg.result:
                 if msg.devs:
@@ -145,9 +143,7 @@ class DemoEncoder(MessageEncoder):
                 # encode 1..N replies
                 result.append(
                     encode_value(
-                        val,
-                        'write',
-                        targetvalue=msg.target))
+                        val, 'write', targetvalue=msg.target))
             if not msg.result:
                 # encode a request (no results -> reply, else an error would
                 # have been sent)
@@ -164,28 +160,17 @@ class DemoEncoder(MessageEncoder):
                     encode_value(
                         val,
                         'command',
-                        cmd='%s(%s)' %
-                        (msg.cmd,
-                         ','.join(
-                             msg.args))))
+                        cmd='%s(%s)' % (msg.cmd, ','.join(msg.args))))
             if not msg.result:
                 # encode a request (no results -> reply, else an error would
                 # have been sent)
-                result.append(
-                    '%s:%s(%s)' %
-                    (devspec(
-                        msg, 'command'), msg.cmd, ','.join(
-                        msg.args)))
+                result.append('%s:%s(%s)' % (devspec(msg, 'command'), msg.cmd,
+                                             ','.join(msg.args)))
             return '\n'.join(result)
 
         if isinstance(msg, ErrorMessage):
-            return (
-                '%s %s' %
-                (devspec(
-                    msg,
-                    'error %s' %
-                    msg.errortype),
-                    msg.errorstring)).strip()
+            return ('%s %s' % (devspec(msg, 'error %s' % msg.errortype),
+                               msg.errorstring)).strip()
 
         return 'Can not handle object %r!' % msg
 
@@ -246,6 +231,7 @@ class DemoEncoder(MessageEncoder):
                 if sep in stuff:
                     return stuff.split(sep)
                 return [stuff]
+
             devs = helper(mgroups.pop('devs'))
             pars = helper(mgroups.pop('pars'))
             props = helper(mgroups.pop('props'))
@@ -272,12 +258,8 @@ class DemoEncoder(MessageEncoder):
             # reformat qualifiers
             print mgroups
             quals = dict(
-                qual.split(
-                    '=',
-                    1) for qual in helper(
-                    mgroups.pop(
-                        'qualifiers',
-                        ';')))
+                qual.split('=', 1)
+                for qual in helper(mgroups.pop('qualifiers', ';')))
 
             # reformat value
             result = []
@@ -296,48 +278,49 @@ class DemoEncoder(MessageEncoder):
 
             # construct messageobj
             if msgtype in MESSAGE:
-                return MESSAGE[msgtype](
-                    devs=devs,
-                    pars=pars,
-                    props=props,
-                    result=result,
-                    **mgroups)
+                return MESSAGE[msgtype](devs=devs,
+                                        pars=pars,
+                                        props=props,
+                                        result=result,
+                                        **mgroups)
 
-        return ErrorMessage(errortype="SyntaxError",
-                            errorstring="Can't handle %r" % encoded)
+        return ErrorMessage(
+            errortype="SyntaxError", errorstring="Can't handle %r" % encoded)
 
     def tests(self):
-        testmsg = ['list',
-                   'list *',
-                   'list device',
-                   'list device:param1,param2',
-                   'list *:*',
-                   'list *=ts,tcoil,mf,lhe,ln2;',
-                   'read blub=12;t=3',
-                   'command ts:stop()',
-                   'command mf:quench(1,"now")',
-                   'error GibbetNich query x:y:z=9 "blubub blah"',
-                   '#3',
-                   'read blub:a=12;t=3',
-                   'read blub:b=13;t=3.1',
-                   'read blub:c=14;t=3.3',
-                   ]
+        testmsg = [
+            'list',
+            'list *',
+            'list device',
+            'list device:param1,param2',
+            'list *:*',
+            'list *=ts,tcoil,mf,lhe,ln2;',
+            'read blub=12;t=3',
+            'command ts:stop()',
+            'command mf:quench(1,"now")',
+            'error GibbetNich query x:y:z=9 "blubub blah"',
+            '#3',
+            'read blub:a=12;t=3',
+            'read blub:b=13;t=3.1',
+            'read blub:c=14;t=3.3',
+        ]
         for m in testmsg:
             print repr(m)
             print self.decode(m)
             print
 
 
-DEMO_RE_MZ = re.compile(r"""^(?P<type>[a-z]+)?       # request type word (read/write/list/...)
+DEMO_RE_MZ = re.compile(
+    r"""^(?P<type>[a-z]+)?       # request type word (read/write/list/...)
                          \ ?                    # optional space
                          (?P<device>[a-z][a-z0-9_]*)?  # optional devicename
                          (?:\:(?P<param>[a-z0-9_]*) # optional ':'+paramname
                             (?:\:(?P<prop>[a-z0-9_]*))?)? # optinal ':' + propname
-                         (?:(?P<op>[=\?])(?P<value>[^;]+)(?:\;(?P<quals>.*))?)?$""", re.X)
+                         (?:(?P<op>[=\?])(?P<value>[^;]+)(?:\;(?P<quals>.*))?)?$""",
+    re.X)
 
 
 class DemoEncoder_MZ(MessageEncoder):
-
     def decode(sef, encoded):
         m = DEMO_RE_MZ.match(encoded)
         if m:

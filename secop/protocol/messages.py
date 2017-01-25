@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Define SECoP Messages"""
 
 
@@ -51,8 +50,11 @@ class Message(object):
 
 
 class Value(object):
-
-    def __init__(self, module, parameter=None, command=None, value=Ellipsis,
+    def __init__(self,
+                 module,
+                 parameter=None,
+                 command=None,
+                 value=Ellipsis,
                  **qualifiers):
         self.module = module
         self.parameter = parameter
@@ -67,9 +69,10 @@ class Value(object):
             devspec = '%s:%s' % (devspec, self.parameter)
         elif self.command:
             devspec = '%s:%s()' % (devspec, self.command)
-        return '%s:Value(%s)' % (devspec, ', '.join(
-            [repr(self.value)] +
-            ['%s=%s' % (k, format_time(v) if k == "timestamp" else repr(v)) for k, v in self.qualifiers.items()]))
+        return '%s:Value(%s)' % (devspec, ', '.join([repr(self.value)] + [
+            '%s=%s' % (k, format_time(v) if k == "timestamp" else repr(v))
+            for k, v in self.qualifiers.items()
+        ]))
 
 
 class Request(Message):
@@ -95,8 +98,7 @@ class Request(Message):
         for k in self.ARGS:
             m.setvalue(k, self.__dict__[k])
         m.setvalue("errorclass", errorclass[:-5]
-                   if errorclass.endswith('rror')
-                   else errorclass)
+                   if errorclass.endswith('rror') else errorclass)
         m.setvalue("errorinfo", errorinfo)
         return m
 

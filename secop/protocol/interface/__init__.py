@@ -23,9 +23,7 @@
 
 from tcp import TCPServer
 
-INTERFACES = {
-    'tcp': TCPServer,
-}
+INTERFACES = {'tcp': TCPServer, }
 
 # for 'from protocol.interface import *' to only import the dict
 __ALL__ = ['INTERFACES']

@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Encoding/decoding Messages"""
 
 # implement as class as they may need some internal 'state' later on
@@ -32,13 +31,12 @@ from secop.lib.parsing import *
 import re
 import ast
 
-
 SCPMESSAGE = re.compile(
-    r'^(?:(?P<errorcode>[0-9@])\ )?(?P<device>[a-zA-Z0-9_\*]*)(?:/(?P<param>[a-zA-Z0-9_\*]*))+(?P<op>[-+=\?\ ])?(?P<value>.*)')
+    r'^(?:(?P<errorcode>[0-9@])\ )?(?P<device>[a-zA-Z0-9_\*]*)(?:/(?P<param>[a-zA-Z0-9_\*]*))+(?P<op>[-+=\?\ ])?(?P<value>.*)'
+)
 
 
 class SCPEncoder(MessageEncoder):
-
     def encode(self, msg):
         """msg object -> transport layer message"""
         # fun for Humans
@@ -48,20 +46,24 @@ class SCPEncoder(MessageEncoder):
             r.append("'/version?' to query the current version")
             r.append("'/modules?' to query the list of modules")
             r.append(
-                "'<module>/parameters?' to query the list of params of a module")
+                "'<module>/parameters?' to query the list of params of a module"
+            )
             r.append("'<module>/value?' to query the value of a module")
             r.append("'<module>/status?' to query the status of a module")
             r.append("'<module>/target=<new_value>' to move a module")
-            r.append("replies copy the request and are prefixed with an errorcode:")
             r.append(
-                "0=OK,3=NoSuchCommand,4=NosuchDevice,5=NoSuchParam,6=SyntaxError,7=BadValue,8=Readonly,9=Forbidden,@=Async")
+                "replies copy the request and are prefixed with an errorcode:")
+            r.append(
+                "0=OK,3=NoSuchCommand,4=NosuchDevice,5=NoSuchParam,6=SyntaxError,7=BadValue,8=Readonly,9=Forbidden,@=Async"
+            )
             r.append("extensions: @-prefix as error-code,")
             r.append("'<module>/+' subscribe all params of module")
             r.append("'<module>/<param>+' subscribe a param of a module")
             r.append("use '-' instead of '+' to unsubscribe")
             r.append("'<module>/commands?' list of commands")
             r.append(
-                "'<module>/<command>@[possible args] execute command (ex. 'stop@')")
+                "'<module>/<command>@[possible args] execute command (ex. 'stop@')"
+            )
             return '\n'.join(r)
 
         return {
@@ -117,7 +119,7 @@ class SCPEncoder(MessageEncoder):
     def decode(self, encoded):
         """transport layer message -> msg object"""
         match = SCPMESSAGE.match(encoded)
-        if not(match):
+        if not (match):
             return HelpRequest()
         err, dev, par, op, val = match.groups()
         if val is not None:

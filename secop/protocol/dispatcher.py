@@ -19,7 +19,6 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 """Dispatcher for SECoP Messages
 
 Interface to the service offering part:
@@ -47,7 +46,6 @@ from secop.lib.parsing import format_time
 
 
 class Dispatcher(object):
-
     def __init__(self, logger, options):
         self.equipment_id = options.pop('equipment_id')
         self.log = logger
@@ -85,15 +83,18 @@ class Dispatcher(object):
                     reply = handler(conn, msg)
                 except SECOPError as err:
                     self.log.exception(err)
-                    reply = msg.get_error(errorclass=err.__class__.__name__,
-                                          errorinfo=[repr(err), str(msg)])
+                    reply = msg.get_error(
+                        errorclass=err.__class__.__name__,
+                        errorinfo=[repr(err), str(msg)])
                 except (ValueError, TypeError) as err:
-                    reply = msg.get_error(errorclass='BadValue',
-                                          errorinfo=[repr(err), str(msg)])
+                    reply = msg.get_error(
+                        errorclass='BadValue',
+                        errorinfo=[repr(err), str(msg)])
                 except Exception as err:
                     self.log.exception(err)
-                    reply = msg.get_error(errorclass='InternalError',
-                                          errorinfo=[repr(err), str(msg)])
+                    reply = msg.get_error(
+                        errorclass='InternalError',
+                        errorinfo=[repr(err), str(msg)])
             else:
                 self.log.debug('Can not handle msg %r' % msg)
                 reply = self.unhandled(conn, msg)
@@ -106,8 +107,8 @@ class Dispatcher(object):
             listeners = self._connections
         else:
             if getattr(msg, 'command', None) is None:
-                eventname = '%s:%s' % (
-                    msg.module, msg.parameter if msg.parameter else 'value')
+                eventname = '%s:%s' % (msg.module, msg.parameter
+                                       if msg.parameter else 'value')
             else:
                 eventname = '%s:%s()' % (msg.module, msg.command)
             listeners = self._subscriptions.get(eventname, [])
@@ -198,8 +199,7 @@ class Dispatcher(object):
             res = {}
             for cmdname, cmdobj in self.get_module(modulename).CMDS.items():
                 res[cmdname] = cmdobj.as_dict()
-            self.log.debug('list cmds for module %s -> %r' %
-                           (modulename, res))
+            self.log.debug('list cmds for module %s -> %r' % (modulename, res))
             return res
         self.log.debug('-> module is not to be exported!')
         return {}
@@ -210,12 +210,13 @@ class Dispatcher(object):
         for modulename in self._export:
             module = self.get_module(modulename)
             # some of these need rework !
-            dd = {'class': module.__class__.__name__,
-                  'bases': [b.__name__ for b in module.__class__.__bases__],
-                  'parameters': self.list_module_params(modulename),
-                  'commands': self.list_module_cmds(modulename),
-                  'baseclass': 'Readable',
-                  }
+            dd = {
+                'class': module.__class__.__name__,
+                'bases': [b.__name__ for b in module.__class__.__bases__],
+                'parameters': self.list_module_params(modulename),
+                'commands': self.list_module_cmds(modulename),
+                'interfaceclass': 'Readable',
+            }
             result['modules'][modulename] = dd
         result['equipment_id'] = self.equipment_id
         result['firmware'] = 'The SECoP playground'
@@ -244,8 +245,11 @@ class Dispatcher(object):
         # note: exceptions are handled in handle_request, not here!
         func = getattr(moduleobj, 'do' + command)
         res = func(*arguments)
-        res = CommandReply(module=modulename, command=command,
-                           result=res, qualifiers=dict(t=time.time()))
+        res = CommandReply(
+            module=modulename,
+            command=command,
+            result=res,
+            qualifiers=dict(t=time.time()))
         # res = Value(modulename, command=command, value=func(*arguments), t=time.time())
         return res
 
@@ -268,15 +272,11 @@ class Dispatcher(object):
             setattr(moduleobj, pname, value)
         if pobj.timestamp:
             return WriteReply(
-                module=modulename, parameter=pname, value=[
-                    pobj.value, dict(
-                        t=format_time(pobj.timestamp))])
+                module=modulename,
+                parameter=pname,
+                value=[pobj.value, dict(t=format_time(pobj.timestamp))])
         return WriteReply(
-            module=modulename,
-            parameter=pname,
-            value=[
-                pobj.value,
-                {}])
+            module=modulename, parameter=pname, value=[pobj.value, {}])
 
     def _getParamValue(self, modulename, pname):
         moduleobj = self.get_module(modulename)
@@ -370,9 +370,12 @@ class Dispatcher(object):
                 except SECOPError as e:
                     self.log.error('decide what to do here!')
                     self.log.exception(e)
-                    res = Value(module=modulename, parameter=pname,
-                                value=pobj.value, t=pobj.timestamp,
-                                unit=pobj.unit)
+                    res = Value(
+                        module=modulename,
+                        parameter=pname,
+                        value=pobj.value,
+                        t=pobj.timestamp,
+                        unit=pobj.unit)
                 if res.value != Ellipsis:  # means we do not have a value at all so skip this
                     self.broadcast_event(res)
         conn.queue_async_reply(ActivateReply(**msg.as_dict()))
@@ -392,5 +395,5 @@ class Dispatcher(object):
         (no handle_<messagename> method was defined)
         """
         self.log.error('IGN: got unhandled request %s' % msg)
-        return msg.get_error(errorclass="InternalError",
-                             errorinfo="Unhandled Request")
+        return msg.get_error(
+            errorclass="InternalError", errorinfo="Unhandled Request")
