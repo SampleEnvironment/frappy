@@ -30,8 +30,10 @@ from secop.protocol import status
 from secop.validators import floatrange, positive, enum, nonnegative, vector
 from secop.lib import clamp, mkthread
 
+class CryoBase(Driveable):
+    pass
 
-class Cryostat(Driveable):
+class Cryostat(CryoBase):
     """simulated cryostat with:
 
     - heat capacity of the sample
@@ -61,12 +63,15 @@ class Cryostat(Driveable):
         maxpower=PARAM("Maximum heater power",
                        validator=nonnegative, default=1, unit="W",
                        readonly=False,
+                       group='heater',
                       ),
         heater=PARAM("current heater setting",
                      validator=floatrange(0, 100), default=0, unit="%",
+                     group='heater',
                     ),
         heaterpower=PARAM("current heater power",
                           validator=nonnegative, default=0, unit="W",
+                          group='heater',
                          ),
         target=PARAM("target temperature",
                      validator=nonnegative, default=0, unit="K",
@@ -78,19 +83,19 @@ class Cryostat(Driveable):
         pid=PARAM("regulation coefficients",
                   validator=vector(nonnegative, floatrange(0, 100), floatrange(0, 100)),
                   default=(40, 10, 2), readonly=False,
-                  # export=False,
+                  group='pid',
                  ),
         p=PARAM("regulation coefficient 'p'",
                 validator=nonnegative, default=40, unit="%/K", readonly=False,
-                export=False,
+                group='pid',
                ),
         i=PARAM("regulation coefficient 'i'",
                 validator=floatrange(0, 100), default=10, readonly=False,
-                export=False,
+                group='pid',
                ),
         d=PARAM("regulation coefficient 'd'",
                 validator=floatrange(0, 100), default=2, readonly=False,
-                export=False,
+                group='pid',
                ),
         mode=PARAM("mode of regulation",
                    validator=enum('ramp', 'pid', 'openloop'), default='ramp',
@@ -98,21 +103,21 @@ class Cryostat(Driveable):
                   ),
         pollinterval=PARAM("polling interval",
                            validator=positive, default=5,
-                           export=False,
                           ),
         tolerance=PARAM("temperature range for stability checking",
                         validator=floatrange(0, 100), default=0.1, unit='K',
                         readonly=False,
+                        group='window',
                        ),
         window=PARAM("time window for stability checking",
                      validator=floatrange(1, 900), default=30, unit='s',
                      readonly=False,
-                     export=False,
+                     group='window',
                     ),
         timeout=PARAM("max waiting time for stabilisation check",
                       validator=floatrange(1, 36000), default=900, unit='s',
                       readonly=False,
-                      export=False,
+                      group='window',
                      ),
     )
     CMDS = dict(

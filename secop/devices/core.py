@@ -52,7 +52,8 @@ class PARAM(object):
                  default=Ellipsis,
                  unit=None,
                  readonly=True,
-                 export=True):
+                 export=True,
+                 group=''):
         if isinstance(description, PARAM):
             # make a copy of a PARAM object
             self.__dict__.update(description.__dict__)
@@ -63,6 +64,7 @@ class PARAM(object):
         self.unit = unit
         self.readonly = readonly
         self.export = export
+        self.group = group
         # internal caching: value and timestamp of last change...
         self.value = default
         self.timestamp = 0
@@ -71,15 +73,22 @@ class PARAM(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
-    def as_dict(self):
+    def as_dict(self, static_only=False):
         # used for serialisation only
-        return dict(
-            description=self.description,
-            unit=self.unit,
-            readonly=self.readonly,
-            value=self.value,
-            timestamp=format_time(self.timestamp) if self.timestamp else None,
-            validator=validator_to_str(self.validator), )
+        res = dict(
+                   description=self.description,
+                   readonly=self.readonly,
+                   validator=validator_to_str(self.validator),
+                  )
+        if self.unit:
+            res['unit'] = self.unit
+        if self.group:
+            res['group'] = self.group
+        if not static_only:
+            res['value'] = self.value
+            if self.timestamp:
+                res['timestamp'] = format_time(self.timestamp)
+        return res
 
 
 # storage for CMDs settings (description + call signature...)
@@ -113,8 +122,8 @@ class DeviceMeta(type):
         if '__constructed__' in attrs:
             return newtype
 
-        # merge PARAM and CMDS from all sub-classes
-        for entry in ['PARAMS', 'CMDS']:
+        # merge PROPERTIES, PARAM and CMDS from all sub-classes
+        for entry in ['PROPERTIES', 'PARAMS', 'CMDS']:
             newentry = {}
             for base in reversed(bases):
                 if hasattr(base, entry):
@@ -181,17 +190,17 @@ class DeviceMeta(type):
         # also collect/update information about CMD's
         setattr(newtype, 'CMDS', getattr(newtype, 'CMDS', {}))
         for name in attrs:
-            if name.startswith('do'):
-                if name[2:] in newtype.CMDS:
+            if name.startswith('do_'):
+                if name[3:] in newtype.CMDS:
                     continue
                 value = getattr(newtype, name)
                 if isinstance(value, types.MethodType):
                     argspec = inspect.getargspec(value)
                     if argspec[0] and argspec[0][0] == 'self':
                         del argspec[0][0]
-                        newtype.CMDS[name[2:]] = CMD(
+                        newtype.CMDS[name[3:]] = CMD(
                             getattr(value, '__doc__'), argspec.args,
-                            None)  # XXX: find resulttype!
+                            None)  # XXX: how to find resulttype?
         attrs['__constructed__'] = True
         return newtype
 
@@ -209,12 +218,17 @@ class DeviceMeta(type):
 class Device(object):
     """Basic Device, doesn't do much"""
     __metaclass__ = DeviceMeta
-    # PARAMS and CMDS are auto-merged upon subclassing
-    PARAMS = {
-        "interfaceclass": PARAM("protocol defined interface class",
-                                default="Device",
-                                validator=str),
+    # static PROPERTIES, definitions in derived classes should overwrite earlier ones.
+    # how to configure some stuff which makes sense to take from configfile???
+    PROPERTIES = {
+        'group' : None,  # some Modules may be grouped together
+        'meaning' : None,  # XXX: ???
+        'priority' : None,  # XXX: ???
+        'visibility' : None,  # XXX: ????
+        # what else?
     }
+    # PARAMS and CMDS are auto-merged upon subclassing
+    PARAMS = {}
     CMDS = {}
     DISPATCHER = None
 
@@ -225,16 +239,41 @@ class Device(object):
         self.name = devname
         # make local copies of PARAMS
         params = {}
-        for k, v in self.PARAMS.items():
+        for k, v in self.PARAMS.items()[:]:
             params[k] = PARAM(v)
+        self.PARAMS = params
+
+        # check and apply properties specified in cfgdict
+        # moduleproperties are to be specified as '.<propertyname>=<propertyvalue>'
+        for k, v in cfgdict.items():
+            if k[0] == '.':
+                if k[1:] in self.PROPERTIES:
+                    self.PROPERTIES[k[1:]] = v
+                    del cfgdict[k]
+        # derive automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
-        params['implementationclass'] = PARAM(
-            'implementation specific class name',
-            default=myclassname,
-            validator=str)
+        self.PROPERTIES['implementation'] = myclassname
+        self.PROPERTIES['interfaces'] = [b.__name__ for b in mycls.__mro__
+                                                    if b.__module__.startswith('secop.devices.core')]
+        self.PROPERTIES['interface'] = self.PROPERTIES['interfaces'][0]
 
-        self.PARAMS = params
+        # remove unset (default) module properties
+        for k,v in self.PROPERTIES.items():
+            if v == None:
+                del self.PROPERTIES[k]
+
+        # check and apply parameter_properties
+        # specified as '<paramname>.<propertyname> = <propertyvalue>'
+        for k,v in cfgdict.items()[:]:
+            if '.' in k[1:]:
+                paramname, propname = k.split('.', 1)
+                if paramname in self.PARAMS:
+                    paramobj = self.PARAMS[paramname]
+                    if hasattr(paramobj, propname):
+                        setattr(paramobj, propname, v)
+                        del cfgdict[k]
+
         # check config for problems
         # only accept config items specified in PARAMS
         for k, v in cfgdict.items():
@@ -286,31 +325,13 @@ class Readable(Device):
     providing the readonly parameter 'value' and 'status'
     """
     PARAMS = {
-        'interfaceclass': PARAM(
-            'protocol defined interface class',
-            default="Readable",
-            validator=str),
-        'value': PARAM(
-            'current value of the device', readonly=True, default=0.),
-        'pollinterval': PARAM(
-            'sleeptime between polls',
-            readonly=False,
-            default=5,
-            validator=floatrange(0.1, 120), ),
-        #        'status': PARAM('current status of the device', default=status.OK,
-        #                        validator=enum(**{'idle': status.OK,
-        #                                          'BUSY': status.BUSY,
-        #                                          'WARN': status.WARN,
-        #                                          'UNSTABLE': status.UNSTABLE,
-        #                                          'ERROR': status.ERROR,
-        #                                          'UNKNOWN': status.UNKNOWN}),
-        #                        readonly=True),
-        'status': PARAM(
-            'current status of the device',
-            default=(status.OK, ''),
+        'value': PARAM('current value of the device', readonly=True, default=0.),
+        'pollinterval': PARAM('sleeptime between polls', default=5,
+                              readonly=False, validator=floatrange(0.1, 120), ),
+        'status': PARAM('current status of the device', default=(status.OK, ''),
             validator=vector(
                 enum(**{
-                    'idle': status.OK,
+                    'IDLE': status.OK,
                     'BUSY': status.BUSY,
                     'WARN': status.WARN,
                     'UNSTABLE': status.UNSTABLE,
@@ -343,25 +364,25 @@ class Driveable(Readable):
     providing a settable 'target' parameter to those of a Readable
     """
     PARAMS = {
-        "interfaceclass": PARAM("protocol defined interface class",
-                                default="Driveable",
-                                validator=str,
-                               ),
-        'target': PARAM('target value of the device',
-                        default=0.,
-                        readonly=False,
+        'target': PARAM('target value of the device', default=0., readonly=False,
                        ),
     }
+    # XXX: CMDS ???? auto deriving working well enough?
 
-    def doStart(self):
+    def do_start(self):
         """normally does nothing,
 
         but there may be modules which _start_ the action here
         """
 
-    def doStop(self):
+    def do_stop(self):
         """Testing command implementation
 
         wait a second"""
         time.sleep(1)  # for testing !
+
+    def do_pause(self):
+        """if implemented should pause the module
+        use start to continue movement
+        """
 

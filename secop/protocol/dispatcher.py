@@ -178,14 +178,14 @@ class Dispatcher(object):
         # return a copy of our list
         return self._export[:]
 
-    def list_module_params(self, modulename):
+    def list_module_params(self, modulename, only_static=False):
         self.log.debug('list_module_params(%r)' % modulename)
         if modulename in self._export:
             # omit export=False params!
             res = {}
             for paramname, param in self.get_module(modulename).PARAMS.items():
                 if param.export:
-                    res[paramname] = param.as_dict()
+                    res[paramname] = param.as_dict(only_static)
             self.log.debug('list params for module %s -> %r' %
                            (modulename, res))
             return res
@@ -211,16 +211,14 @@ class Dispatcher(object):
             module = self.get_module(modulename)
             # some of these need rework !
             dd = {
-                'class': module.__class__.__name__,
-                'bases': [b.__name__ for b in module.__class__.__bases__],
-                'parameters': self.list_module_params(modulename),
+                'parameters': self.list_module_params(modulename, only_static=True),
                 'commands': self.list_module_cmds(modulename),
-                'interfaceclass': 'Readable',
+                'properties' : module.PROPERTIES,
             }
             result['modules'][modulename] = dd
         result['equipment_id'] = self.equipment_id
         result['firmware'] = 'The SECoP playground'
-        result['version'] = "2016.12"
+        result['version'] = "2017.01"
         # XXX: what else?
         return result
 
