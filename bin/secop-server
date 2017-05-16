@@ -36,7 +36,7 @@ log_path = path.join(basepath, 'log')
 #sys.path[0] = path.join(basepath, 'src')
 sys.path[0] = basepath
 
-from secop import loggers
+import mlzlog
 from secop.server import Server
 
 
@@ -67,9 +67,9 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
-    loggers.initLogging('secop', loglevel, log_path)
+    mlzlog.initLogging('secop', loglevel, log_path)
 
-    srv = Server(args.name, basepath)
+    srv = Server(args.name, basepath, mlzlog.log)
 
     if args.daemonize:
         srv.start()

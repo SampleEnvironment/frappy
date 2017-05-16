@@ -29,7 +29,8 @@ from os import path
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 from secop.gui.mainwindow import MainWindow
-from secop import loggers
+
+import mlzlog
 
 from PyQt4.QtGui import QApplication
 
@@ -39,9 +40,9 @@ def main(argv=None):
         argv = sys.argv
 
     if '-d' in argv:
-        loggers.initLogging('gui', 'debug')
+        mlzlog.initLogging('gui', 'debug')
     else:
-        loggers.initLogging('gui', 'info')
+        mlzlog.initLogging('gui', 'info')
 
     app = QApplication(argv)
 

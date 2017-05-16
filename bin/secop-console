@@ -36,7 +36,7 @@ log_path = path.join(basepath, 'log')
 sys.path[0] = basepath
 
 # do not move above!
-import loggers
+import mlzlog
 from secop.client import ClientConsole
 
 
@@ -62,7 +62,7 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
-    loggers.initLogging('console', loglevel, log_path)
+    mlzlog.initLogging('console', loglevel, log_path)
 
     console = ClientConsole(args.name, basepath)
 

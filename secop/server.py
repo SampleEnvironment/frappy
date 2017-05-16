@@ -30,7 +30,6 @@ import ConfigParser
 from daemon import DaemonContext
 from daemon.pidfile import TimeoutPIDLockFile
 
-import loggers
 from secop.lib import get_class
 from secop.protocol.dispatcher import Dispatcher
 from secop.protocol.interface import INTERFACES
@@ -44,8 +43,6 @@ class Server(object):
         self._name = name
         self._workdir = workdir
 
-        if parentLogger is None:
-            parentLogger = loggers.log
         self.log = parentLogger.getChild(name, True)
 
         self._pidfile = os.path.join(workdir, 'pid', name + '.pid')

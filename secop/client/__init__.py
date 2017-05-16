@@ -89,7 +89,9 @@ class ClientConsole(object):
 import socket
 import threading
 from collections import deque
-from secop import loggers
+
+import mlzlog
+
 from secop.protocol.encoding import ENCODERS
 from secop.protocol.framing import FRAMERS
 from secop.protocol.messages import *
@@ -97,7 +99,7 @@ from secop.protocol.messages import *
 
 class TCPConnection(object):
     def __init__(self, connect, port, encoding, framing, **kwds):
-        self.log = loggers.log.getChild('connection', False)
+        self.log = mlzlog.log.getChild('connection', False)
         self.encoder = ENCODERS[encoding]()
         self.framer = FRAMERS[framing]()
         self.connection = socket.create_connection((connect, port), 3)
@@ -163,7 +165,7 @@ class TCPConnection(object):
 
 class Client(object):
     def __init__(self, opts):
-        self.log = loggers.log.getChild('client', True)
+        self.log = mlzlog.log.getChild('client', True)
         self._cache = dict()
         self.connection = TCPConnection(**opts)
         self.connection.register_callback(self.handle_async)

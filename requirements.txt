@@ -1,3 +1,5 @@
+#--extra-index-url https://forge.frm2.tum.de/simple
+mlzlog >=0.2.0
 # for generating docu
 markdown>=2.6
 # daemonizing

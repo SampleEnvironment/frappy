@@ -28,7 +28,8 @@ from select import select
 import threading
 import Queue
 
-from secop import loggers
+import mlzlog
+
 from secop.validators import validator_from_str
 from secop.lib import mkthread
 from secop.lib.parsing import parse_time, format_time
@@ -150,7 +151,7 @@ class Client(object):
     stopflag = False
 
     def __init__(self, opts, autoconnect=True):
-        self.log = loggers.log.getChild('client', True)
+        self.log = mlzlog.log.getChild('client', True)
         self._cache = dict()
         if 'device' in opts:
             # serial port
