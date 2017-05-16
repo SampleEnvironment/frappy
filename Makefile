@@ -1,4 +1,4 @@
-.PHONY: all doc clean
+.PHONY: all doc clean test
 
 all: clean doc
 
@@ -19,3 +19,7 @@ demo:
 	@bin/secop-server -q cryo &
 	@bin/secop-gui localhost:10767 localhost:10768 localhost:10769
 	@ps aux|grep [s]ecop-server|awk '{print $$2}'|xargs kill
+
+test:
+	#@pytest -v --lf -l --tb=auto --setup-plan test/
+	@pytest -v --lf -l --tb=long --setup-show test/

@@ -5,4 +5,5 @@ psutil
 python-daemon >=2.0
 # for zmq interface
 #pyzmq>=13.1.0
-
+# for test suite
+pytest
