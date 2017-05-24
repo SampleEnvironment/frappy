@@ -56,6 +56,7 @@ class ParameterButtons(QWidget):
 
 
 class ModuleCtrl(QWidget):
+
     def __init__(self, node, module, parent=None):
         super(ModuleCtrl, self).__init__(parent)
         loadUi(self, 'modulectrl.ui')

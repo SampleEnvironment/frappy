@@ -92,6 +92,7 @@ DEMO_RE_OTHER = re.compile(
 
 
 class DemoEncoder(MessageEncoder):
+
     def __init__(self, *args, **kwds):
         MessageEncoder.__init__(self, *args, **kwds)
         self.result = []  # for decoding
@@ -321,6 +322,7 @@ DEMO_RE_MZ = re.compile(
 
 
 class DemoEncoder_MZ(MessageEncoder):
+
     def decode(sef, encoded):
         m = DEMO_RE_MZ.match(encoded)
         if m:

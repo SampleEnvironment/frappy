@@ -32,6 +32,7 @@ from secop.protocol.errors import SECOPError
 
 
 class NodeCtrl(QWidget):
+
     def __init__(self, node, parent=None):
         super(NodeCtrl, self).__init__(parent)
         loadUi(self, 'nodectrl.ui')

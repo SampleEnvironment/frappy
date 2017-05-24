@@ -50,6 +50,7 @@ class Message(object):
 
 
 class Value(object):
+
     def __init__(self,
                  module,
                  parameter=None,

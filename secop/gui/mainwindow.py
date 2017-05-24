@@ -37,6 +37,7 @@ ITEM_TYPE_MODULE = QTreeWidgetItem.UserType + 2
 ITEM_TYPE_PARAMETER = QTreeWidgetItem.UserType + 3
 
 
+
 class QSECNode(SECNode, QObject):
     newData = pyqtSignal(str, str, object)  # module, parameter, data
 
@@ -63,6 +64,7 @@ class QSECNode(SECNode, QObject):
 
 
 class MainWindow(QMainWindow):
+
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
 

@@ -35,6 +35,7 @@ except ImportError:
 
 
 class PickleEncoder(MessageEncoder):
+
     def encode(self, messageobj):
         """msg object -> transport layer message"""
         return pickle.dumps(messageobj)

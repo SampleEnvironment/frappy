@@ -28,16 +28,20 @@ from secop.devices.core import Readable, Device, Driveable, PARAM
 from secop.protocol import status
 
 try:
-    from pvaccess import Channel #import EPIVSv4 functionallity, PV access
+    from pvaccess import Channel  # import EPIVSv4 functionallity, PV access
 except ImportError:
     class Channel(object):
+
         def __init__(self, pv_name):
             self.pv_name = pv_name
             self.value = 0.0
+
         def get(self):
             return self
+
         def getDouble(self):
             return self.value
+
         def put(self, value):
             try:
                 self.value = value
@@ -48,9 +52,11 @@ try:
     from epics import PV
 except ImportError:
     class PV(object):
+
         def __init__(self, pv_name):
             self.pv_name = pv_name
             self.value = 0.0
+
 
 class EpicsReadable(Readable):
     """EpicsDriveable handles a Driveable interfacing to EPICS v4"""
@@ -64,16 +70,17 @@ class EpicsReadable(Readable):
         'value_pv':      PARAM('EPICS pv_name of value', validator=str,
                                default="unset", export=False),
         'status_pv':      PARAM('EPICS pv_name of status', validator=str,
-                               default="unset", export=False),
+                                default="unset", export=False),
     }
 
     # Generic read and write functions
     def _read_pv(self, pv_name):
         if self.epics_version == 'v4':
             pv_channel = Channel(pv_name)
-            # TODO: cannot handle read of string (is there a .getText() or .getString() ?)
+            # TODO: cannot handle read of string (is there a .getText() or
+            # .getString() ?)
             return_value = pv_channel.get().getDouble()
-        else: # Not EPICS v4
+        else:  # Not EPICS v4
             # TODO: fix this, it does not work
             pv = PV(pv_name + ".VAL")
             return_value = pv.value
@@ -91,10 +98,9 @@ class EpicsReadable(Readable):
         if self.epics_version == 'v4':
             pv_channel = Channel(pv_name)
             pv_channel.put(write_value)
-        else: # Not EPICS v4
+        else:  # Not EPICS v4
             pv = PV(pv_name + ".VAL")
             pv.value = write_value
-
 
     def read_value(self, maxage=0):
         return self._read_pv(self.value_pv)
@@ -107,7 +113,6 @@ class EpicsReadable(Readable):
             return status.UNKNOWN, self._read_pv(self.status_pv)
         # status_pv is unset
         return (status.OK, 'no pv set')
-
 
 
 class EpicsDriveable(Driveable):
@@ -126,16 +131,17 @@ class EpicsDriveable(Driveable):
         'value_pv':      PARAM('EPICS pv_name of value', validator=str,
                                default="unset", export=False),
         'status_pv':      PARAM('EPICS pv_name of status', validator=str,
-                               default="unset", export=False),
+                                default="unset", export=False),
     }
 
     # Generic read and write functions
     def _read_pv(self, pv_name):
         if self.epics_version == 'v4':
             pv_channel = Channel(pv_name)
-            # TODO: cannot handle read of string (is there a .getText() or .getString() ?)
+            # TODO: cannot handle read of string (is there a .getText() or
+            # .getString() ?)
             return_value = pv_channel.get().getDouble()
-        else: # Not EPICS v4
+        else:  # Not EPICS v4
             # TODO: fix this, it does not work
             pv = PV(pv_name + ".VAL")
             return_value = pv.value
@@ -153,7 +159,7 @@ class EpicsDriveable(Driveable):
         if self.epics_version == 'v4':
             pv_channel = Channel(pv_name)
             pv_channel.put(write_value)
-        else: # Not EPICS v4
+        else:  # Not EPICS v4
             pv = PV(pv_name + ".VAL")
             pv.value = write_value
 
@@ -177,9 +183,11 @@ class EpicsDriveable(Driveable):
                (status.BUSY, 'Moving')
 
 
-
 """Temperature control loop"""
-# should also derive from secop.core.temperaturecontroller, once its features are agreed upon
+# should also derive from secop.core.temperaturecontroller, once its
+# features are agreed upon
+
+
 class EpicsTempCtrl(EpicsDriveable):
 
     PARAMS = {
@@ -187,7 +195,7 @@ class EpicsTempCtrl(EpicsDriveable):
         'heaterrange':    PARAM('Heater range', validator=str,
                                 default='Off', readonly=False,),
         'tolerance':      PARAM('allowed deviation between value and target',
-                                validator=floatrange(1e-6,1e6), default=0.1,
+                                validator=floatrange(1e-6, 1e6), default=0.1,
                                 readonly=False,),
         # 'private' parameters: not remotely accessible
         'heaterrange_pv': PARAM('EPICS pv_name of heater range',
@@ -209,14 +217,13 @@ class EpicsTempCtrl(EpicsDriveable):
     def read_status(self, maxage=0):
         # XXX: comparison may need to collect a history to detect oscillations
         at_target = abs(self.read_value(maxage) - self.read_target(maxage)) \
-                    <= self.tolerance
+            <= self.tolerance
         return (status.OK, 'at Target') if at_target else (status.BUSY, 'Moving')
 
     # TODO: add support for strings over epics pv
-    #def read_heaterrange(self, maxage=0):
+    # def read_heaterrange(self, maxage=0):
     #    return self._read_pv(self.heaterrange_pv)
 
     # TODO: add support for strings over epics pv
-    #def write_heaterrange(self, range_value):
+    # def write_heaterrange(self, range_value):
     #    self._write_pv(self.heaterrange_pv, range_value)
-

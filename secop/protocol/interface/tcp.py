@@ -35,6 +35,7 @@ from secop.protocol.messages import HelpMessage
 
 
 class TCPRequestHandler(SocketServer.BaseRequestHandler):
+
     def setup(self):
         self.log = self.server.log
         self._queue = collections.deque(maxlen=100)

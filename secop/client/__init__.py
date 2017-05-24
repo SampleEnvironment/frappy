@@ -27,6 +27,7 @@ import code
 
 
 class NameSpace(dict):
+
     def __init__(self):
         dict.__init__(self)
         self.__const = set()
@@ -63,6 +64,7 @@ from os import path
 
 
 class ClientConsole(object):
+
     def __init__(self, cfgname, basepath):
         self.namespace = NameSpace()
         self.namespace.setconst('help', self.helpCmd)
@@ -98,6 +100,7 @@ from secop.protocol.messages import *
 
 
 class TCPConnection(object):
+
     def __init__(self, connect, port, encoding, framing, **kwds):
         self.log = mlzlog.log.getChild('connection', False)
         self.encoder = ENCODERS[encoding]()
@@ -164,6 +167,7 @@ class TCPConnection(object):
 
 
 class Client(object):
+
     def __init__(self, opts):
         self.log = mlzlog.log.getChild('client', True)
         self._cache = dict()

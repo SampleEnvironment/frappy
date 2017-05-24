@@ -46,6 +46,7 @@ EVENT_ONLY_ON_CHANGED_VALUES = False
 
 
 class PARAM(object):
+
     def __init__(self,
                  description,
                  validator=float,
@@ -76,10 +77,10 @@ class PARAM(object):
     def as_dict(self, static_only=False):
         # used for serialisation only
         res = dict(
-                   description=self.description,
-                   readonly=self.readonly,
-                   validator=validator_to_str(self.validator),
-                  )
+            description=self.description,
+            readonly=self.readonly,
+            validator=validator_to_str(self.validator),
+        )
         if self.unit:
             res['unit'] = self.unit
         if self.group:
@@ -93,6 +94,7 @@ class PARAM(object):
 
 # storage for CMDs settings (description + call signature...)
 class CMD(object):
+
     def __init__(self, description, arguments, result):
         # descriptive text for humans
         self.description = description
@@ -117,6 +119,7 @@ class CMD(object):
 
 
 class DeviceMeta(type):
+
     def __new__(mcs, name, bases, attrs):
         newtype = type.__new__(mcs, name, bases, attrs)
         if '__constructed__' in attrs:
@@ -221,10 +224,10 @@ class Device(object):
     # static PROPERTIES, definitions in derived classes should overwrite earlier ones.
     # how to configure some stuff which makes sense to take from configfile???
     PROPERTIES = {
-        'group' : None,  # some Modules may be grouped together
-        'meaning' : None,  # XXX: ???
-        'priority' : None,  # XXX: ???
-        'visibility' : None,  # XXX: ????
+        'group': None,  # some Modules may be grouped together
+        'meaning': None,  # XXX: ???
+        'priority': None,  # XXX: ???
+        'visibility': None,  # XXX: ????
         # what else?
     }
     # PARAMS and CMDS are auto-merged upon subclassing
@@ -251,7 +254,8 @@ class Device(object):
         self.PARAMS = params
 
         # check and apply properties specified in cfgdict
-        # moduleproperties are to be specified as '.<propertyname>=<propertyvalue>'
+        # moduleproperties are to be specified as
+        # '.<propertyname>=<propertyvalue>'
         for k, v in cfgdict.items():
             if k[0] == '.':
                 if k[1:] in self.PROPERTIES:
@@ -262,17 +266,17 @@ class Device(object):
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
         self.PROPERTIES['implementation'] = myclassname
         self.PROPERTIES['interfaces'] = [b.__name__ for b in mycls.__mro__
-                                                    if b.__module__.startswith('secop.devices.core')]
+                                         if b.__module__.startswith('secop.devices.core')]
         self.PROPERTIES['interface'] = self.PROPERTIES['interfaces'][0]
 
         # remove unset (default) module properties
-        for k,v in self.PROPERTIES.items():
+        for k, v in self.PROPERTIES.items():
             if v == None:
                 del self.PROPERTIES[k]
 
         # check and apply parameter_properties
         # specified as '<paramname>.<propertyname> = <propertyvalue>'
-        for k,v in cfgdict.items()[:]:
+        for k, v in cfgdict.items()[:]:
             if '.' in k[1:]:
                 paramname, propname = k.split('.', 1)
                 if paramname in self.PARAMS:
@@ -338,15 +342,15 @@ class Readable(Device):
         'pollinterval': PARAM('sleeptime between polls', default=5,
                               readonly=False, validator=floatrange(0.1, 120), ),
         'status': PARAM('current status of the device', default=(status.OK, ''),
-            validator=vector(
-                enum(**{
-                    'IDLE': status.OK,
-                    'BUSY': status.BUSY,
-                    'WARN': status.WARN,
-                    'UNSTABLE': status.UNSTABLE,
-                    'ERROR': status.ERROR,
-                    'UNKNOWN': status.UNKNOWN
-                }), str),
+                        validator=vector(
+            enum(**{
+                'IDLE': status.OK,
+                'BUSY': status.BUSY,
+                'WARN': status.WARN,
+                'UNSTABLE': status.UNSTABLE,
+                'ERROR': status.ERROR,
+                'UNKNOWN': status.UNKNOWN
+            }), str),
             readonly=True),
     }
 
@@ -374,7 +378,7 @@ class Driveable(Readable):
     """
     PARAMS = {
         'target': PARAM('target value of the device', default=0., readonly=False,
-                       ),
+                        ),
     }
     # XXX: CMDS ???? auto deriving working well enough?
 

@@ -35,19 +35,19 @@ class Switch(Driveable):
     PARAMS = {
         'value': PARAM('current state (on or off)',
                        validator=enum(on=1, off=0), default=0,
-                      ),
+                       ),
         'target': PARAM('wanted state (on or off)',
                         validator=enum(on=1, off=0), default=0,
                         readonly=False,
-                       ),
+                        ),
         'switch_on_time': PARAM('seconds to wait after activating the switch',
                                 validator=floatrange(0, 60), unit='s',
                                 default=10, export=False,
-                               ),
+                                ),
         'switch_off_time': PARAM('cool-down time in seconds',
                                  validator=floatrange(0, 60), unit='s',
                                  default=10, export=False,
-                                ),
+                                 ),
     }
 
     def init(self):
@@ -100,22 +100,22 @@ class MagneticField(Driveable):
     PARAMS = {
         'value': PARAM('current field in T',
                        unit='T', validator=floatrange(-15, 15), default=0,
-                      ),
+                       ),
         'target': PARAM('target field in T',
                         unit='T', validator=floatrange(-15, 15), default=0,
                         readonly=False,
-                       ),
+                        ),
         'ramp': PARAM('ramping speed',
                       unit='T/min', validator=floatrange(0, 1), default=0.1,
                       readonly=False,
-                     ),
+                      ),
         'mode': PARAM('what to do after changing field',
                       default=1, validator=enum(persistent=1, hold=0),
                       readonly=False,
-                     ),
+                      ),
         'heatswitch': PARAM('name of heat switch device',
                             validator=str, export=False,
-                           ),
+                            ),
     }
 
     def init(self):
@@ -184,10 +184,10 @@ class CoilTemp(Readable):
     PARAMS = {
         'value': PARAM('Coil temperatur',
                        unit='K', validator=float, default=0,
-                      ),
+                       ),
         'sensor': PARAM("Sensor number or calibration id",
                         validator=str, readonly=True,
-                       ),
+                        ),
     }
 
     def read_value(self, maxage=0):
@@ -200,14 +200,14 @@ class SampleTemp(Driveable):
     PARAMS = {
         'value': PARAM('Sample temperature',
                        unit='K', validator=float, default=10,
-                      ),
+                       ),
         'sensor': PARAM("Sensor number or calibration id",
                         validator=str, readonly=True,
-                       ),
+                        ),
         'ramp': PARAM('moving speed in K/min',
                       validator=floatrange(0, 100), unit='K/min', default=0.1,
                       readonly=False,
-                     ),
+                      ),
     }
 
     def init(self):
@@ -244,16 +244,16 @@ class Label(Readable):
     PARAMS = {
         'system': PARAM("Name of the magnet system",
                         validator=str, export=False,
-                       ),
+                        ),
         'subdev_mf': PARAM("name of subdevice for magnet status",
                            validator=str, export=False,
-                          ),
+                           ),
         'subdev_ts': PARAM("name of subdevice for sample temp",
                            validator=str, export=False,
-                          ),
+                           ),
         'value': PARAM("final value of label string",
                        validator=str,
-                      ),
+                       ),
     }
 
     def read_value(self, maxage=0):
@@ -303,5 +303,5 @@ class ValidatorTest(Readable):
                           validator=intrange(2, 9), readonly=False, default=4),
         'floatrange': PARAM('floatrange',
                             validator=floatrange(-1, 1), readonly=False, default=0,
-                           ),
+                            ),
     }

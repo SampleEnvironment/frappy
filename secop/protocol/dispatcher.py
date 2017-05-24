@@ -46,6 +46,7 @@ from secop.lib.parsing import format_time
 
 
 class Dispatcher(object):
+
     def __init__(self, logger, options):
         self.equipment_id = options.pop('equipment_id')
         self.log = logger
@@ -213,7 +214,7 @@ class Dispatcher(object):
             dd = {
                 'parameters': self.list_module_params(modulename, only_static=True),
                 'commands': self.list_module_cmds(modulename),
-                'properties' : module.PROPERTIES,
+                'properties': module.PROPERTIES,
             }
             result['modules'][modulename] = dd
         result['equipment_id'] = self.equipment_id

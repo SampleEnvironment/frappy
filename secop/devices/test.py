@@ -46,7 +46,7 @@ class Heater(Driveable):
     PARAMS = {
         'maxheaterpower': PARAM('maximum allowed heater power',
                                 validator=floatrange(0, 100), unit='W',
-                               ),
+                                ),
     }
 
     def read_value(self, maxage=0):
@@ -65,10 +65,10 @@ class Temp(Driveable):
     PARAMS = {
         'sensor': PARAM("Sensor number or calibration id",
                         validator=str, readonly=True,
-                       ),
+                        ),
         'target': PARAM("Target temperature",
                         default=300.0, validator=positive, readonly=False, unit='K',
-                       ),
+                        ),
     }
 
     def read_value(self, maxage=0):

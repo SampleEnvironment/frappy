@@ -135,15 +135,18 @@ class DemoEncoder(MessageEncoder):
             encode_cmd_result, ),
         WriteRequest: (
             WRITEREQUEST,
-            lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module,
+            lambda msg: "%s:%s" % (
+                msg.module, msg.parameter) if msg.parameter else msg.module,
             'value', ),
         WriteReply: (
             WRITEREPLY,
-            lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module,
+            lambda msg: "%s:%s" % (
+                msg.module, msg.parameter) if msg.parameter else msg.module,
             'value', ),
         PollRequest: (
             TRIGGERREQUEST,
-            lambda msg: "%s:%s" % (msg.module, msg.parameter) if msg.parameter else msg.module,
+            lambda msg: "%s:%s" % (
+                msg.module, msg.parameter) if msg.parameter else msg.module,
         ),
         HeartbeatRequest: (
             HEARTBEATREQUEST,
@@ -158,7 +161,8 @@ class DemoEncoder(MessageEncoder):
             encode_error_msg, ),
         Value: (
             EVENT,
-            lambda msg: "%s:%s" % (msg.module, msg.parameter or (msg.command + '()')) if msg.parameter or msg.command else msg.module,
+            lambda msg: "%s:%s" % (msg.module, msg.parameter or (
+                msg.command + '()')) if msg.parameter or msg.command else msg.module,
             encode_value_data, ),
     }
     DECODEMAP = {

@@ -29,6 +29,7 @@ from secop.validators import validator_to_str
 
 
 class ParameterView(QWidget):
+
     def __init__(self, node, module, parameter, parent=None):
         super(ParameterView, self).__init__(parent)
         loadUi(self, 'paramview.ui')

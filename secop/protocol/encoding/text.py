@@ -30,6 +30,7 @@ from secop.lib.parsing import *
 
 
 class TextEncoder(MessageEncoder):
+
     def __init__(self):
         # build safe namespace
         ns = dict()

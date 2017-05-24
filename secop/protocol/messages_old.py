@@ -95,6 +95,7 @@ class Message(object):
 
 
 class Value(object):
+
     def __init__(self, value=Ellipsis, qualifiers=None, **kwds):
         self.dev = ''
         self.param = ''
@@ -166,6 +167,7 @@ class HelpMessage(Message):
 
 
 class NoSuchDeviceError(ErrorMessage):
+
     def __init__(self, *devs):
         ErrorMessage.__init__(
             self,
@@ -175,6 +177,7 @@ class NoSuchDeviceError(ErrorMessage):
 
 
 class NoSuchParamError(ErrorMessage):
+
     def __init__(self, dev, *params):
         ErrorMessage.__init__(
             self,
@@ -185,6 +188,7 @@ class NoSuchParamError(ErrorMessage):
 
 
 class ParamReadonlyError(ErrorMessage):
+
     def __init__(self, dev, *params):
         ErrorMessage.__init__(
             self,
@@ -196,6 +200,7 @@ class ParamReadonlyError(ErrorMessage):
 
 
 class InvalidParamValueError(ErrorMessage):
+
     def __init__(self, dev, param, value, e):
         ErrorMessage.__init__(
             self,
@@ -207,6 +212,7 @@ class InvalidParamValueError(ErrorMessage):
 
 
 class InternalError(ErrorMessage):
+
     def __init__(self, err, **kwds):
         ErrorMessage.__init__(
             self, errorstring=str(err), errortype='InternalError', **kwds)
@@ -217,7 +223,7 @@ MESSAGE = dict((cls.MSGTYPE, cls)
                    HelpMessage, ErrorMessage, EventMessage, TriggerMessage,
                    UnsubscribeMessage, SubscribeMessage, PollMessage,
                    CommandMessage, WriteMessage, ReadMessage, ListMessage
-               ])
+])
 
 if __name__ == '__main__':
     print("Minimal testing of messages....")

@@ -80,6 +80,7 @@ def format_time(timestamp=None):
 
 
 class Timezone(tzinfo):
+
     def __init__(self, offset, name='unknown timezone'):
         self.offset = offset
         self.name = name

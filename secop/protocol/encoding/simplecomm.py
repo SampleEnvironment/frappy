@@ -37,6 +37,7 @@ SCPMESSAGE = re.compile(
 
 
 class SCPEncoder(MessageEncoder):
+
     def encode(self, msg):
         """msg object -> transport layer message"""
         # fun for Humans

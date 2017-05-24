@@ -39,6 +39,7 @@ from secop.errors import ConfigError
 
 
 class Server(object):
+
     def __init__(self, name, workdir, parentLogger=None):
         self._name = name
         self._workdir = workdir

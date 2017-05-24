@@ -36,6 +36,7 @@ DEMO_RE = re.compile(
 
 
 class DemoEncoder(MessageEncoder):
+
     def decode(sef, encoded):
         # match [!][*|devicename][: *|paramname [: *|propname]] [=value]
         match = DEMO_RE.match(encoded)

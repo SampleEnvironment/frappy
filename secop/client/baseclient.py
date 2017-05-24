@@ -481,9 +481,9 @@ class Client(object):
     def syncCommunicate(self, *msg):
         res = self._communicate(*msg)
         try:
-           res = self.encode_message(*res)
+            res = self.encode_message(*res)
         except Exception:
-           res = str(res)
+            res = str(res)
         return res
 
     def ping(self, pingctr=[0]):

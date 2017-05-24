@@ -200,6 +200,7 @@ class oneof(Validator):
 
 
 class enum(Validator):
+
     def __init__(self, *args, **kwds):
         self.mapping = {}
         # use given kwds directly
