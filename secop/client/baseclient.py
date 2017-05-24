@@ -469,8 +469,11 @@ class Client(object):
     def getParameters(self, module):
         return self.describing_data['modules'][module]['parameters'].keys()
 
+    def getModuleProperties(self, module):
+        return self.describing_data['modules'][module]['properties']
+
     def getModuleBaseClass(self, module):
-        return self.describing_data['modules'][module]['interfaceclass']
+        return self.getModuleProperties(module)['interface']
 
     def getCommands(self, module):
         return self.describing_data['modules'][module]['commands'].keys()

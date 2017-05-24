@@ -33,9 +33,9 @@ from secop.client.baseclient import Client as SECNode
 import sys
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
-ITEM_TYPE_MODULE = QTreeWidgetItem.UserType + 2
-ITEM_TYPE_PARAMETER = QTreeWidgetItem.UserType + 3
-
+ITEM_TYPE_GROUP = QTreeWidgetItem.UserType + 2
+ITEM_TYPE_MODULE = QTreeWidgetItem.UserType + 3
+ITEM_TYPE_PARAMETER = QTreeWidgetItem.UserType + 4
 
 
 class QSECNode(SECNode, QObject):
@@ -111,6 +111,8 @@ class MainWindow(QMainWindow):
     def on_treeWidget_currentItemChanged(self, current, previous):
         if current.type() == ITEM_TYPE_NODE:
             self._displayNode(current.text(0))
+        elif current.type() == ITEM_TYPE_GROUP:
+            self._displayGroup(current.parent().text(0), current.text(0))
         elif current.type() == ITEM_TYPE_MODULE:
             self._displayModule(current.parent().text(0), current.text(0))
         elif current.type() == ITEM_TYPE_PARAMETER:
