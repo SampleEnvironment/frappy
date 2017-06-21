@@ -1,4 +1,6 @@
 
+(Outdated!)
+
 Struktur der Messages
 =====================
 
