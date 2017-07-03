@@ -25,7 +25,7 @@ import random
 import threading
 
 from secop.devices.core import Readable, Driveable, PARAM
-from secop.validators import *
+from secop.datatypes import EnumType, FloatRange, IntRange, ArrayOf, StringType, TupleOf, StructOf, BoolType
 from secop.protocol import status
 
 
@@ -34,18 +34,18 @@ class Switch(Driveable):
     """
     PARAMS = {
         'value': PARAM('current state (on or off)',
-                       validator=enum(on=1, off=0), default=0,
+                       datatype=EnumType(on=1, off=0), default=0,
                        ),
         'target': PARAM('wanted state (on or off)',
-                        validator=enum(on=1, off=0), default=0,
+                        datatype=EnumType(on=1, off=0), default=0,
                         readonly=False,
                         ),
         'switch_on_time': PARAM('seconds to wait after activating the switch',
-                                validator=floatrange(0, 60), unit='s',
+                                datatype=FloatRange(0, 60), unit='s',
                                 default=10, export=False,
                                 ),
         'switch_off_time': PARAM('cool-down time in seconds',
-                                 validator=floatrange(0, 60), unit='s',
+                                 datatype=FloatRange(0, 60), unit='s',
                                  default=10, export=False,
                                  ),
     }
@@ -99,22 +99,22 @@ class MagneticField(Driveable):
     """
     PARAMS = {
         'value': PARAM('current field in T',
-                       unit='T', validator=floatrange(-15, 15), default=0,
+                       unit='T', datatype=FloatRange(-15, 15), default=0,
                        ),
         'target': PARAM('target field in T',
-                        unit='T', validator=floatrange(-15, 15), default=0,
+                        unit='T', datatype=FloatRange(-15, 15), default=0,
                         readonly=False,
                         ),
         'ramp': PARAM('ramping speed',
-                      unit='T/min', validator=floatrange(0, 1), default=0.1,
+                      unit='T/min', datatype=FloatRange(0, 1), default=0.1,
                       readonly=False,
                       ),
         'mode': PARAM('what to do after changing field',
-                      default=1, validator=enum(persistent=1, hold=0),
+                      default=1, datatype=EnumType(persistent=1, hold=0),
                       readonly=False,
                       ),
         'heatswitch': PARAM('name of heat switch device',
-                            validator=str, export=False,
+                            datatype=StringType(), export=False,
                             ),
     }
 
@@ -183,10 +183,10 @@ class CoilTemp(Readable):
     """
     PARAMS = {
         'value': PARAM('Coil temperatur',
-                       unit='K', validator=float, default=0,
+                       unit='K', datatype=FloatRange(), default=0,
                        ),
         'sensor': PARAM("Sensor number or calibration id",
-                        validator=str, readonly=True,
+                        datatype=StringType(), readonly=True,
                         ),
     }
 
@@ -199,13 +199,13 @@ class SampleTemp(Driveable):
     """
     PARAMS = {
         'value': PARAM('Sample temperature',
-                       unit='K', validator=float, default=10,
+                       unit='K', datatype=FloatRange(), default=10,
                        ),
         'sensor': PARAM("Sensor number or calibration id",
-                        validator=str, readonly=True,
+                        datatype=StringType(), readonly=True,
                         ),
         'ramp': PARAM('moving speed in K/min',
-                      validator=floatrange(0, 100), unit='K/min', default=0.1,
+                      datatype=FloatRange(0, 100), unit='K/min', default=0.1,
                       readonly=False,
                       ),
     }
@@ -243,16 +243,16 @@ class Label(Readable):
     """
     PARAMS = {
         'system': PARAM("Name of the magnet system",
-                        validator=str, export=False,
+                        datatype=StringType, export=False,
                         ),
         'subdev_mf': PARAM("name of subdevice for magnet status",
-                           validator=str, export=False,
+                           datatype=StringType, export=False,
                            ),
         'subdev_ts': PARAM("name of subdevice for sample temp",
-                           validator=str, export=False,
+                           datatype=StringType, export=False,
                            ),
         'value': PARAM("final value of label string",
-                       validator=str,
+                       datatype=StringType,
                        ),
     }
 
@@ -283,25 +283,22 @@ class Label(Readable):
         return '; '.join(strings)
 
 
-class ValidatorTest(Readable):
+class DatatypesTest(Readable):
     """
     """
     PARAMS = {
-        'oneof': PARAM('oneof',
-                       validator=oneof(int, 'X', 2.718), readonly=False, default=4.0),
         'enum': PARAM('enum',
-                      validator=enum('boo', 'faar', z=9), readonly=False, default=1),
-        'vector': PARAM('vector of int, float and str',
-                        validator=vector(int, float, str), readonly=False, default=(1, 2.3, 'a')),
-        'array': PARAM('array: 2..3 times oneof(0,1)',
-                       validator=array(oneof(2, 3), oneof(0, 1)), readonly=False, default=[1, 0, 1]),
-        'nonnegative': PARAM('nonnegative',
-                             validator=nonnegative, readonly=False, default=0),
-        'positive': PARAM('positive',
-                          validator=positive, readonly=False, default=1),
+                      datatype=EnumType('boo', 'faar', z=9), readonly=False, default=1),
+        'tupleof': PARAM('tuple of int, float and str',
+                        datatype=TupleOf(IntRange(), FloatRange(), StringType()), readonly=False, default=(1, 2.3, 'a')),
+        'arrayof': PARAM('array: 2..3 times bool',
+                       datatype=ArrayOf(BoolType(), 2, 3), readonly=False, default=[1, 0, 1]),
         'intrange': PARAM('intrange',
-                          validator=intrange(2, 9), readonly=False, default=4),
+                          datatype=IntRange(2, 9), readonly=False, default=4),
         'floatrange': PARAM('floatrange',
-                            validator=floatrange(-1, 1), readonly=False, default=0,
+                            datatype=FloatRange(-1, 1), readonly=False, default=0,
+                            ),
+        'struct': PARAM('struct(a=str, b=int, c=bool)',
+                            datatype=StructOf(a=StringType(), b=IntRange(), c=BoolType()),
                             ),
     }

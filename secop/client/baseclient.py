@@ -30,8 +30,8 @@ import Queue
 
 import mlzlog
 
-from secop.validators import validator_from_str
-from secop.lib import mkthread
+from secop.datatypes import get_datatype
+from secop.lib import mkthread, formatException
 from secop.lib.parsing import parse_time, format_time
 from secop.protocol.encoding import ENCODERS
 from secop.protocol.framing import FRAMERS
@@ -271,6 +271,7 @@ class Client(object):
             except ValueError:
                 # keep as string
                 data = json_data
+                # print formatException()
         return msgtype, spec, data
 
     def _handle_event(self, spec, data):
@@ -310,9 +311,9 @@ class Client(object):
 
         for module, moduleData in self.describing_data['modules'].items():
             for parameter, parameterData in moduleData['parameters'].items():
-                validator = validator_from_str(parameterData['validator'])
+                datatype = get_datatype(parameterData['datatype'])
                 self.describing_data['modules'][module]['parameters'] \
-                    [parameter]['validator'] = validator
+                    [parameter]['datatype'] = datatype
 
     def register_callback(self, module, parameter, cb):
         self.log.debug('registering callback %r for %s:%s' %
@@ -440,10 +441,10 @@ class Client(object):
         return self.communicate('read', '%s:%s' % (module, parameter))
 
     def setParameter(self, module, parameter, value):
-        validator = self._getDescribingParameterData(module,
-                                                     parameter)['validator']
+        datatype = self._getDescribingParameterData(module,
+                                                    parameter)['datatype']
 
-        value = validator(value)
+        value = datatype.export(datatype.validate(value))
         self.communicate('change', '%s:%s' % (module, parameter), value)
 
     @property

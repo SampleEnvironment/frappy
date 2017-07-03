@@ -64,6 +64,73 @@ def mkthread(func, *args, **kwds):
     return t
 
 
+import sys
+import linecache
+import traceback
+
+def formatExtendedFrame(frame):
+    ret = []
+    for key, value in frame.f_locals.iteritems():
+        try:
+            valstr = repr(value)[:256]
+        except Exception:
+            valstr = '<cannot be displayed>'
+        ret.append('        %-20s = %s\n' % (key, valstr))
+    ret.append('\n')
+    return ret
+
+def formatExtendedTraceback(etype, value, tb):
+    ret = ['Traceback (most recent call last):\n']
+    while tb is not None:
+        frame = tb.tb_frame
+        filename = frame.f_code.co_filename
+        item = '  File "%s", line %d, in %s\n' % (filename, tb.tb_lineno,
+                                                  frame.f_code.co_name)
+        linecache.checkcache(filename)
+        line = linecache.getline(filename, tb.tb_lineno, frame.f_globals)
+        if line:
+            item = item + '    %s\n' % line.strip()
+        ret.append(item)
+        if filename not in ('<script>', '<string>'):
+            ret += formatExtendedFrame(tb.tb_frame)
+        tb = tb.tb_next
+    ret += traceback.format_exception_only(etype, value)
+    return ''.join(ret).rstrip('\n')
+
+def formatExtendedStack(level=1):
+    f = sys._getframe(level)
+    ret = ['Stack trace (most recent call last):\n\n']
+    while f is not None:
+        lineno = f.f_lineno
+        co = f.f_code
+        filename = co.co_filename
+        name = co.co_name
+        item = '  File "%s", line %d, in %s\n' % (filename, lineno, name)
+        linecache.checkcache(filename)
+        line = linecache.getline(filename, lineno, f.f_globals)
+        if line:
+            item = item + '    %s\n' % line.strip()
+        ret.insert(1, item)
+        if filename != '<script>':
+            ret[2:2] = formatExtendedFrame(f)
+        f = f.f_back
+    return ''.join(ret).rstrip('\n')
+
+def formatException(cut=0, exc_info=None):
+    """Format an exception with traceback, but leave out the first `cut`
+    number of frames.
+    """
+    if exc_info is None:
+        typ, val, tb = sys.exc_info()
+    else:
+        typ, val, tb = exc_info
+    res = ['Traceback (most recent call last):\n']
+    tbres = traceback.format_tb(tb, sys.maxsize)
+    res += tbres[cut:]
+    res += traceback.format_exception_only(typ, val)
+    return ''.join(res)
+
+
 if __name__ == '__main__':
     print "minimal testing: lib"
     d = attrdict(a=1, b=2)

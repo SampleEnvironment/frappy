@@ -34,7 +34,8 @@ import threading
 from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
 from secop.protocol import status
-from secop.validators import enum, vector, floatrange, validator_to_str
+from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange, export_datatype
+
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
 
@@ -49,7 +50,7 @@ class PARAM(object):
 
     def __init__(self,
                  description,
-                 validator=float,
+                 datatype=None,
                  default=Ellipsis,
                  unit=None,
                  readonly=True,
@@ -59,8 +60,14 @@ class PARAM(object):
             # make a copy of a PARAM object
             self.__dict__.update(description.__dict__)
             return
+        if not isinstance(datatype, DataType):
+            if issubclass(datatype, DataType):
+                # goodie: make an instance from a class (forgotten ()???)
+                datatype = datatype()
+            else:
+                raise ValueError('Datatype MUST be from datatypes!')
         self.description = description
-        self.validator = validator
+        self.datatype = datatype
         self.default = default
         self.unit = unit
         self.readonly = readonly
@@ -79,7 +86,7 @@ class PARAM(object):
         res = dict(
             description=self.description,
             readonly=self.readonly,
-            validator=validator_to_str(self.validator),
+            datatype=export_datatype(self.datatype),
         )
         if self.unit:
             res['unit'] = self.unit
@@ -98,9 +105,9 @@ class CMD(object):
     def __init__(self, description, arguments, result):
         # descriptive text for humans
         self.description = description
-        # list of validators for arguments
+        # list of datatypes for arguments
         self.arguments = arguments
-        # validator for result
+        # datatype for result
         self.resulttype = result
 
     def __repr__(self):
@@ -111,8 +118,8 @@ class CMD(object):
         # used for serialisation only
         return dict(
             description=self.description,
-            arguments=repr(self.arguments),
-            resulttype=repr(self.resulttype), )
+            arguments=map(export_datatype, self.arguments),
+            resulttype=export_datatype(self.resulttype), )
 
 # Meta class
 # warning: MAGIC!
@@ -163,7 +170,7 @@ class DeviceMeta(type):
                 def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
                     self.log.debug("wfunc: set %s to %r" % (pname, value))
                     pobj = self.PARAMS[pname]
-                    value = pobj.validator(value) if pobj.validator else value
+                    value = pobj.datatype.validate(value) if pobj.datatype else value
                     if wfunc:
                         value = wfunc(self, value) or value
                     # XXX: use setattr or direct manipulation
@@ -180,7 +187,7 @@ class DeviceMeta(type):
 
             def setter(self, value, pname=pname):
                 pobj = self.PARAMS[pname]
-                value = pobj.validator(value) if pobj.validator else value
+                value = pobj.datatype.validate(value) if pobj.datatype else value
                 pobj.timestamp = time.time()
                 if not EVENT_ONLY_ON_CHANGED_VALUES or (value != pobj.value):
                     pobj.value = value
@@ -309,14 +316,14 @@ class Device(object):
             self.PARAMS[k] = param_type(self.PARAMS[k])
 
         # now 'apply' config:
-        # pass values through the validators and store as attributes
+        # pass values through the datatypes and store as attributes
         for k, v in cfgdict.items():
-            # apply validator, complain if type does not fit
-            validator = self.PARAMS[k].validator
-            if validator is not None:
-                # only check if validator given
+            # apply datatype, complain if type does not fit
+            datatype = self.PARAMS[k].datatype
+            if datatype is not None:
+                # only check if datatype given
                 try:
-                    v = validator(v)
+                    v = datatype.validate(v)
                 except (ValueError, TypeError) as e:
                     raise ConfigError('Device %s: config parameter %r:\n%r' %
                                       (self.name, k, e))
@@ -338,19 +345,20 @@ class Readable(Device):
     providing the readonly parameter 'value' and 'status'
     """
     PARAMS = {
-        'value': PARAM('current value of the device', readonly=True, default=0.),
+        'value': PARAM('current value of the device', readonly=True, default=0.,
+                       datatype=FloatRange()),
         'pollinterval': PARAM('sleeptime between polls', default=5,
-                              readonly=False, validator=floatrange(0.1, 120), ),
+                              readonly=False, datatype=FloatRange(0.1, 120), ),
         'status': PARAM('current status of the device', default=(status.OK, ''),
-                        validator=vector(
-            enum(**{
+                        datatype=TupleOf(
+            EnumType(**{
                 'IDLE': status.OK,
                 'BUSY': status.BUSY,
                 'WARN': status.WARN,
                 'UNSTABLE': status.UNSTABLE,
                 'ERROR': status.ERROR,
                 'UNKNOWN': status.UNKNOWN
-            }), str),
+            }), StringType() ),
             readonly=True),
     }
 
@@ -378,6 +386,7 @@ class Driveable(Readable):
     """
     PARAMS = {
         'target': PARAM('target value of the device', default=0., readonly=False,
+                        datatype=FloatRange(),
                         ),
     }
     # XXX: CMDS ???? auto deriving working well enough?

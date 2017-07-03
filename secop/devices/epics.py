@@ -23,7 +23,7 @@
 import random
 
 from secop.lib.parsing import format_time
-from secop.validators import enum, vector, floatrange, validator_to_str
+from secop.datatypes import EnumType, TupleOf, FloatRange, get_datatype, StringType
 from secop.devices.core import Readable, Device, Driveable, PARAM
 from secop.protocol import status
 
@@ -62,14 +62,17 @@ class EpicsReadable(Readable):
     """EpicsDriveable handles a Driveable interfacing to EPICS v4"""
     # Commmon PARAMS for all EPICS devices
     PARAMS = {
-        'value':         PARAM('EPICS generic value', validator=float,
+        'value':         PARAM('EPICS generic value',
+                               datatype=FloatRange(),
                                default=300.0,),
         'epics_version': PARAM("EPICS version used, v3 or v4",
-                               validator=str,),
+                               datatype=EnumType(v3=3, v4=4),),
         # 'private' parameters: not remotely accessible
-        'value_pv':      PARAM('EPICS pv_name of value', validator=str,
+        'value_pv':      PARAM('EPICS pv_name of value',
+                               datatype=StringType(),
                                default="unset", export=False),
-        'status_pv':      PARAM('EPICS pv_name of status', validator=str,
+        'status_pv':      PARAM('EPICS pv_name of status',
+                                datatype=StringType(),
                                 default="unset", export=False),
     }
 
@@ -119,18 +122,18 @@ class EpicsDriveable(Driveable):
     """EpicsDriveable handles a Driveable interfacing to EPICS v4"""
     # Commmon PARAMS for all EPICS devices
     PARAMS = {
-        'target':        PARAM('EPICS generic target', validator=float,
+        'target':        PARAM('EPICS generic target', datatype=FloatRange(),
                                default=300.0, readonly=False),
-        'value':         PARAM('EPICS generic value', validator=float,
+        'value':         PARAM('EPICS generic value', datatype=FloatRange(),
                                default=300.0,),
         'epics_version': PARAM("EPICS version used, v3 or v4",
-                               validator=str,),
+                               datatype=StringType(),),
         # 'private' parameters: not remotely accessible
-        'target_pv':     PARAM('EPICS pv_name of target', validator=str,
+        'target_pv':     PARAM('EPICS pv_name of target', datatype=StringType(),
                                default="unset", export=False),
-        'value_pv':      PARAM('EPICS pv_name of value', validator=str,
+        'value_pv':      PARAM('EPICS pv_name of value', datatype=StringType(),
                                default="unset", export=False),
-        'status_pv':      PARAM('EPICS pv_name of status', validator=str,
+        'status_pv':      PARAM('EPICS pv_name of status', datatype=StringType(),
                                 default="unset", export=False),
     }
 
@@ -191,15 +194,15 @@ class EpicsDriveable(Driveable):
 class EpicsTempCtrl(EpicsDriveable):
 
     PARAMS = {
-        # TODO: restrict possible values with oneof validator
-        'heaterrange':    PARAM('Heater range', validator=str,
+        # TODO: restrict possible values with oneof datatype
+        'heaterrange':    PARAM('Heater range', datatype=StringType(),
                                 default='Off', readonly=False,),
         'tolerance':      PARAM('allowed deviation between value and target',
-                                validator=floatrange(1e-6, 1e6), default=0.1,
+                                datatype=FloatRange(1e-6, 1e6), default=0.1,
                                 readonly=False,),
         # 'private' parameters: not remotely accessible
         'heaterrange_pv': PARAM('EPICS pv_name of heater range',
-                                validator=str, default="unset", export=False,),
+                                datatype=StringType(), default="unset", export=False,),
     }
 
     def read_target(self, maxage=0):

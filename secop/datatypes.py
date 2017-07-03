@@ -21,14 +21,6 @@
 # *****************************************************************************
 """Define validated data types."""
 
-# a Validator returns a validated object or raises an ValueError
-# also validators should have a __repr__ returning a 'python' string
-# which recreates them
-
-# if a validator does a mapping, it normally maps to the
-# internal representation with method :meth:`validate`
-# to get the external representation (aöso for logging),
-# call method :meth:`export`
 
 
 from .errors import ProgrammingError
@@ -56,10 +48,10 @@ class FloatRange(DataType):
     """Restricted float type"""
 
     def __init__(self, min=None, max=None):
-        self.min = float('-Inf') if min is None else float(min)
-        self.max = float('+Inf') if max is None else float(max)
+        self.min = None if min is None else float(min)
+        self.max = None if max is None else float(max)
         # note: as we may compare to Inf all comparisons would be false
-        if self.min <= self.max:
+        if (self.min or float('-inf')) <= (self.max or float('+inf')):
             self.as_json = ['double', min, max]
         else:
             raise ValueError('Max must be larger then min!')
@@ -67,15 +59,25 @@ class FloatRange(DataType):
     def validate(self, value):
         try:
             value = float(value)
-            if self.min <= value <= self.max:
-                return value
-            raise ValueError('%r should be an float between %.3f and %.3f' %
-                             (value, self.min, self.max))
         except:
             raise ValueError('Can not validate %r to float' % value)
+        if self.min is not None and value < self.min:
+            raise ValueError('%r should not be less then %s' % (value, self.min))
+        if self.max is not None and value > self.max:
+            raise ValueError('%r should not be greater than %s' % (value, self.max))
+        if None in (self.min, self.max):
+            return value
+        if self.min <= value <= self.max:
+            return value
+        raise ValueError('%r should be an float between %.3f and %.3f' %
+                         (value, self.min, self.max))
 
     def __repr__(self):
-        return "FloatRange(%f, %f)" % (self.min, self.max)
+        if self.max != None:
+            return "FloatRange(%r, %r)" % (float('-inf') if self.min is None else self.min, self.max)
+        if self.min != None:
+            return "FloatRange(%r)" % self.min
+        return "FloatRange()"
 
     def export(self, value):
         """returns a python object fit for serialisation"""
@@ -105,7 +107,11 @@ class IntRange(DataType):
             raise ValueError('Can not validate %r to int' % value)
 
     def __repr__(self):
-        return "IntRange(%d, %d)" % (self.min, self.max)
+        if self.max is not None:
+            return "IntRange(%d, %d)" % (self.min, self.max)
+        if self.min is not None:
+            return "IntRange(%d)" % self.min
+        return "IntRange(%d)" % self.min
 
     def export(self, value):
         """returns a python object fit for serialisation"""
@@ -119,7 +125,8 @@ class EnumType(DataType):
         self.entries = {}
         num = 0
         for arg in args:
-            if type(args) != str:
+            if type(arg) != str:
+                print arg, type(arg)
                 raise ValueError('EnumType entries MUST be strings!')
             self.entries[num] = arg
             num += 1
@@ -138,7 +145,7 @@ class EnumType(DataType):
         self.as_json = ['enum', self.reversed.copy()]
 
     def __repr__(self):
-        return "EnumType(%s)" % ', '.join(['%r=%d' % (v,k) for k,v in self.entries.items()])
+        return "EnumType(%s)" % ', '.join(['%s=%d' % (v,k) for k,v in self.entries.items()])
 
     def export(self, value):
         """returns a python object fit for serialisation"""
@@ -169,8 +176,10 @@ class BLOBType(DataType):
             raise ValueError('maxsize must be bigger than minsize!')
 
     def __repr__(self):
-        if self.minsize or self.maxsize:
-            return 'BLOB(%d, %s)' % (self.minsize, self.maxsize)
+        if self.maxsize:
+            return 'BLOB(%s, %s)' % (str(self.minsize), str(self.maxsize))
+        if self.minsize:
+            return 'BLOB(%d)' % self.minsize
         return 'BLOB()'
 
     def validate(self, value):
@@ -203,7 +212,11 @@ class StringType(DataType):
             raise ValueError('maxsize must be bigger than minsize!')
 
     def __repr__(self):
-        return 'StringType(%d, %s)' % (self.minsize, self.maxsize)
+        if self.maxsize:
+            return 'StringType(%s, %s)' % (str(self.minsize), str(self.maxsize))
+        if self.minsize:
+            return 'StringType(%d)' % str(self.minsize)
+        return 'StringType()'
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
@@ -222,6 +235,7 @@ class StringType(DataType):
     def export(self, value):
         """returns a python object fit for serialisation"""
         return '%s' % value
+
 
 # Bool is a special enum
 class BoolType(DataType):
@@ -265,6 +279,9 @@ class ArrayOf(DataType):
         if self.minsize is not None and self.maxsize is not None and self.minsize > self.maxsize:
             raise ValueError('Maximum size must be >= Minimum size')
 
+    def __repr__(self):
+        return 'ArrayOf(%s, %s, %s)' % (repr(self.subtype), self.minsize, self.maxsize)
+
     def validate(self, value):
         """validate a external representation to an internal one"""
         if isinstance(value, (tuple, list)):
@@ -291,6 +308,9 @@ class TupleOf(DataType):
                 raise ValueError('TupleOf only works with DataType objs as arguments!')
         self.subtypes = subtypes
         self.as_json = ['tuple', [subtype.as_json for subtype in subtypes]]
+
+    def __repr__(self):
+        return 'TupleOf(%s)' % ', '.join([repr(st) for st in self.subtypes])
 
     def validate(self, value):
         """return the validated value or raise"""
@@ -319,6 +339,9 @@ class StructOf(DataType):
                 raise ProgrammingError('StructOf only works with named DataType objs as keyworded arguments!')
         self.named_subtypes = named_subtypes
         self.as_json = ['struct', dict((n,s.as_json) for n,s in named_subtypes.items())]
+
+    def __repr__(self):
+        return 'StructOf(%s)' % ', '.join(['%s=%s'%(n,repr(st)) for n,st in self.named_subtypes.iteritems()])
 
     def validate(self, value):
         """return the validated value or raise"""
@@ -358,10 +381,14 @@ DATATYPES = dict(
 
 # probably not needed...
 def export_datatype(datatype):
+    if datatype is None:
+        return datatype
     return datatype.as_json
 
 # important for getting the right datatype from formerly jsonified descr.
 def get_datatype(json):
+    if json is None:
+        return json
     if not isinstance(json, list):
         raise ValueError('Argument must be a properly formatted list!')
     if len(json)<1:

@@ -43,6 +43,7 @@ import threading
 from messages import *
 from errors import *
 from secop.lib.parsing import format_time
+from secop.lib import formatExtendedStack, formatException
 
 
 class Dispatcher(object):
@@ -88,6 +89,7 @@ class Dispatcher(object):
                         errorclass=err.__class__.__name__,
                         errorinfo=[repr(err), str(msg)])
                 except (ValueError, TypeError) as err:
+                    self.log.exception(err)
                     reply = msg.get_error(
                         errorclass='BadValue',
                         errorinfo=[repr(err), str(msg)])
@@ -95,7 +97,7 @@ class Dispatcher(object):
                     self.log.exception(err)
                     reply = msg.get_error(
                         errorclass='InternalError',
-                        errorinfo=[repr(err), str(msg)])
+                        errorinfo=[formatException(), str(msg), formatExtendedStack()])
             else:
                 self.log.debug('Can not handle msg %r' % msg)
                 reply = self.unhandled(conn, msg)

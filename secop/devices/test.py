@@ -23,8 +23,7 @@
 import random
 
 from secop.devices.core import Readable, Driveable, PARAM
-from secop.validators import floatrange, positive
-
+from secop.datatypes import FloatRange, StringType
 
 class LN2(Readable):
     """Just a readable.
@@ -45,7 +44,7 @@ class Heater(Driveable):
     """
     PARAMS = {
         'maxheaterpower': PARAM('maximum allowed heater power',
-                                validator=floatrange(0, 100), unit='W',
+                                datatype=FloatRange(0, 100), unit='W',
                                 ),
     }
 
@@ -64,10 +63,10 @@ class Temp(Driveable):
     """
     PARAMS = {
         'sensor': PARAM("Sensor number or calibration id",
-                        validator=str, readonly=True,
+                        datatype=StringType(8,16), readonly=True,
                         ),
         'target': PARAM("Target temperature",
-                        default=300.0, validator=positive, readonly=False, unit='K',
+                        default=300.0, datatype=FloatRange(0), readonly=False, unit='K',
                         ),
     }
 

@@ -25,7 +25,7 @@ from PyQt4.QtGui import QWidget, QLabel, QSizePolicy
 from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
 
 from secop.gui.util import loadUi
-from secop.validators import validator_to_str
+from secop.datatypes import get_datatype
 
 
 class ParameterView(QWidget):
@@ -59,10 +59,7 @@ class ParameterView(QWidget):
             label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
             # make 'display' label
-            if prop == 'validator':
-                view = QLabel(validator_to_str(props[prop]))
-            else:
-                view = QLabel(str(props[prop]))
+            view = QLabel(str(props[prop]))
             view.setFont(self.font())
             view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
             view.setWordWrap(True)
