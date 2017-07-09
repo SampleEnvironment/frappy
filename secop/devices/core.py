@@ -31,6 +31,7 @@ import types
 import inspect
 import threading
 
+from secop.lib import formatExtendedStack
 from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
 from secop.protocol import status
@@ -325,6 +326,7 @@ class Device(object):
                 try:
                     v = datatype.validate(v)
                 except (ValueError, TypeError) as e:
+                    self.log.exception(formatExtendedStack())
                     raise ConfigError('Device %s: config parameter %r:\n%r' %
                                       (self.name, k, e))
             setattr(self, k, v)
