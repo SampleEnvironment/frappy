@@ -24,7 +24,7 @@ import time
 import random
 import threading
 
-from secop.devices.core import Readable, Driveable, PARAM
+from secop.modules import Readable, Driveable, PARAM
 from secop.datatypes import EnumType, FloatRange, IntRange, ArrayOf, StringType, TupleOf, StructOf, BoolType
 from secop.protocol import status
 
@@ -287,18 +287,18 @@ class DatatypesTest(Readable):
     """
     """
     PARAMS = {
-        'enum': PARAM('enum',
-                      datatype=EnumType('boo', 'faar', z=9), readonly=False, default=1),
-        'tupleof': PARAM('tuple of int, float and str',
-                        datatype=TupleOf(IntRange(), FloatRange(), StringType()), readonly=False, default=(1, 2.3, 'a')),
-        'arrayof': PARAM('array: 2..3 times bool',
-                       datatype=ArrayOf(BoolType(), 2, 3), readonly=False, default=[1, 0, 1]),
-        'intrange': PARAM('intrange',
-                          datatype=IntRange(2, 9), readonly=False, default=4),
-        'floatrange': PARAM('floatrange',
-                            datatype=FloatRange(-1, 1), readonly=False, default=0,
-                            ),
-        'struct': PARAM('struct(a=str, b=int, c=bool)',
-                            datatype=StructOf(a=StringType(), b=IntRange(), c=BoolType()),
-                            ),
-    }
+        'enum': PARAM(
+            'enum', datatype=EnumType(
+                'boo', 'faar', z=9), readonly=False, default=1), 'tupleof': PARAM(
+            'tuple of int, float and str', datatype=TupleOf(
+                IntRange(), FloatRange(), StringType()), readonly=False, default=(
+                1, 2.3, 'a')), 'arrayof': PARAM(
+            'array: 2..3 times bool', datatype=ArrayOf(
+                BoolType(), 2, 3), readonly=False, default=[
+                1, 0, 1]), 'intrange': PARAM(
+            'intrange', datatype=IntRange(
+                2, 9), readonly=False, default=4), 'floatrange': PARAM(
+            'floatrange', datatype=FloatRange(
+                -1, 1), readonly=False, default=0, ), 'struct': PARAM(
+            'struct(a=str, b=int, c=bool)', datatype=StructOf(
+                a=StringType(), b=IntRange(), c=BoolType()), ), }

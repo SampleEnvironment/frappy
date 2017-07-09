@@ -25,7 +25,7 @@ import time
 import random
 import threading
 
-from secop.devices.core import Driveable, CMD, PARAM
+from secop.modules import Driveable, CMD, PARAM
 from secop.protocol import status
 from secop.datatypes import FloatRange, EnumType, TupleOf
 from secop.lib import clamp, mkthread
@@ -66,15 +66,15 @@ class Cryostat(CryoBase):
                        datatype=FloatRange(0), default=1, unit="W",
                        readonly=False,
                        group='heater_settings',
-                      ),
+                       ),
         heater=PARAM("current heater setting",
                      datatype=FloatRange(0, 100), default=0, unit="%",
                      group='heater_settings',
-                    ),
+                     ),
         heaterpower=PARAM("current heater power",
                           datatype=FloatRange(0), default=0, unit="W",
                           group='heater_settings',
-                         ),
+                          ),
         target=PARAM("target temperature",
                      datatype=FloatRange(0), default=0, unit="K",
                      readonly=False,
@@ -112,21 +112,23 @@ class Cryostat(CryoBase):
                         datatype=FloatRange(0, 100), default=0.1, unit='K',
                         readonly=False,
                         group='stability',
-                       ),
+                        ),
         window=PARAM("time window for stability checking",
                      datatype=FloatRange(1, 900), default=30, unit='s',
                      readonly=False,
                      group='stability',
-                    ),
+                     ),
         timeout=PARAM("max waiting time for stabilisation check",
                       datatype=FloatRange(1, 36000), default=900, unit='s',
                       readonly=False,
                       group='stability',
-                     ),
+                      ),
     )
     CMDS = dict(
-        Stop=CMD("Stop ramping the setpoint\n\nby setting the current setpoint as new target",
-                 [], None),
+        Stop=CMD(
+            "Stop ramping the setpoint\n\nby setting the current setpoint as new target",
+            [],
+            None),
     )
 
     def init(self):

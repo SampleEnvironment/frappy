@@ -71,7 +71,6 @@ class MainWindow(QMainWindow):
         loadUi(self, 'mainwindow.ui')
 
         self.toolBar.hide()
-        self.lineEdit.hide()
 
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 70)
@@ -107,6 +106,13 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self.parent(),
                                  'Connecting to %s failed!' % host, str(e))
+
+    def on_validateCheckBox_toggled(self, state):
+        print "validateCheckBox_toggled", state
+
+    def on_visibilityComboBox_activated(self, level):
+        if level in ['user', 'admin', 'expert']:
+            print "visibility Level now:", level
 
     def on_treeWidget_currentItemChanged(self, current, previous):
         if current.type() == ITEM_TYPE_NODE:

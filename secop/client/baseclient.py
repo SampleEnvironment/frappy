@@ -156,6 +156,7 @@ class Client(object):
             self.log = mlzlog.log.getChild('client', True)
         else:
             class logStub(object):
+
                 def info(self, *args):
                     pass
                 debug = info
@@ -343,14 +344,17 @@ class Client(object):
     def _issueDescribe(self):
         _, self.equipment_id, describing_data = self._communicate('describe')
         try:
-            describing_data = self._decode_substruct(['modules'], describing_data)
+            describing_data = self._decode_substruct(
+                ['modules'], describing_data)
             for modname, module in describing_data['modules'].items():
-                describing_data['modules'][modname] = self._decode_substruct(['parameters', 'commands'], module)
+                describing_data['modules'][modname] = self._decode_substruct(
+                    ['parameters', 'commands'], module)
 
             self.describing_data = describing_data
 
             for module, moduleData in self.describing_data['modules'].items():
-                for parameter, parameterData in moduleData['parameters'].items():
+                for parameter, parameterData in moduleData[
+                        'parameters'].items():
                     datatype = get_datatype(parameterData['datatype'])
                     self.describing_data['modules'][module]['parameters'] \
                         [parameter]['datatype'] = datatype

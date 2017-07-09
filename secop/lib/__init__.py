@@ -21,7 +21,34 @@
 # *****************************************************************************
 """Define helpers"""
 
+import os
+import re
+import sys
+import errno
+import signal
+import socket
+import fnmatch
+import linecache
 import threading
+import traceback
+import subprocess
+import unicodedata
+from os import path
+
+
+class lazy_property(object):
+    """A property that calculates its value only once."""
+
+    def __init__(self, func):
+        self._func = func
+        self.__name__ = func.__name__
+        self.__doc__ = func.__doc__
+
+    def __get__(self, obj, obj_class):
+        if obj is None:
+            return obj
+        obj.__dict__[self.__name__] = self._func(obj)
+        return obj.__dict__[self.__name__]
 
 
 class attrdict(dict):
@@ -48,8 +75,11 @@ def get_class(spec):
     """loads a class given by string in dotted notaion (as python would do)"""
     modname, classname = spec.rsplit('.', 1)
     import importlib
-    module = importlib.import_module('secop.' + modname)
-    #    module = __import__(spec)
+    if modname.startswith('secop'):
+        module = importlib.import_module(modname)
+    else:
+        # rarely needed by now....
+        module = importlib.import_module('secop.' + modname)
     return getattr(module, classname)
 
 
@@ -64,10 +94,6 @@ def mkthread(func, *args, **kwds):
     return t
 
 
-import sys
-import linecache
-import traceback
-
 def formatExtendedFrame(frame):
     ret = []
     for key, value in frame.f_locals.iteritems():
@@ -78,6 +104,7 @@ def formatExtendedFrame(frame):
         ret.append('        %-20s = %s\n' % (key, valstr))
     ret.append('\n')
     return ret
+
 
 def formatExtendedTraceback(exc_info=None):
     if exc_info is None:
@@ -101,6 +128,7 @@ def formatExtendedTraceback(exc_info=None):
     ret += traceback.format_exception_only(etype, value)
     return ''.join(ret).rstrip('\n')
 
+
 def formatExtendedStack(level=1):
     f = sys._getframe(level)
     ret = ['Stack trace (most recent call last):\n\n']
@@ -120,6 +148,7 @@ def formatExtendedStack(level=1):
         f = f.f_back
     return ''.join(ret).rstrip('\n')
 
+
 def formatException(cut=0, exc_info=None, verbose=False):
     """Format an exception with traceback, but leave out the first `cut`
     number of frames.
@@ -135,6 +164,63 @@ def formatException(cut=0, exc_info=None, verbose=False):
     res += tbres[cut:]
     res += traceback.format_exception_only(typ, val)
     return ''.join(res)
+
+
+def parseHostPort(host, defaultport):
+    """Parse host[:port] string and tuples
+
+    Specify 'host[:port]' or a (host, port) tuple for the mandatory argument.
+    If the port specification is missing, the value of the defaultport is used.
+    """
+
+    if isinstance(host, (tuple, list)):
+        host, port = host
+    elif ':' in host:
+        host, port = host.rsplit(':', 1)
+        port = int(port)
+    else:
+        port = defaultport
+    assert 0 < port < 65536
+    assert ':' not in host
+    return host, port
+
+
+def tcpSocket(host, defaultport, timeout=None):
+    """Helper for opening a TCP client socket to a remote server.
+
+    Specify 'host[:port]' or a (host, port) tuple for the mandatory argument.
+    If the port specification is missing, the value of the defaultport is used.
+    If timeout is set to a number, the timout of the connection is set to this
+    number, else the socket stays in blocking mode.
+    """
+    host, port = parseHostPort(host, defaultport)
+
+    # open socket and set options
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    if timeout:
+        s.settimeout(timeout)
+    # connect
+    s.connect((host, int(port)))
+    return s
+
+
+def closeSocket(sock, socket=socket):
+    """Do our best to close a socket."""
+    if sock is None:
+        return
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except socket.error:
+        pass
+    try:
+        sock.close()
+    except socket.error:
+        pass
+
+
+def getfqdn(name=''):
+    """Get fully qualified hostname."""
+    return socket.getfqdn(name)
 
 
 if __name__ == '__main__':

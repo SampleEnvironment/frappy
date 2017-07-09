@@ -22,8 +22,9 @@
 
 import random
 
-from secop.devices.core import Readable, Driveable, PARAM
+from secop.modules import Readable, Driveable, PARAM
 from secop.datatypes import FloatRange, StringType
+
 
 class LN2(Readable):
     """Just a readable.
@@ -62,12 +63,20 @@ class Temp(Driveable):
     but the implementation may do anything
     """
     PARAMS = {
-        'sensor': PARAM("Sensor number or calibration id",
-                        datatype=StringType(8,16), readonly=True,
-                        ),
-        'target': PARAM("Target temperature",
-                        default=300.0, datatype=FloatRange(0), readonly=False, unit='K',
-                        ),
+        'sensor': PARAM(
+            "Sensor number or calibration id",
+            datatype=StringType(
+                8,
+                16),
+            readonly=True,
+        ),
+        'target': PARAM(
+            "Target temperature",
+            default=300.0,
+            datatype=FloatRange(0),
+            readonly=False,
+            unit='K',
+        ),
     }
 
     def read_value(self, maxage=0):

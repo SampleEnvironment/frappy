@@ -24,7 +24,7 @@ import random
 
 from secop.lib.parsing import format_time
 from secop.datatypes import EnumType, TupleOf, FloatRange, get_datatype, StringType
-from secop.devices.core import Readable, Device, Driveable, PARAM
+from secop.modules import Readable, Device, Driveable, PARAM
 from secop.protocol import status
 
 try:
@@ -62,18 +62,18 @@ class EpicsReadable(Readable):
     """EpicsDriveable handles a Driveable interfacing to EPICS v4"""
     # Commmon PARAMS for all EPICS devices
     PARAMS = {
-        'value':         PARAM('EPICS generic value',
-                               datatype=FloatRange(),
-                               default=300.0,),
+        'value': PARAM('EPICS generic value',
+                       datatype=FloatRange(),
+                       default=300.0,),
         'epics_version': PARAM("EPICS version used, v3 or v4",
                                datatype=EnumType(v3=3, v4=4),),
         # 'private' parameters: not remotely accessible
-        'value_pv':      PARAM('EPICS pv_name of value',
-                               datatype=StringType(),
-                               default="unset", export=False),
-        'status_pv':      PARAM('EPICS pv_name of status',
-                                datatype=StringType(),
-                                default="unset", export=False),
+        'value_pv': PARAM('EPICS pv_name of value',
+                          datatype=StringType(),
+                          default="unset", export=False),
+        'status_pv': PARAM('EPICS pv_name of status',
+                           datatype=StringType(),
+                           default="unset", export=False),
     }
 
     # Generic read and write functions
@@ -122,19 +122,19 @@ class EpicsDriveable(Driveable):
     """EpicsDriveable handles a Driveable interfacing to EPICS v4"""
     # Commmon PARAMS for all EPICS devices
     PARAMS = {
-        'target':        PARAM('EPICS generic target', datatype=FloatRange(),
-                               default=300.0, readonly=False),
-        'value':         PARAM('EPICS generic value', datatype=FloatRange(),
-                               default=300.0,),
+        'target': PARAM('EPICS generic target', datatype=FloatRange(),
+                        default=300.0, readonly=False),
+        'value': PARAM('EPICS generic value', datatype=FloatRange(),
+                       default=300.0,),
         'epics_version': PARAM("EPICS version used, v3 or v4",
                                datatype=StringType(),),
         # 'private' parameters: not remotely accessible
-        'target_pv':     PARAM('EPICS pv_name of target', datatype=StringType(),
-                               default="unset", export=False),
-        'value_pv':      PARAM('EPICS pv_name of value', datatype=StringType(),
-                               default="unset", export=False),
-        'status_pv':      PARAM('EPICS pv_name of status', datatype=StringType(),
-                                default="unset", export=False),
+        'target_pv': PARAM('EPICS pv_name of target', datatype=StringType(),
+                           default="unset", export=False),
+        'value_pv': PARAM('EPICS pv_name of value', datatype=StringType(),
+                          default="unset", export=False),
+        'status_pv': PARAM('EPICS pv_name of status', datatype=StringType(),
+                           default="unset", export=False),
     }
 
     # Generic read and write functions
@@ -182,8 +182,11 @@ class EpicsDriveable(Driveable):
             # XXX: how to map an unknown type+value to an valid status ???
             return status.UNKNOWN, self._read_pv(self.status_pv)
         # status_pv is unset, derive status from equality of value + target
-        return (status.OK, '') if self.read_value() == self.read_target() else \
-               (status.BUSY, 'Moving')
+        return (
+            status.OK,
+            '') if self.read_value() == self.read_target() else (
+            status.BUSY,
+            'Moving')
 
 
 """Temperature control loop"""
@@ -195,11 +198,11 @@ class EpicsTempCtrl(EpicsDriveable):
 
     PARAMS = {
         # TODO: restrict possible values with oneof datatype
-        'heaterrange':    PARAM('Heater range', datatype=StringType(),
-                                default='Off', readonly=False,),
-        'tolerance':      PARAM('allowed deviation between value and target',
-                                datatype=FloatRange(1e-6, 1e6), default=0.1,
-                                readonly=False,),
+        'heaterrange': PARAM('Heater range', datatype=StringType(),
+                             default='Off', readonly=False,),
+        'tolerance': PARAM('allowed deviation between value and target',
+                           datatype=FloatRange(1e-6, 1e6), default=0.1,
+                           readonly=False,),
         # 'private' parameters: not remotely accessible
         'heaterrange_pv': PARAM('EPICS pv_name of heater range',
                                 datatype=StringType(), default="unset", export=False,),
@@ -221,7 +224,11 @@ class EpicsTempCtrl(EpicsDriveable):
         # XXX: comparison may need to collect a history to detect oscillations
         at_target = abs(self.read_value(maxage) - self.read_target(maxage)) \
             <= self.tolerance
-        return (status.OK, 'at Target') if at_target else (status.BUSY, 'Moving')
+        return (
+            status.OK,
+            'at Target') if at_target else (
+            status.BUSY,
+            'Moving')
 
     # TODO: add support for strings over epics pv
     # def read_heaterrange(self, maxage=0):

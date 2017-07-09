@@ -33,3 +33,11 @@ class ConfigError(SECoPServerError):
 
 class ProgrammingError(SECoPServerError):
     pass
+
+
+class CommunicationError(SECoPServerError):
+    pass
+
+
+class HardwareError(SECoPServerError):
+    pass

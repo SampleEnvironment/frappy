@@ -56,17 +56,15 @@ class PARAM(object):
                  unit=None,
                  readonly=True,
                  export=True,
-                 group=''):
-        if isinstance(description, PARAM):
-            # make a copy of a PARAM object
-            self.__dict__.update(description.__dict__)
-            return
+                 group='',
+                 poll=False):
         if not isinstance(datatype, DataType):
             if issubclass(datatype, DataType):
                 # goodie: make an instance from a class (forgotten ()???)
                 datatype = datatype()
             else:
-                raise ValueError('Datatype MUST be from datatypes!')
+                raise ValueError(
+                    'datatype MUST be derived from class DataType!')
         self.description = description
         self.datatype = datatype
         self.default = default
@@ -74,6 +72,9 @@ class PARAM(object):
         self.readonly = readonly
         self.export = export
         self.group = group
+        # note: auto-converts True/False to 1/0 which yield the expected
+        # behaviour...
+        self.poll = int(poll)
         # internal caching: value and timestamp of last change...
         self.value = default
         self.timestamp = 0
@@ -81,6 +82,18 @@ class PARAM(object):
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
+
+    def copy(self):
+        # return a copy of ourselfs
+        return PARAM(description=self.description,
+                     datatype=self.datatype,
+                     default=self.default,
+                     unit=self.unit,
+                     readonly=self.readonly,
+                     export=self.export,
+                     group=self.group,
+                     poll=self.poll,
+                     )
 
     def as_dict(self, static_only=False):
         # used for serialisation only
@@ -99,11 +112,36 @@ class PARAM(object):
                 res['timestamp'] = format_time(self.timestamp)
         return res
 
+    @property
+    def export_value(self):
+        return self.datatype.export(self.value)
+
+
+class OVERRIDE(object):
+
+    def __init__(self, **kwds):
+        self.kwds = kwds
+
+    def apply(self, paramobj):
+        if isinstance(paramobj, PARAM):
+            for k, v in self.kwds.iteritems():
+                if hasattr(paramobj, k):
+                    setattr(paramobj, k, v)
+                    return paramobj
+                else:
+                    raise ProgrammingError(
+                        "Can not apply Override(%s=%r) to %r: non-existing property!" %
+                        (k, v, paramobj))
+        else:
+            raise ProgrammingError(
+                "Overrides can only be applied to PARAM's, %r is none!" %
+                paramobj)
+
 
 # storage for CMDs settings (description + call signature...)
 class CMD(object):
 
-    def __init__(self, description, arguments, result):
+    def __init__(self, description, arguments=[], result=None):
         # descriptive text for humans
         self.description = description
         # list of datatypes for arguments
@@ -122,9 +160,9 @@ class CMD(object):
             arguments=map(export_datatype, self.arguments),
             resulttype=export_datatype(self.resulttype), )
 
+
 # Meta class
 # warning: MAGIC!
-
 
 class DeviceMeta(type):
 
@@ -142,37 +180,61 @@ class DeviceMeta(type):
             newentry.update(attrs.get(entry, {}))
             setattr(newtype, entry, newentry)
 
+        # apply Overrides from all sub-classes
+        newparams = getattr(newtype, 'PARAMS')
+        for base in reversed(bases):
+            overrides = getattr(base, 'OVERRIDES', {})
+            for n, o in overrides.iteritems():
+                newparams[n] = o.apply(newparams[n].copy())
+        for n, o in attrs.get('OVERRIDES', {}).iteritems():
+            newparams[n] = o.apply(newparams[n].copy())
+
         # check validity of PARAM entries
         for pname, pobj in newtype.PARAMS.items():
             # XXX: allow dicts for overriding certain aspects only.
             if not isinstance(pobj, PARAM):
-                raise ProgrammingError('%r: device PARAM %r should be a '
+                raise ProgrammingError('%r: PARAMs entry %r should be a '
                                        'PARAM object!' % (name, pname))
+
             # XXX: create getters for the units of params ??
+
             # wrap of reading/writing funcs
             rfunc = attrs.get('read_' + pname, None)
+            for base in bases:
+                if rfunc is not None:
+                    break
+                rfunc = getattr(base, 'read_' + pname, None)
 
             def wrapped_rfunc(self, maxage=0, pname=pname, rfunc=rfunc):
                 if rfunc:
+                    self.log.debug("rfunc(%s): call %r" % (pname, rfunc))
                     value = rfunc(self, maxage)
                     setattr(self, pname, value)
                     return value
                 else:
                     # return cached value
+                    self.log.debug("rfunc(%s): return cached value" % pname)
                     return self.PARAMS[pname].value
 
             if rfunc:
                 wrapped_rfunc.__doc__ = rfunc.__doc__
-            setattr(newtype, 'read_' + pname, wrapped_rfunc)
+            if getattr(rfunc, '__wrapped__', False) == False:
+                setattr(newtype, 'read_' + pname, wrapped_rfunc)
+            wrapped_rfunc.__wrapped__ = True
 
             if not pobj.readonly:
                 wfunc = attrs.get('write_' + pname, None)
+                for base in bases:
+                    if wfunc is not None:
+                        break
+                    wfunc = getattr(base, 'write_' + pname, None)
 
                 def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
-                    self.log.debug("wfunc: set %s to %r" % (pname, value))
+                    self.log.debug("wfunc(%s): set %r" % (pname, value))
                     pobj = self.PARAMS[pname]
-                    value = pobj.datatype.validate(value) if pobj.datatype else value
+                    value = pobj.datatype.validate(value)
                     if wfunc:
+                        self.log.debug('calling %r(%r)' % (wfunc, value))
                         value = wfunc(self, value) or value
                     # XXX: use setattr or direct manipulation
                     # of self.PARAMS[pname]?
@@ -181,14 +243,16 @@ class DeviceMeta(type):
 
                 if wfunc:
                     wrapped_wfunc.__doc__ = wfunc.__doc__
-                setattr(newtype, 'write_' + pname, wrapped_wfunc)
+                if getattr(wfunc, '__wrapped__', False) == False:
+                    setattr(newtype, 'write_' + pname, wrapped_wfunc)
+                wrapped_wfunc.__wrapped__ = True
 
             def getter(self, pname=pname):
                 return self.PARAMS[pname].value
 
             def setter(self, value, pname=pname):
                 pobj = self.PARAMS[pname]
-                value = pobj.datatype.validate(value) if pobj.datatype else value
+                value = pobj.datatype.validate(value)
                 pobj.timestamp = time.time()
                 if not EVENT_ONLY_ON_CHANGED_VALUES or (value != pobj.value):
                     pobj.value = value
@@ -251,13 +315,7 @@ class Device(object):
         # make local copies of PARAMS
         params = {}
         for k, v in self.PARAMS.items()[:]:
-            #params[k] = PARAM(v)
-            # PARAM: type(v) -> PARAM
-            # type(v)(v) -> PARAM(v)
-            # EPICS_PARAM: type(v) -> EPICS_PARAM
-            # type(v)(v) -> EPICS_PARAM(v)
-            param_type = type(v)
-            params[k] = param_type(v)
+            params[k] = v.copy()
 
         self.PARAMS = params
 
@@ -273,13 +331,13 @@ class Device(object):
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
         self.PROPERTIES['implementation'] = myclassname
-        self.PROPERTIES['interfaces'] = [b.__name__ for b in mycls.__mro__
-                                         if b.__module__.startswith('secop.devices.core')]
+        self.PROPERTIES['interfaces'] = [
+            b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
         self.PROPERTIES['interface'] = self.PROPERTIES['interfaces'][0]
 
         # remove unset (default) module properties
         for k, v in self.PROPERTIES.items():
-            if v == None:
+            if v is None:
                 del self.PROPERTIES[k]
 
         # check and apply parameter_properties
@@ -312,13 +370,13 @@ class Device(object):
                 cfgdict[k] = v.default
 
             # replace CLASS level PARAM objects with INSTANCE level ones
-            #self.PARAMS[k] = PARAM(self.PARAMS[k])
-            param_type = type(self.PARAMS[k])
-            self.PARAMS[k] = param_type(self.PARAMS[k])
+            self.PARAMS[k] = self.PARAMS[k].copy()
 
         # now 'apply' config:
         # pass values through the datatypes and store as attributes
         for k, v in cfgdict.items():
+            if k == 'value':
+                continue
             # apply datatype, complain if type does not fit
             datatype = self.PARAMS[k].datatype
             if datatype is not None:
@@ -334,11 +392,7 @@ class Device(object):
 
     def init(self):
         # may be overriden in derived classes to init stuff
-        self.log.debug('init()')
-
-    def _pollThread(self):
-        # may be overriden in derived classes to init stuff
-        self.log.debug('init()')
+        self.log.debug('empty init()')
 
 
 class Readable(Device):
@@ -348,7 +402,7 @@ class Readable(Device):
     """
     PARAMS = {
         'value': PARAM('current value of the device', readonly=True, default=0.,
-                       datatype=FloatRange()),
+                       datatype=FloatRange(), poll=True),
         'pollinterval': PARAM('sleeptime between polls', default=5,
                               readonly=False, datatype=FloatRange(0.1, 120), ),
         'status': PARAM('current status of the device', default=(status.OK, ''),
@@ -360,25 +414,38 @@ class Readable(Device):
                 'UNSTABLE': status.UNSTABLE,
                 'ERROR': status.ERROR,
                 'UNKNOWN': status.UNKNOWN
-            }), StringType() ),
-            readonly=True),
+            }), StringType()),
+            readonly=True, poll=True),
     }
 
     def init(self):
         Device.init(self)
-        self._pollthread = threading.Thread(target=self._pollThread)
+        self._pollthread = threading.Thread(target=self.__pollThread)
         self._pollthread.daemon = True
         self._pollthread.start()
 
-    def _pollThread(self):
+    def __pollThread(self):
         """super simple and super stupid per-module polling thread"""
+        i = 0
         while True:
-            time.sleep(self.pollinterval)
-            for pname in self.PARAMS:
-                if pname != 'pollinterval':
-                    rfunc = getattr(self, 'read_%s' % pname, None)
-                    if rfunc:
-                        rfunc()
+            i = 1
+            try:
+                time.sleep(self.pollinterval)
+            except TypeError:
+                time.sleep(max(self.pollinterval))
+            try:
+                self.poll(i)
+            except Exception:  # really ALL
+                pass
+
+    def poll(self, nr):
+        for pname, pobj in self.PARAMS.iteritems():
+            if not pobj.poll:
+                continue
+            if 0 == nr % int(pobj.poll):
+                rfunc = getattr(self, 'read_' + pname, None)
+                if rfunc:
+                    rfunc()
 
 
 class Driveable(Readable):
@@ -387,9 +454,12 @@ class Driveable(Readable):
     providing a settable 'target' parameter to those of a Readable
     """
     PARAMS = {
-        'target': PARAM('target value of the device', default=0., readonly=False,
-                        datatype=FloatRange(),
-                        ),
+        'target': PARAM(
+            'target value of the device',
+            default=0.,
+            readonly=False,
+            datatype=FloatRange(),
+        ),
     }
     # XXX: CMDS ???? auto deriving working well enough?
 

@@ -96,8 +96,8 @@ class Dispatcher(object):
                 except Exception as err:
                     self.log.exception(err)
                     reply = msg.get_error(
-                        errorclass='InternalError',
-                        errorinfo=[formatException(), str(msg), formatExtendedStack()])
+                        errorclass='InternalError', errorinfo=[
+                            formatException(), str(msg), formatExtendedStack()])
             else:
                 self.log.debug('Can not handle msg %r' % msg)
                 reply = self.unhandled(conn, msg)
@@ -125,7 +125,7 @@ class Dispatcher(object):
         msg = Value(
             moduleobj.name,
             parameter=pname,
-            value=pobj.value,
+            value=pobj.export_value,
             t=pobj.timestamp)
         self.broadcast_event(msg)
 
@@ -215,8 +215,9 @@ class Dispatcher(object):
         for modulename in self._export:
             module = self.get_module(modulename)
             # some of these need rework !
-            mod_desc = {'parameters':[], 'commands':[]}
-            for pname, param in self.list_module_params(modulename, only_static=True).items():
+            mod_desc = {'parameters': [], 'commands': []}
+            for pname, param in self.list_module_params(
+                    modulename, only_static=True).items():
                 mod_desc['parameters'].extend([pname, param])
             for cname, cmd in self.list_module_cmds(modulename).items():
                 mod_desc['commands'].extend([cname, cmd])
@@ -236,7 +237,9 @@ class Dispatcher(object):
             module = self.get_module(modulename)
             # some of these need rework !
             dd = {
-                'parameters': self.list_module_params(modulename, only_static=True),
+                'parameters': self.list_module_params(
+                    modulename,
+                    only_static=True),
                 'commands': self.list_module_cmds(modulename),
                 'properties': module.PROPERTIES,
             }
@@ -319,9 +322,9 @@ class Dispatcher(object):
             return Value(
                 modulename,
                 parameter=pname,
-                value=pobj.value,
+                value=pobj.export_value,
                 t=pobj.timestamp)
-        return Value(modulename, parameter=pname, value=pobj.value)
+        return Value(modulename, parameter=pname, value=pobj.export_value)
 
     # now the (defined) handlers for the different requests
     def handle_Help(self, conn, msg):
@@ -396,7 +399,7 @@ class Dispatcher(object):
                     res = Value(
                         module=modulename,
                         parameter=pname,
-                        value=pobj.value,
+                        value=pobj.export_value,
                         t=pobj.timestamp,
                         unit=pobj.unit)
                 if res.value != Ellipsis:  # means we do not have a value at all so skip this
