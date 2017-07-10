@@ -30,7 +30,7 @@ import ConfigParser
 from daemon import DaemonContext
 from daemon.pidfile import TimeoutPIDLockFile
 
-from secop.lib import get_class, formatExtendedStack
+from secop.lib import get_class, formatException
 from secop.protocol.dispatcher import Dispatcher
 from secop.protocol.interface import INTERFACES
 #from secop.protocol.encoding import ENCODERS
@@ -70,8 +70,8 @@ class Server(object):
     def run(self):
         try:
             self._processCfg()
-        except Exception as exc:
-            print formatExtendedStack(exc)
+        except Exception:
+            print formatException(verbose=True)
             raise
 
         self.log.info('startup done, handling transport messages')
