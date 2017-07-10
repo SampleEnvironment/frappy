@@ -27,6 +27,7 @@ import serial
 from select import select
 import threading
 import Queue
+from collections import OrderedDict
 
 import mlzlog
 
@@ -151,7 +152,17 @@ class Client(object):
     stopflag = False
 
     def __init__(self, opts, autoconnect=True):
-        self.log = mlzlog.log.getChild('client', True)
+        if 'testing' not in opts:
+            self.log = mlzlog.log.getChild('client', True)
+        else:
+            class logStub(object):
+                def info(self, *args):
+                    pass
+                debug = info
+                error = info
+                warning = info
+                exception = info
+            self.log = logStub()
         self._cache = dict()
         if 'device' in opts:
             # serial port
@@ -161,11 +172,15 @@ class Client(object):
             self.connection = serial.Serial(
                 devport, baudrate=baudrate, timeout=1)
             self.connection.callbacks = []
-        else:
+        elif 'testing' not in opts:
             host = opts.pop('connectto', 'localhost')
             port = int(opts.pop('port', 10767))
             self.contactPoint = "tcp://%s:%d" % (host, port)
             self.connection = TCPConnection(host, port)
+        else:
+            self.contactPoint = 'testing'
+            self.connection = opts.pop('testing')
+
         # maps an expected reply to a list containing a single Event()
         # upon rcv of that reply, entry is appended with False and
         # the data of the reply.
@@ -305,15 +320,43 @@ class Client(object):
     def _getDescribingParameterData(self, module, parameter):
         return self._getDescribingModuleData(module)['parameters'][parameter]
 
-    def _issueDescribe(self):
-        _, self.equipment_id, self.describing_data = self._communicate(
-            'describe')
+    def _decode_list_to_ordereddict(self, data):
+        # takes a list of 2*N <key>, <value> entries and
+        # return an orderedDict from it
+        result = OrderedDict()
+        while len(data) > 1:
+            key = data.pop(0)
+            value = data.pop(0)
+            result[key] = value
+        return result
 
-        for module, moduleData in self.describing_data['modules'].items():
-            for parameter, parameterData in moduleData['parameters'].items():
-                datatype = get_datatype(parameterData['datatype'])
-                self.describing_data['modules'][module]['parameters'] \
-                    [parameter]['datatype'] = datatype
+    def _decode_substruct(self, specialkeys=[], data={}):
+        # take a dict and move all keys which are not in specialkeys
+        # into a 'properties' subdict
+        # specialkeys entries are converted from list to ordereddict
+        result = {}
+        for k in specialkeys:
+            result[k] = self._decode_list_to_ordereddict(data.pop(k, []))
+        result['properties'] = data
+        return result
+
+    def _issueDescribe(self):
+        _, self.equipment_id, describing_data = self._communicate('describe')
+        try:
+            describing_data = self._decode_substruct(['modules'], describing_data)
+            for modname, module in describing_data['modules'].items():
+                describing_data['modules'][modname] = self._decode_substruct(['parameters', 'commands'], module)
+
+            self.describing_data = describing_data
+
+            for module, moduleData in self.describing_data['modules'].items():
+                for parameter, parameterData in moduleData['parameters'].items():
+                    datatype = get_datatype(parameterData['datatype'])
+                    self.describing_data['modules'][module]['parameters'] \
+                        [parameter]['datatype'] = datatype
+        except Exception as exc:
+            print formatException(verbose=True)
+            raise
 
     def register_callback(self, module, parameter, cb):
         self.log.debug('registering callback %r for %s:%s' %

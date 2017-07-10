@@ -208,6 +208,28 @@ class Dispatcher(object):
         return {}
 
     def get_descriptive_data(self):
+        """returns a python object which upon serialisation results in the descriptive data"""
+        # XXX: be lazy and cache this?
+        # format: {[{[{[, specific entries first
+        result = {'modules': []}
+        for modulename in self._export:
+            module = self.get_module(modulename)
+            # some of these need rework !
+            mod_desc = {'parameters':[], 'commands':[]}
+            for pname, param in self.list_module_params(modulename, only_static=True).items():
+                mod_desc['parameters'].extend([pname, param])
+            for cname, cmd in self.list_module_cmds(modulename).items():
+                mod_desc['commands'].extend([cname, cmd])
+            for propname, prop in module.PROPERTIES.items():
+                mod_desc[propname] = prop
+            result['modules'].extend([modulename, mod_desc])
+        result['equipment_id'] = self.equipment_id
+        result['firmware'] = 'The SECoP playground'
+        result['version'] = "2017.07"
+        # XXX: what else?
+        return result
+
+    def get_descriptive_data_old(self):
         # XXX: be lazy and cache this?
         result = {'modules': {}}
         for modulename in self._export:

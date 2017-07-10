@@ -79,7 +79,11 @@ def formatExtendedFrame(frame):
     ret.append('\n')
     return ret
 
-def formatExtendedTraceback(etype, value, tb):
+def formatExtendedTraceback(exc_info=None):
+    if exc_info is None:
+        etype, value, tb = sys.exc_info()
+    else:
+        etype, value, tb = exc_info
     ret = ['Traceback (most recent call last):\n']
     while tb is not None:
         frame = tb.tb_frame
@@ -116,10 +120,12 @@ def formatExtendedStack(level=1):
         f = f.f_back
     return ''.join(ret).rstrip('\n')
 
-def formatException(cut=0, exc_info=None):
+def formatException(cut=0, exc_info=None, verbose=False):
     """Format an exception with traceback, but leave out the first `cut`
     number of frames.
     """
+    if verbose:
+        return formatExtendedTraceback(exc_info)
     if exc_info is None:
         typ, val, tb = sys.exc_info()
     else:
