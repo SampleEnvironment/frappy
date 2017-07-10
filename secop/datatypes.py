@@ -52,7 +52,10 @@ class FloatRange(DataType):
         self.max = None if max is None else float(max)
         # note: as we may compare to Inf all comparisons would be false
         if (self.min or float('-inf')) <= (self.max or float('+inf')):
-            self.as_json = ['double', min, max]
+            if min == None and max == None:
+                self.as_json = ['double']
+            else:
+                self.as_json = ['double', min, max]
         else:
             raise ValueError('Max must be larger then min!')
 
@@ -91,7 +94,10 @@ class IntRange(DataType):
         self.max = int(max) if max is not None else max
         if self.min is not None and self.max is not None and self.min > self.max:
             raise ValueError('Max must be larger then min!')
-        self.as_json = ['int', self.min, self.max]
+        if self.min == None and self.max == None:
+            self.as_json = ['int']
+        else:
+            self.as_json = ['int', self.min, self.max]
 
     def validate(self, value):
         try:

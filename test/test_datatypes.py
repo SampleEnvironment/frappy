@@ -59,6 +59,9 @@ def test_FloatRange():
     with pytest.raises(ValueError):
         FloatRange('x','Y')
 
+    dt = FloatRange()
+    assert dt.as_json == ['double']
+
 def test_IntRange():
     dt = IntRange(-3, 3)
     assert dt.as_json == ['int', -3, 3]
@@ -76,6 +79,8 @@ def test_IntRange():
     with pytest.raises(ValueError):
         IntRange('xc','Yx')
 
+    dt = IntRange()
+    assert dt.as_json == ['int']
 
 def test_EnumType():
     # test constructor catching illegal arguments
