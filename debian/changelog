@@ -1,4 +1,4 @@
-secop-core (0.0.1) UNRELEASED; urgency=medium
+secop-core (0.0.2) unstable; urgency=medium
 
   [ Enrico Faulhaber ]
   * Changes.
@@ -69,5 +69,9 @@ secop-core (0.0.1) UNRELEASED; urgency=medium
   * provide debian control files
 
   [ Alexander Lenz ]
+  * [deb] Add build deps and rename src pkg.
+  * [deb] Split into multiple packages.
 
- -- Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>  Wed, 19 Jul 2017 10:49:20 +0200
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Wed, 19 Jul 2017 11:44:13 +0200
