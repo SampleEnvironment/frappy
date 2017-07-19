@@ -35,9 +35,46 @@ class ProgrammingError(SECoPServerError):
     pass
 
 
-class CommunicationError(SECoPServerError):
-    pass
+# for remote operation
+class SECoPError(SECoPServerError):
+    errorclass = 'InternalError'
 
+class NoSuchModuleError(SECoPError):
+    errorclass = 'NoSuchModule'
 
-class HardwareError(SECoPServerError):
-    pass
+class NoSuchParameterError(SECoPError):
+    errorclass = 'NoSuchParameter'
+
+class NoSuchCommandError(SECoPError):
+    errorclass = 'NoSuchCommand'
+
+class CommandFailedError(SECoPError):
+    errorclass = 'CommandFailed'
+
+class CommandRunningError(SECoPError):
+    errorclass = 'CommandRunning'
+
+class ReadOnlyError(SECoPError):
+    errorclass = 'ReadOnly'
+
+class BadValueError(SECoPError):
+    errorclass = 'BadValue'
+
+class CommunicationError(SECoPError):
+    errorclass = 'CommunicationFailed'
+
+class TimeoutError(SECoPError):
+    errorclass = 'CommunicationFailed'  # XXX: add to SECop messages
+
+class HardwareError(SECoPError):
+    errorclass = 'CommunicationFailed'  # XXX: Add to SECoP messages
+
+class IsBusyError(SECoPError):
+    errorclass = 'IsBusy'
+
+class IsErrorError(SECoPError):
+    errorclass = 'IsError'
+
+class DisabledError(SECoPError):
+    errorclass = 'Disabled'
+

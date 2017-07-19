@@ -559,7 +559,7 @@ class AnalogOutput(PyTangoDevice, Driveable):
     def write_userlimits(self, value):
         return self._checkLimits(value)
 
-    def do_start(self, value=FloatRange()):
+    def write_target(self, value=FloatRange()):
         try:
             self._dev.value = value
         except HardwareError:
