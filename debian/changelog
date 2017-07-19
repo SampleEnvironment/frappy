@@ -1,0 +1,73 @@
+secop-core (0.0.1) UNRELEASED; urgency=medium
+
+  [ Enrico Faulhaber ]
+  * Changes.
+  * First checkin, base point for development
+  * move handlers to messages
+  * enhance docu a little
+
+  [ Erik Dahlbäck ]
+  * This is a test commit
+  * Revert "This is a test commit"
+
+  [ Enrico Faulhaber ]
+  * Devices infrastructure and minimal server
+  * rework on transport (encoding/framing) and dispatcher
+
+  [ Alexander Lenz ]
+  * Improvements.
+  * Fix/Improve startup/init.
+  * Fix deprecated imports.
+
+  [ Enrico Faulhaber ]
+  * [Test] Erik is testing SECoP with PVEPICS module
+  * demo syntax from Markus Zolliker, initial commit + test file
+  * Implement a variant of the Demo protocol from Markus
+  * split epics related devices into epics.py
+  * apply validators to before calling write_func
+  * use per instance copies of PARAMS
+  * Remove Features
+  * coding style: adopt pep8
+  * provide class and baseclass parameters
+  * Unify error handling (a little more)
+  * provide a status2 parameter
+  * unsubscribe upon disconnect
+  * Fix dispatcher._setParamValue
+  * reworking messages
+  * fix wrong replies for change and do
+  * Update docu to reflect current implementation.
+  * Provide basic client Object
+  * Pep8 improvements + cleanup
+  * Fix some bugs.
+
+  [ Alexander Lenz ]
+  * Stub debug client gui.
+
+  [ Enrico Faulhaber ]
+  * Polishing
+  * Bug hunting and polishing
+  * polishing for a demo
+  * implement configurable module-properties
+  * provide anchor point for test suite using pytest
+  * Use mlzlog for better logging
+
+  [ Erik Dahlbäck ]
+  * rework Epics support/testing with LS336
+  * fix whitespace issues
+
+  [ Enrico Faulhaber ]
+  * autopep8
+  * GUI: show grouping of parameters
+  * implement datatypes
+  * replace validators with datatypes
+  * update docs
+  * remove obsolete file
+  * (over-)improve error loging during startup
+  * datatypes: fix serialisation for unlimited types
+  * fix logging
+  * Switch descriptive data to new format
+  * provide debian control files
+
+  [ Alexander Lenz ]
+
+ -- Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>  Wed, 19 Jul 2017 10:49:20 +0200

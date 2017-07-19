@@ -1,0 +1,22 @@
+Source: secop-playground
+Section: misc
+Priority: extra
+Maintainer: Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+Build-Depends: debhelper (>= 9.0.0),
+ git,
+ python (>= 2.7),
+ python-setuptools
+Standards-Version: 3.9.3
+
+Package: secop-core
+Architecture: all
+Depends: python (>= 2.7),
+ python-setuptools,
+ python-numpy,
+ python-psutil (>= 0.4),
+ python-pytango,
+ python-mlzlog,
+ markdown,
+ python-daemon,
+ python-pytest
+Description: SECoP Playground core system

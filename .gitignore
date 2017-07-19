@@ -5,3 +5,6 @@ pid/*
 
 # ide 
 .idea
+
+RELEASE-VERSION
+build

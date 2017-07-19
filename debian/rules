@@ -1,0 +1,19 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+DEBPYTHON_DEFAULT=2.7
+DEBPYTHON_SUPPORTED=2.7
+
+export DEBPYTHON_DEFAULT DEBPYTHON_SUPPORTED
+
+override_dh_install:
+	dh_install --list-missing
+
+override_dh_installinit:
+	dh_installinit --onlyscripts
+
+%:
+	dh $@ --with python2 --buildsystem=python_distutils
