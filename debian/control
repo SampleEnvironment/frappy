@@ -24,3 +24,18 @@ Depends: python (>= 2.7),
  python-pytest,
  python-qt4
 Description: SECoP Playground core system
+
+Package: secop-demo
+Architecture: all
+Depends: secop-core
+Description: SECoP demo files
+
+Package: secop-ess
+Architecture: all
+Depends: secop-core
+Description: SECoP ess files
+
+Package: secop-mlz
+Architecture: all
+Depends: secop-core
+Description: SECoP mlz files
