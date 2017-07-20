@@ -24,6 +24,8 @@
 # implement as class as they may need some internal 'state' later on
 # (think compressors)
 
+from __future__ import print_function
+
 from secop.protocol.encoding import MessageEncoder
 from secop.protocol.messages import *
 from secop.protocol.errors import ProtocolError
@@ -257,7 +259,7 @@ class DemoEncoder(MessageEncoder):
                 mgroups['args'] = args
 
             # reformat qualifiers
-            print mgroups
+            print(mgroups)
             quals = dict(
                 qual.split('=', 1)
                 for qual in helper(mgroups.pop('qualifiers', ';')))
@@ -306,9 +308,9 @@ class DemoEncoder(MessageEncoder):
             'read blub:c=14;t=3.3',
         ]
         for m in testmsg:
-            print repr(m)
-            print self.decode(m)
-            print
+            print(repr(m))
+            print(self.decode(m))
+            print()
 
 
 DEMO_RE_MZ = re.compile(
@@ -326,7 +328,7 @@ class DemoEncoder_MZ(MessageEncoder):
     def decode(sef, encoded):
         m = DEMO_RE_MZ.match(encoded)
         if m:
-            print "implement me !"
+            print("implement me !")
         return HelpRequest()
 
     def encode(self, msg):

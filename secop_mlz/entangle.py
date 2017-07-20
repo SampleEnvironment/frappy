@@ -164,7 +164,7 @@ class PyTangoDevice(Device):
 
         'tangodevice': PARAM('Tango device name',
                              datatype=StringType(), readonly=True,
-#                             export=True,   # for testing only
+                             # export=True,   # for testing only
                              export=False,
                              ),
     }
@@ -215,8 +215,8 @@ class PyTangoDevice(Device):
 
     def _hw_wait(self):
         """Wait until hardware status is not BUSY."""
-        while PyTangoDevice.doStatus(self, 0)[0] == status.BUSY:
-            sleep(self._base_loop_delay)
+        while self.read_status(0)[0] == 'BUSY':
+            sleep(0.3)
 
     def _getProperty(self, name, dev=None):
         """
@@ -366,8 +366,8 @@ class AnalogInput(PyTangoDevice, Readable):
     The AnalogInput handles all devices only delivering an analogue value.
     """
 
-    def init(self):
-        super(AnalogInput, self).init()
+    def late_init(self):
+        super(AnalogInput, self).late_init()
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -442,27 +442,15 @@ class AnalogOutput(PyTangoDevice, Driveable):
                 900),
             readonly=False,
         ),
-        'pollinterval': PARAM(
-            '[min, max] sleeptime between polls',
-            default=[
-                0.5,
-                5],
-            readonly=False,
-            datatype=TupleOf(
-                FloatRange(
-                    0,
-                    20),
-                FloatRange(
-                    0.1,
-                    120)),
-        ),
-    }
-    OVERRIDES = {
-        'value': OVERRIDE(poll=False),
     }
 
     def init(self):
-        super(AnalogInput, self).init()
+        super(AnalogOutput, self).init()
+        # init history
+        self._history = []  # will keep (timestamp, value) tuple
+
+    def late_init(self):
+        super(AnalogOutput, self).late_init()
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -470,30 +458,14 @@ class AnalogOutput(PyTangoDevice, Driveable):
         if attrInfo.unit != 'No unit':
             self.PARAMS['value'].unit = attrInfo.unit
 
-        # init history
-        self._history = []  # will keep (timestamp, value) tuple
-        mkthread(self._history_thread)
-
-    def _history_thread(self):
-        while True:
-            # adaptive sleeping interval
-            if self.status[0] == status.BUSY:
-                sleep(min(self.pollinterval))
-            else:
-                sleep(min(max(self.pollinterval) / 2.,
-                          max(self.window / 10., min(pollinterval))))
-            try:
-                self.read_value(0)  # also append to self._history
-                # shorten history
-                while len(self._history) > 2:
-                    # if history would be too short, break
-                    if self._history[-1][0] - \
-                            self._history[1][0] < self.window:
-                        break
-                    # remove a stale point
-                    self._history.pop(0)
-            except Exception:
-                pass
+    def poll(self, nr):
+        super(AnalogOutput, self).poll(nr)
+        while len(self._history) > 2:
+            # if history would be too short, break
+            if self._history[-1][0] - self._history[1][0] < self.window:
+                break
+            # else: remove a stale point
+            self._history.pop(0)
 
     def read_value(self, maxage=0):
         value = self._dev.value
@@ -560,17 +532,17 @@ class AnalogOutput(PyTangoDevice, Driveable):
         return self._checkLimits(value)
 
     def write_target(self, value=FloatRange()):
-        try:
-            self._dev.value = value
-        except HardwareError:
+        if self.status[0] == status.BUSY:
             # changing target value during movement is not allowed by the
             # Tango base class state machine. If we are moving, stop first.
-            if self.read_status(0)[0] == status.BUSY:
-                self.stop()
-                self._hw_wait()
-                self._dev.value = value
-            else:
-                raise
+            self.do_stop()
+            self._hw_wait()
+        self._dev.value = value
+        self.read_status(0)  # poll our status to keep it updated
+
+    def _hw_wait(self):
+        while self.read_status(0)[0] == status.BUSY:
+            sleep(0.3)
 
     def do_stop(self):
         self._dev.Stop()
@@ -601,21 +573,21 @@ class Actuator(AnalogOutput):
             poll=30),
     }
 
-    def read_speed(self):
+    def read_speed(self, maxage=0):
         return self._dev.speed
 
     def write_speed(self, value):
         self._dev.speed = value
 
-    def read_ramp(self):
+    def read_ramp(self, maxage=0):
         return self.read_speed() * 60
 
     def write_ramp(self, value):
         self.write_speed(value / 60.)
-        return self.speed * 60
+        return self.read_speed(0) * 60
 
-    def do_setposition(self, value):
-        self._dev.Adjust(value)
+#    def do_setposition(self, value=FloatRange()):
+#        self._dev.Adjust(value)
 
 
 class Motor(Actuator):
@@ -643,16 +615,16 @@ class Motor(Actuator):
             unit='main/s^2'),
     }
 
-    def read_refpos(self):
+    def read_refpos(self, maxage=0):
         return float(self._getProperty('refpos'))
 
-    def read_accel(self):
+    def read_accel(self, maxage=0):
         return self._dev.accel
 
     def write_accel(self, value):
         self._dev.accel = value
 
-    def read_decel(self):
+    def read_decel(self, maxage=0):
         return self._dev.decel
 
     def write_decel(self, value):
@@ -695,32 +667,32 @@ class TemperatureController(Actuator):
         'precision': OVERRIDE(default=0.1),
     }
 
-    def read_ramp(self):
+    def read_ramp(self, maxage=0):
         return self._dev.ramp
 
     def write_ramp(self, value):
         self._dev.ramp = value
         return self._dev.ramp
 
-    def read_p(self):
+    def read_p(self, maxage=0):
         return self._dev.p
 
     def write_p(self, value):
         self._dev.p = value
 
-    def read_i(self):
+    def read_i(self, maxage=0):
         return self._dev.i
 
     def write_i(self, value):
         self._dev.i = value
 
-    def read_d(self):
+    def read_d(self, maxage=0):
         return self._dev.d
 
     def write_d(self, value):
         self._dev.d = value
 
-    def read_pid(self):
+    def read_pid(self, maxage=0):
         self.read_p()
         self.read_i()
         self.read_d()
@@ -731,10 +703,10 @@ class TemperatureController(Actuator):
         self._dev.i = value[1]
         self._dev.d = value[2]
 
-    def read_setpoint(self):
+    def read_setpoint(self, maxage=0):
         return self._dev.setpoint
 
-    def read_heateroutput(self):
+    def read_heateroutput(self, maxage=0):
         return self._dev.heaterOutput
 
 
@@ -747,21 +719,21 @@ class PowerSupply(Actuator):
         'ramp': PARAM('Current/voltage ramp', unit='main/min',
                       datatype=FloatRange(), readonly=False, poll=30,),
         'voltage': PARAM('Actual voltage', unit='V',
-                         datatype=FloatRange(), poll=5),
+                         datatype=FloatRange(), poll=-5),
         'current': PARAM('Actual current', unit='A',
-                         datatype=FloatRange(), poll=5),
+                         datatype=FloatRange(), poll=-5),
     }
 
-    def read_ramp(self):
+    def read_ramp(self, maxage=0):
         return self._dev.ramp
 
     def write_ramp(self, value):
         self._dev.ramp = value
 
-    def read_voltage(self):
+    def read_voltage(self, maxage=0):
         return self._dev.voltage
 
-    def read_current(self):
+    def read_current(self, maxage=0):
         return self._dev.current
 
 
@@ -771,7 +743,7 @@ class DigitalInput(PyTangoDevice, Readable):
     """
 
     OVERRIDES = {
-        'value': OVERRIDE(datatype=IntRange(0)),
+        'value': OVERRIDE(datatype=IntRange()),
     }
 
     def read_value(self, maxage=0):
@@ -835,8 +807,8 @@ class DigitalOutput(PyTangoDevice, Driveable):
     """
 
     OVERRIDES = {
-        'value': OVERRIDE(datatype=IntRange(0)),
-        'target': OVERRIDE(datatype=IntRange(0)),
+        'value': OVERRIDE(datatype=IntRange()),
+        'target': OVERRIDE(datatype=IntRange()),
     }
 
     def read_value(self, maxage=0):
@@ -856,17 +828,23 @@ class NamedDigitalOutput(DigitalOutput):
     A DigitalOutput with numeric values mapped to names.
     """
 
-    PARAMS = {
-        'mapping': PARAM('A dictionary mapping state names to integers',
-                         datatype=StringType(), export=False),  # XXX: !!!
-    }
+#    PARAMS = {
+#        'mapping': PARAM('A dictionary mapping state names to integers',
+#                         datatype=EnumType(), export=False),  # XXX: !!!
+#    }
+#
+#    def init(self):
+#        super(NamedDigitalOutput, self).init()
+#        try:  # XXX: !!!
+#            self.PARAMS['value'].datatype = EnumType(**eval(self.mapping))
+#        except Exception as e:
+#            raise ValueError('Illegal Value for mapping: %r' % e)
 
-    def init(self):
-        super(NamedDigitalOutput, self).init()
-        try:  # XXX: !!!
-            self.PARAMS['value'].datatype = EnumType(**eval(self.mapping))
-        except Exception as e:
-            raise ValueError('Illegal Value for mapping: %r' % e)
+    def write_target(self, target):
+        # map from enum-str to integer value
+        self._dev.value = self.PARAMS[
+            'target'].datatype.reversed.get(target, target)
+        self.read_value()
 
 
 class PartialDigitalOutput(NamedDigitalOutput):
@@ -930,19 +908,19 @@ class StringIO(PyTangoDevice, Device):
             group='communication'),
     }
 
-    def read_bustimeout(self):
+    def read_bustimeout(self, maxage=0):
         return self._dev.communicationTimeout
 
     def write_bustimeout(self, value):
         self._dev.communicationTimeout = value
 
-    def read_endofline(self):
+    def read_endofline(self, maxage=0):
         return self._dev.endOfLine
 
     def write_endofline(self, value):
         self._dev.endOfLine = value
 
-    def read_startofline(self):
+    def read_startofline(self, maxage=0):
         return self._dev.startOfLine
 
     def write_startofline(self, value):

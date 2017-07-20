@@ -29,6 +29,9 @@
           </property>
           <item>
            <widget class="QComboBox" name="visibilityComboBox">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <item>
              <property name="text">
               <string>user</string>
@@ -61,6 +64,9 @@
           </item>
           <item>
            <widget class="QCheckBox" name="validateCheckBox">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>Validate locally</string>
             </property>
@@ -104,7 +110,7 @@
      <x>0</x>
      <y>0</y>
      <width>1228</width>
-     <height>23</height>
+     <height>33</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

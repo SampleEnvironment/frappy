@@ -21,38 +21,13 @@
 #
 # *****************************************************************************
 
-from PyQt4.QtGui import QWidget, QLabel, QMessageBox, QCheckBox
+from __future__ import print_function
+
+from PyQt4.QtGui import QWidget, QLabel, QPushButton as QButton, QLineEdit, QMessageBox, QCheckBox, QSizePolicy
 from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
 
 from secop.gui.util import loadUi
-
-
-class ParameterButtons(QWidget):
-    setRequested = pyqtSignal(str, str, str)  # module, parameter, target
-
-    def __init__(self,
-                 module,
-                 parameter,
-                 initval='',
-                 readonly=True,
-                 parent=None):
-        super(ParameterButtons, self).__init__(parent)
-        loadUi(self, 'parambuttons.ui')
-
-        self._module = module
-        self._parameter = parameter
-
-        self.currentLineEdit.setText(str(initval))
-        if readonly:
-            self.setPushButton.setEnabled(False)
-            self.setLineEdit.setEnabled(False)
-        else:
-            self.setLineEdit.returnPressed.connect(
-                self.on_setPushButton_clicked)
-
-    def on_setPushButton_clicked(self):
-        self.setRequested.emit(self._module, self._parameter,
-                               self.setLineEdit.text())
+from secop.gui.params import ParameterView
 
 
 class ParameterGroup(QWidget):
@@ -79,7 +54,7 @@ class ParameterGroup(QWidget):
         self._row += 1
 
     def on_toggle_clicked(self):
-        print "ParameterGroup.on_toggle_clicked"
+        print("ParameterGroup.on_toggle_clicked")
         if self.paramGroupBox.isChecked():
             for w in self._widgets:
                 w.show()
@@ -122,6 +97,9 @@ class ModuleCtrl(QWidget):
             if group is not None:
                 allGroups.add(group)
                 paramsByGroup.setdefault(group, []).append(param)
+            # enforce reading initial value if not already in cache
+            if param not in initValues:
+                self._node.getParameter(self._module, param)
 
         groupWidgets = {}  # groupname -> CheckBoxWidget for (un)folding
 
@@ -137,9 +115,12 @@ class ModuleCtrl(QWidget):
 
                 # check if there is a param of the same name too
                 if group in params:
+                    datatype = self._node.getProperties(
+                        self._module, group).get(
+                        'datatype', None)
                     # yes: create a widget for this as well
                     labelstr, buttons = self._makeEntry(
-                        param, initValues[param].value, nolabel=True, checkbox=checkbox, invert=True)
+                        param, initValues[param].value, datatype=datatype, nolabel=True, checkbox=checkbox, invert=True)
                     checkbox.setText(labelstr)
 
                     # add to Layout (yes: ignore the label!)
@@ -150,11 +131,19 @@ class ModuleCtrl(QWidget):
                 row += 1
 
                 # loop over all params and insert and connect
-                for param in paramsByGroup[param]:
-                    if param == group:
+                for param_ in paramsByGroup[param]:
+                    if param_ == group:
                         continue
+                    if param_ not in initValues:
+                        initval = None
+                        print("Warning: %r not in initValues!" % param_)
+                    else:
+                        initval = initValues[param_].value
+                    datatype = self._node.getProperties(
+                        self._module, param_).get(
+                        'datatype', None)
                     label, buttons = self._makeEntry(
-                        param, initValues[param].value, checkbox=checkbox, invert=False)
+                        param_, initval, checkbox=checkbox, invert=False)
 
                     # add to Layout
                     self.paramGroupBox.layout().addWidget(label, row, 0)
@@ -166,18 +155,43 @@ class ModuleCtrl(QWidget):
                 # or is named after a group (otherwise its created above)
                 props = self._node.getProperties(self._module, param)
                 if props.get('group', param) == param:
+                    datatype = self._node.getProperties(
+                        self._module, param).get(
+                        'datatype', None)
                     label, buttons = self._makeEntry(
-                        param, initValues[param].value)
+                        param, initValues[param].value, datatype=datatype)
 
                     # add to Layout
                     self.paramGroupBox.layout().addWidget(label, row, 0)
                     self.paramGroupBox.layout().addWidget(buttons, row, 1)
                     row += 1
 
+        # also populate properties
+        self._propWidgets = {}
+        props = self._node.getModuleProperties(self._module)
+        row = 0
+        for prop in sorted(props):
+            label = QLabel(prop + ':')
+            label.setFont(self._labelfont)
+            label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+            # make 'display' label
+            view = QLabel(str(props[prop]))
+            view.setFont(self.font())
+            view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            view.setWordWrap(True)
+
+            self.propertyGroupBox.layout().addWidget(label, row, 0)
+            self.propertyGroupBox.layout().addWidget(view, row, 1)
+            row += 1
+
+            self._propWidgets[prop] = (label, view)
+
     def _makeEntry(
             self,
             param,
             initvalue,
+            datatype=None,
             nolabel=False,
             checkbox=None,
             invert=False):
@@ -194,8 +208,12 @@ class ModuleCtrl(QWidget):
         if checkbox and not invert:
             labelstr = '       ' + labelstr
 
-        buttons = ParameterButtons(
-            self._module, param, initvalue, props['readonly'])
+        buttons = ParameterView(
+            self._module,
+            param,
+            datatype=datatype,
+            initvalue=initvalue,
+            readonly=props['readonly'])
         buttons.setRequested.connect(self._set_Button_pressed)
 
         if description:
@@ -243,5 +261,4 @@ class ModuleCtrl(QWidget):
     def _updateValue(self, module, parameter, value):
         if module != self._module:
             return
-
-        self._paramWidgets[parameter][1].currentLineEdit.setText(str(value[0]))
+        self._paramWidgets[parameter][1].updateValue(str(value[0]))

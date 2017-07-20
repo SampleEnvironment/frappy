@@ -24,6 +24,8 @@
 # implement as class as they may need some internal 'state' later on
 # (think compressors)
 
+from __future__ import print_function
+
 from secop.lib.parsing import format_time
 from secop.protocol.encoding import MessageEncoder
 from secop.protocol.messages import *
@@ -235,7 +237,7 @@ class DemoEncoder(MessageEncoder):
         # first check beginning
         match = DEMO_RE.match(encoded)
         if not match:
-            print repr(encoded), repr(IDENTREPLY)
+            print(repr(encoded), repr(IDENTREPLY))
             if encoded == IDENTREPLY:  # XXX:better just check the first 2 parts...
                 return IdentifyReply(version_string=encoded)
 
@@ -274,9 +276,9 @@ class DemoEncoder(MessageEncoder):
             origin=encoded)
 
     def tests(self):
-        print "---- Testing encoding  -----"
+        print("---- Testing encoding  -----")
         for msgclass, parts in sorted(self.ENCODEMAP.items()):
-            print msgclass
+            print(msgclass)
             e = self.encode(
                 msgclass(
                     module='<module>',
@@ -289,17 +291,17 @@ class DemoEncoder(MessageEncoder):
                     nonce='<nonce>',
                     errorclass='InternalError',
                     errorinfo='nix'))
-            print e
-            print self.decode(e)
-            print
-        print "---- Testing decoding  -----"
+            print(e)
+            print(self.decode(e))
+            print()
+        print("---- Testing decoding  -----")
         for msgtype, _ in sorted(self.DECODEMAP.items()):
             msg = '%s a:b 3' % msgtype
             if msgtype == EVENT:
                 msg = '%s a:b [3,{"t":193868}]' % msgtype
-            print msg
+            print(msg)
             d = self.decode(msg)
-            print d
-            print self.encode(d)
-            print
-        print "---- Testing done -----"
+            print(d)
+            print(self.encode(d))
+            print()
+        print("---- Testing done -----")

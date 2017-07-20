@@ -22,8 +22,11 @@
 #
 # *****************************************************************************
 
+from __future__ import print_function
+
 import sys
 from os import path
+
 
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
@@ -39,7 +42,17 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    if '-d' in argv:
+    if '-h' in argv or '--help' in argv:
+        print("Usage: secop-gui [-d] [-h] [host:[port]]")
+        print()
+        print("Option   GNU long option   Meaning")
+        print("-h       --help            Show this message")
+        print("-d       --debug           Enable debug output")
+        print()
+        print("if not given, host defaults to 'localhost' and port to 10767")
+        sys.exit(0)
+        
+    if '-d' in argv or '--debug' in argv:
         mlzlog.initLogging('gui', 'debug')
     else:
         mlzlog.initLogging('gui', 'info')

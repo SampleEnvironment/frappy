@@ -36,6 +36,7 @@ class Namespace(object):
 
 
 class Step(object):
+
     def __init__(self, desc, waittime, func, *args, **kwds):
         self.desc = desc
         self.waittime = waittime
@@ -126,7 +127,7 @@ class SequencerMixin(object):
         """Can be called to check if a sequence is currently running."""
         return self._seq_thread and self._seq_thread.isAlive()
 
-    def read_status(self):
+    def read_status(self, maxage=0):
         if self.seq_is_alive():
             return status.BUSY, 'moving: ' + self._seq_phase
         elif self._seq_error:
@@ -138,7 +139,7 @@ class SequencerMixin(object):
                 return status.ERROR, self._seq_stopped
             return status.WARN, self._seq_stopped
         if hasattr(self, 'read_hw_status'):
-            return self.read_hw_status()
+            return self.read_hw_status(maxage)
         return OK, ''
 
     def do_stop(self):
@@ -151,6 +152,9 @@ class SequencerMixin(object):
         except Exception as e:
             self.log.exception('unhandled error in sequence thread: %s', e)
             self._seq_error = str(e)
+        finally:
+            self._seq_thread = None
+            self.poll(0)
 
     def _seq_thread_inner(self, seq, store_init):
         store = Namespace()
@@ -163,19 +167,24 @@ class SequencerMixin(object):
             try:
                 while True:
                     result = step.func(store, *step.args)
-                    if self._seq_.stopflag:
+                    if self._seq_stopflag:
                         if result:
                             self._seq_stopped = 'stopped while %s' % step.desc
                         else:
                             self._seq_stopped = 'stopped after %s' % step.desc
                         cleanup_func = step.kwds.get('cleanup', None)
                         if callable(cleanup_func):
-                            cleanup_func(store, *step.args)
+                            try:
+                                cleanup_func(store, result, *step.args)
+                            except Exception as e:
+                                self.log.exception(e)
+                                raise
                         return
                     sleep(step.waittime)
                     if not result:
                         break
             except Exception as e:
-                self.log.exception('error in sequence step: %s', e)
+                self.log.exception(
+                    'error in sequence step %r: %s', step.desc, e)
                 self._seq_error = 'during %s: %s' % (step.desc, e)
                 break

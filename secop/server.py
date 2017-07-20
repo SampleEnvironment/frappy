@@ -22,6 +22,7 @@
 # *****************************************************************************
 """Define helpers"""
 import os
+import ast
 import time
 import psutil
 import threading
@@ -154,9 +155,10 @@ class Server(object):
                 devopts['value'] = devopts.pop('default')
             # strip '"
             for k, v in devopts.items():
-                for d in ("'", '"'):
-                    if v.startswith(d) and v.endswith(d):
-                        devopts[k] = v[1:-1]
+                try:
+                    devopts[k] = ast.literal_eval(v)
+                except Exception:
+                    pass
             devobj = devclass(
                 self.log.getChild(devname), devopts, devname, self._dispatcher)
             devs.append([devname, devobj, export])

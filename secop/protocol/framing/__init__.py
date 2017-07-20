@@ -45,10 +45,10 @@ class Framer(object):
         raise NotImplemented
 
 # now some Implementations
-from null import NullFramer
-from eol import EOLFramer
-from rle import RLEFramer
-from demo import DemoFramer
+from .null import NullFramer
+from .eol import EOLFramer
+from .rle import RLEFramer
+from .demo import DemoFramer
 
 FRAMERS = {
     'null': NullFramer,

@@ -23,6 +23,8 @@
 
 # nothing here yet.
 
+from __future__ import print_function
+
 import code
 
 
@@ -47,16 +49,19 @@ class NameSpace(dict):
         dict.__delitem__(self, name)
 
 
-import ConfigParser
+try:
+    import ConfigParser
+except ImportError:
+    import configparser as ConfigParser
 
 
 def getClientOpts(cfgfile):
     parser = ConfigParser.SafeConfigParser()
     if not parser.read([cfgfile + '.cfg']):
-        print "Error reading cfg file %r" % cfgfile
+        print("Error reading cfg file %r" % cfgfile)
         return {}
     if not parser.has_section('client'):
-        print "No Server section found!"
+        print("No Server section found!")
     return dict(item for item in parser.items('client'))
 
 
@@ -83,7 +88,7 @@ class ClientConsole(object):
 
     def helpCmd(self, arg=Ellipsis):
         if arg is Ellipsis:
-            print "No help available yet"
+            print("No help available yet")
         else:
             help(arg)
 

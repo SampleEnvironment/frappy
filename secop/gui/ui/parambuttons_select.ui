@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>730</width>
-    <height>33</height>
+    <height>39</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -36,25 +36,15 @@
      </property>
     </spacer>
    </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>Current: </string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="3">
-    <widget class="QLabel" name="label_2">
-     <property name="text">
-      <string>Set: </string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1">
-    <widget class="QComboBox" name="targetValueComboBox"/>
-   </item>
    <item row="0" column="4">
-    <widget class="QComboBox" name="comboBox_2"/>
+    <widget class="QComboBox" name="setComboBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
    </item>
    <item row="0" column="5">
     <spacer name="horizontalSpacer_2">
@@ -68,6 +58,30 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="currentLabel">
+     <property name="text">
+      <string>Current: </string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="3">
+    <widget class="QLabel" name="setLabel">
+     <property name="text">
+      <string>Set: </string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="currentLineEdit">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>

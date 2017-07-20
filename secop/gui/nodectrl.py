@@ -24,11 +24,12 @@
 import pprint
 import json
 
-from PyQt4.QtGui import QWidget, QTextCursor, QFont, QFontMetrics
-from PyQt4.QtCore import pyqtSignature as qtsig, Qt
+from PyQt4.QtGui import QWidget, QTextCursor, QFont, QFontMetrics, QLabel, QPushButton, QLineEdit, QMessageBox, QCheckBox, QSizePolicy
+from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
 
 from secop.gui.util import loadUi
 from secop.protocol.errors import SECOPError
+from secop.datatypes import StringType, EnumType
 
 
 class NodeCtrl(QWidget):
@@ -43,6 +44,9 @@ class NodeCtrl(QWidget):
         self.equipmentIdLabel.setText(self._node.equipmentId)
         self.protocolVersionLabel.setText(self._node.protocolVersion)
         self._clearLog()
+
+        # now populate modules tab
+        self._init_modules_tab()
 
     @qtsig('')
     def on_sendPushButton_clicked(self):
@@ -118,3 +122,172 @@ class NodeCtrl(QWidget):
         # due to monospace)
         result = self.logTextBrowser.width() / fontMetrics.width('a')
         return result
+
+    def _init_modules_tab(self):
+        self._moduleWidgets = []
+        layout = self.scrollAreaWidgetContents.layout()
+        labelfont = self.font()
+        labelfont.setBold(True)
+        row = 0
+        for modname in sorted(self._node.modules):
+            modprops = self._node.getModuleProperties(modname)
+            baseclass = modprops['interface']
+            description = modprops['interface']
+            unit = self._node.getProperties(modname, 'value').get('unit', '')
+
+            if unit:
+                labelstr = '%s (%s):' % (modname, unit)
+            else:
+                labelstr = '%s:' % (modname,)
+            label = QLabel(labelstr)
+            label.setFont(labelfont)
+
+            if baseclass == 'Driveable':
+                widget = DriveableWidget(self._node, modname, self)
+            elif baseclass == 'Readable':
+                widget = ReadableWidget(self._node, modname, self)
+            else:
+                widget = QLabel('Unsupported Interfaceclass %r' % baseclass)
+
+            if description:
+                widget.setToolTip(description)
+
+            layout.addWidget(label, row, 0)
+            layout.addWidget(widget, row, 1)
+
+            row += 1
+            self._moduleWidgets.extend((label, widget))
+
+
+class ReadableWidget(QWidget):
+
+    def __init__(self, node, module, parent=None):
+        super(ReadableWidget, self).__init__(parent)
+        self._node = node
+        self._module = module
+
+        params = self._node.getProperties(self._module, 'value')
+        datatype = params.get('datatype', StringType())
+        self._is_enum = isinstance(datatype, EnumType)
+
+        loadUi(self, 'modulebuttons.ui')
+
+        # populate comboBox, keeping a mapping of Qt-index to EnumValue
+        if self._is_enum:
+            self._map = {}  # maps QT-idx to name/value
+            self._revmap = {}  # maps value/name to QT-idx
+            for idx, (val, name) in enumerate(
+                    sorted(datatype.entries.items())):
+                self._map[idx] = (name, val)
+                self._revmap[name] = idx
+                self._revmap[val] = idx
+                self.targetComboBox.addItem(name, val)
+
+        self._init_status_widgets()
+        self._init_current_widgets()
+        self._init_target_widgets()
+
+        self._node.newData.connect(self._updateValue)
+
+    def _get(self, pname, fallback=Ellipsis):
+        params = self._node.queryCache(self._module)
+        if pname in params:
+            return params[pname].value
+        try:
+            return self._node.getParameter(self._module, pname)
+        except Exception:
+            self.log.exception()
+            if fallback is not Ellipsis:
+                return fallback
+            raise
+
+    def _init_status_widgets(self):
+        self.update_status(self._get('status', (999, '<not supported>')))
+        # XXX: also connect update_status signal to LineEdit ??
+
+    def update_status(self, status, qualifiers={}):
+        self.statusLineEdit.setText(str(status))
+        # may change meaning of cmdPushButton
+
+    def _init_current_widgets(self):
+        self.update_current(self._get('value', ''))
+
+    def update_current(self, value, qualifiers={}):
+        self.currentLineEdit.setText(str(value))
+
+    def _init_target_widgets(self):
+        #  Readable has no target: disable widgets
+        self.targetLineEdit.setHidden(True)
+        self.targetComboBox.setHidden(True)
+        self.cmdPushButton.setHidden(True)
+
+    def update_target(self, target, qualifiers={}):
+        pass
+
+    def target_go(self, target):
+        try:
+            self._node.setParameter(self._module, 'target', target)
+        except Exception as e:
+            QMessageBox.warning(self.parent(), 'Operation failed', str(e))
+
+    def _updateValue(self, module, parameter, value):
+        if module != self._module:
+            return
+        if parameter == 'status':
+            self.update_status(*value)
+        elif parameter == 'value':
+            self.update_current(*value)
+        elif parameter == 'target':
+            self.update_target(*value)
+
+
+class DriveableWidget(ReadableWidget):
+
+    def _init_target_widgets(self):
+        params = self._node.getProperties(self._module, 'target')
+        if self._is_enum:
+            # EnumType: disable Linedit
+            self.targetLineEdit.setHidden(True)
+        else:
+            # normal types: disable Combobox
+            self.targetComboBox.setHidden(True)
+            target = self._get('target', None)
+            if target:
+                if isinstance(target, list) and isinstance(target[1], dict):
+                    self.update_target(target[0])
+                else:
+                    self.update_target(target)
+
+    def update_current(self, value, qualifiers={}):
+        if self._is_enum:
+            self.currentLineEdit.setText(self._map[self._revmap[value]][0])
+        else:
+            self.currentLineEdit.setText(str(value))
+
+    def update_target(self, target, qualifiers={}):
+        if self._is_enum:
+            # update selected item
+            if target in self._revmap:
+                self.targetComboBox.setCurrentIndex(self._revmap[target])
+            else:
+                print(
+                    "%s: Got invalid target value %r!" %
+                    (self._module, target))
+        else:
+            self.targetLineEdit.setText(str(target))
+
+    def on_cmdPushButton_clicked(self, toggle=False):
+        if toggled:
+            return
+        if self._is_enum:
+            self.on_targetComboBox_activated()
+        else:
+            self.on_targetLineEdit_returnPressed()
+
+    def on_targetLineEdit_returnPressed(self):
+        self.target_go(self.targetLineEdit.text())
+
+    def on_targetComboBox_activated(self, stuff=''):
+        if isinstance(stuff, (str, unicode)):
+            return
+        self.target_go(self._map[self.targetComboBox.currentIndex()][0])

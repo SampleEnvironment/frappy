@@ -91,9 +91,3 @@ EXCEPTIONS = dict(
     Readonly=ReadonlyError,
     CommandFailed=CommandFailedError,
     InvalidParam=InvalidParamValueError, )
-
-if __name__ == '__main__':
-    print("Minimal testing of errors....")
-
-    print "OK"
-    print

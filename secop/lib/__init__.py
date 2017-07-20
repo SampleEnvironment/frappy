@@ -223,10 +223,10 @@ def getfqdn(name=''):
     return socket.getfqdn(name)
 
 
-if __name__ == '__main__':
-    print "minimal testing: lib"
-    d = attrdict(a=1, b=2)
-    _ = d.a + d['b']
-    d.c = 9
-    d['d'] = 'c'
-    assert d[d.d] == 9
+# if __name__ == '__main__':
+#    print "minimal testing: lib"
+#    d = attrdict(a=1, b=2)
+#    _ = d.a + d['b']
+#    d.c = 9
+#    d['d'] = 'c'
+#    assert d[d.d] == 9

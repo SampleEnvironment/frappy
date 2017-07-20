@@ -24,6 +24,8 @@
 # implement as class as they may need some internal 'state' later on
 # (think compressors)
 
+from __future__ import print_function
+
 from secop.protocol.encoding import MessageEncoder
 from secop.protocol import messages
 from secop.lib.parsing import *
@@ -43,9 +45,9 @@ class DemoEncoder(MessageEncoder):
         if match:
             novalue, devname, pname, propname, assign = match.groups()
             if assign:
-                print "parsing", assign,
+                print("parsing", assign,)
                 assign = parse_args(assign)
-                print "->", assign
+                print("->", assign)
             return messages.DemoRequest(novalue, devname, pname, propname,
                                         assign)
         return messages.HelpRequest()
@@ -56,13 +58,13 @@ class DemoEncoder(MessageEncoder):
         handler_name = '_encode_' + msg.__class__.__name__
         handler = getattr(self, handler_name, None)
         if handler is None:
-            print "Handler %s not yet implemented!" % handler_name
+            print("Handler %s not yet implemented!" % handler_name)
         try:
             args = dict((k, msg.__dict__[k]) for k in msg.ARGS)
             result = handler(**args)
         except Exception as e:
-            print "Error encoding %r with %r!" % (msg, handler)
-            print e
+            print("Error encoding %r with %r!" % (msg, handler))
+            print(e)
             return '~InternalError~'
         return result
 

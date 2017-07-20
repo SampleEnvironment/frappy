@@ -32,6 +32,7 @@ __all__ = [
     "BoolType", "EnumType",
     "BLOBType", "StringType",
     "TupleOf", "ArrayOf", "StructOf",
+    "Command",
 ]
 
 # base class for all DataTypes
@@ -39,6 +40,7 @@ __all__ = [
 
 class DataType(object):
     as_json = ['undefined']
+    IS_COMMAND = False
 
     def validate(self, value):
         """validate a external representation and return an internal one"""
@@ -139,7 +141,7 @@ class IntRange(DataType):
             return "IntRange(%d, %d)" % (self.min, self.max)
         if self.min is not None:
             return "IntRange(%d)" % self.min
-        return "IntRange(%d)" % self.min
+        return "IntRange()"
 
     def export(self, value):
         """returns a python object fit for serialisation"""
@@ -159,7 +161,6 @@ class EnumType(DataType):
         num = 0
         for arg in args:
             if not isinstance(arg, str):
-                print arg, type(arg)
                 raise ValueError('EnumType entries MUST be strings!')
             self.entries[num] = arg
             num += 1
@@ -172,8 +173,8 @@ class EnumType(DataType):
                     v,
                     self.entries[v])
             self.entries[v] = k
-        if len(self.entries) == 0:
-            raise ValueError('Empty enums ae not allowed!')
+#        if len(self.entries) == 0:
+#            raise ValueError('Empty enums ae not allowed!')
         self.reversed = {}
         for k, v in self.entries.items():
             if v in self.reversed:
@@ -442,7 +443,7 @@ class StructOf(DataType):
             if len(value.keys()) != len(self.named_subtypes.keys()):
                 raise ValueError(
                     'Illegal number of Arguments! Need %d arguments.', len(
-                        self.namd_subtypes.keys()))
+                        self.named_subtypes.keys()))
             # validate elements and return as dict
             return dict((str(k), self.named_subtypes[k].validate(v))
                         for k, v in value.items())
@@ -463,6 +464,60 @@ class StructOf(DataType):
         return self.validate(dict(value))
 
 
+class Command(DataType):
+    IS_COMMAND = True
+
+    def __init__(self, argtypes=[], resulttype=None):
+        for arg in argsin:
+            if not isinstance(arg, DataType):
+                raise ValueError('Command: Argument types must be DataTypes!')
+        if resulttype is not None:
+            if not isinstance(resulttype, DataType):
+                raise ValueError('Command: result type must be DataTypes!')
+        self.argtypes = argtypes
+        self.resulttype = resulttype
+
+        if resulttype is not None:
+            self.as_json = ['command',
+                            [t.as_json for t in argtypes],
+                            resulttype.as_json]
+        else:
+            self.as_json = ['command',
+                            [t.as_json for t in argtypes],
+                            None]  # XXX: or NoneType ???
+
+    def __repr__(self):
+        argstr = ', '.join(repr(arg) for arg in self.argtypes)
+        if self.resulttype is None:
+            return 'Command(%s)' % argstr
+        return 'Command(%s)->%s' % (argstr, repr(self.resulttype))
+
+    def validate(self, value):
+        """return the validated arguments value or raise"""
+        try:
+            if len(value) != len(self.argtypes):
+                raise ValueError(
+                    'Illegal number of Arguments! Need %d arguments.', len(
+                        self.argtypes))
+            # validate elements and return
+            return [t.validate(v) for t, v in zip(self.argtypes, value)]
+        except Exception as exc:
+            raise ValueError('Can not validate %s: %s', repr(value), str(exc))
+
+    def export(self, value):
+        """returns a python object fit for serialisation"""
+        if len(value) != len(self.argtypes):
+            raise ValueError(
+                'Illegal number of Arguments! Need %d arguments.' % len(
+                    self.argtypes))
+#        return [t.export(v) for t,v in zip(self.argtypes, value)]
+
+    def from_string(self, text):
+        import ast
+        value = ast.literal_eval(text)
+        return self.validate(value)
+
+
 # XXX: derive from above classes automagically!
 DATATYPES = dict(
     bool=lambda: BoolType(),
@@ -476,6 +531,7 @@ DATATYPES = dict(
     enum=lambda kwds: EnumType(**kwds),
     struct=lambda named_subtypes: StructOf(
         **dict((n, get_datatype(t)) for n, t in named_subtypes.items())),
+    command=Command,
 )
 
 

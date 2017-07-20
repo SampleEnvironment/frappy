@@ -21,6 +21,8 @@
 #
 # *****************************************************************************
 
+from __future__ import print_function
+
 from PyQt4.QtGui import QMainWindow, QInputDialog, QTreeWidgetItem, QMessageBox
 from PyQt4.QtCore import pyqtSignature as qtsig, QObject, pyqtSignal
 
@@ -91,7 +93,7 @@ class MainWindow(QMainWindow):
             try:
                 self._addNode(host)
             except Exception as e:
-                print e
+                print(e)
 
     @qtsig('')
     def on_actionAdd_SEC_node_triggered(self):
@@ -108,11 +110,11 @@ class MainWindow(QMainWindow):
                                  'Connecting to %s failed!' % host, str(e))
 
     def on_validateCheckBox_toggled(self, state):
-        print "validateCheckBox_toggled", state
+        print("validateCheckBox_toggled", state)
 
     def on_visibilityComboBox_activated(self, level):
         if level in ['user', 'admin', 'expert']:
-            print "visibility Level now:", level
+            print("visibility Level now:", level)
 
     def on_treeWidget_currentItemChanged(self, current, previous):
         if current.type() == ITEM_TYPE_NODE:

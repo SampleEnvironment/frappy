@@ -21,12 +21,20 @@
 # *****************************************************************************
 """Define Client side proxies"""
 
+from __future__ import print_function
+
 import json
 import socket
 import serial
 from select import select
 import threading
-import Queue
+
+# Py2/3
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
+
 from collections import OrderedDict
 
 import mlzlog
@@ -71,14 +79,14 @@ class TCPConnection(object):
                     if dlist[0] in rlist + wlist:
                         newdata = self._io.recv(1024)
                     if dlist[0] in xlist:
-                        print "Problem: exception on socket, reconnecting!"
+                        print("Problem: exception on socket, reconnecting!")
                         for cb, arg in self.callbacks:
                             cb(arg)
                         return
                 except socket.timeout:
                     pass
                 except Exception as err:
-                    print err, "reconnecting"
+                    print(err, "reconnecting")
                     for cb, arg in self.callbacks:
                         cb(arg)
                     return
@@ -260,7 +268,6 @@ class Client(object):
                            if spec else "got expected reply '%s'" % msgtype)
             entry.extend([False, msgtype, spec, data])
             entry[0].set()
-            return
 
     def encode_message(self, requesttype, spec='', data=None):
         """encodes the given message to a string
@@ -292,12 +299,17 @@ class Client(object):
 
     def _handle_event(self, spec, data):
         """handles event"""
-        self.log.debug('handle_event %r %r' % (spec, data))
+#        self.log.debug('handle_event %r %r' % (spec, data))
         if ':' not in spec:
             self.log.warning("deprecated specifier %r" % spec)
             spec = '%s:value' % spec
         modname, pname = spec.split(':', 1)
+        previous = '<unset>'
+        if modname in self._cache:
+            if pname in self._cache:
+                previous = self._cache[modname][pname]
         self._cache.setdefault(modname, {})[pname] = Value(*data)
+#        self.log.info('cache: %s:%s=%r (was: %s)', modname, pname, data, previous)
         if spec in self.callbacks:
             for func in self.callbacks[spec]:
                 try:
@@ -351,6 +363,12 @@ class Client(object):
                     ['parameters', 'commands'], module)
 
             self.describing_data = describing_data
+#            import pprint
+#            def r(stuff):
+#             if isinstance(stuff, dict):
+#              return dict((k,r(v)) for k,v in stuff.items())
+#             return stuff
+#            pprint.pprint(r(describing_data))
 
             for module, moduleData in self.describing_data['modules'].items():
                 for parameter, parameterData in moduleData[
@@ -359,7 +377,7 @@ class Client(object):
                     self.describing_data['modules'][module]['parameters'] \
                         [parameter]['datatype'] = datatype
         except Exception as exc:
-            print formatException(verbose=True)
+            print(formatException(verbose=True))
             raise
 
     def register_callback(self, module, parameter, cb):
@@ -402,6 +420,10 @@ class Client(object):
         if msgtype == "*IDN?":
             return self.secop_id
 
+        # sanitize input
+        msgtype = str(msgtype)
+        spec = str(spec)
+
         if msgtype not in ('*IDN?', 'describe', 'activate', 'deactivate', 'do',
                            'change', 'read', 'ping', 'help'):
             raise EXCEPTIONS['Protocol'](args=[
@@ -411,9 +433,7 @@ class Client(object):
                     errorinfo='%r: No Such Messagetype defined!' % msgtype, ),
             ])
 
-        # sanitize input + handle syntactic sugar
-        msgtype = str(msgtype)
-        spec = str(spec)
+        # handle syntactic sugar
         if msgtype == 'change' and ':' not in spec:
             spec = spec + ':target'
         if msgtype == 'read' and ':' not in spec:
@@ -459,14 +479,6 @@ class Client(object):
         self.stopflag = True
         if self._thread and self._thread.is_alive():
             self.thread.join(self._thread)
-
-    def handle_async(self, msg):
-        self.log.info("Got async update %r" % msg)
-        device = msg.device
-        param = msg.param
-        value = msg.value
-        self._cache.getdefault(device, {})[param] = value
-        # XXX: further notification-callbacks needed ???
 
     def startup(self, async=False):
         self._issueDescribe()
@@ -524,7 +536,7 @@ class Client(object):
         return self.getModuleProperties(module)['interface']
 
     def getCommands(self, module):
-        return self.describing_data['modules'][module]['commands'].keys()
+        return self.describing_data['modules'][module]['commands']
 
     def getProperties(self, module, parameter):
         return self.describing_data['modules'][module]['parameters'][parameter]

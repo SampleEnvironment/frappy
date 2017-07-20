@@ -31,11 +31,11 @@ import types
 import inspect
 import threading
 
-from secop.lib import formatExtendedStack
+from secop.lib import formatExtendedStack, mkthread
 from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
 from secop.protocol import status
-from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange, export_datatype
+from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange, export_datatype, get_datatype
 
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
@@ -72,6 +72,7 @@ class PARAM(object):
         self.readonly = readonly
         self.export = export
         self.group = group
+
         # note: auto-converts True/False to 1/0 which yield the expected
         # behaviour...
         self.poll = int(poll)
@@ -214,7 +215,9 @@ class DeviceMeta(type):
                 else:
                     # return cached value
                     self.log.debug("rfunc(%s): return cached value" % pname)
-                    return self.PARAMS[pname].value
+                    value = self.PARAMS[pname].value
+                    setattr(self, pname, value)
+                    return value
 
             if rfunc:
                 wrapped_rfunc.__doc__ = rfunc.__doc__
@@ -300,10 +303,13 @@ class Device(object):
         'meaning': None,  # XXX: ???
         'priority': None,  # XXX: ???
         'visibility': None,  # XXX: ????
+        'description': "The manufacturer forgot to set a meaningful description. please nag him!",
         # what else?
     }
     # PARAMS and CMDS are auto-merged upon subclassing
-    PARAMS = {}
+#    PARAMS = {
+#        'description': PARAM('short description of this module and its function', datatype=StringType(), default='no specified'),
+#    }
     CMDS = {}
     DISPATCHER = None
 
@@ -318,6 +324,12 @@ class Device(object):
             params[k] = v.copy()
 
         self.PARAMS = params
+        # make local copies of PROPERTIES
+        props = {}
+        for k, v in self.PROPERTIES.items()[:]:
+            props[k] = v
+
+        self.PROPERTIES = props
 
         # check and apply properties specified in cfgdict
         # moduleproperties are to be specified as
@@ -347,7 +359,9 @@ class Device(object):
                 paramname, propname = k.split('.', 1)
                 if paramname in self.PARAMS:
                     paramobj = self.PARAMS[paramname]
-                    if hasattr(paramobj, propname):
+                    if propname == 'datatype':
+                        paramobj.datatype = get_datatype(cfgdict.pop(k))
+                    elif hasattr(paramobj, propname):
                         setattr(paramobj, propname, v)
                         del cfgdict[k]
 
@@ -355,8 +369,10 @@ class Device(object):
         # only accept config items specified in PARAMS
         for k, v in cfgdict.items():
             if k not in self.PARAMS:
-                raise ConfigError('Device %s:config Parameter %r '
-                                  'not unterstood!' % (self.name, k))
+                raise ConfigError(
+                    'Device %s:config Parameter %r '
+                    'not unterstood! (use on of %r)' %
+                    (self.name, k, self.PARAMS.keys()))
         # complain if a PARAM entry has no default value and
         # is not specified in cfgdict
         for k, v in self.PARAMS.items():
@@ -385,6 +401,7 @@ class Device(object):
                     v = datatype.validate(v)
                 except (ValueError, TypeError) as e:
                     self.log.exception(formatExtendedStack())
+                    raise
                     raise ConfigError('Device %s: config parameter %r:\n%r' %
                                       (self.name, k, e))
             setattr(self, k, v)
@@ -393,6 +410,10 @@ class Device(object):
     def init(self):
         # may be overriden in derived classes to init stuff
         self.log.debug('empty init()')
+        mkthread(self.late_init)
+
+    def late_init(self):
+        self.log.debug('late init()')
 
 
 class Readable(Device):
@@ -402,7 +423,7 @@ class Readable(Device):
     """
     PARAMS = {
         'value': PARAM('current value of the device', readonly=True, default=0.,
-                       datatype=FloatRange(), poll=True),
+                       datatype=FloatRange(), unit='', poll=True),
         'pollinterval': PARAM('sleeptime between polls', default=5,
                               readonly=False, datatype=FloatRange(0.1, 120), ),
         'status': PARAM('current status of the device', default=(status.OK, ''),
@@ -427,25 +448,43 @@ class Readable(Device):
     def __pollThread(self):
         """super simple and super stupid per-module polling thread"""
         i = 0
+        fastpoll = True  # first update should be quick
         while True:
             i = 1
             try:
-                time.sleep(self.pollinterval)
+                time.sleep(self.pollinterval * (0.1 if fastpoll else 1))
             except TypeError:
-                time.sleep(max(self.pollinterval))
-            try:
-                self.poll(i)
-            except Exception:  # really ALL
-                pass
+                time.sleep(min(self.pollinterval)
+                           if fastpoll else max(self.pollinterval))
+            fastpoll = self.poll(i)
 
     def poll(self, nr):
+        # poll status first
+        fastpoll = False
+        if 'status' in self.PARAMS:
+            stat = self.read_status(0)
+#            self.log.info('polling read_status -> %r' % (stat,))
+            fastpoll = stat[0] == status.BUSY
+#        if fastpoll:
+#            self.log.info('fastpoll!')
         for pname, pobj in self.PARAMS.iteritems():
             if not pobj.poll:
                 continue
-            if 0 == nr % int(pobj.poll):
+            if pname == 'status':
+                # status was already polled above
+                continue
+            if ((int(pobj.poll) < 0) and fastpoll) or (
+                    0 == nr % abs(int(pobj.poll))):
+                # poll always if pobj.poll is negative and fastpoll (i.e. device is busy)
+                # otherwise poll every 'pobj.poll' iteration
                 rfunc = getattr(self, 'read_' + pname, None)
                 if rfunc:
-                    rfunc()
+                    try:
+                        #                        self.log.info('polling read_%s -> %r' % (pname, rfunc()))
+                        rfunc()
+                    except Exception:  # really all!
+                        pass
+        return fastpoll
 
 
 class Driveable(Readable):

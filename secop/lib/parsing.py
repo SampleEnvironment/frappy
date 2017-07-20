@@ -177,7 +177,6 @@ class ArgsParser(object):
         self.length = len(string)
 
     def setstring(self, string):
-        print repr(string)
         self.string = string
         self.idx = 0
         self.length = len(string)
@@ -191,7 +190,6 @@ class ArgsParser(object):
     def get(self):
         res = self.peek()
         self.idx += 1
-        print "get->", res
         return res
 
     def skip(self):
@@ -222,17 +220,14 @@ class ArgsParser(object):
         idx = self.idx
         res = self.parse_array()
         if res:
-            print "is Array"
             return res
         self.idx = idx
         res = self.parse_record()
         if res:
-            print "is record"
             return res
         self.idx = idx
         res = self.parse_string()
         if res:
-            print "is string"
             return res
         self.idx = idx
         return self.parse_number()
@@ -388,26 +383,26 @@ def parse_args(s):
 
 __ALL__ = ['format_time', 'parse_time', 'parse_args']
 
-if __name__ == '__main__':
-    print "minimal testing: lib/parsing:"
-    print "time_formatting:",
-    t = time.time()
-    s = format_time(t)
-    assert (abs(t - parse_time(s)) < 1e-6)
-    print "OK"
+# if __name__ == '__main__':
+#    print "minimal testing: lib/parsing:"
+#    print "time_formatting:",
+#    t = time.time()
+#    s = format_time(t)
+#    assert (abs(t - parse_time(s)) < 1e-6)
+#    print "OK"#
+#
+#    print "ArgsParser:"
+#    a = ArgsParser()
+#    print a.parse('[   "\'\\\"A" , "<>\'", \'",C\', [1.23e1, 123.0e-001] , ]')
 
-    print "ArgsParser:"
-    a = ArgsParser()
-    print a.parse('[   "\'\\\"A" , "<>\'", \'",C\', [1.23e1, 123.0e-001] , ]')
+#    #import pdb
+#    #pdb.run('print a.parse()', globals(), locals())
 
-    #import pdb
-    #pdb.run('print a.parse()', globals(), locals())
-
-    print "args_formatting:",
-    for obj in [1, 2.3, 'X', (1, 2, 3), [1, (3, 4), 'X,y']]:
-        s = format_args(obj)
-        p = a.parse(s)
-        print p,
-        assert (parse_args(format_args(obj)) == obj)
-        print "OK"
-    print "OK"
+#    print "args_formatting:",
+#    for obj in [1, 2.3, 'X', (1, 2, 3), [1, (3, 4), 'X,y']]:
+#        s = format_args(obj)
+#        p = a.parse(s)
+#        print p,
+#        assert (parse_args(format_args(obj)) == obj)
+#        print "OK"
+#    print "OK"

@@ -39,12 +39,12 @@ class MessageEncoder(object):
         raise NotImplemented
 
 
-from demo_v2 import DemoEncoder as DemoEncoderV2
-from demo_v3 import DemoEncoder as DemoEncoderV3
-from demo_v4 import DemoEncoder as DemoEncoderV4
-from text import TextEncoder
-from pickle import PickleEncoder
-from simplecomm import SCPEncoder
+from .demo_v2 import DemoEncoder as DemoEncoderV2
+from .demo_v3 import DemoEncoder as DemoEncoderV3
+from .demo_v4 import DemoEncoder as DemoEncoderV4
+from .text import TextEncoder
+from .pickle import PickleEncoder
+from .simplecomm import SCPEncoder
 
 ENCODERS = {
     'pickle': PickleEncoder,

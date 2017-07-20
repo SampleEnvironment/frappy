@@ -269,7 +269,7 @@ class Dispatcher(object):
 
         # now call func and wrap result as value
         # note: exceptions are handled in handle_request, not here!
-        func = getattr(moduleobj, 'do' + command)
+        func = getattr(moduleobj, 'do_' + command)
         res = func(*arguments)
         res = CommandReply(
             module=modulename,
@@ -319,12 +319,14 @@ class Dispatcher(object):
             # note: exceptions are handled in handle_request, not here!
             readfunc()
         if pobj.timestamp:
-            return Value(
+            res = Value(
                 modulename,
                 parameter=pname,
                 value=pobj.export_value,
                 t=pobj.timestamp)
-        return Value(modulename, parameter=pname, value=pobj.export_value)
+        else:
+            res = Value(modulename, parameter=pname, value=pobj.export_value)
+        return res
 
     # now the (defined) handlers for the different requests
     def handle_Help(self, conn, msg):
@@ -404,6 +406,10 @@ class Dispatcher(object):
                         unit=pobj.unit)
                 if res.value != Ellipsis:  # means we do not have a value at all so skip this
                     self.broadcast_event(res)
+                else:
+                    self.log.error(
+                        'activate: got no value for %s:%s!' %
+                        modulename, pname)
         conn.queue_async_reply(ActivateReply(**msg.as_dict()))
         return None
 
