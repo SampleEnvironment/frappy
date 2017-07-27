@@ -277,7 +277,7 @@ class DriveableWidget(ReadableWidget):
             self.targetLineEdit.setText(str(target))
 
     def on_cmdPushButton_clicked(self, toggle=False):
-        if toggled:
+        if toggle:
             return
         if self._is_enum:
             self.on_targetComboBox_activated()

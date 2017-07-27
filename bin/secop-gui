@@ -51,7 +51,7 @@ def main(argv=None):
         print()
         print("if not given, host defaults to 'localhost' and port to 10767")
         sys.exit(0)
-        
+
     if '-d' in argv or '--debug' in argv:
         mlzlog.initLogging('gui', 'debug')
     else:
