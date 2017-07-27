@@ -1,3 +1,13 @@
+secop-core (0.0.3) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Add lib/sequence support
+  * provide setup for MLZ_Amagnet to be used @PSI soon (fixes: #3381)
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 27 Jul 2017 11:27:28 +0200
+
 secop-core (0.0.2) unstable; urgency=medium
 
   [ Enrico Faulhaber ]
