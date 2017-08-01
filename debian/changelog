@@ -1,3 +1,12 @@
+secop-core (0.0.8) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * [deb] include init script in secop-core pkg.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 01 Aug 2017 14:13:11 +0200
+
 secop-core (0.0.7) unstable; urgency=low
 
   [ Alexander Lenz ]
