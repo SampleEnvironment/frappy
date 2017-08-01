@@ -29,7 +29,11 @@ import threading
 import ConfigParser
 
 from daemon import DaemonContext
-from daemon.pidfile import TimeoutPIDLockFile
+
+try:
+    import daemon.pidlockfile as pidlockfile
+except ImportError:
+    import daemon.pidfile as pidlockfile
 
 from secop.lib import get_class, formatException
 from secop.protocol.dispatcher import Dispatcher
@@ -57,7 +61,7 @@ class Server(object):
         piddir = os.path.dirname(self._pidfile)
         if not os.path.isdir(piddir):
             os.makedirs(piddir)
-        pidfile = TimeoutPIDLockFile(self._pidfile)
+        pidfile = pidlockfile.TimeoutPIDLockFile(self._pidfile)
 
         if pidfile.is_locked():
             self.log.error('Pidfile already exists. Exiting')
