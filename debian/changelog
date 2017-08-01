@@ -1,3 +1,12 @@
+secop-core (0.0.5) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * init script: add should start.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 01 Aug 2017 13:11:43 +0200
+
 secop-core (0.0.4) unstable; urgency=low
 
   [ Enrico Faulhaber ]
