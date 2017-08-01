@@ -43,6 +43,7 @@ setup(
     description = 'SECoP Playground core system',
     packages = find_packages(),
     package_data = {'secop': ['RELEASE-VERSION'] + uis},
+    data_files = [('/etc/init.d', ['etc/secop-server'])],
     scripts = scripts,
     classifiers = [
         'Development Status :: 6 - Mature',
