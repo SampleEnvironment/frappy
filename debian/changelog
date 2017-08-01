@@ -1,3 +1,12 @@
+secop-core (0.0.7) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * secop-server: import compability for daemon pkgs.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 01 Aug 2017 13:52:15 +0200
+
 secop-core (0.0.6) unstable; urgency=low
 
   [ Alexander Lenz ]
