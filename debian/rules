@@ -13,7 +13,9 @@ override_dh_install:
 	dh_install --list-missing
 
 override_dh_installinit:
-	dh_installinit --onlyscripts
+	if [ "$$(lsb_release -s -c)" = "wheezy" ] ; then \
+		dh_installinit --onlyscripts --name=secop-server --no-start; \
+	fi
 
 %:
 	dh $@ --with python2 --buildsystem=python_distutils
