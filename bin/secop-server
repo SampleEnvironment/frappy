@@ -27,16 +27,12 @@ import sys
 import argparse
 from os import path
 
-# Pathes magic to make python find out stuff.
-# also remember our basepath (for etc, pid lookup, etc)
-basepath = path.abspath(path.join(sys.path[0], '..'))
-etc_path = path.join(basepath, 'etc')
-pid_path = path.join(basepath, 'pid')
-log_path = path.join(basepath, 'log')
-#sys.path[0] = path.join(basepath, 'src')
-sys.path[0] = basepath
-
 import mlzlog
+
+# Add import path for inplace usage
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+from secop.lib import getGeneralConfig
 from secop.server import Server
 
 
@@ -67,9 +63,9 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
-    mlzlog.initLogging('secop', loglevel, log_path)
+    mlzlog.initLogging('secop', loglevel, getGeneralConfig()['logdir'])
 
-    srv = Server(args.name, basepath, mlzlog.log)
+    srv = Server(args.name, mlzlog.log)
 
     if args.daemonize:
         srv.start()

@@ -36,6 +36,20 @@ import unicodedata
 from os import path
 
 
+repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
+
+CONFIG = {
+    'piddir': os.path.join(repodir, 'pid'),
+    'logdir': os.path.join(repodir, 'log'),
+    'confdir': os.path.join(repodir, 'etc'),
+} if os.path.exists(os.path.join(repodir, '.git')) else {
+    'piddir': '/var/run/secop',
+    'logdir': '/var/log/secop',
+    'confdir': '/etc/secop',
+}
+
+
+
 class lazy_property(object):
     """A property that calculates its value only once."""
 
@@ -223,10 +237,5 @@ def getfqdn(name=''):
     return socket.getfqdn(name)
 
 
-# if __name__ == '__main__':
-#    print "minimal testing: lib"
-#    d = attrdict(a=1, b=2)
-#    _ = d.a + d['b']
-#    d.c = 9
-#    d['d'] = 'c'
-#    assert d[d.d] == 9
+def getGeneralConfig():
+    return CONFIG

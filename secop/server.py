@@ -35,24 +35,22 @@ try:
 except ImportError:
     import daemon.pidfile as pidlockfile
 
-from secop.lib import get_class, formatException
+from secop.lib import get_class, formatException, getGeneralConfig
 from secop.protocol.dispatcher import Dispatcher
 from secop.protocol.interface import INTERFACES
-#from secop.protocol.encoding import ENCODERS
-#from secop.protocol.framing import FRAMERS
 from secop.errors import ConfigError
 
 
 class Server(object):
 
-    def __init__(self, name, workdir, parentLogger=None):
+    def __init__(self, name, parentLogger=None):
         self._name = name
-        self._workdir = workdir
 
         self.log = parentLogger.getChild(name, True)
 
-        self._pidfile = os.path.join(workdir, 'pid', name + '.pid')
-        self._cfgfile = os.path.join(workdir, 'etc', name + '.cfg')
+        cfg = getGeneralConfig()
+        self._pidfile = os.path.join(cfg['piddir'], name + '.pid')
+        self._cfgfile = os.path.join(cfg['confdir'], name + '.cfg')
 
         self._dispatcher = None
         self._interface = None
@@ -67,7 +65,6 @@ class Server(object):
             self.log.error('Pidfile already exists. Exiting')
 
         with DaemonContext(
-                working_directory=self._workdir,
                 pidfile=pidfile,
                 files_preserve=self.log.getLogfileStreams()):
             self.run()
