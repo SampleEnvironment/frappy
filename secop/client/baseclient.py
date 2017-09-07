@@ -138,12 +138,16 @@ class Value(object):
         self.value = value
         self.__dict__.update(qualifiers)
         if 't' in qualifiers:
-            self.t = parse_time(qualifiers['t'])
+            try:
+                self.t = float(qualifiers['t'])
+            except Exception:
+                self.t = parse_time(qualifiers['t'])
 
     def __repr__(self):
         r = []
         if self.t is not None:
             r.append("timestamp=%r" % format_time(self.t))
+            print("Check 3")
         if self.u is not None:
             r.append('unit=%r' % self.u)
         if self.e is not None:

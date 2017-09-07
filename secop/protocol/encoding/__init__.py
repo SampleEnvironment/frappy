@@ -42,6 +42,7 @@ class MessageEncoder(object):
 from .demo_v2 import DemoEncoder as DemoEncoderV2
 from .demo_v3 import DemoEncoder as DemoEncoderV3
 from .demo_v4 import DemoEncoder as DemoEncoderV4
+from .demo_v5 import DemoEncoder as DemoEncoderV5
 from .text import TextEncoder
 from .pickle import PickleEncoder
 from .simplecomm import SCPEncoder
@@ -52,7 +53,8 @@ ENCODERS = {
     'demo_v2': DemoEncoderV2,
     'demo_v3': DemoEncoderV3,
     'demo_v4': DemoEncoderV4,
-    'demo': DemoEncoderV4,
+    'demo_v5': DemoEncoderV5,
+    'demo': DemoEncoderV5,
     'scp': SCPEncoder,
 }
 

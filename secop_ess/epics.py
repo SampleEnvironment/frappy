@@ -22,7 +22,6 @@
 
 import random
 
-from secop.lib.parsing import format_time
 from secop.datatypes import EnumType, TupleOf, FloatRange, get_datatype, StringType
 from secop.modules import Readable, Device, Driveable, PARAM
 from secop.protocol import status
