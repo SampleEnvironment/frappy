@@ -23,11 +23,25 @@
 
 from __future__ import print_function
 
-from PyQt4.QtGui import QWidget, QLabel, QPushButton as QButton, QLineEdit, QMessageBox, QCheckBox, QSizePolicy
+from PyQt4.QtGui import QWidget, QLabel, QPushButton as QButton, QLineEdit, QMessageBox, QCheckBox, QSizePolicy, QDialog
 from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
 
 from secop.gui.util import loadUi
 from secop.gui.params import ParameterView
+
+
+def showCommandResultDialog(command, args, result, extras=''):
+    m = QMessageBox()
+    if not args:
+        args = ''
+    m.setText('calling: %s(%s)\nyielded: %s\nqualifiers: %s' %
+              (command, args, result, extras))
+    m.exec_()
+
+
+def showErrorDialog(error):
+    m = QMessageBox(str(error))
+    m.exec_()
 
 
 class ParameterGroup(QWidget):
@@ -63,6 +77,29 @@ class ParameterGroup(QWidget):
                 w.hide()
 
 
+class CommandButton(QWidget):
+
+    def __init__(self, cmdname, argin, cb, parent=None):
+        super(CommandButton, self).__init__(parent)
+        loadUi(self, 'cmdbuttons.ui')
+
+        self._cmdname = cmdname
+        self._argin = argin   # list of datatypes
+        self._cb = cb  # callback function for exection
+
+        if not argin:
+            self.cmdLineEdit.setHidden(True)
+        self.cmdPushButton.setText(cmdname)
+
+    def on_cmdPushButton_pressed(self):
+        self.cmdPushButton.setEnabled(False)
+        if self._argin:
+            self._cb(self._cmdname, self.cmdLineEdit.text())
+        else:
+            self._cb(self._cmdname, None)
+        self.cmdPushButton.setEnabled(True)
+
+
 class ModuleCtrl(QWidget):
 
     def __init__(self, node, module, parent=None):
@@ -83,9 +120,31 @@ class ModuleCtrl(QWidget):
 
         self._node.newData.connect(self._updateValue)
 
+    def _execCommand(self, command, arg=None):
+        if arg:  # try to validate input
+            #  XXX: check datatypes with their validators?
+            import ast
+            try:
+                arg = ast.literal_eval(arg)
+            except Exception as e:
+                return showErrorDialog(e)
+        result, qualifiers = self._node.execCommand(self._module, command, arg)
+        showCommandResultDialog(command, arg, result, qualifiers)
+
     def _initModuleWidgets(self):
         initValues = self._node.queryCache(self._module)
         row = 0
+
+        # ignore groupings for commands (for now)
+        commands = self._node.getCommands(self._module)
+        # keep a reference or the widgets are detroyed to soon.
+        self.cmdWidgets = cmdWidgets = {}
+        # create and insert widgets into our QGridLayout
+        for command in sorted(commands):
+            w = CommandButton(command, [], self._execCommand)
+            cmdWidgets[command] = w
+            self.commandGroupBox.layout().addWidget(w, row, 0, 1, 0)
+            row += 1
 
         # collect grouping information
         paramsByGroup = {}  # groupname -> [paramnames]
@@ -101,7 +160,8 @@ class ModuleCtrl(QWidget):
             if param not in initValues:
                 self._node.getParameter(self._module, param)
 
-        groupWidgets = {}  # groupname -> CheckBoxWidget for (un)folding
+        # groupname -> CheckBoxWidget for (un)folding
+        self._groupWidgets = groupWidgets = {}
 
         # create and insert widgets into our QGridLayout
         for param in sorted(allGroups.union(set(params))):

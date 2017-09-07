@@ -439,7 +439,7 @@ class Client(object):
         if msgtype == 'read' and ':' not in spec:
             spec = spec + ':value'
 
-        # check if a such a request is already out
+        # check if such a request is already out
         rply = self._get_reply_from_request(msgtype)
         if (rply, spec) in self.expected_replies:
             raise RuntimeError(
@@ -537,6 +537,10 @@ class Client(object):
 
     def getCommands(self, module):
         return self.describing_data['modules'][module]['commands']
+
+    def execCommand(self, module, command, args=None):
+        #  ignore reply message + reply specifier, only return data
+        return self._communicate('do', '%s:%s' % (module, command), self.encode_message(args) if args else None)[2]
 
     def getProperties(self, module, parameter):
         return self.describing_data['modules'][module]['parameters'][parameter]
