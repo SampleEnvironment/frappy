@@ -12,6 +12,7 @@ clean:
 doc: doc/*.md
 	@echo "Generating html tree"
 	@bin/make_doc.py
+	$(MAKE) -C doc/srcdoc html
 
 demo:
 	@bin/secop-server -q demo &

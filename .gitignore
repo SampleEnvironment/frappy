@@ -8,3 +8,6 @@ pid/*
 
 RELEASE-VERSION
 build
+
+# Sphinx
+doc/srcdoc/_build

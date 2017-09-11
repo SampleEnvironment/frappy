@@ -1,4 +1,3 @@
-
 SECoP Messages
 ==============
 
@@ -33,7 +32,8 @@ Also: each client MUST at any time correctly handle incoming event messages, eve
 Implementation node:
 Both SEC-node and ECS-client can close the connection at any time!
 
-list of Intents/Actions:
+
+List of Intents/Actions:
 ------------------------
 
   * Identify -&gt; Ident
@@ -55,6 +55,7 @@ Warning: One Message per line: Description line can be looooong!!!
 Allowed combinations as examples:
 (replace &lt;..&gt; with sensible stuff)
 
+
 Identify
 --------
 
@@ -63,6 +64,7 @@ Identify
   * queries if SECoP protocol is supported and which version it is
   Format is intentionally choosen to be compatible to SCPI (for this query only).
   It is NOT intended to transport information about the manufacturer of the hardware, but to identify this as a SECoP device and transfer the protocol version!
+
 
 Describe
 --------
@@ -131,6 +133,7 @@ Heartbeat
 
 EVENT
 -----
+
 Events can be emitted any time from the SEC-node (except if they would interrupt another message).
 
   * Request: None. Events can be requested by Trigger or by Activating Async Mode.
@@ -179,10 +182,9 @@ ERROR
   * 'ERROR SyntaxError "meas:Volt?"
 
 
-Example
-=======
+Examples
+--------
 
-<pre>
 (client connects):
 (client)    '*IDN?'
 (SEC-node)  'Sine2020WP7.1&ISSE, SECoP, V2016-11-30, rc1'
@@ -197,166 +199,4 @@ Example
 (SEC-node)  'pong fancy_nonce_37'
 (SEC-node)  'update T1 [3.49,{"t":"149128945.921397","e":0.01897}]'
 ...
-</pre>
 
-Discussion & open Points
-========================
-
-  * If more than one connection exists: shall all events be relayed to all listeners?
-  * how about WRITE/COMMAND replies? Shall they go to all connected clients?
-  * structure of descriptive data needs to be specified
-  * same for JSON_stuff for Error Messages
-  * 'changed' may be 'readback'
-  * 'change' may be 'write'
-  * 'read' may be 'poll'
-  * the whole message may be json object (bigger, uglier to read)
-  * which events are broadcast or unicast?
-  * do we need a way to correlate a reply with a request?
-  * ...
-
-
-Meeting 29.5.2017
-=================
-  * for api: float is 'double'
-  * everything countable is int64_t
-  * description is string (UTF-8 without embedded \0) (zero terminated for API)
-  * names / identifiers are:  [_a-z][_a-z0-9]{0,63}
-  * BLOB is [length, string_encoding (base64 or json_string) ] ???
-  * enum is transferred by value (api: int64_t)
-
-  * basic data types: string, BLOB(maxsize), int, double, bool, enum(mapping)
-  * encode as ["string"] ["blob"] ["int"] ["double"] ["bool"] ["enum", {&lt;number_value&gt;:&lt;name&gt;}]
-  * send as json_string [length, json_string] number number 0_or_1 number_value
-  
-  * complex data types: array, tuple, struct
-  * encode as: ["array", &lt;subtype&gt;] ["tuple", [&lt;list_of_compositing data types&gt;] ["struct", {"name_of_subcomponent":&lt;type of subcomponent&gt;}]
-  * send as [array] [array} {mapping}
-  * forbid: structs in structs, nesting level &gt; 3, arrays may only contain basic types + tuple
-  * essential features should not rely on complex data types
-  * fallback: if ECS can not handle a non-basic datatype: handle as string containing the JSON-representation.
-
-  * mandatory for all ECS: enum, int, double, string, bool, tuple(enum,string)
-
-
-merge datatype and validator:
------------------------------
-  * ["enum", {&lt;number_value&gt;:&lt;json_string&gt;}]
-  * ["int"] or ["int", &lt;lowest_allowed_value&gt;, &lt;highest_allowed_value&gt;]
-  * ["double"] or ["double", &lt;lowest_allowed_value&gt;, &lt;highest_allowed_value&gt;]
-  * ["bool"]
-  * ["blob", &lt;maximum_size_in_bytes&gt;] or ["blob", &lt;minimum_size_in_bytes&gt;, &lt;maximum_size_in_bytes&gt;]
-  * ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;min_size&gt;, &lt;max_size&gt;]
-  * ["array", &lt;basic_data_type&gt;, &lt;max_elements&gt;] or ["array", &lt;dtype&gt;, &lt;min_elements&gt;, &lt;max_elements&gt;]
-  * ["tuple", [ &lt;list_of_dtypes ]]
-  * ["struct", { &lt;name_of_component_as_json_string&gt;:&lt;dtype&gt;}]
-
-examples:
-
-  * status: ["tuple", [ ["enum", {0:"init", 100:"idle", 200:"warn", 300:"busy"}], ["string", 255] ] ]
-  * p/pi/pid-triple: ["array", ["double", 0, 100], 1, 3]
-
-
-30.5.2017
-=========
-
-  * data values can be transferred as json_null, meaning: no value yet
-  * json_null can not be used inside structured data types
-  * property name for datatype is "datatype"
-
-
-Mandatory descriptive properties
-================================
-
-parameter-properties
---------------------
-  * name (implicit)
-  * datatype
-  * readonly (bool)
-
-module-properties
------------------
-  * interface_class [list_of_strings] (MAY be empty)
-
-SEC-Node-properties
--------------------
-  * no mandatory properties
-
-Optional descriptive properties
-===============================
-
-parameter-properties
---------------------
-  * unit (string), SHOULD be given if meaningful (if not given: unitless) (empty string: unit is one)
-  * description (string), SHOULD be given
-  * visibility
-  * group (identifier) (MUST start with an uppercase letter) (if empty string: treat as not specified)
-
-module-properties
------------------
-  * description (string), SHOULD be given
-  * visibility
-  * group (identifier) (MUST start with an uppercase letter) (if empty string: treat as not specified)
-  * meaning ???
-  * importance ???
-
-SEC-Node-properties
--------------------
-  * description (string), SHOULD be given
-
-
-Hirarchy
-========
-  * group property (currently a identifier like string, may be extended to tree like substrucutres by allowing ':')
-  * visibility (enum(3:expert, 2:advanced, 1:user)) (default to 1 if not given)
-    if visibility is set to user: everybody should see it
-    if visibility is set to advanced: advanced users should see it
-    if visibility is set to expert: only 'experts' should see it
-    
-structure of the descriptive json
-=================================
-
-  * json = {"modules": &lt;list_of_modules&gt;, "properties": &lt;list_of_sec-node_properties&gt;, ...}
-  * module = {"name": &lt;name_of_module&gt;, "parameters": &lt;list_of_parameters&gt;, "commands": &lt;list_of_commands&gt;, "properties": &lt;list_of_module_properties&gt;}
-  * parameter = {"name": ..., "properties": &lt;list_of_properties&gt;}
-  * command = {"name": ..., "properties": &lt;list_of_properties&gt;}
-  * property = {"name":&lt;name&gt;, "datatype": &lt;datatype&gt;, "value": &lt;value&gt;}
-
-note: property may also be [&lt;name&gt;,&lt;datatype&gt;,&lt;value&gt;]
-
-Timeformat
-==========
-  * format goes to 'timestamp since epoch as double with a resolution of at least 1ms'
-  * SEC-node-property: timestamp is accurate or relative
-  * Or: extend pong response contains the localtime (formatted as a timestamp)
-
-activate subset of modules
-==========================
-  * activate/deactivate may get an optional 2nd argument and work only on this.
-
-  * add equipment_id [_0-9a-zA-A]{4,} as SEC-node property (mandatory) (prefixed with ficility/manufacturer)
-  * change response to 'describe' to 'describing ALL <json_description>'
-
-  * '(de-)activate samething' -> '(de-)activated something'
-
-heartbeat
-=========
-  * ping gets an 'intended looptime' argument (as number in seconds or null to disable)
-  * server replys as usual
-  * if the server received no new message within twice the indended looptime, it may close the connection.
-  * if the client receives no pong within 3s it may close the connection
-  * later discussions showed, that the ping/pong should stay untouched and the keepalive time should be (de-)activated by a special message instead. Also the 'connection specific settings' from earlier drafts may be resurrected for this....
-
-
-11.9.2017
-=========
-
-merge datatype and validator:
------------------------------
-  * enum, int, double, bool, tuple, struct as before
-  * ["blob", &lt;maximum_size_in_bytes&gt;] or ["blob", &lt;maximum_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
-  * ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;max_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
-  * ["array", &lt;basic_data_type&gt;, &lt;max_elements&gt;] or ["array", &lt;dtype&gt;, &lt;max_elements&gt;, &lt;min_elements&gt;]
-
-interface_class
----------------
-  * Drivable, Writable, Readable, Module (first character uppercase, no middle 'e')
