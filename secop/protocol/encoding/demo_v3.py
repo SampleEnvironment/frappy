@@ -344,13 +344,13 @@ class DemoEncoder_MZ(MessageEncoder):
             return '\n'.join(r)
 
         return {
-            ListDevicesRequest: lambda msg: "list",
-            ListDevicesReply: lambda msg: "list=%s" % ','.join(sorted(msg.list_of_devices)),
+            ListModulesRequest: lambda msg: "list",
+            ListModulesReply: lambda msg: "list=%s" % ','.join(sorted(msg.list_of_devices)),
             GetVersionRequest: lambda msg: "version",
             GetVersionReply: lambda msg: "version=%r" % msg.version,
-            ListDeviceParamsRequest: lambda msg: "list %s" % msg.device,
+            ListModuleParamsRequest: lambda msg: "list %s" % msg.device,
             # do not include a '.' as param name!
-            ListDeviceParamsReply: lambda msg: "list %s=%s" % (msg.device, ','.join(sorted(msg.params.keys()))),
+            ListModuleParamsReply: lambda msg: "list %s=%s" % (msg.device, ','.join(sorted(msg.params.keys()))),
             ReadValueRequest: lambda msg: "read %s" % msg.device,
             ReadValueReply: lambda msg: "read %s=%r" % (msg.device, msg.value),
             WriteValueRequest: lambda msg: "write %s=%r" % (msg.device, msg.value),
@@ -360,8 +360,8 @@ class DemoEncoder_MZ(MessageEncoder):
             WriteParamRequest: lambda msg: "write %s:%s=%r" % (msg.device, msg.param, msg.value),
             WriteParamReply: lambda msg: "write %s:%s=%r" % (msg.device, msg.param, msg.readback_value),
             # extensions
-            ReadAllDevicesRequest: lambda msg: "",
-            ReadAllDevicesReply: lambda msg: "",
+            ReadAllModulesRequest: lambda msg: "",
+            ReadAllModulesReply: lambda msg: "",
             ListParamPropsRequest: lambda msg: "readprop %s:%s" % (msg.device, msg.param),
             ListParamPropsReply: lambda msg: ["readprop %s:%s" % (msg.device, msg.param)] + ["%s:%s:%s=%s" % (msg.device, msg.param, k, v) for k, v in sorted(msg.props.items())],
             ReadPropertyRequest: lambda msg: "readprop %s:%s:%s" % (msg.device, msg.param, msg.prop),
@@ -379,7 +379,7 @@ class DemoEncoder_MZ(MessageEncoder):
             ProtocolError: lambda msg: "",
             CommandFailedError: lambda msg: "error CommandError %s:%s %s" % (msg.device, msg.param, msg.error),
             NoSuchCommandError: lambda msg: "error NoSuchCommand %s:%s" % (msg.device, msg.param, msg.error),
-            NoSuchDeviceError: lambda msg: "error NoSuchModule %s" % msg.device,
+            NoSuchModuleError: lambda msg: "error NoSuchModule %s" % msg.device,
             NoSuchParamError: lambda msg: "error NoSuchParameter %s:%s" % (msg.device, msg.param),
             ParamReadonlyError: lambda msg: "",
             UnsupportedFeatureError: lambda msg: "",

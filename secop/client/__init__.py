@@ -188,7 +188,7 @@ class Client(object):
         # XXX: further notification-callbacks needed ???
 
     def populateNamespace(self, namespace):
-        self.connection.send(ListDevicesRequest())
+        self.connection.send(ListModulesRequest())
         #        reply = self.connection.read()
         #        self.log.info("found devices %r" % reply)
         # create proxies, populate cache....
