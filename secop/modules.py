@@ -19,10 +19,10 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-"""Define Baseclasses for real devices implemented in the server"""
+"""Define Baseclasses for real Modules implemented in the server"""
 
-# XXX: connect with 'protocol'-Devices.
-# Idea: every Device defined herein is also a 'protocol'-device,
+# XXX: connect with 'protocol'-Modules.
+# Idea: every Module defined herein is also a 'protocol'-Module,
 # all others MUST derive from those, the 'interface'-class is still derived
 # from these base classes (how to do this?)
 
@@ -165,7 +165,7 @@ class CMD(object):
 # Meta class
 # warning: MAGIC!
 
-class DeviceMeta(type):
+class ModuleMeta(type):
 
     def __new__(mcs, name, bases, attrs):
         newtype = type.__new__(mcs, name, bases, attrs)
@@ -260,8 +260,9 @@ class DeviceMeta(type):
                 if not EVENT_ONLY_ON_CHANGED_VALUES or (value != pobj.value):
                     pobj.value = value
                     # also send notification
-                    self.log.debug('%s is now %r' % (pname, value))
-                    self.DISPATCHER.announce_update(self, pname, pobj)
+                    if self.PARAMS[pname].export:
+                        self.log.debug('%s is now %r' % (pname, value))
+                        self.DISPATCHER.announce_update(self, pname, pobj)
 
             setattr(newtype, pname, property(getter, setter))
 
@@ -283,9 +284,9 @@ class DeviceMeta(type):
         return newtype
 
 
-# Basic device class
+# Basic module class
 #
-# within devices, parameters should only be addressed as self.<pname>
+# within Modules, parameters should only be addressed as self.<pname>
 # i.e. self.value, self.target etc...
 # these are accesses to the cached version.
 # they can also be written to
@@ -293,9 +294,9 @@ class DeviceMeta(type):
 # if you want to 'update from the hardware', call self.read_<pname>
 # the return value of this method will be used as the new cached value and
 # be returned.
-class Device(object):
-    """Basic Device, doesn't do much"""
-    __metaclass__ = DeviceMeta
+class Module(object):
+    """Basic Module, doesn't do much"""
+    __metaclass__ = ModuleMeta
     # static PROPERTIES, definitions in derived classes should overwrite earlier ones.
     # how to configure some stuff which makes sense to take from configfile???
     PROPERTIES = {
@@ -342,10 +343,10 @@ class Device(object):
         # derive automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
-        self.PROPERTIES['implementation'] = myclassname
-        self.PROPERTIES['interfaces'] = [
+        self.PROPERTIES['_implementation'] = myclassname
+        self.PROPERTIES['interface_class'] = [
             b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
-        self.PROPERTIES['interface'] = self.PROPERTIES['interfaces'][0]
+        #self.PROPERTIES['interface'] = self.PROPERTIES['interfaces'][0]
 
         # remove unset (default) module properties
         for k, v in self.PROPERTIES.items():
@@ -370,7 +371,7 @@ class Device(object):
         for k, v in cfgdict.items():
             if k not in self.PARAMS:
                 raise ConfigError(
-                    'Device %s:config Parameter %r '
+                    'Module %s:config Parameter %r '
                     'not unterstood! (use on of %r)' %
                     (self.name, k, self.PARAMS.keys()))
         # complain if a PARAM entry has no default value and
@@ -379,7 +380,7 @@ class Device(object):
             if k not in cfgdict:
                 if v.default is Ellipsis and k != 'value':
                     # Ellipsis is the one single value you can not specify....
-                    raise ConfigError('Device %s: Parameter %r has no default '
+                    raise ConfigError('Module %s: Parameter %r has no default '
                                       'value and was not given in config!' %
                                       (self.name, k))
                 # assume default value was given
@@ -402,7 +403,7 @@ class Device(object):
                 except (ValueError, TypeError) as e:
                     self.log.exception(formatExtendedStack())
                     raise
-                    raise ConfigError('Device %s: config parameter %r:\n%r' %
+                    raise ConfigError('Module %s: config parameter %r:\n%r' %
                                       (self.name, k, e))
             setattr(self, k, v)
         self._requestLock = threading.RLock()
@@ -416,17 +417,17 @@ class Device(object):
         self.log.debug('late init()')
 
 
-class Readable(Device):
-    """Basic readable device
+class Readable(Module):
+    """Basic readable Module
 
     providing the readonly parameter 'value' and 'status'
     """
     PARAMS = {
-        'value': PARAM('current value of the device', readonly=True, default=0.,
+        'value': PARAM('current value of the Module', readonly=True, default=0.,
                        datatype=FloatRange(), unit='', poll=True),
         'pollinterval': PARAM('sleeptime between polls', default=5,
                               readonly=False, datatype=FloatRange(0.1, 120), ),
-        'status': PARAM('current status of the device', default=(status.OK, ''),
+        'status': PARAM('current status of the Module', default=(status.OK, ''),
                         datatype=TupleOf(
             EnumType(**{
                 'IDLE': status.OK,
@@ -440,7 +441,7 @@ class Readable(Device):
     }
 
     def init(self):
-        Device.init(self)
+        Module.init(self)
         self._pollthread = threading.Thread(target=self.__pollThread)
         self._pollthread.daemon = True
         self._pollthread.start()
@@ -475,7 +476,7 @@ class Readable(Device):
                 continue
             if ((int(pobj.poll) < 0) and fastpoll) or (
                     0 == nr % abs(int(pobj.poll))):
-                # poll always if pobj.poll is negative and fastpoll (i.e. device is busy)
+                # poll always if pobj.poll is negative and fastpoll (i.e. Module is busy)
                 # otherwise poll every 'pobj.poll' iteration
                 rfunc = getattr(self, 'read_' + pname, None)
                 if rfunc:
@@ -487,14 +488,14 @@ class Readable(Device):
         return fastpoll
 
 
-class Driveable(Readable):
-    """Basic Driveable device
+class Drivable(Readable):
+    """Basic Drivable Module
 
     providing a settable 'target' parameter to those of a Readable
     """
     PARAMS = {
         'target': PARAM(
-            'target value of the device',
+            'target value of the Module',
             default=0.,
             readonly=False,
             datatype=FloatRange(),

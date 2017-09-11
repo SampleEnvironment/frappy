@@ -390,6 +390,8 @@ class Dispatcher(object):
         # easy approach: poll all values...
         for modulename, moduleobj in self._modules.items():
             for pname, pobj in moduleobj.PARAMS.items():
+                if not pobj.export:
+                    continue
                 # WARNING: THIS READS ALL PARAMS FROM HW!
                 # XXX: should we send the cached values instead? (pbj.value)
                 # also: ignore errors here.
