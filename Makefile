@@ -9,10 +9,8 @@ clean:
 	@rm -rf html
 	@mkdir html
 
-doc: doc/*.md
-	@echo "Generating html tree"
-	@bin/make_doc.py
-	$(MAKE) -C doc/srcdoc html
+doc:
+	$(MAKE) -C doc html
 
 demo:
 	@bin/secop-server -q demo &

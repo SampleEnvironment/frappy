@@ -1,3 +1,6 @@
+JSON structure
+==============
+
 > Mit JSON Freeze meine ich nur Arrays von Objekten also:
 > -Node hat ein Array von Properties und ein Array von Modulen
 > -Module haben ein Array von Properties, ein Array von Parametern und ein Array von Commands
@@ -18,7 +21,7 @@ property = { 'property-name' : 'property-value' }
 
 
 ODER
-====
+----
 
 node = [ <array_of_properties>, <array_of_modules> ]
 

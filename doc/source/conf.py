@@ -22,7 +22,7 @@ from os import path
 # sys.path.insert(0, os.path.abspath('.'))
 
 # Add import path for inplace usage
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..', '..')))
 
 from secop.version import get_version
 

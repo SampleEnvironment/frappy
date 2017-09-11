@@ -11,7 +11,9 @@ Protocol documentation
    timeformat
    modsubset
    heartbeat
+   jsonstruct
    todo
+   notes
    history
 
 
