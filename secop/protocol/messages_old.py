@@ -75,7 +75,7 @@ class Message(object):
         elif self.pars:
             r = 'Parameter' if self.pars != ['*'] else 'Parameters'
         elif self.devs:
-            r = 'Device' if self.devs != ['*'] else 'Devices'
+            r = 'Module' if self.devs != ['*'] else 'Modules'
 
         t = ''
         if self.MSGTYPE in [
@@ -166,14 +166,14 @@ class HelpMessage(Message):
     MSGTYPE = HELP
 
 
-class NoSuchDeviceError(ErrorMessage):
+class NoSuchModuleError(ErrorMessage):
 
     def __init__(self, *devs):
         ErrorMessage.__init__(
             self,
             devs=devs,
-            errorstring="Device %r does not exist" % devs[0],
-            errortype='NoSuchDevice')
+            errorstring="Module %r does not exist" % devs[0],
+            errortype='NoSuchModule')
 
 
 class NoSuchParamError(ErrorMessage):
@@ -183,7 +183,7 @@ class NoSuchParamError(ErrorMessage):
             self,
             devs=(dev, ),
             params=params,
-            errorstring="Device %r has no parameter %r" % (dev, params[0]),
+            errorstring="Module %r has no parameter %r" % (dev, params[0]),
             errortype='NoSuchParam')
 
 
@@ -194,7 +194,7 @@ class ParamReadonlyError(ErrorMessage):
             self,
             devs=(dev, ),
             params=params,
-            errorstring="Device %r, parameter %r is not writeable!" %
+            errorstring="Module %r, parameter %r is not writeable!" %
             (dev, params[0]),
             errortype='ParamReadOnly')
 

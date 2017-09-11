@@ -72,7 +72,7 @@ ERRORREPLY = 'error'  # +errorclass +json_extended_info
 HELPREQUEST = 'help'  # literal
 HELPREPLY = 'helping'  # +line number +json_text
 ERRORCLASSES = [
-    'NoSuchDevice',
+    'NoSuchModule',
     'NoSuchParameter',
     'NoSuchCommand',
     'CommandFailed',

@@ -38,10 +38,10 @@ class SecopError(Exception):
         Exception.__init__(self, message, text)
 
 
-class UnknownDeviceError(SecopError):
+class UnknownModuleError(SecopError):
 
     def __init__(self, message, args):
-        SecopError.__init__(self, "NoSuchDevice", args[0])
+        SecopError.__init__(self, "NoSuchModule", args[0])
 
 
 class UnknownParamError(SecopError):
@@ -142,7 +142,7 @@ class SecopLineHandler(lineserver.LineHandler):
         try:
             return secNodeDict[d]
         except KeyError:
-            raise UnknownDeviceError("", (d))
+            raise UnknownModuleError("", (d))
 
     def get_param(self, d, p):
         if p == "":
@@ -228,7 +228,7 @@ class SecopLineHandler(lineserver.LineHandler):
         try:
             devList = wildcard(secNodeDict, path[0])
         except KeyError as e:
-            raise UnknownDeviceError("", (e.message))
+            raise UnknownModuleError("", (e.message))
         for d in devList:
             devDict = secNodeDict[d]
             try:
@@ -274,7 +274,7 @@ class SecopLineHandler(lineserver.LineHandler):
         try:
             devList = wildcard(secNodeDict, path[0])
         except KeyError as e:
-            raise UnknownDeviceError("", (e.message))
+            raise UnknownModuleError("", (e.message))
         for d in devList:
             devDict = secNodeDict[d]
             if len(path) == 1:

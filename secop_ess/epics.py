@@ -23,7 +23,7 @@
 import random
 
 from secop.datatypes import EnumType, TupleOf, FloatRange, get_datatype, StringType
-from secop.modules import Readable, Device, Drivable, PARAM
+from secop.modules import Readable, Module, Drivable, PARAM
 from secop.protocol import status
 
 try:

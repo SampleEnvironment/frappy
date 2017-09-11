@@ -54,7 +54,7 @@ def test_describing_data_decode(clientobj):
     assert {'modules':{}, 'properties':{}} == clientobj._decode_substruct(['modules'],{})
     describing_data = {'equipment_id': 'eid', 
                        'modules': ['LN2', {'commands': [], 
-                                           'interfaces': ['Readable', 'Device'], 
+                                           'interfaces': ['Readable', 'Module'], 
                                            'parameters': ['value', {'datatype': ['double'], 
                                                                     'description': 'current value', 
                                                                     'readonly': True,
@@ -69,7 +69,7 @@ def test_describing_data_decode(clientobj):
                                                                  'readonly': True,
                                                                 }
                                                       }, 
-                                        'properties': {'interfaces': ['Readable', 'Device']}
+                                        'properties': {'interfaces': ['Readable', 'Module']}
                                        }
                                 }, 
                     'properties': {'equipment_id': 'eid',

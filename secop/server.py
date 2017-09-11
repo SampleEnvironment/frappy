@@ -115,9 +115,9 @@ class Server(object):
                 devname = section[len('device '):]
                 devopts = dict(item for item in parser.items(section))
                 if 'class' not in devopts:
-                    self.log.error('Device %s needs a class option!')
+                    self.log.error('Module %s needs a class option!')
                     raise ConfigError(
-                        'cfgfile %r: Device %s needs a class option!' %
+                        'cfgfile %r: Module %s needs a class option!' %
                         (self._cfgfile, devname))
                 # try to import the class, raise if this fails
                 devopts['class'] = get_class(devopts['class'])
@@ -141,15 +141,15 @@ class Server(object):
         self._dispatcher = self._buildObject(
             'Dispatcher', Dispatcher, dict(equipment_id=equipment_id))
         self._processInterfaceOptions(interfaceopts)
-        self._processDeviceOptions(deviceopts)
+        self._processModuleOptions(deviceopts)
 
-    def _processDeviceOptions(self, deviceopts):
+    def _processModuleOptions(self, deviceopts):
         # check devices opts by creating them
         devs = []
         for devname, devopts in deviceopts:
             devclass = devopts.pop('class')
             # create device
-            self.log.debug('Creating Device %r' % devname)
+            self.log.debug('Creating Module %r' % devname)
             export = devopts.pop('export', '1')
             export = export.lower() in ('1', 'on', 'true', 'yes')
             if 'default' in devopts:

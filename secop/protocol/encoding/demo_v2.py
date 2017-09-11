@@ -86,8 +86,8 @@ class DemoEncoder(MessageEncoder):
     def _encode_ProtocollError(self, msgtype, msgname, msgargs):
         return '~ProtocolError~ %s.%s.%r' % (msgtype, msgname, msgargs)
 
-    def _encode_NoSuchDeviceError(self, device):
-        return '~NoSuchDeviceError~ %s' % device
+    def _encode_NoSuchModuleError(self, device):
+        return '~NoSuchModuleError~ %s' % device
 
     def _encode_NoSuchParamError(self, device, param):
         return '~NoSuchParameterError~ %s:%s' % (device, param)

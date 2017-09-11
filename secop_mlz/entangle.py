@@ -41,7 +41,7 @@ from secop.lib import lazy_property, mkthread
 from secop.protocol import status
 from secop.datatypes import *
 from secop.errors import SECoPServerError, ConfigError, ProgrammingError, CommunicationError, HardwareError
-from secop.modules import PARAM, CMD, OVERRIDE, Device, Readable, Drivable
+from secop.modules import PARAM, CMD, OVERRIDE, Module, Readable, Drivable
 
 
 # Only export these classes for 'from secop_mlz import *'
@@ -148,7 +148,7 @@ def describe_dev_error(exc):
     return fulldesc
 
 
-class PyTangoDevice(Device):
+class PyTangoDevice(Module):
     """
     Basic PyTango device.
 
@@ -883,7 +883,7 @@ class PartialDigitalOutput(NamedDigitalOutput):
         self.read_value()
 
 
-class StringIO(PyTangoDevice, Device):
+class StringIO(PyTangoDevice, Module):
     """
     StringIO abstracts communication over a hardware bus that sends and
     receives strings.

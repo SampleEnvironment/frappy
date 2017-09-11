@@ -55,7 +55,7 @@ class SCPEncoder(MessageEncoder):
             r.append(
                 "replies copy the request and are prefixed with an errorcode:")
             r.append(
-                "0=OK,3=NoSuchCommand,4=NosuchDevice,5=NoSuchParam,6=SyntaxError,7=BadValue,8=Readonly,9=Forbidden,@=Async"
+                "0=OK,3=NoSuchCommand,4=NosuchModule,5=NoSuchParam,6=SyntaxError,7=BadValue,8=Readonly,9=Forbidden,@=Async"
             )
             r.append("extensions: @-prefix as error-code,")
             r.append("'<module>/+' subscribe all params of module")
@@ -68,12 +68,12 @@ class SCPEncoder(MessageEncoder):
             return '\n'.join(r)
 
         return {
-            ListDevicesRequest: lambda msg: "devices?",
-            ListDevicesReply: lambda msg: "0 devices=" + repr(list(msg.list_of_devices)),
+            ListModulesRequest: lambda msg: "devices?",
+            ListModulesReply: lambda msg: "0 devices=" + repr(list(msg.list_of_devices)),
             GetVersionRequest: lambda msg: "version?",
             GetVersionReply: lambda msg: "0 version=%r" % msg.version,
-            ListDeviceParamsRequest: lambda msg: "%s/parameters?" % msg.device,
-            ListDeviceParamsReply: lambda msg: "0 %s/parameters=%r" % (msg.device, list(msg.params)),
+            ListModuleParamsRequest: lambda msg: "%s/parameters?" % msg.device,
+            ListModuleParamsReply: lambda msg: "0 %s/parameters=%r" % (msg.device, list(msg.params)),
             ReadValueRequest: lambda msg: "%s/value?" % msg.device,
             ReadValueReply: lambda msg: "0 %s/value?%r" % (msg.device, msg.value),
             WriteValueRequest: lambda msg: "%s/value=%r" % (msg.device, msg.value),
@@ -83,8 +83,8 @@ class SCPEncoder(MessageEncoder):
             WriteParamRequest: lambda msg: "%s/%s=%r" % (msg.device, msg.param, msg.value),
             WriteParamReply: lambda msg: "0 %s/%s=%r" % (msg.device, msg.param, msg.readback_value),
             # extensions
-            ReadAllDevicesRequest: lambda msg: "*/value?",
-            ReadAllDevicesReply: lambda msg: ["0 %s/value=%s" % (m.device, m.value) for m in msg.readValueReplies],
+            ReadAllModulesRequest: lambda msg: "*/value?",
+            ReadAllModulesReply: lambda msg: ["0 %s/value=%s" % (m.device, m.value) for m in msg.readValueReplies],
             ListParamPropsRequest: lambda msg: "%s/%s/?" % (msg.device, msg.param),
             ListParamPropsReply: lambda msg: ["0 %s/%s/%s" % (msg.device, msg.param, p) for p in msg.props],
             AsyncDataUnit: lambda msg: "@ %s/%s=%r" % (msg.devname, msg.pname, msg.value),
@@ -106,7 +106,7 @@ class SCPEncoder(MessageEncoder):
             # violates spec ! we would need the original request here....
             NoSuchCommandError: lambda msg: "3 %s/%s" % (msg.device, msg.command),
             # violates spec ! we would need the original request here....
-            NoSuchDeviceError: lambda msg: "4 %s/ %r" % (msg.device, msg.error),
+            NoSuchModuleError: lambda msg: "4 %s/ %r" % (msg.device, msg.error),
             # violates spec ! we would need the original request here....
             NoSuchParamError: lambda msg: "5 %s/%s %r" % (msg.device, msg.param, msg.error),
             # violates spec ! we would need the original request here....
@@ -151,16 +151,16 @@ class SCPEncoder(MessageEncoder):
                 if dev is None:
                     # 'server' commands
                     if par == 'devices':
-                        return ListDevicesRequest()
+                        return ListModulesRequest()
                     elif par == 'version':
                         return GetVersionRequest()
                     return ProtocolError()
                 if par == 'parameters':
-                    return ListDeviceParamsRequest(dev)
+                    return ListModuleParamsRequest(dev)
                 elif par == 'value':
                     return ReadValueRequest(dev)
                 elif dev == '*' and par == 'value':
-                    return ReadAllDevicesRequest()
+                    return ReadAllModulesRequest()
                 else:
                     return ReadParamRequest(dev, par)
             elif op == '=':
@@ -173,12 +173,12 @@ class SCPEncoder(MessageEncoder):
             # reply
             if dev == '':
                 if par == 'devices':
-                    return ListDevicesReply(val)
+                    return ListModulesReply(val)
                 elif par == 'version':
                     return GetVersionReply(val)
                 return ProtocolError(encoded)
             if par == 'parameters':
-                return ListDeviceParamsReply(dev, val)
+                return ListModuleParamsReply(dev, val)
             if par == 'value':
                 if op == '?':
                     return ReadValueReply(dev, val)
@@ -201,7 +201,7 @@ class SCPEncoder(MessageEncoder):
             elif err == '3':
                 return NoSuchCommandError(dev, par)
             elif err == '4':
-                return NoSuchDeviceError(dev, encoded)
+                return NoSuchModuleError(dev, encoded)
             elif err == '5':
                 return NoSuchParamError(dev, par, val)
             elif err == '7':
