@@ -40,6 +40,9 @@
        <height>0</height>
       </size>
      </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: lightgrey;</string>
+     </property>
      <property name="readOnly">
       <bool>true</bool>
      </property>
@@ -67,6 +70,12 @@
    </item>
    <item row="0" column="0" colspan="3">
     <widget class="QLineEdit" name="statusLineEdit">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: lightgrey;</string>
+     </property>
      <property name="readOnly">
       <bool>true</bool>
      </property>

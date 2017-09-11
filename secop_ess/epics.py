@@ -23,7 +23,7 @@
 import random
 
 from secop.datatypes import EnumType, TupleOf, FloatRange, get_datatype, StringType
-from secop.modules import Readable, Device, Driveable, PARAM
+from secop.modules import Readable, Device, Drivable, PARAM
 from secop.protocol import status
 
 try:
@@ -58,7 +58,7 @@ except ImportError:
 
 
 class EpicsReadable(Readable):
-    """EpicsDriveable handles a Driveable interfacing to EPICS v4"""
+    """EpicsDrivable handles a Drivable interfacing to EPICS v4"""
     # Commmon PARAMS for all EPICS devices
     PARAMS = {
         'value': PARAM('EPICS generic value',
@@ -117,8 +117,8 @@ class EpicsReadable(Readable):
         return (status.OK, 'no pv set')
 
 
-class EpicsDriveable(Driveable):
-    """EpicsDriveable handles a Driveable interfacing to EPICS v4"""
+class EpicsDrivable(Drivable):
+    """EpicsDrivable handles a Drivable interfacing to EPICS v4"""
     # Commmon PARAMS for all EPICS devices
     PARAMS = {
         'target': PARAM('EPICS generic target', datatype=FloatRange(),
@@ -193,7 +193,7 @@ class EpicsDriveable(Driveable):
 # features are agreed upon
 
 
-class EpicsTempCtrl(EpicsDriveable):
+class EpicsTempCtrl(EpicsDrivable):
 
     PARAMS = {
         # TODO: restrict possible values with oneof datatype

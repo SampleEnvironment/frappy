@@ -38,7 +38,7 @@
 ## Testsuite ##
 
  * embedded tests inside the actual files grow difficult to maintain
-=> need a testsuite (nose+pylint?)
+=> need a testsuite (pytest)
 
 
 ## docu ##
@@ -48,3 +48,8 @@
 
 
  
+
+## transfer of blobs via json ##
+
+ * use base64
+

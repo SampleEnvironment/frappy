@@ -25,13 +25,13 @@ import time
 import random
 import threading
 
-from secop.modules import Driveable, CMD, PARAM
+from secop.modules import Drivable, CMD, PARAM
 from secop.protocol import status
 from secop.datatypes import FloatRange, EnumType, TupleOf
 from secop.lib import clamp, mkthread
 
 
-class CryoBase(Driveable):
+class CryoBase(Drivable):
     pass
 
 

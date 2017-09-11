@@ -41,7 +41,7 @@ from secop.lib import lazy_property, mkthread
 from secop.protocol import status
 from secop.datatypes import *
 from secop.errors import SECoPServerError, ConfigError, ProgrammingError, CommunicationError, HardwareError
-from secop.modules import PARAM, CMD, OVERRIDE, Device, Readable, Driveable
+from secop.modules import PARAM, CMD, OVERRIDE, Device, Readable, Drivable
 
 
 # Only export these classes for 'from secop_mlz import *'
@@ -394,7 +394,7 @@ class Sensor(AnalogInput):
         self._dev.Adjust(value)
 
 
-class AnalogOutput(PyTangoDevice, Driveable):
+class AnalogOutput(PyTangoDevice, Drivable):
     """
     The AnalogOutput handles all devices which set an analogue value.
 
@@ -800,7 +800,7 @@ class PartialDigitalInput(NamedDigitalInput):
         return value  # mapping is done by datatype upon export()
 
 
-class DigitalOutput(PyTangoDevice, Driveable):
+class DigitalOutput(PyTangoDevice, Drivable):
     """
     A devices that can set and read a digital value corresponding to a
     bitfield.

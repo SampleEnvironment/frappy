@@ -242,11 +242,11 @@ merge datatype and validator:
 -----------------------------
   * ["enum", {&lt;number_value&gt;:&lt;json_string&gt;}]
   * ["int"] or ["int", &lt;lowest_allowed_value&gt;, &lt;highest_allowed_value&gt;]
-  * ["blob"] or ["blob", &lt;minimum_size_in_bytes or 0&gt;, &lt;maximum_size_in_bytes&gt;]
   * ["double"] or ["double", &lt;lowest_allowed_value&gt;, &lt;highest_allowed_value&gt;]
-  * ["string"] or ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;min_size&gt;, &lt;max_size&gt;]
   * ["bool"]
-  * ["array", &lt;basic_data_type&gt;] or ["array", &lt;dtype&gt;, &lt;min_elements&gt;, &lt;max_elements&gt;]
+  * ["blob", &lt;maximum_size_in_bytes&gt;] or ["blob", &lt;minimum_size_in_bytes&gt;, &lt;maximum_size_in_bytes&gt;]
+  * ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;min_size&gt;, &lt;max_size&gt;]
+  * ["array", &lt;basic_data_type&gt;, &lt;max_elements&gt;] or ["array", &lt;dtype&gt;, &lt;min_elements&gt;, &lt;max_elements&gt;]
   * ["tuple", [ &lt;list_of_dtypes ]]
   * ["struct", { &lt;name_of_component_as_json_string&gt;:&lt;dtype&gt;}]
 
@@ -346,3 +346,17 @@ heartbeat
   * if the client receives no pong within 3s it may close the connection
   * later discussions showed, that the ping/pong should stay untouched and the keepalive time should be (de-)activated by a special message instead. Also the 'connection specific settings' from earlier drafts may be resurrected for this....
 
+
+11.9.2017
+=========
+
+merge datatype and validator:
+-----------------------------
+  * enum, int, double, bool, tuple, struct as before
+  * ["blob", &lt;maximum_size_in_bytes&gt;] or ["blob", &lt;maximum_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
+  * ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;max_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
+  * ["array", &lt;basic_data_type&gt;, &lt;max_elements&gt;] or ["array", &lt;dtype&gt;, &lt;max_elements&gt;, &lt;min_elements&gt;]
+
+interface_class
+---------------
+  * Drivable, Writable, Readable, Module (first character uppercase, no middle 'e')

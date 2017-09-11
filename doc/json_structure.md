@@ -64,7 +64,7 @@ vorerst folgende Festlegung:
                                   ],
                        "group": "very important/stuff",
                        "implementation": "secop.devices.cryo.Cryostat",
-                       "interfaces": ["Driveable", "Readable", "Device"],
+                       "interfaces": ["Drivable", "Readable", "Device"],
                        "parameters": ["status", {"readonly": true,
                                                  "datatype": ["tuple", ["enum", {"unknown":-1,"idle":100, "warn":200, "unstable":250, "busy":300,"error":400}], "string"],
                                                  "description": "current status of the device"

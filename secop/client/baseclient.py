@@ -312,7 +312,10 @@ class Client(object):
         if modname in self._cache:
             if pname in self._cache:
                 previous = self._cache[modname][pname]
-        self._cache.setdefault(modname, {})[pname] = Value(*data)
+        if data:
+            self._cache.setdefault(modname, {})[pname] = Value(*data)
+        else:
+            self.log.warning('got malformed answer! (spec data)' % (spec, data))
 #        self.log.info('cache: %s:%s=%r (was: %s)', modname, pname, data, previous)
         if spec in self.callbacks:
             for func in self.callbacks[spec]:
@@ -537,7 +540,7 @@ class Client(object):
         return self.describing_data['modules'][module]['properties']
 
     def getModuleBaseClass(self, module):
-        return self.getModuleProperties(module)['interface']
+        return self.getModuleProperties(module)['interface_class']
 
     def getCommands(self, module):
         return self.describing_data['modules'][module]['commands']

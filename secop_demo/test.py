@@ -22,7 +22,7 @@
 
 import random
 
-from secop.modules import Readable, Driveable, PARAM
+from secop.modules import Readable, Drivable, PARAM
 from secop.datatypes import FloatRange, StringType
 
 
@@ -37,7 +37,7 @@ class LN2(Readable):
         return round(100 * random.random(), 1)
 
 
-class Heater(Driveable):
+class Heater(Drivable):
     """Just a driveable.
 
     class name indicates it to be some heating element,
@@ -56,7 +56,7 @@ class Heater(Driveable):
         pass
 
 
-class Temp(Driveable):
+class Temp(Drivable):
     """Just a driveable.
 
     class name indicates it to be some temperature controller,

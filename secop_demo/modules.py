@@ -24,12 +24,12 @@ import time
 import random
 import threading
 
-from secop.modules import Readable, Driveable, PARAM
+from secop.modules import Readable, Drivable, PARAM
 from secop.datatypes import EnumType, FloatRange, IntRange, ArrayOf, StringType, TupleOf, StructOf, BoolType
 from secop.protocol import status
 
 
-class Switch(Driveable):
+class Switch(Drivable):
     """switch it on or off....
     """
     PARAMS = {
@@ -94,7 +94,7 @@ class Switch(Driveable):
         return info
 
 
-class MagneticField(Driveable):
+class MagneticField(Drivable):
     """a liquid magnet
     """
     PARAMS = {
@@ -194,7 +194,7 @@ class CoilTemp(Readable):
         return round(2.3 + random.random(), 3)
 
 
-class SampleTemp(Driveable):
+class SampleTemp(Drivable):
     """a sample temperature
     """
     PARAMS = {

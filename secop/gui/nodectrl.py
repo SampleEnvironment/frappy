@@ -131,8 +131,8 @@ class NodeCtrl(QWidget):
         row = 0
         for modname in sorted(self._node.modules):
             modprops = self._node.getModuleProperties(modname)
-            baseclass = modprops['interface']
-            description = modprops['interface']
+            interfaces = modprops['interface_class']
+            description = modprops['description']
             unit = self._node.getProperties(modname, 'value').get('unit', '')
 
             if unit:
@@ -142,12 +142,12 @@ class NodeCtrl(QWidget):
             label = QLabel(labelstr)
             label.setFont(labelfont)
 
-            if baseclass == 'Driveable':
-                widget = DriveableWidget(self._node, modname, self)
-            elif baseclass == 'Readable':
+            if 'Drivable' in interfaces:
+                widget = DrivableWidget(self._node, modname, self)
+            elif 'Readable' in interfaces:
                 widget = ReadableWidget(self._node, modname, self)
             else:
-                widget = QLabel('Unsupported Interfaceclass %r' % baseclass)
+                widget = QLabel('Unsupported Interfaceclasses %r' % interfaces)
 
             if description:
                 widget.setToolTip(description)
@@ -159,12 +159,15 @@ class NodeCtrl(QWidget):
             self._moduleWidgets.extend((label, widget))
         layout.setRowStretch(row, 1)
 
+
 class ReadableWidget(QWidget):
 
     def __init__(self, node, module, parent=None):
         super(ReadableWidget, self).__init__(parent)
         self._node = node
         self._module = module
+
+        self._status_type = self._node.getProperties(self._module, 'status').get('datatype')
 
         params = self._node.getProperties(self._module, 'value')
         datatype = params.get('datatype', StringType())
@@ -206,7 +209,10 @@ class ReadableWidget(QWidget):
         # XXX: also connect update_status signal to LineEdit ??
 
     def update_status(self, status, qualifiers={}):
-        self.statusLineEdit.setText(str(status))
+        display_string = self._status_type.subtypes[0].entries.get(status[0])
+        if status[1]:
+            display_string += ':' + status[1]
+        self.statusLineEdit.setText(display_string)
         # may change meaning of cmdPushButton
 
     def _init_current_widgets(self):
@@ -241,7 +247,7 @@ class ReadableWidget(QWidget):
             self.update_target(*value)
 
 
-class DriveableWidget(ReadableWidget):
+class DrivableWidget(ReadableWidget):
 
     def _init_target_widgets(self):
         params = self._node.getProperties(self._module, 'target')

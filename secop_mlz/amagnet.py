@@ -33,10 +33,10 @@ from secop.lib.sequence import SequencerMixin, Step
 from secop.protocol import status
 from secop.datatypes import *
 from secop.errors import SECoPServerError, ConfigError, ProgrammingError, CommunicationError, HardwareError, DisabledError
-from secop.modules import PARAM, CMD, OVERRIDE, Device, Readable, Driveable
+from secop.modules import PARAM, CMD, OVERRIDE, Device, Readable, Drivable
 
 
-class GarfieldMagnet(SequencerMixin, Driveable):
+class GarfieldMagnet(SequencerMixin, Drivable):
     """Garfield Magnet
 
     uses a polarity switch ('+' or '-') to flip polarity and an onoff switch
