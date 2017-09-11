@@ -43,6 +43,7 @@ class NodeCtrl(QWidget):
         self.contactPointLabel.setText(self._node.contactPoint)
         self.equipmentIdLabel.setText(self._node.equipmentId)
         self.protocolVersionLabel.setText(self._node.protocolVersion)
+        self.nodeDescriptionLabel.setText(self._node.describingData.get('description','no description available'))
         self._clearLog()
 
         # now populate modules tab
@@ -197,7 +198,9 @@ class ReadableWidget(QWidget):
         if pname in params:
             return params[pname].value
         try:
-            return self._node.getParameter(self._module, pname)
+            # if queried, we get the qualifiers as well, but don't want them here
+            val = self._node.getParameter(self._module, pname)[0]
+            return val
         except Exception:
             self.log.exception()
             if fallback is not Ellipsis:

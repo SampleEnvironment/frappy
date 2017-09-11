@@ -52,6 +52,8 @@ class TCPConnection(object):
     # disguise a TCP connection as serial one
 
     def __init__(self, host, port):
+        import mlzlog
+        self.log = mlzlog.getLogger('TCPConnection')
         self._host = host
         self._port = int(port)
         self._thread = None

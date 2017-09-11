@@ -33,7 +33,7 @@ from secop.lib.sequence import SequencerMixin, Step
 from secop.protocol import status
 from secop.datatypes import *
 from secop.errors import SECoPServerError, ConfigError, ProgrammingError, CommunicationError, HardwareError, DisabledError
-from secop.modules import PARAM, CMD, OVERRIDE, Module, Readable, Drivable
+from secop.modules import PARAM, CMD, OVERRIDE, Readable, Drivable
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):

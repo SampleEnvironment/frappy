@@ -59,8 +59,15 @@ Merge datatype and validator
   * ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;max_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
   * ["array", &lt;basic_data_type&gt;, &lt;max_elements&gt;] or ["array", &lt;dtype&gt;, &lt;max_elements&gt;, &lt;min_elements&gt;]
 
+
 Interface_class
 +++++++++++++++
 
   * Drivable, Writable, Readable, Module (first character uppercase, no middle 'e')
+
+
+transfer_of_blob
+++++++++++++++++
+
+  * transport-encoding as base64-encoded string (no prefixed number of bytes....)
 
