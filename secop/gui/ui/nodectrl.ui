@@ -163,7 +163,11 @@ p, li { white-space: pre-wrap; }
             <height>324</height>
            </rect>
           </property>
-          <layout class="QGridLayout" name="gridLayout_5"/>
+          <layout class="QGridLayout" name="gridLayout_5">
+           <property name="sizeConstraint">
+            <enum>QLayout::SetMinimumSize</enum>
+           </property>
+          </layout>
          </widget>
         </widget>
        </item>

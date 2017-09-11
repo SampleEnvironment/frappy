@@ -548,7 +548,12 @@ def get_datatype(json):
     if json is None:
         return json
     if not isinstance(json, list):
-        raise ValueError('Argument must be a properly formatted list!')
+        import mlzlog
+        mlzlog.getLogger('datatypes').warning(
+            "WARNING: invalid datatype specified! trying fallback mechanism. ymmv!")
+        return get_datatype([json])
+        raise ValueError(
+            'Can not interpret datatype %r, it should be a list!', json)
     if len(json) < 1:
         raise ValueError('can not validate %r', json)
     base = json[0]
@@ -563,5 +568,5 @@ def get_datatype(json):
         try:
             return DATATYPES[base](*args)
         except (TypeError, AttributeError) as exc:
-            raise ValueError('Invalid datatype descriptor')
-    raise ValueError('can not validate %r', json)
+            raise ValueError('Invalid datatype descriptor in %r', json)
+    raise ValueError('can not convert %r to datatype', json)

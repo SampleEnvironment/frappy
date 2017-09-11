@@ -40,7 +40,8 @@ def showCommandResultDialog(command, args, result, extras=''):
 
 
 def showErrorDialog(error):
-    m = QMessageBox(str(error))
+    m = QMessageBox()
+    m.setText('Error %r' % error)
     m.exec_()
 
 
@@ -77,27 +78,45 @@ class ParameterGroup(QWidget):
                 w.hide()
 
 
-class CommandButton(QWidget):
+class CommandArgumentsDialog(QDialog):
 
-    def __init__(self, cmdname, argin, cb, parent=None):
+    def __init__(self, commandname, argtypes, parent=None):
+        super(CommandArgumentsDialog, self).__init__(parent)
+
+        # XXX: fill in apropriate widgets + OK/Cancel
+
+    def exec_(self):
+        print('CommandArgumentsDialog result is', super(
+            CommandArgumentsDialog, self).exec_())
+        return None  # XXX: if there were arguments, return them after validation or None for 'Cancel'
+
+
+class CommandButton(QButton):
+
+    def __init__(self, cmdname, cmdinfo, cb, parent=None):
         super(CommandButton, self).__init__(parent)
-        loadUi(self, 'cmdbuttons.ui')
 
         self._cmdname = cmdname
-        self._argin = argin   # list of datatypes
+        self._argintypes = cmdinfo['arguments']   # list of datatypes
+        self.resulttype = cmdinfo['resulttype']
         self._cb = cb  # callback function for exection
 
-        if not argin:
-            self.cmdLineEdit.setHidden(True)
-        self.cmdPushButton.setText(cmdname)
+        self.setText(cmdname)
+        if cmdinfo['description']:
+            self.setToolTip(cmdinfo['description'])
+        self.pressed.connect(self.on_pushButton_pressed)
 
-    def on_cmdPushButton_pressed(self):
-        self.cmdPushButton.setEnabled(False)
-        if self._argin:
-            self._cb(self._cmdname, self.cmdLineEdit.text())
+    def on_pushButton_pressed(self):
+        self.setEnabled(False)
+        if self._argintypes or 1:
+            args = CommandArgumentsDialog(self._cmdname, self._argintypes)
+            if args:  # not 'Cancel' clicked
+                print('############# %s', args)
+                self._cb(self._cmdname, args)
         else:
+            # no need for arguments
             self._cb(self._cmdname, None)
-        self.cmdPushButton.setEnabled(True)
+        self.setEnabled(True)
 
 
 class ModuleCtrl(QWidget):
@@ -120,16 +139,19 @@ class ModuleCtrl(QWidget):
 
         self._node.newData.connect(self._updateValue)
 
-    def _execCommand(self, command, arg=None):
-        if arg:  # try to validate input
+    def _execCommand(self, command, args=None):
+        if args:  # try to validate input
             #  XXX: check datatypes with their validators?
             import ast
             try:
-                arg = ast.literal_eval(arg)
+                args = ast.literal_eval(args)
             except Exception as e:
                 return showErrorDialog(e)
-        result, qualifiers = self._node.execCommand(self._module, command, arg)
-        showCommandResultDialog(command, arg, result, qualifiers)
+        if not args:
+            args = tuple()
+        result, qualifiers = self._node.execCommand(
+            self._module, command, *args)
+        showCommandResultDialog(command, args, result, qualifiers)
 
     def _initModuleWidgets(self):
         initValues = self._node.queryCache(self._module)
@@ -141,11 +163,12 @@ class ModuleCtrl(QWidget):
         self.cmdWidgets = cmdWidgets = {}
         # create and insert widgets into our QGridLayout
         for command in sorted(commands):
-            w = CommandButton(command, [], self._execCommand)
+            #  XXX: fetch and use correct datatypes here!
+            w = CommandButton(command, commands[command], self._execCommand)
             cmdWidgets[command] = w
-            self.commandGroupBox.layout().addWidget(w, row, 0, 1, 0)
+            self.commandGroupBox.layout().addWidget(w, 0, row)
             row += 1
-
+        row = 0
         # collect grouping information
         paramsByGroup = {}  # groupname -> [paramnames]
         allGroups = set()

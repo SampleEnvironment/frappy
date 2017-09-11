@@ -157,7 +157,7 @@ class NodeCtrl(QWidget):
 
             row += 1
             self._moduleWidgets.extend((label, widget))
-
+        layout.setRowStretch(row, 1)
 
 class ReadableWidget(QWidget):
 
