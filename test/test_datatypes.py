@@ -116,7 +116,7 @@ def test_EnumType():
 def test_BLOBType():
     # test constructor catching illegal arguments
     dt = BLOBType(3, 10)
-    assert dt.as_json == ['blob', 3, 10]
+    assert dt.as_json == ['blob', 10, 3]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -136,7 +136,7 @@ def test_BLOBType():
 def test_StringType():
     # test constructor catching illegal arguments
     dt = StringType(4, 11)
-    assert dt.as_json == ['string', 4, 11]
+    assert dt.as_json == ['string', 11, 4]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -179,7 +179,7 @@ def test_ArrayOf():
     with pytest.raises(ValueError):
         ArrayOf(int)
     dt = ArrayOf(IntRange(-10,10),1,3)
-    assert dt.as_json == ['array', ['int', -10, 10], 1, 3]
+    assert dt.as_json == ['array', ['int', -10, 10], 3, 1]
     with pytest.raises(ValueError):
         dt.validate(9)
     with pytest.raises(ValueError):

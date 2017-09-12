@@ -199,6 +199,8 @@ class ReadableWidget(QWidget):
             return params[pname].value
         try:
             # if queried, we get the qualifiers as well, but don't want them here
+            import mlzlog
+            mlzlog.getLogger('cached values').warn('no cached value for %s:%s' % (self._module, pname))
             val = self._node.getParameter(self._module, pname)[0]
             return val
         except Exception:

@@ -212,10 +212,16 @@ class EnumType(DataType):
 class BLOBType(DataType):
 
     def __init__(self, minsize=0, maxsize=None):
+        # if only one arg is given it is maxsize!
+        if maxsize is None and minsize:
+            maxsize = minsize
+            minsize = 0
         self.minsize = minsize
         self.maxsize = maxsize
-        if minsize or maxsize:
-            self.as_json = ['blob', minsize, maxsize]
+        if minsize:
+            self.as_json = ['blob', maxsize, minsize]
+        elif maxsize:
+            self.as_json = ['blob', maxsize]
         else:
             self.as_json = ['blob']
         if minsize is not None and maxsize is not None and minsize > maxsize:
@@ -255,12 +261,17 @@ class StringType(DataType):
     as_json = ['string']
 
     def __init__(self, minsize=0, maxsize=None):
+        # if only one arg is given it is maxsize!
+        if maxsize is None and minsize:
+            maxsize = minsize
+            minsize = 0
+            self.as_json = ['string', maxsize]
+        elif maxsize or minsize:
+            self.as_json = ['string', maxsize, minsize]
+        else:
+            self.as_json = ['string']
         self.minsize = minsize
         self.maxsize = maxsize
-        if (minsize, maxsize) == (0, None):
-            self.as_json = ['string']
-        else:
-            self.as_json = ['string', minsize, maxsize]
         if minsize is not None and maxsize is not None and minsize > maxsize:
             raise ValueError('maxsize must be bigger than minsize!')
 
@@ -342,7 +353,7 @@ class ArrayOf(DataType):
                 'ArrayOf only works with DataType objs as first argument!')
         self.subtype = subtype
         self.as_json = ['array', self.subtype.as_json,
-                        self.minsize, self.maxsize]
+                        self.maxsize, self.minsize]
         if self.minsize is not None and self.minsize < 0:
             raise ValueError('Minimum size must be >= 0!')
         if self.maxsize is not None and self.maxsize < 1:
@@ -549,6 +560,8 @@ def get_datatype(json):
         return json
     if not isinstance(json, list):
         import mlzlog
+        if mlzlog.log is None:
+            mlzlog.initLogging('xxxxxxxxx')
         mlzlog.getLogger('datatypes').warning(
             "WARNING: invalid datatype specified! trying fallback mechanism. ymmv!")
         return get_datatype([json])
