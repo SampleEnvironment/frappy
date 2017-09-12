@@ -125,7 +125,7 @@ class Cryostat(CryoBase):
                       ),
     )
     CMDS = dict(
-        Stop=CMD(
+        stop=CMD(
             "Stop ramping the setpoint\n\nby setting the current setpoint as new target",
             [],
             None),
@@ -174,7 +174,7 @@ class Cryostat(CryoBase):
     def read_pid(self, maxage=0):
         return (self.p, self.i, self.d)
 
-    def doStop(self):
+    def do_stop(self):
         # stop the ramp by setting current setpoint as target
         # XXX: discussion: take setpoint or current value ???
         self.write_target(self.setpoint)
