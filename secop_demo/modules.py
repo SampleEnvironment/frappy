@@ -177,6 +177,9 @@ class MagneticField(Drivable):
             time.sleep(max(0.01, ts + loopdelay - time.time()))
         self.log.error(self, 'main thread exited unexpectedly!')
 
+    def do_stop(self):
+        self.write_target(self.read_value())
+
 
 class CoilTemp(Readable):
     """a coil temperature
