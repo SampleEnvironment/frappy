@@ -503,19 +503,3 @@ class Drivable(Readable):
     }
     # XXX: CMDS ???? auto deriving working well enough?
 
-    def do_start(self):
-        """normally does nothing,
-
-        but there may be modules which _start_ the action here
-        """
-
-    def do_stop(self):
-        """Testing command implementation
-
-        wait a second"""
-        time.sleep(1)  # for testing !
-
-    def do_pause(self):
-        """if implemented should pause the module
-        use start to continue movement
-        """

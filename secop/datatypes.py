@@ -480,6 +480,7 @@ class StructOf(DataType):
         return self.validate(dict(value))
 
 
+# idea to mix commands and params, not yet used....
 class Command(DataType):
     IS_COMMAND = True
 
