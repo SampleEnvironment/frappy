@@ -170,17 +170,32 @@ p, li { white-space: pre-wrap; }
              </property>
             </widget>
            </item>
+           <item row="5" column="0">
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
            <item row="4" column="0" colspan="2">
             <widget class="QLabel" name="nodeDescriptionLabel">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
-               <verstretch>1</verstretch>
+               <verstretch>0</verstretch>
               </sizepolicy>
              </property>
              <property name="text">
-              <string>aaaaaaaaaaa
-aaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaa</string>
+              <string>description</string>
              </property>
              <property name="wordWrap">
               <bool>true</bool>
@@ -190,9 +205,29 @@ aaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaa</string
              </property>
             </widget>
            </item>
+           <item row="5" column="0" colspan="2">
+            <widget class="QLabel" name="label55">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
+               <horstretch>0</horstretch>
+               <verstretch>1</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
           </layout>
+          <zorder>label</zorder>
+          <zorder>contactPointLabel</zorder>
+          <zorder>equipmentIdLabel</zorder>
+          <zorder>label_3</zorder>
+          <zorder>protocolVersionLabel</zorder>
+          <zorder>label_5</zorder>
+          <zorder>nodeDescriptionLabel</zorder>
           <zorder>label_2</zorder>
-          <zorder>gridLayoutWidget</zorder>
+          <zorder>verticalSpacer</zorder>
          </widget>
         </widget>
        </item>

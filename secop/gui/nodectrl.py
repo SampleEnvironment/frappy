@@ -133,7 +133,10 @@ class NodeCtrl(QWidget):
         row = 0
         for modname in sorted(self._node.modules):
             modprops = self._node.getModuleProperties(modname)
-            interfaces = modprops['interface_class']
+            if 'interface_class' in modprops:
+                interfaces = modprops['interface_class']
+            else:
+                interfaces = modprops['interfaces']
             description = modprops['description']
             unit = self._node.getProperties(modname, 'value').get('unit', '')
 
@@ -144,7 +147,8 @@ class NodeCtrl(QWidget):
             label = QLabel(labelstr)
             label.setFont(labelfont)
 
-            if 'Drivable' in interfaces:
+            # fallback: allow (now) invalid 'Driveable'
+            if 'Drivable' in interfaces or 'Driveable' in interfaces:
                 widget = DrivableWidget(self._node, modname, self)
             elif 'Readable' in interfaces:
                 widget = ReadableWidget(self._node, modname, self)
