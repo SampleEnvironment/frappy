@@ -49,7 +49,6 @@ CONFIG = {
 }
 
 
-
 class lazy_property(object):
     """A property that calculates its value only once."""
 

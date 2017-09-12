@@ -75,7 +75,8 @@ class GarfieldMagnet(SequencerMixin, Drivable):
                              default=(1.0, 0.0, 0.0, 0.0, 0.0)),
         'calibrationtable': PARAM('Map of Coefficients for calibration per symmetry setting',
                                   datatype=StructOf(symmetric=ArrayOf(FloatRange(), 5, 5),
-                                                    short=ArrayOf(FloatRange(), 5, 5),
+                                                    short=ArrayOf(
+                                                        FloatRange(), 5, 5),
                                                     asymmetric=ArrayOf(FloatRange(), 5, 5)), export=False),
     }
 

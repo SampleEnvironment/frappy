@@ -49,7 +49,12 @@ from secop.lib import formatExtendedStack, formatException
 class Dispatcher(object):
 
     def __init__(self, logger, options):
-        self.equipment_id = options.pop('equipment_id')
+        # to avoid errors, we want to eat all options here
+        self.equipment_id = options['equipment_id']
+        self.nodeopts = {}
+        for k in list(options):
+            self.nodeopts[k] = options.pop(k)
+
         self.log = logger
         # map ALL modulename -> moduleobj
         self._modules = {}
@@ -227,6 +232,7 @@ class Dispatcher(object):
         result['equipment_id'] = self.equipment_id
         result['firmware'] = 'The SECoP playground'
         result['version'] = "2017.07"
+        result.update(self.nodeopts)
         # XXX: what else?
         return result
 

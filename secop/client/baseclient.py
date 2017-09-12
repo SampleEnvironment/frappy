@@ -317,7 +317,8 @@ class Client(object):
         if data:
             self._cache.setdefault(modname, {})[pname] = Value(*data)
         else:
-            self.log.warning('got malformed answer! (spec data)' % (spec, data))
+            self.log.warning(
+                'got malformed answer! (spec data)' % (spec, data))
 #        self.log.info('cache: %s:%s=%r (was: %s)', modname, pname, data, previous)
         if spec in self.callbacks:
             for func in self.callbacks[spec]:

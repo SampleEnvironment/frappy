@@ -107,7 +107,8 @@ class Server(object):
 
         deviceopts = []
         interfaceopts = []
-        equipment_id = 'unknown'
+        equipment_id = None
+        nodeopts = []
         for section in parser.sections():
             if section.lower().startswith('device '):
                 # device section
@@ -135,11 +136,30 @@ class Server(object):
                         (self._cfgfile, ifname))
                 # all went well so far
                 interfaceopts.append([ifname, ifopts])
-        if parser.has_option('equipment', 'id'):
-            equipment_id = parser.get('equipment', 'id').replace(' ', '_')
+            if section.lower().startswith('equipment ') or section.lower().startswith('node '):
+                if equipment_id is not None:
+                    raise ConfigError('cfgfile %r: only one [node <id>] section allowed, found another [%s]!' % (
+                        self._cfgfile, section))
+                # equipment/node settings
+                equipment_id = section.split(' ', 1)[1].replace(' ', '_')
+                nodeopts = dict(item for item in parser.items(section))
+                nodeopts['equipment_id'] = equipment_id
+                nodeopts['id'] = equipment_id
+                # MAGIC: transform \n.\n into \n\n which are normally stripped
+                # by the ini parser
+                for k in nodeopts:
+                    v = nodeopts[k]
+                    while '\n.\n' in v:
+                        v = v.replace('\n.\n', '\n\n')
+                    nodeopts[k] = v
+
+        if equipment_id is None:
+            self.log.error('Need a [node <id>] section, none found!')
+            raise ConfigError(
+                'cfgfile %r: need an [node <id>] option!' % (self._cfgfile))
 
         self._dispatcher = self._buildObject(
-            'Dispatcher', Dispatcher, dict(equipment_id=equipment_id))
+            'Dispatcher', Dispatcher, nodeopts)
         self._processInterfaceOptions(interfaceopts)
         self._processModuleOptions(deviceopts)
 

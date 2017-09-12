@@ -24,14 +24,17 @@
 import pytest
 
 import sys
-sys.path.insert(0, sys.path[0]+'/..')
+sys.path.insert(0, sys.path[0] + '/..')
 
 from collections import OrderedDict
 from secop.client.baseclient import Client
 
 # define Test-only connection object
+
+
 class TestConnect(object):
     callbacks = []
+
     def writeline(self, line):
         pass
 
@@ -49,35 +52,37 @@ def clientobj(request):
     print ("  TEARDOWN ClientObj")
 
 
-def test_describing_data_decode(clientobj):    
-    assert OrderedDict([('a',1)]) == clientobj._decode_list_to_ordereddict(['a',1])
-    assert {'modules':{}, 'properties':{}} == clientobj._decode_substruct(['modules'],{})
-    describing_data = {'equipment_id': 'eid', 
-                       'modules': ['LN2', {'commands': [], 
-                                           'interfaces': ['Readable', 'Module'], 
-                                           'parameters': ['value', {'datatype': ['double'], 
-                                                                    'description': 'current value', 
+def test_describing_data_decode(clientobj):
+    assert OrderedDict(
+        [('a', 1)]) == clientobj._decode_list_to_ordereddict(['a', 1])
+    assert {'modules': {}, 'properties': {}
+            } == clientobj._decode_substruct(['modules'], {})
+    describing_data = {'equipment_id': 'eid',
+                       'modules': ['LN2', {'commands': [],
+                                           'interfaces': ['Readable', 'Module'],
+                                           'parameters': ['value', {'datatype': ['double'],
+                                                                    'description': 'current value',
                                                                     'readonly': True,
-                                                                   }
-                                                         ]
-                                          }
-                                  ]
-                      }
-    decoded_data = {'modules': {'LN2': {'commands': {}, 
-                                        'parameters': {'value': {'datatype': ['double'], 
-                                                                 'description': 'current value', 
+                                                                    }
+                                                          ]
+                                           }
+                                   ]
+                       }
+    decoded_data = {'modules': {'LN2': {'commands': {},
+                                        'parameters': {'value': {'datatype': ['double'],
+                                                                 'description': 'current value',
                                                                  'readonly': True,
-                                                                }
-                                                      }, 
+                                                                 }
+                                                       },
                                         'properties': {'interfaces': ['Readable', 'Module']}
-                                       }
-                                }, 
+                                        }
+                                },
                     'properties': {'equipment_id': 'eid',
-                                  }
-                   }
+                                   }
+                    }
 
     a = clientobj._decode_substruct(['modules'], describing_data)
     for modname, module in a['modules'].items():
-        a['modules'][modname] = clientobj._decode_substruct(['parameters', 'commands'], module)
+        a['modules'][modname] = clientobj._decode_substruct(
+            ['parameters', 'commands'], module)
     assert a == decoded_data
-

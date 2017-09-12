@@ -25,7 +25,7 @@
 import pytest
 
 import sys
-sys.path.insert(0, sys.path[0]+'/..')
+sys.path.insert(0, sys.path[0] + '/..')
 
 from secop.datatypes import DataType, FloatRange, IntRange, \
     EnumType, BLOBType, StringType, BoolType, ArrayOf, TupleOf, StructOf, \
@@ -41,6 +41,7 @@ def test_DataType():
         dt.validate('')
         dt.export()
 
+
 def test_FloatRange():
     dt = FloatRange(-3.14, 3.14)
     assert dt.as_json == ['double', -3.14, 3.14]
@@ -52,15 +53,16 @@ def test_FloatRange():
     with pytest.raises(ValueError):
         dt.validate('XX')
     with pytest.raises(ValueError):
-        dt.validate([19,'X'])
+        dt.validate([19, 'X'])
     dt.validate(1)
     dt.validate(0)
     assert dt.export(-2.718) == -2.718
     with pytest.raises(ValueError):
-        FloatRange('x','Y')
+        FloatRange('x', 'Y')
 
     dt = FloatRange()
     assert dt.as_json == ['double']
+
 
 def test_IntRange():
     dt = IntRange(-3, 3)
@@ -73,21 +75,22 @@ def test_IntRange():
     with pytest.raises(ValueError):
         dt.validate('XX')
     with pytest.raises(ValueError):
-        dt.validate([19,'X'])
+        dt.validate([19, 'X'])
     dt.validate(1)
     dt.validate(0)
     with pytest.raises(ValueError):
-        IntRange('xc','Yx')
+        IntRange('xc', 'Yx')
 
     dt = IntRange()
     assert dt.as_json == ['int']
+
 
 def test_EnumType():
     # test constructor catching illegal arguments
     with pytest.raises(ValueError):
         EnumType(1)
     with pytest.raises(ValueError):
-        EnumType('a',b=0)
+        EnumType('a', b=0)
 
     dt = EnumType(a=3, c=7, stuff=1)
     assert dt.as_json == ['enum', dict(a=3, c=7, stuff=1)]
@@ -99,7 +102,7 @@ def test_EnumType():
     with pytest.raises(ValueError):
         dt.validate('XX')
     with pytest.raises(TypeError):
-        dt.validate([19,'X'])
+        dt.validate([19, 'X'])
 
     assert dt.validate('a') == 'a'
     assert dt.validate('stuff') == 'stuff'
@@ -113,8 +116,14 @@ def test_EnumType():
     with pytest.raises(ValueError):
         dt.export(2)
 
+
 def test_BLOBType():
     # test constructor catching illegal arguments
+    dt = BLOBType()
+    assert dt.as_json == ['blob']
+    dt = BLOBType(10)
+    assert dt.as_json == ['blob', 10]
+
     dt = BLOBType(3, 10)
     assert dt.as_json == ['blob', 10, 3]
 
@@ -135,6 +144,11 @@ def test_BLOBType():
 
 def test_StringType():
     # test constructor catching illegal arguments
+    dt = StringType()
+    assert dt.as_json == ['string']
+    dt = StringType(12)
+    assert dt.as_json == ['string', 12]
+
     dt = StringType(4, 11)
     assert dt.as_json == ['string', 11, 4]
 
@@ -178,16 +192,21 @@ def test_ArrayOf():
     # test constructor catching illegal arguments
     with pytest.raises(ValueError):
         ArrayOf(int)
-    dt = ArrayOf(IntRange(-10,10),1,3)
+    dt = ArrayOf(IntRange(-10, 10))
+    assert dt.as_json == ['array', ['int', -10, 10]]
+    dt = ArrayOf(IntRange(-10, 10), 5)
+    assert dt.as_json == ['array', ['int', -10, 10], 5]
+
+    dt = ArrayOf(IntRange(-10, 10), 1, 3)
     assert dt.as_json == ['array', ['int', -10, 10], 3, 1]
     with pytest.raises(ValueError):
         dt.validate(9)
     with pytest.raises(ValueError):
         dt.validate('av')
 
-    assert dt.validate([1,2,3]) == [1,2,3]
+    assert dt.validate([1, 2, 3]) == [1, 2, 3]
 
-    assert dt.export([1,2,3]) == [1,2,3]
+    assert dt.export([1, 2, 3]) == [1, 2, 3]
 
 
 def test_TupleOf():
@@ -195,17 +214,17 @@ def test_TupleOf():
     with pytest.raises(ValueError):
         TupleOf(2)
 
-    dt = TupleOf(IntRange(-10,10), BoolType())
+    dt = TupleOf(IntRange(-10, 10), BoolType())
     assert dt.as_json == ['tuple', [['int', -10, 10], ['bool']]]
 
     with pytest.raises(ValueError):
         dt.validate(9)
     with pytest.raises(ValueError):
-        dt.validate([99,'X'])
+        dt.validate([99, 'X'])
 
-    assert dt.validate([1,True]) == [1,True]
+    assert dt.validate([1, True]) == [1, True]
 
-    assert dt.export([1,True]) == [1,True]
+    assert dt.export([1, True]) == [1, True]
 
 
 def test_StructOf():
@@ -218,19 +237,20 @@ def test_StructOf():
     dt = StructOf(a_string=StringType(), an_int=IntRange(0, 999))
     assert dt.as_json == ['struct', {'a_string': ['string'],
                                      'an_int': ['int', 0, 999],
-                                    }]
+                                     }]
 
     with pytest.raises(ValueError):
         dt.validate(9)
     with pytest.raises(ValueError):
-        dt.validate([99,'X'])
+        dt.validate([99, 'X'])
     with pytest.raises(ValueError):
         dt.validate(dict(a_string='XXX', an_int=1811))
 
     assert dt.validate(dict(a_string='XXX', an_int=8)) == {'a_string': 'XXX',
                                                            'an_int': 8}
-    assert dt.export({'an_int':13, 'a_string':'WFEC'}) == {'a_string': 'WFEC',
-                                                           'an_int': 13}
+    assert dt.export({'an_int': 13, 'a_string': 'WFEC'}) == {'a_string': 'WFEC',
+                                                             'an_int': 13}
+
 
 def test_get_datatype():
     with pytest.raises(ValueError):
@@ -252,10 +272,9 @@ def test_get_datatype():
     assert isinstance(get_datatype(['int', -10, 10]), IntRange)
 
     with pytest.raises(ValueError):
-        get_datatype(['int',10, -10])
+        get_datatype(['int', 10, -10])
     with pytest.raises(ValueError):
         get_datatype(['int', 1, 2, 3])
-
 
     assert isinstance(get_datatype(['double']), FloatRange)
     assert isinstance(get_datatype(['double', -2.718]), FloatRange)
@@ -263,40 +282,36 @@ def test_get_datatype():
     assert isinstance(get_datatype(['double', -9.9, 11.1]), FloatRange)
 
     with pytest.raises(ValueError):
-        get_datatype(['double',10, -10])
+        get_datatype(['double', 10, -10])
     with pytest.raises(ValueError):
         get_datatype(['double', 1, 2, 3])
-
 
     with pytest.raises(ValueError):
         get_datatype(['enum'])
     assert isinstance(get_datatype(['enum', dict(a=-2.718)]), EnumType)
 
     with pytest.raises(ValueError):
-        get_datatype(['enum',10, -10])
+        get_datatype(['enum', 10, -10])
     with pytest.raises(ValueError):
         get_datatype(['enum', [1, 2, 3]])
-
 
     assert isinstance(get_datatype(['blob']), BLOBType)
     assert isinstance(get_datatype(['blob', 1]), BLOBType)
     assert isinstance(get_datatype(['blob', 1, 10]), BLOBType)
 
     with pytest.raises(ValueError):
-        get_datatype(['blob',10, -10])
+        get_datatype(['blob', 10, -10])
     with pytest.raises(ValueError):
-        get_datatype(['blob',10, -10, 1])
-
+        get_datatype(['blob', 10, -10, 1])
 
     assert isinstance(get_datatype(['string']), StringType)
     assert isinstance(get_datatype(['string', 1]), StringType)
     assert isinstance(get_datatype(['string', 1, 10]), StringType)
 
     with pytest.raises(ValueError):
-        get_datatype(['string',10, -10])
+        get_datatype(['string', 10, -10])
     with pytest.raises(ValueError):
-        get_datatype(['string',10, -10, 1])
-
+        get_datatype(['string', 10, -10, 1])
 
     with pytest.raises(ValueError):
         get_datatype(['array'])
@@ -314,7 +329,6 @@ def test_get_datatype():
 
     assert isinstance(get_datatype(['array', ['blob'], 1, 10]), ArrayOf)
 
-
     with pytest.raises(ValueError):
         get_datatype(['tuple'])
     with pytest.raises(ValueError):
@@ -322,15 +336,15 @@ def test_get_datatype():
     with pytest.raises(ValueError):
         get_datatype(['tuple', [1], 2, 3])
     assert isinstance(get_datatype(['tuple', [['blob']]]), TupleOf)
-    assert isinstance(get_datatype(['tuple', [['blob']]]).subtypes[0], BLOBType)
+    assert isinstance(get_datatype(
+        ['tuple', [['blob']]]).subtypes[0], BLOBType)
 
     with pytest.raises(ValueError):
         get_datatype(['tuple', [['blob']], -10])
     with pytest.raises(ValueError):
         get_datatype(['tuple', [['blob']], -10, 10])
 
-    assert isinstance(get_datatype(['tuple', [['blob'],['int']]]), TupleOf)
-
+    assert isinstance(get_datatype(['tuple', [['blob'], ['int']]]), TupleOf)
 
     with pytest.raises(ValueError):
         get_datatype(['struct'])
@@ -338,12 +352,14 @@ def test_get_datatype():
         get_datatype(['struct', 1])
     with pytest.raises(ValueError):
         get_datatype(['struct', [1], 2, 3])
-    assert isinstance(get_datatype(['struct', {'blob':['blob']}]), StructOf)
-    assert isinstance(get_datatype(['struct', {'blob':['blob']}]).named_subtypes['blob'], BLOBType)
+    assert isinstance(get_datatype(['struct', {'blob': ['blob']}]), StructOf)
+    assert isinstance(get_datatype(
+        ['struct', {'blob': ['blob']}]).named_subtypes['blob'], BLOBType)
 
     with pytest.raises(ValueError):
         get_datatype(['struct', [['blob']], -10])
     with pytest.raises(ValueError):
         get_datatype(['struct', [['blob']], -10, 10])
 
-    assert isinstance(get_datatype(['struct', {'blob':['blob'], 'int':['int']}]), StructOf)
+    assert isinstance(get_datatype(
+        ['struct', {'blob': ['blob'], 'int':['int']}]), StructOf)

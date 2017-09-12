@@ -35,17 +35,17 @@ uidir = path.join(path.dirname(__file__), 'secop', 'gui', 'ui')
 uis = [path.join('gui', 'ui', entry) for entry in listdir(uidir)]
 
 setup(
-    name = 'secop-core',
-    version = secop.version.get_version(),
-    license = 'GPL',
-    author = 'Enrico Faulhaber',
-    author_email = 'enrico.faulhaber@frm2.tum.de',
-    description = 'SECoP Playground core system',
-    packages = find_packages(),
-    package_data = {'secop': ['RELEASE-VERSION'] + uis},
-    data_files = [('/etc/init.d', ['etc/secop-server'])],
-    scripts = scripts,
-    classifiers = [
+    name='secop-core',
+    version=secop.version.get_version(),
+    license='GPL',
+    author='Enrico Faulhaber',
+    author_email='enrico.faulhaber@frm2.tum.de',
+    description='SECoP Playground core system',
+    packages=find_packages(),
+    package_data={'secop': ['RELEASE-VERSION'] + uis},
+    data_files=[('/etc/init.d', ['etc/secop-server'])],
+    scripts=scripts,
+    classifiers=[
         'Development Status :: 6 - Mature',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',

@@ -43,7 +43,8 @@ class NodeCtrl(QWidget):
         self.contactPointLabel.setText(self._node.contactPoint)
         self.equipmentIdLabel.setText(self._node.equipmentId)
         self.protocolVersionLabel.setText(self._node.protocolVersion)
-        self.nodeDescriptionLabel.setText(self._node.describingData.get('description','no description available'))
+        self.nodeDescriptionLabel.setText(self._node.describingData['properties'].get(
+            'description', 'no description available'))
         self._clearLog()
 
         # now populate modules tab
@@ -168,7 +169,8 @@ class ReadableWidget(QWidget):
         self._node = node
         self._module = module
 
-        self._status_type = self._node.getProperties(self._module, 'status').get('datatype')
+        self._status_type = self._node.getProperties(
+            self._module, 'status').get('datatype')
 
         params = self._node.getProperties(self._module, 'value')
         datatype = params.get('datatype', StringType())
@@ -198,9 +200,11 @@ class ReadableWidget(QWidget):
         if pname in params:
             return params[pname].value
         try:
-            # if queried, we get the qualifiers as well, but don't want them here
+            # if queried, we get the qualifiers as well, but don't want them
+            # here
             import mlzlog
-            mlzlog.getLogger('cached values').warn('no cached value for %s:%s' % (self._module, pname))
+            mlzlog.getLogger('cached values').warn(
+                'no cached value for %s:%s' % (self._module, pname))
             val = self._node.getParameter(self._module, pname)[0]
             return val
         except Exception:

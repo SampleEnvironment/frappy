@@ -340,25 +340,30 @@ class BoolType(DataType):
 
 class ArrayOf(DataType):
 
-    def __init__(self, subtype, minsize_or_size=None, maxsize=None):
-        if maxsize is None:
-            maxsize = minsize_or_size
-        self.minsize = minsize_or_size
-        self.maxsize = maxsize
-        if self.minsize is not None and self.maxsize is not None and \
-                self.minsize > self.maxsize:
-            raise ValueError('minsize must be less than or equal to maxsize!')
+    def __init__(self, subtype, minsize=0, maxsize=None):
         if not isinstance(subtype, DataType):
             raise ValueError(
                 'ArrayOf only works with DataType objs as first argument!')
+        # if only one arg is given, it is maxsize!
+        if minsize and not maxsize:
+            maxsize = minsize
+            minsize = 0
+            self.as_json = ['array', subtype.as_json, maxsize]
+        elif maxsize:
+            self.as_json = ['array', subtype.as_json, maxsize, minsize]
+        else:
+            self.as_json = ['array', subtype.as_json]
+        self.minsize = minsize or 0
+        self.maxsize = maxsize
         self.subtype = subtype
-        self.as_json = ['array', self.subtype.as_json,
-                        self.maxsize, self.minsize]
-        if self.minsize is not None and self.minsize < 0:
+        if self.maxsize is not None and self.minsize > maxsize:
+            raise ValueError('minsize must be less than or equal to maxsize!')
+
+        if self.minsize < 0:
             raise ValueError('Minimum size must be >= 0!')
         if self.maxsize is not None and self.maxsize < 1:
             raise ValueError('Maximum size must be >= 1!')
-        if self.minsize is not None and self.maxsize is not None and self.minsize > self.maxsize:
+        if self.maxsize is not None and self.minsize > self.maxsize:
             raise ValueError('Maximum size must be >= Minimum size')
 
     def __repr__(self):
@@ -534,10 +539,12 @@ DATATYPES = dict(
     bool=lambda: BoolType(),
     int=lambda _min=None, _max=None: IntRange(_min, _max),
     double=lambda _min=None, _max=None: FloatRange(_min, _max),
-    blob=lambda _min=None, _max=None: BLOBType(_min, _max),
-    string=lambda _min=None, _max=None: StringType(_min, _max),
-    array=lambda subtype, _min=None, _max=None: ArrayOf(
-        get_datatype(subtype), _min, _max),
+    blob=lambda _max=None, _min=None: BLOBType(
+        _min, _max) if _min else BLOBType(_max),
+    string=lambda _max=None, _min=None: StringType(
+        _min, _max) if _min else StringType(_max),
+    array=lambda subtype, _max=None, _min=None: ArrayOf(
+        get_datatype(subtype), _min, _max) if _min else ArrayOf(getdatatype(subtype), _min),
     tuple=lambda subtypes: TupleOf(*map(get_datatype, subtypes)),
     enum=lambda kwds: EnumType(**kwds),
     struct=lambda named_subtypes: StructOf(
