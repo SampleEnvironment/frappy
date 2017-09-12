@@ -12,6 +12,7 @@ Protocol documentation
    modsubset
    heartbeat
    jsonstruct
+   datatypes
    todo
    notes
    history
