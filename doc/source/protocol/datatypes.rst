@@ -110,8 +110,6 @@ blob
       - | ["blob", <max len>] **or**
         | ["blob", <max len>, <min len>]
         |
-        | if <max len> is not given, it is assumed as 255.
-        | if the string is UTF-8 encoded, the length is counting the number of bytes, not characters
         | if <min len> is not given, it is assumed as 0.
 
     * - Transport example
