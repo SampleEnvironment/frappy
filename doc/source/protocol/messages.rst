@@ -23,7 +23,7 @@ On change-requests the parameter is assumed to be 'target', on trigger-requests 
 Clients should not rely on this and explicitly state the parametername!
 
 All names and keywords are defined to be identifiers in the sense, that they are not longer than 63 characters and consist only of letters, digits and underscore and do not start with a digit. (i.e. T_9 is ok, whereas t{9} is not!)
-No rule is without exception, there is exactly ONE special case: the identify request consists of the literal string '*IDN?\\n' and its answer is formatted like an valid SCPI response for *IDN?.
+No rule is without exception, there is exactly ONE special case: the identify request consists of the literal string '\*IDN?\\n' and its answer is formatted like an valid SCPI response for \*IDN?.
 
 We rely on the underlying transport to not split messages, i.e. all messages are transported as a whole and no message interrupts another.
 
@@ -59,11 +59,11 @@ Allowed combinations as examples:
 Identify
 --------
 
-  * Request: type A: '*IDN?'
+  * Request: type A: '\*IDN?'
   * Reply:   special: 'SECoP, SECoPTCP, V2016-11-30, rc1'
   * queries if SECoP protocol is supported and which version it is
-  Format is intentionally choosen to be compatible to SCPI (for this query only).
-  It is NOT intended to transport information about the manufacturer of the hardware, but to identify this as a SECoP device and transfer the protocol version!
+    Format is intentionally choosen to be compatible to SCPI (for this query only).
+    It is NOT intended to transport information about the manufacturer of the hardware, but to identify this as a SECoP device and transfer the protocol version!
 
 
 Describe
@@ -72,8 +72,8 @@ Describe
   * Request: type A: 'describe'
   * Reply:   type C: 'describing <ID> {"modules":{"T1":{"baseclass":"Readable", ....'
   * request the 'descriptive data'. The format needs to be better defined and
-  may possibly just follow the reference implementation.
-  <ID> identifies the equipment. It should be unique. Our suggestion is to use something along <facility>_<id>, i.e. MLZ_ccr12 or PSI_oven4.
+    may possibly just follow the reference implementation.
+    <ID> identifies the equipment. It should be unique. Our suggestion is to use something along <facility>_<id>, i.e. MLZ_ccr12 or PSI_oven4.
 
 
 Activate Async Events
@@ -82,7 +82,7 @@ Activate Async Events
   * Request: type A: 'activate'
   * Reply:   several EVENT lines (initial value transfer) followed by: type A: 'active'
   * Activates sending of Async Events after transferring all live quantities once
-  and an 'end-of-initial-transfer' marker. After this events are enabled.
+    and an 'end-of-initial-transfer' marker. After this events are enabled.
 
 
 Deactivate Async Events
@@ -109,7 +109,7 @@ Write
   * Request: type C: 'change <module>[:<param>] JSON_value'
   * Reply: type C: 'changed <module>:<param> JSON_read_back_value'
   * initiate setting a new value for the module or a parameter of it.
-  Once this is done, the read_back value is confirmed by the reply.
+    Once this is done, the read_back value is confirmed by the reply.
 
 
 Trigger
@@ -128,7 +128,7 @@ Heartbeat
   * Reply:   type A: 'pong'
   * Reply:   type B: 'pong <nonce>'
   * Replies the given argument to check the round-trip-time or to confirm that the connection is still working.
-  <nonce> may not contain <space>. It is suggested to limit to a string of up to 63 chars consisting of letters, digits and underscore not beginning with a digit. If <nonce> is not given (Type A), reply without it.
+    <nonce> may not contain <space>. It is suggested to limit to a string of up to 63 chars consisting of letters, digits and underscore not beginning with a digit. If <nonce> is not given (Type A), reply without it.
 
 
 EVENT
@@ -139,11 +139,13 @@ Events can be emitted any time from the SEC-node (except if they would interrupt
   * Request: None. Events can be requested by Trigger or by Activating Async Mode.
   * Reply:   type C: 'event <module>:<param> JSON_VALUE'
   * Informs the client that a parameter got changed its value.
-  In any case the JSON_value contain the available qualifiers as well:
+    In any case the JSON_value contain the available qualifiers as well:
+
     * "t" for the timestamp of the event.
     * "e" for the error of the value.
     * "u" for the unit of the value, if deviating from the descriptive data
     * further qualifiers, if needed, may be specified.
+
   The qualifiers are a dictionary at position 2 of a list, where the value occupies position 1.
   This holds true also for complex datatypes (of value)!
 
@@ -160,6 +162,7 @@ ERROR
   * Request: None. can only be a reply if some request fails.
   * Reply: type C: 'ERROR <errorclass> JSON_additional_stuff'
   * Following <errorclass> are defined so far:
+
     * NoSuchDevice: The action can not be performed as the specified device is non-existent.
     * NoSuchParameter: The action can not be performed as the specified parameter is non-existent.
     * NoSuchCommand: The specified command does not exist.
@@ -173,6 +176,7 @@ ERROR
     * Disabled: The requested action can not be performed at the moment. (Interlocks?)
     * SyntaxError: A malformed Request was send
     * InternalError: Something that should never happen just happened.
+
   The JSON part should reference the offending request and give an explanatory string.
 
   examples:
@@ -186,7 +190,7 @@ Examples
 --------
 
 (client connects):
-(client)    '*IDN?'
+(client)    '\*IDN?'
 (SEC-node)  'Sine2020WP7.1&ISSE, SECoP, V2016-11-30, rc1'
 (client)    'describe'
 (SEC-node)  'describing SECoP_Testing {"modules":{"T1":{"baseclass":"Readable", ...
