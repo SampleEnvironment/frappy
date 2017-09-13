@@ -386,6 +386,10 @@ class Client(object):
                     datatype = get_datatype(parameterData['datatype'])
                     self.describing_data['modules'][module]['parameters'] \
                         [parameter]['datatype'] = datatype
+                for cmdname, cmdData in moduleData[
+                        'commands'].items():
+                    cmdData['arguments'] = map(get_datatype, cmdData['arguments'])
+                    cmdData['resulttype'] = get_datatype(cmdData['resulttype'])
         except Exception as exc:
             print(formatException(verbose=True))
             raise
@@ -548,9 +552,9 @@ class Client(object):
     def getCommands(self, module):
         return self.describing_data['modules'][module]['commands']
 
-    def execCommand(self, module, command, args=None):
+    def execCommand(self, module, command, args):
         #  ignore reply message + reply specifier, only return data
-        return self._communicate('do', '%s:%s' % (module, command), self.encode_message(args) if args else None)[2]
+        return self._communicate('do', '%s:%s' % (module, command), list(args) if args else None)[2]
 
     def getProperties(self, module, parameter):
         return self.describing_data['modules'][module]['parameters'][parameter]

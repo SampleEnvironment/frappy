@@ -138,7 +138,18 @@ class NodeCtrl(QWidget):
             else:
                 interfaces = modprops['interfaces']
             description = modprops['description']
-            unit = self._node.getProperties(modname, 'value').get('unit', '')
+
+            # fallback: allow (now) invalid 'Driveable'
+            if 'Drivable' in interfaces or 'Driveable' in interfaces:
+                widget = DrivableWidget(self._node, modname, self)
+                unit = self._node.getProperties(modname, 'value').get('unit', '')
+            elif 'Readable' in interfaces:
+                widget = ReadableWidget(self._node, modname, self)
+                unit = self._node.getProperties(modname, 'value').get('unit', '')
+            else:
+                widget = QLabel('Unsupported Interfaceclass %r' % interfaces)
+                unit = ''
+
 
             if unit:
                 labelstr = '%s (%s):' % (modname, unit)
@@ -146,14 +157,6 @@ class NodeCtrl(QWidget):
                 labelstr = '%s:' % (modname,)
             label = QLabel(labelstr)
             label.setFont(labelfont)
-
-            # fallback: allow (now) invalid 'Driveable'
-            if 'Drivable' in interfaces or 'Driveable' in interfaces:
-                widget = DrivableWidget(self._node, modname, self)
-            elif 'Readable' in interfaces:
-                widget = ReadableWidget(self._node, modname, self)
-            else:
-                widget = QLabel('Unsupported Interfaceclasses %r' % interfaces)
 
             if description:
                 widget.setToolTip(description)

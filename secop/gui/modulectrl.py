@@ -29,6 +29,46 @@ from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
 from secop.gui.util import loadUi
 from secop.gui.params import ParameterView
 
+from secop.datatypes import *
+
+from PyQt4.QtGui import QDialog, QPushButton, QLabel, QApplication, QLineEdit,\
+    QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, QRadioButton, \
+    QVBoxLayout, QGridLayout, QScrollArea, QFrame
+
+from secop.gui.valuewidgets import get_widget
+
+
+class CommandDialog(QDialog):
+    def __init__(self, cmdname, arglist, parent=None):
+        super(CommandDialog, self).__init__(parent)
+        loadUi(self, 'cmddialog.ui')
+
+        self.setWindowTitle('Arguments for %s' % cmdname)
+        row = 0
+
+        self._labels = []
+        self.widgets = []
+        for row, dtype in enumerate(arglist):
+            l = QLabel(repr(dtype))
+            l.setWordWrap(True)
+            w = get_widget(dtype, readonly=False)
+            self.gridLayout.addWidget(l, row, 0)
+            self.gridLayout.addWidget(w, row, 1)
+            self._labels.append(l)
+            self.widgets.append(w)
+
+        self.gridLayout.setRowStretch(len(arglist), 1)
+        self.setModal(True)
+        self.resize(self.sizeHint())
+
+    def get_value(self):
+        return [w.get_value() for w in self.widgets]
+
+    def exec_(self):
+        if super(CommandDialog, self).exec_():
+            return self.get_value()
+
+
 
 def showCommandResultDialog(command, args, result, extras=''):
     m = QMessageBox()
@@ -69,26 +109,12 @@ class ParameterGroup(QWidget):
         self._row += 1
 
     def on_toggle_clicked(self):
-        print("ParameterGroup.on_toggle_clicked")
         if self.paramGroupBox.isChecked():
             for w in self._widgets:
                 w.show()
         else:
             for w in self._widgets:
                 w.hide()
-
-
-class CommandArgumentsDialog(QDialog):
-
-    def __init__(self, commandname, argtypes, parent=None):
-        super(CommandArgumentsDialog, self).__init__(parent)
-
-        # XXX: fill in apropriate widgets + OK/Cancel
-
-    def exec_(self):
-        print('CommandArgumentsDialog result is', super(
-            CommandArgumentsDialog, self).exec_())
-        return None  # XXX: if there were arguments, return them after validation or None for 'Cancel'
 
 
 class CommandButton(QButton):
@@ -108,10 +134,10 @@ class CommandButton(QButton):
 
     def on_pushButton_pressed(self):
         self.setEnabled(False)
-        if self._argintypes or 1:
-            args = CommandArgumentsDialog(self._cmdname, self._argintypes)
+        if self._argintypes:
+            dlg = CommandDialog(self._cmdname, self._argintypes)
+            args = dlg.exec_()
             if args:  # not 'Cancel' clicked
-                print('############# %s', args)
                 self._cb(self._cmdname, args)
         else:
             # no need for arguments
@@ -140,17 +166,10 @@ class ModuleCtrl(QWidget):
         self._node.newData.connect(self._updateValue)
 
     def _execCommand(self, command, args=None):
-        if args:  # try to validate input
-            #  XXX: check datatypes with their validators?
-            import ast
-            try:
-                args = ast.literal_eval(args)
-            except Exception as e:
-                return showErrorDialog(e)
         if not args:
             args = tuple()
         result, qualifiers = self._node.execCommand(
-            self._module, command, *args)
+            self._module, command, args)
         showCommandResultDialog(command, args, result, qualifiers)
 
     def _initModuleWidgets(self):
