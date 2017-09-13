@@ -4,3 +4,4 @@ Sphinx>=1.2.1
 # test suite
 pytest
 pytest-randomly>=1.1
+pytest-cov

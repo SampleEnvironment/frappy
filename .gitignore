@@ -14,3 +14,7 @@ doc/_build
 
 # Mac
 .DS_Store
+
+# pytest
+.cache
+.coverage
