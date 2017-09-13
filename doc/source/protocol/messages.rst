@@ -2,7 +2,7 @@ SECoP Messages
 ==============
 
 All Messages are formatted in the same way:
-  &lt;keyword&gt;[&lt;space&gt;&lt;specifier&gt;[&lt;space&gt;&lt;JSON_formatted_data&gt;]]&lt;linefeed&gt;
+  <keyword>[<space><specifier>[<space><JSON_formatted_data>]]<linefeed>
 
 where [] enclose optional parts. This basically results in 3 different possible
 formattings:
@@ -13,7 +13,7 @@ formattings:
 
 Note: numerical values and strings appear 'naturally' formatted in JSON, i.e. 5.0 or "a string"
 
-&lt;keyword&gt; is one of a fixed list of defined keywords, &lt;specifier&gt; is either the
+<keyword> is one of a fixed list of defined keywords, <specifier> is either the
 name of the module optionally followed by ':' + the name of a command or parameter,
 or one of a fixed list of predefined keywords, depending on the message keyword.
 
@@ -36,14 +36,14 @@ Both SEC-node and ECS-client can close the connection at any time!
 List of Intents/Actions:
 ------------------------
 
-  * Identify -&gt; Ident
-  * Describe -&gt; Description
-  * Activate Events -&gt; initial data transfer -&gt; end-of-transfer-marker
-  * Deactivate Async Events -&gt; confirmation
-  * Command &lt;module&gt;:&lt;command&gt; -&gt; confirmation -&gt; result_event
-  * Heartbeat &lt;nonce&gt; -&gt; Heartbeat_reply
-  * Change &lt;module&gt;[:&lt;param&gt;] JSON_VALUE -&gt; confirmation -&gt; readback_event
-  * TRIGGER &lt;module&gt;[:&lt;param&gt;] -&gt; read_event
+  * Identify -> Ident
+  * Describe -> Description
+  * Activate Events -> initial data transfer -> end-of-transfer-marker
+  * Deactivate Async Events -> confirmation
+  * Command <module>:<command> -> confirmation -> result_event
+  * Heartbeat <nonce> -> Heartbeat_reply
+  * Change <module>[:<param>] JSON_VALUE -> confirmation -> readback_event
+  * TRIGGER <module>[:<param>] -> read_event
 
 At any time an Event may be replied. Each request may also trigger an Error.
 
@@ -53,7 +53,7 @@ Warning: One Message per line: Description line can be looooong!!!
 
 
 Allowed combinations as examples:
-(replace &lt;..&gt; with sensible stuff)
+(replace <..> with sensible stuff)
 
 
 Identify
@@ -70,10 +70,10 @@ Describe
 --------
 
   * Request: type A: 'describe'
-  * Reply:   type C: 'describing &lt;ID&gt; {"modules":{"T1":{"baseclass":"Readable", ....'
+  * Reply:   type C: 'describing <ID> {"modules":{"T1":{"baseclass":"Readable", ....'
   * request the 'descriptive data'. The format needs to be better defined and
   may possibly just follow the reference implementation.
-  &lt;ID&gt; identifies the equipment. It should be unique. Our suggestion is to use something along &lt;facility&gt;_&lt;id&gt;, i.e. MLZ_ccr12 or PSI_oven4.
+  <ID> identifies the equipment. It should be unique. Our suggestion is to use something along <facility>_<id>, i.e. MLZ_ccr12 or PSI_oven4.
 
 
 Activate Async Events
@@ -96,9 +96,9 @@ Deactivate Async Events
 Execute Command
 ---------------
 
-  * Request: type B: 'do &lt;module&gt;:&lt;command&gt;' for commands without arguments
-  * Request: type C: 'do &lt;module&gt;:&lt;command&gt; JSON_argument' for commands with arguments
-  * Reply:   type C: 'done &lt;module&gt;:&lt;command&gt; JSON_result' after the command finished
+  * Request: type B: 'do <module>:<command>' for commands without arguments
+  * Request: type C: 'do <module>:<command> JSON_argument' for commands with arguments
+  * Reply:   type C: 'done <module>:<command> JSON_result' after the command finished
   * start executing a command. When it is finished, the reply is send.
     The JSON_result is the a list of all return values (if any), appended with qualifiers (timestamp)
 
@@ -106,8 +106,8 @@ Execute Command
 Write
 -----
 
-  * Request: type C: 'change &lt;module&gt;[:&lt;param&gt;] JSON_value'
-  * Reply: type C: 'changed &lt;module&gt;:&lt;param&gt; JSON_read_back_value'
+  * Request: type C: 'change <module>[:<param>] JSON_value'
+  * Reply: type C: 'changed <module>:<param> JSON_read_back_value'
   * initiate setting a new value for the module or a parameter of it.
   Once this is done, the read_back value is confirmed by the reply.
 
@@ -115,7 +115,7 @@ Write
 Trigger
 -------
 
-  * Request: type B: 'read &lt;module&gt;[:&lt;param&gt;]'
+  * Request: type B: 'read <module>[:<param>]'
   * Reply:   None directly. However, one Event with the read value will be send.
   * Read the requested quantity and sends it as an event (even if events are disabled or the value is not different to the last value).
 
@@ -124,11 +124,11 @@ Heartbeat
 ---------
 
   * Request: type A: 'ping'
-  * Request: type B: 'ping &lt;nonce&gt;'
+  * Request: type B: 'ping <nonce>'
   * Reply:   type A: 'pong'
-  * Reply:   type B: 'pong &lt;nonce&gt;'
+  * Reply:   type B: 'pong <nonce>'
   * Replies the given argument to check the round-trip-time or to confirm that the connection is still working.
-  &lt;nonce&gt; may not contain &lt;space&gt;. It is suggested to limit to a string of up to 63 chars consisting of letters, digits and underscore not beginning with a digit. If &lt;nonce&gt; is not given (Type A), reply without it.
+  <nonce> may not contain <space>. It is suggested to limit to a string of up to 63 chars consisting of letters, digits and underscore not beginning with a digit. If <nonce> is not given (Type A), reply without it.
 
 
 EVENT
@@ -137,7 +137,7 @@ EVENT
 Events can be emitted any time from the SEC-node (except if they would interrupt another message).
 
   * Request: None. Events can be requested by Trigger or by Activating Async Mode.
-  * Reply:   type C: 'event &lt;module&gt;:&lt;param&gt; JSON_VALUE'
+  * Reply:   type C: 'event <module>:<param> JSON_VALUE'
   * Informs the client that a parameter got changed its value.
   In any case the JSON_value contain the available qualifiers as well:
     * "t" for the timestamp of the event.
@@ -158,8 +158,8 @@ ERROR
 -----
 
   * Request: None. can only be a reply if some request fails.
-  * Reply: type C: 'ERROR &lt;errorclass&gt; JSON_additional_stuff'
-  * Following &lt;errorclass&gt; are defined so far:
+  * Reply: type C: 'ERROR <errorclass> JSON_additional_stuff'
+  * Following <errorclass> are defined so far:
     * NoSuchDevice: The action can not be performed as the specified device is non-existent.
     * NoSuchParameter: The action can not be performed as the specified parameter is non-existent.
     * NoSuchCommand: The specified command does not exist.
@@ -203,9 +203,9 @@ Examples
 merge datatype and validator:
 -----------------------------
   * enum, int, double, bool, tuple, struct as before
-  * ["blob", &lt;maximum_size_in_bytes&gt;] or ["blob", &lt;maximum_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
-  * ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;max_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
-  * ["array", &lt;basic_data_type&gt;, &lt;max_elements&gt;] or ["array", &lt;dtype&gt;, &lt;max_elements&gt;, &lt;min_elements&gt;]
+  * ["blob", <maximum_size_in_bytes>] or ["blob", <maximum_size_in_bytes>, <minimum_size_in_bytes>]
+  * ["string", <maximum_allowed_length>] or ["string", <max_size_in_bytes>, <minimum_size_in_bytes>]
+  * ["array", <basic_data_type>, <max_elements>] or ["array", <dtype>, <max_elements>, <min_elements>]
 
 interface_class
 ---------------

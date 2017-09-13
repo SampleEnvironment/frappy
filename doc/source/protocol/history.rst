@@ -11,12 +11,12 @@ Meeting 29.5.2017
 * BLOB is [length, string_encoding (base64 or json_string) ] ???
 * enum is transferred by value (api: int64_t)
 * basic data types: string, BLOB(maxsize), int, double, bool, enum(mapping)
-* encode as ["string"] ["blob"] ["int"] ["double"] ["bool"] ["enum", {&lt;number_value&gt;:&lt;name&gt;}]
+* encode as ["string"] ["blob"] ["int"] ["double"] ["bool"] ["enum", {<number_value>:<name>}]
 * send as json_string [length, json_string] number number 0_or_1 number_value
 * complex data types: array, tuple, struct
-* encode as: ["array", &lt;subtype&gt;] ["tuple", [&lt;list_of_compositing data types&gt;] ["struct", {"name_of_subcomponent":&lt;type of subcomponent&gt;}]
+* encode as: ["array", <subtype>] ["tuple", [<list_of_compositing data types>] ["struct", {"name_of_subcomponent":<type of subcomponent>}]
 * send as [array] [array} {mapping}
-* forbid: structs in structs, nesting level &gt; 3, arrays may only contain basic types + tuple
+* forbid: structs in structs, nesting level > 3, arrays may only contain basic types + tuple
 * essential features should not rely on complex data types
 * fallback: if ECS can not handle a non-basic datatype: handle as string containing the JSON-representation.
 * mandatory for all ECS: enum, int, double, string, bool, tuple(enum,string)
@@ -24,15 +24,15 @@ Meeting 29.5.2017
 Merge datatype and validator
 ++++++++++++++++++++++++++++
 
-* ["enum", {&lt;number_value&gt;:&lt;json_string&gt;}]
-* ["int"] or ["int", &lt;lowest_allowed_value&gt;, &lt;highest_allowed_value&gt;]
-* ["double"] or ["double", &lt;lowest_allowed_value&gt;, &lt;highest_allowed_value&gt;]
+* ["enum", {<number_value>:<json_string>}]
+* ["int"] or ["int", <lowest_allowed_value>, <highest_allowed_value>]
+* ["double"] or ["double", <lowest_allowed_value>, <highest_allowed_value>]
 * ["bool"]
-* ["blob", &lt;maximum_size_in_bytes&gt;] or ["blob", &lt;minimum_size_in_bytes&gt;, &lt;maximum_size_in_bytes&gt;]
-* ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;min_size&gt;, &lt;max_size&gt;]
-* ["array", &lt;basic_data_type&gt;, &lt;max_elements&gt;] or ["array", &lt;dtype&gt;, &lt;min_elements&gt;, &lt;max_elements&gt;]
-* ["tuple", [ &lt;list_of_dtypes ]]
-* ["struct", { &lt;name_of_component_as_json_string&gt;:&lt;dtype&gt;}]
+* ["blob", <maximum_size_in_bytes>] or ["blob", <minimum_size_in_bytes>, <maximum_size_in_bytes>]
+* ["string", <maximum_allowed_length>] or ["string", <min_size>, <max_size>]
+* ["array", <basic_data_type>, <max_elements>] or ["array", <dtype>, <min_elements>, <max_elements>]
+* ["tuple", [ <list_of_dtypes ]]
+* ["struct", { <name_of_component_as_json_string>:<dtype>}]
 
 Examples
 ++++++++
@@ -55,9 +55,9 @@ Merge datatype and validator
 ++++++++++++++++++++++++++++
 
   * enum, int, double, bool, tuple, struct as before
-  * ["blob", &lt;maximum_size_in_bytes&gt;] or ["blob", &lt;maximum_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
-  * ["string", &lt;maximum_allowed_length&gt;] or ["string", &lt;max_size_in_bytes&gt;, &lt;minimum_size_in_bytes&gt;]
-  * ["array", &lt;basic_data_type&gt;, &lt;max_elements&gt;] or ["array", &lt;dtype&gt;, &lt;max_elements&gt;, &lt;min_elements&gt;]
+  * ["blob", <maximum_size_in_bytes>] or ["blob", <maximum_size_in_bytes>, <minimum_size_in_bytes>]
+  * ["string", <maximum_allowed_length>] or ["string", <max_size_in_bytes>, <minimum_size_in_bytes>]
+  * ["array", <basic_data_type>, <max_elements>] or ["array", <dtype>, <max_elements>, <min_elements>]
 
 
 Interface_class
