@@ -58,11 +58,11 @@ vorerst folgende Festlegung:
  "firmware": "The SECoP playground",
  "modules": ["cryo", {"commands": ["stop", {"resulttype": "None",
                                             "arguments": "[]",
-                                            "description": "Testing command implementation\n\nwait a second"
+                                            "description": "Testing command implementation\\n\\nwait a second"
                                            },
                                    "start", {"resulttype": "None",
                                              "arguments": "[]",
-                                             "description": "normally does nothing,\n\nbut there may be modules which _start_ the action here\n"
+                                             "description": "normally does nothing,\\n\\nbut there may be modules which _start_ the action here\\n"
                                             }
                                   ],
                        "group": "very important/stuff",

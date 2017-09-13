@@ -7,9 +7,9 @@ All Messages are formatted in the same way:
 where [] enclose optional parts. This basically results in 3 different possible
 formattings:
 
-  * type A: "keyword\n"
-  * type B: "keyword specifier\n"
-  * type C: "keyword specifier JSON_data\n"
+  * type A: "keyword\\n"
+  * type B: "keyword specifier\\n"
+  * type C: "keyword specifier JSON_data\\n"
 
 Note: numerical values and strings appear 'naturally' formatted in JSON, i.e. 5.0 or "a string"
 
@@ -23,7 +23,7 @@ On change-requests the parameter is assumed to be 'target', on trigger-requests 
 Clients should not rely on this and explicitly state the parametername!
 
 All names and keywords are defined to be identifiers in the sense, that they are not longer than 63 characters and consist only of letters, digits and underscore and do not start with a digit. (i.e. T_9 is ok, whereas t{9} is not!)
-No rule is without exception, there is exactly ONE special case: the identify request consists of the literal string '*IDN?\n' and its answer is formatted like an valid SCPI response for *IDN?.
+No rule is without exception, there is exactly ONE special case: the identify request consists of the literal string '*IDN?\\n' and its answer is formatted like an valid SCPI response for *IDN?.
 
 We rely on the underlying transport to not split messages, i.e. all messages are transported as a whole and no message interrupts another.
 
