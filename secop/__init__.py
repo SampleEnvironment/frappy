@@ -21,6 +21,10 @@
 #
 # *****************************************************************************
 
-import sip
-sip.setapi('QString', 2)
-sip.setapi('QVariant', 2)
+try:
+    import sip
+    sip.setapi('QString', 2)
+    sip.setapi('QVariant', 2)
+except ImportError:
+    print('can not import sip, the gui may not work as expected')
+
