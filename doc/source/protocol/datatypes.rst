@@ -1,77 +1,175 @@
 Datatypes
 =========
 
+double
+------
+
 .. list-table::
-    :header-rows: 1
+    :widths: 20 80
+    :stub-columns: 1
 
-    * - Data type
-      - Specification (simple)
-      - Specification (with limits)
-      - Transport example
-      - Datatype used in C/C++ API
-      - Remarks 
+    * - Datatype
+      - | ["double"] **or**
+        | ["double", <min>] **or**
+        | ["double", <min>, <max>]
+        |
+        | if <max> is not given or null, there is no upper limit
+        | if <min> is null or not given, there is no lower limit
 
-    * - double
-      - ["double"]
-      - ["double", <min>, <max>]
-      - 3.14159265
-      - double
-      -  
+    * - Transport example
+      - | 3.14159265
 
-    * - int
-      - ["int"]
-      - ["int", <min>, <max>]
-      - -55
-      - int64_t
-      -
+    * - Datatype in C/C++
+      - | double
 
-    * - bool
-      - ["bool"]
-      -
-      - true
-      - int64_t
-      -
+int
+---
 
-    * - enum
-      - ["enum", {<name> : <value>, ....}]
-      -
-      - 1
-      - int64_t
-      -
+.. list-table::
+    :widths: 20 80
+    :stub-columns: 1
 
-    * - string
-      - ["string"]
-      - ["string", <min len>, <max len>]
-      - "hello!"
-      - char *
-      -
+    * - Datatype
+      - | ["int"] **or**
+        | ["int", <min>] **or**
+        | ["int", <min>, <max>]
+        |
+        | if <max> is not given or null, there is no upper limit
+        | if <min> is null or not given, there is no lower limit
 
-    * - blob
-      - ["blob"]
-      - ["blob", <min len>, <max len>]
-      - "AA=="
-      - struct {int64_t len, char \*data}
-      - transport is base64 encoded
+    * - Transport example
+      - | -55
 
-    * - array
-      - ["array", <basic type>]
-      - ["array", <basic type>, <min len>, <max len>]
-      - [3,4,7,2,1]
-      - <basic_datatype>[]
-      -
+    * - Datatype in C/C++
+      - | int64_t
 
-    * - tuple
-      - ["tuple", [<datatype>, <datatype>, ...]]
-      -
-      - [0,"idle"]
-      - struct ??
-      - 
+bool
+----
 
-    * - struct
-      - ["struct", {<name> : <datatype>, <name>: <datatype>, ....}]
-      -
-      - {"x": 0, "y": 1}
-      - struct ??
-      -
-      
+.. list-table::
+    :widths: 20 80
+    :stub-columns: 1
 
+    * - Datatype
+      - | ["bool"]
+
+    * - Transport example
+      - | true
+
+    * - Datatype in C/C++
+      - | int64_t
+
+
+enum
+----
+
+.. list-table::
+    :widths: 20 80
+    :stub-columns: 1
+
+    * - Datatype
+      - | ["enum", {<name> : <value>, ....}]
+
+    * - Transport example
+      - | 2
+
+    * - Datatype in C/C++
+      - | int64_t
+
+
+string
+------
+
+.. list-table::
+    :widths: 20 80
+    :stub-columns: 1
+
+    * - Datatype
+      - | ["string"] **or**
+        | ["string", <max len>] **or**
+        | ["string", <max len>, <min len>]
+        |
+        | if <max len> is not given, it is assumed as 255.
+        | if <min len> is not given, it is assumed as 0.
+        | if the string is UTF-8 encoded, the length is counting the number of bytes, not characters
+
+    * - Transport example
+      - | "hello!"
+
+    * - Datatype in C/C++
+      - | char \*
+
+blob
+----
+
+.. list-table::
+    :widths: 20 80
+    :stub-columns: 1
+
+    * - Datatype
+      - | ["blob", <max len>] **or**
+        | ["blob", <max len>, <min len>]
+        |
+        | if <max len> is not given, it is assumed as 255.
+        | if the string is UTF-8 encoded, the length is counting the number of bytes, not characters
+        | if <min len> is not given, it is assumed as 0.
+
+    * - Transport example
+      - | "AA=="  (base64 encoded)
+
+    * - Datatype in C/C++
+      - | struct {int64_t len, char \*data}
+
+array
+-----
+
+.. list-table::
+    :widths: 20 80
+    :stub-columns: 1
+
+    * - Datatype
+      - | ["array", <basic type>, <max len>] **or**
+        | ["array", <basic type>, <max len>, <min len>]
+        |
+        | if <min len> is not given, it is assumed as 0.
+        | the length is the number of elements
+
+    * - Transport example
+      - | [3,4,7,2,1]
+
+    * - Datatype in C/C++
+      - | <basic_datatype>[]
+ 
+tuple
+-----
+
+.. list-table::
+    :widths: 20 80
+    :stub-columns: 1
+
+    * - Datatype
+      - | ["tuple", [<datatype>, <datatype>, ...]]
+
+    * - Transport example
+      - | [0,"idle"]
+
+    * - Datatype in C/C++
+      - | struct ??
+
+struct
+------
+
+.. list-table::
+    :widths: 20 80
+    :stub-columns: 1
+
+    * - Datatype
+      - | ["struct", {<name> : <datatype>, <name>: <datatype>, ....}]
+
+    * - Transport example
+      - | {"x": 0, "y": 1}
+
+    * - Datatype in C/C++
+      - | struct ??
+        |
+        | might be null
