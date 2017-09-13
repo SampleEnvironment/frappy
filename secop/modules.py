@@ -431,7 +431,7 @@ class Readable(Module):
                         datatype=TupleOf(
             EnumType(**{
                 'IDLE': status.OK,
-                'BUSY': status.BUSY,
+#                'BUSY': status.BUSY,
                 'WARN': status.WARN,
                 'UNSTABLE': status.UNSTABLE,
                 'ERROR': status.ERROR,
@@ -481,15 +481,15 @@ class Readable(Module):
                 rfunc = getattr(self, 'read_' + pname, None)
                 if rfunc:
                     try:
-                        #                        self.log.info('polling read_%s -> %r' % (pname, rfunc()))
+                        # self.log.info('polling read_%s -> %r' % (pname, rfunc()))
                         rfunc()
                     except Exception:  # really all!
                         pass
         return fastpoll
 
 
-class Drivable(Readable):
-    """Basic Drivable Module
+class Writable(Readable):
+    """Basic Writable Module
 
     providing a settable 'target' parameter to those of a Readable
     """
@@ -503,3 +503,41 @@ class Drivable(Readable):
     }
     # XXX: CMDS ???? auto deriving working well enough?
 
+
+class Drivable(Writable):
+    """Basic Drivable Module
+
+    provides a stop command to interrupt actions.
+    Also status gets extended with a BUSY state indicating a running action.
+    """
+
+    OVERRIDES = {
+        "status" : OVERRIDE(datatype=TupleOf(
+            EnumType(**{
+                'IDLE': status.OK,
+                'BUSY': status.BUSY,
+                'WARN': status.WARN,
+                'UNSTABLE': status.UNSTABLE,
+                'ERROR': status.ERROR,
+                'UNKNOWN': status.UNKNOWN
+            }), StringType())),
+    }
+
+    def do_stop(self):
+        """default implementation of the stop command
+
+        by default does nothing."""
+
+
+class Communicator(Module):
+    """Basic communication Module
+
+    providing no parameters, but a 'communicate' command.
+    """
+
+    CMDS = {
+        "communicate" : CMD("provides the simplest mean to communication", 
+                            arguments=[StringType()],
+                            result=StringType()
+                           ),
+    }

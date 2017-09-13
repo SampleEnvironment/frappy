@@ -22,7 +22,7 @@
 
 import random
 
-from secop.modules import Readable, Drivable, PARAM
+from secop.modules import Readable, Drivable, Communicator, PARAM
 from secop.datatypes import FloatRange, StringType
 
 
@@ -84,3 +84,9 @@ class Temp(Drivable):
 
     def write_target(self, target):
         pass
+
+
+class Lower(Communicator):
+    """Communicator returning a lowercase version of the request"""
+    def do_communicate(self, request):
+        return str(request).lower()
