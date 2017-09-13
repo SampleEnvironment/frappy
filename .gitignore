@@ -11,3 +11,6 @@ build
 
 # Sphinx
 doc/_build
+
+# Mac
+.DS_Store

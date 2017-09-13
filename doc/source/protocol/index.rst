@@ -13,6 +13,7 @@ Protocol documentation
    heartbeat
    jsonstruct
    datatypes
+   commands
    todo
    notes
    history
