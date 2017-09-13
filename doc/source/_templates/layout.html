@@ -1,0 +1,13 @@
+{% extends "!layout.html" %}
+{% block extrahead %}
+<link rel="stylesheet" type="text/css" href="{{ pathto('_static/custom.css', 1) }}" />
+{% endblock %}
+{% block menu %}
+{{ super() }}
+<ul>
+    <li class="toctree-l1">
+	    <a class="reference internal" href="{{ pathto('genindex') }}">{{ _('Index') }}</a>
+    </li>
+</ul>
+{% endblock %}
+
