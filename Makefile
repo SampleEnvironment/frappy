@@ -30,4 +30,7 @@ test-coverage:
 doc:
 	$(MAKE) -C doc html
 
-.PHONY: doc clean test test-verbose test-coverage demo
+lint:
+	pylint -j $(shell nproc) -f colorized -r n --rcfile=pylintrc secop secop_* test
+
+.PHONY: doc clean test test-verbose test-coverage demo lint
