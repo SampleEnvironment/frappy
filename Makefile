@@ -31,6 +31,6 @@ doc:
 	$(MAKE) -C doc html
 
 lint:
-	pylint -j $(shell nproc) -f colorized -r n --rcfile=pylintrc secop secop_* test
+	pylint -j $(shell nproc) -f colorized -r n --rcfile=.pylintrc secop secop_* test
 
 .PHONY: doc clean test test-verbose test-coverage demo lint
