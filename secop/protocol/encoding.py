@@ -26,20 +26,37 @@
 
 from __future__ import print_function
 
-#from secop.lib.parsing import format_time
-from secop.protocol.encoding import MessageEncoder
-from secop.protocol.messages import *
-#from secop.protocol.errors import ProtocolError
 
-import ast
+# Base class
+class MessageEncoder(object):
+    """en/decode a single Messageobject"""
+
+    def encode(self, msg):
+        """encodes the given message object into a frame"""
+        raise NotImplementedError
+
+    def decode(self, encoded):
+        """decodes the given frame to a message object"""
+        raise NotImplementedError
+
+
 import re
 import json
+
+#from secop.lib.parsing import format_time
+from secop.protocol.messages import Value, IdentifyRequest, IdentifyReply, \
+    DescribeRequest, DescribeReply, ActivateRequest, ActivateReply, \
+    DeactivateRequest, DeactivateReply, CommandRequest, CommandReply, \
+    WriteRequest, WriteReply, PollRequest, HeartbeatRequest, HeartbeatReply, \
+    ErrorMessage, HelpMessage
+#from secop.protocol.errors import ProtocolError
+
 
 # each message is like <messagetype> [ \space <messageargs> [ \space
 # <json> ]] \lf
 
 # note: the regex allow <> for spec for testing only!
-DEMO_RE = re.compile(
+SECOP_RE = re.compile(
     r"""^(?P<msgtype>[\*\?\w]+)(?:\s(?P<spec>[\w:<>]+)(?:\s(?P<json>.*))?)?$""",
     re.X)
 
@@ -113,7 +130,7 @@ def encode_error_msg(emsg):
     ]
 
 
-class DemoEncoder(MessageEncoder):
+class SECoPEncoder(MessageEncoder):
     # map of msg to msgtype string as defined above.
     ENCODEMAP = {
         IdentifyRequest: (IDENTREQUEST, ),
@@ -170,7 +187,7 @@ class DemoEncoder(MessageEncoder):
     DECODEMAP = {
         IDENTREQUEST: lambda spec, data: IdentifyRequest(),
         # handled specially, listed here for completeness
-        IDENTREPLY: lambda spec, data: IdentifyReply(encoded),
+        # IDENTREPLY: lambda spec, data: IdentifyReply(encoded),
         DESCRIPTIONSREQUEST: lambda spec, data: DescribeRequest(),
         DESCRIPTIONREPLY: lambda spec, data: DescribeReply(equipment_id=spec[0], description=data),
         ENABLEEVENTSREQUEST: lambda spec, data: ActivateRequest(),
@@ -187,7 +204,8 @@ class DemoEncoder(MessageEncoder):
         HELPREQUEST: lambda spec, data: HelpMessage(),
         #        HELPREPLY: lambda spec, data:None,  # ignore this
         ERRORREPLY: lambda spec, data: ErrorMessage(errorclass=spec[0], errorinfo=data),
-        EVENT: lambda spec, data: Value(module=spec[0], parameter=spec[1], value=data[0], qualifiers=data[1] if len(data) > 1 else {}),
+        EVENT: lambda spec, data: Value(module=spec[0], parameter=spec[1], value=data[0],
+                                        qualifiers=data[1] if len(data) > 1 else {}),
     }
 
     def __init__(self, *args, **kwds):
@@ -235,7 +253,7 @@ class DemoEncoder(MessageEncoder):
 
     def decode(self, encoded):
         # first check beginning
-        match = DEMO_RE.match(encoded)
+        match = SECOP_RE.match(encoded)
         if not match:
             print(repr(encoded), repr(IDENTREPLY))
             if encoded == IDENTREPLY:  # XXX:better just check the first 2 parts...
@@ -277,7 +295,7 @@ class DemoEncoder(MessageEncoder):
 
     def tests(self):
         print("---- Testing encoding  -----")
-        for msgclass, parts in sorted(self.ENCODEMAP.items()):
+        for msgclass in sorted(self.ENCODEMAP):
             print(msgclass)
             e = self.encode(
                 msgclass(
@@ -305,3 +323,10 @@ class DemoEncoder(MessageEncoder):
             print(self.encode(d))
             print()
         print("---- Testing done -----")
+
+
+ENCODERS = {
+    'secop': SECoPEncoder,
+}
+
+__ALL__ = ['ENCODERS']

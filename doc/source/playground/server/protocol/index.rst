@@ -1,10 +1,10 @@
-Different protocols
-===================
+protocol stack
+==============
 
 .. toctree::
    :maxdepth: 3
 
-   encoding/index
+   encoding
    framing/index
    interface/index
 
