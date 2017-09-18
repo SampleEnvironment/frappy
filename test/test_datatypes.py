@@ -21,11 +21,12 @@
 # *****************************************************************************
 """test data types."""
 
+import sys
+sys.path.insert(0, sys.path[0] + '/..')
+
 # no fixtures needed
 import pytest
 
-import sys
-sys.path.insert(0, sys.path[0] + '/..')
 
 from secop.datatypes import DataType, FloatRange, IntRange, \
     EnumType, BLOBType, StringType, BoolType, ArrayOf, TupleOf, StructOf, \
@@ -36,10 +37,10 @@ def test_DataType():
     dt = DataType()
     assert dt.as_json == ['undefined']
 
-    with pytest.raises(TypeError):
+    with pytest.raises(NotImplementedError):
         dt = DataType()
         dt.validate('')
-        dt.export()
+        dt.export('')
 
 
 def test_FloatRange():
@@ -119,8 +120,8 @@ def test_EnumType():
 
 def test_BLOBType():
     # test constructor catching illegal arguments
-    dt = BLOBType()
-    assert dt.as_json == ['blob']
+    with pytest.raises(ValueError):
+        dt = BLOBType()
     dt = BLOBType(10)
     assert dt.as_json == ['blob', 10]
 
@@ -144,8 +145,8 @@ def test_BLOBType():
 
 def test_StringType():
     # test constructor catching illegal arguments
-    dt = StringType()
-    assert dt.as_json == ['string']
+    with pytest.raises(ValueError):
+        dt = StringType()
     dt = StringType(12)
     assert dt.as_json == ['string', 12]
 
@@ -179,21 +180,21 @@ def test_BoolType():
     with pytest.raises(ValueError):
         dt.validate('av')
 
-    assert dt.validate('true') == True
-    assert dt.validate('off') == False
-    assert dt.validate(1) == True
+    assert dt.validate('true') is True
+    assert dt.validate('off') is False
+    assert dt.validate(1) is True
 
-    assert dt.export('false') == False
-    assert dt.export(0) == False
-    assert dt.export('on') == True
+    assert dt.export('false') is False
+    assert dt.export(0) is False
+    assert dt.export('on') is True
 
 
 def test_ArrayOf():
     # test constructor catching illegal arguments
     with pytest.raises(ValueError):
         ArrayOf(int)
-    dt = ArrayOf(IntRange(-10, 10))
-    assert dt.as_json == ['array', ['int', -10, 10]]
+    with pytest.raises(ValueError):
+        ArrayOf(IntRange(-10,10))
     dt = ArrayOf(IntRange(-10, 10), 5)
     assert dt.as_json == ['array', ['int', -10, 10], 5]
 
@@ -230,12 +231,12 @@ def test_TupleOf():
 def test_StructOf():
     # test constructor catching illegal arguments
     with pytest.raises(TypeError):
-        StructOf(IntRange)
+        StructOf(IntRange)  # pylint: disable=E1121
     with pytest.raises(ProgrammingError):
         StructOf(IntRange=1)
 
-    dt = StructOf(a_string=StringType(), an_int=IntRange(0, 999))
-    assert dt.as_json == ['struct', {'a_string': ['string'],
+    dt = StructOf(a_string=StringType(55), an_int=IntRange(0, 999))
+    assert dt.as_json == ['struct', {'a_string': ['string', 55],
                                      'an_int': ['int', 0, 999],
                                      }]
 
@@ -295,18 +296,18 @@ def test_get_datatype():
     with pytest.raises(ValueError):
         get_datatype(['enum', [1, 2, 3]])
 
-    assert isinstance(get_datatype(['blob']), BLOBType)
     assert isinstance(get_datatype(['blob', 1]), BLOBType)
-    assert isinstance(get_datatype(['blob', 1, 10]), BLOBType)
+    assert isinstance(get_datatype(['blob', 10, 1]), BLOBType)
 
     with pytest.raises(ValueError):
         get_datatype(['blob', 10, -10])
     with pytest.raises(ValueError):
         get_datatype(['blob', 10, -10, 1])
 
-    assert isinstance(get_datatype(['string']), StringType)
+    with pytest.raises(ValueError):
+        get_datatype(['string'])
     assert isinstance(get_datatype(['string', 1]), StringType)
-    assert isinstance(get_datatype(['string', 1, 10]), StringType)
+    assert isinstance(get_datatype(['string', 10, 1]), StringType)
 
     with pytest.raises(ValueError):
         get_datatype(['string', 10, -10])
@@ -319,15 +320,15 @@ def test_get_datatype():
         get_datatype(['array', 1])
     with pytest.raises(ValueError):
         get_datatype(['array', [1], 2, 3])
-    assert isinstance(get_datatype(['array', ['blob']]), ArrayOf)
-    assert isinstance(get_datatype(['array', ['blob']]).subtype, BLOBType)
+    assert isinstance(get_datatype(['array', ['blob', 1], 1]), ArrayOf)
+    assert isinstance(get_datatype(['array', ['blob', 1], 1]).subtype, BLOBType)
 
     with pytest.raises(ValueError):
-        get_datatype(['array', ['blob'], -10])
+        get_datatype(['array', ['blob', 1], -10])
     with pytest.raises(ValueError):
-        get_datatype(['array', ['blob'], -10, 10])
+        get_datatype(['array', ['blob', 1], 10, -10])
 
-    assert isinstance(get_datatype(['array', ['blob'], 1, 10]), ArrayOf)
+    assert isinstance(get_datatype(['array', ['blob', 1], 10, 1]), ArrayOf)
 
     with pytest.raises(ValueError):
         get_datatype(['tuple'])
@@ -335,16 +336,16 @@ def test_get_datatype():
         get_datatype(['tuple', 1])
     with pytest.raises(ValueError):
         get_datatype(['tuple', [1], 2, 3])
-    assert isinstance(get_datatype(['tuple', [['blob']]]), TupleOf)
+    assert isinstance(get_datatype(['tuple', [['blob', 1]]]), TupleOf)
     assert isinstance(get_datatype(
-        ['tuple', [['blob']]]).subtypes[0], BLOBType)
+        ['tuple', [['blob', 1]]]).subtypes[0], BLOBType)
 
     with pytest.raises(ValueError):
-        get_datatype(['tuple', [['blob']], -10])
+        get_datatype(['tuple', [['blob', 1]], -10])
     with pytest.raises(ValueError):
-        get_datatype(['tuple', [['blob']], -10, 10])
+        get_datatype(['tuple', [['blob', 1]], 10, -10])
 
-    assert isinstance(get_datatype(['tuple', [['blob'], ['int']]]), TupleOf)
+    assert isinstance(get_datatype(['tuple', [['blob', 1], ['int']]]), TupleOf)
 
     with pytest.raises(ValueError):
         get_datatype(['struct'])
@@ -352,14 +353,14 @@ def test_get_datatype():
         get_datatype(['struct', 1])
     with pytest.raises(ValueError):
         get_datatype(['struct', [1], 2, 3])
-    assert isinstance(get_datatype(['struct', {'blob': ['blob']}]), StructOf)
+    assert isinstance(get_datatype(['struct', {'blob': ['blob', 1]}]), StructOf)
     assert isinstance(get_datatype(
-        ['struct', {'blob': ['blob']}]).named_subtypes['blob'], BLOBType)
+        ['struct', {'blob': ['blob', 1]}]).named_subtypes['blob'], BLOBType)
 
     with pytest.raises(ValueError):
-        get_datatype(['struct', [['blob']], -10])
+        get_datatype(['struct', [['blob', 1]], -10])
     with pytest.raises(ValueError):
-        get_datatype(['struct', [['blob']], -10, 10])
+        get_datatype(['struct', [['blob', 1]], 10, -10])
 
     assert isinstance(get_datatype(
-        ['struct', {'blob': ['blob'], 'int':['int']}]), StructOf)
+        ['struct', {'blob': ['blob', 1], 'int':['int']}]), StructOf)

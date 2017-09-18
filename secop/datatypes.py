@@ -23,7 +23,6 @@
 
 
 from .errors import ProgrammingError
-from collections import OrderedDict
 
 # Only export these classes for 'from secop.datatypes import *'
 __all__ = [
@@ -44,16 +43,16 @@ class DataType(object):
 
     def validate(self, value):
         """validate a external representation and return an internal one"""
-        raise NotImplemented
+        raise NotImplementedError
 
     def export(self, value):
         """returns a python object fit for external serialisation or logging"""
-        raise NotImplemented
+        raise NotImplementedError
 
     def from_string(self, text):
         """interprets a given string and returns a validated (internal) value"""
         # to evaluate values from configfiles, etc...
-        raise NotImplemented
+        raise NotImplementedError
 
     # goodie: if called, validate
     def __call__(self, value):
@@ -63,15 +62,15 @@ class DataType(object):
 class FloatRange(DataType):
     """Restricted float type"""
 
-    def __init__(self, min=None, max=None):
-        self.min = None if min is None else float(min)
-        self.max = None if max is None else float(max)
+    def __init__(self, minval=None, maxval=None):
+        self.min = None if minval is None else float(minval)
+        self.max = None if maxval is None else float(maxval)
         # note: as we may compare to Inf all comparisons would be false
         if (self.min or float('-inf')) <= (self.max or float('+inf')):
-            if min is None and max is None:
+            if minval is None and maxval is None:
                 self.as_json = ['double']
             else:
-                self.as_json = ['double', min, max]
+                self.as_json = ['double', minval, maxval]
         else:
             raise ValueError('Max must be larger then min!')
 
@@ -113,9 +112,9 @@ class FloatRange(DataType):
 class IntRange(DataType):
     """Restricted int type"""
 
-    def __init__(self, min=None, max=None):
-        self.min = int(min) if min is not None else min
-        self.max = int(max) if max is not None else max
+    def __init__(self, minval=None, maxval=None):
+        self.min = int(minval) if minval is not None else minval
+        self.max = int(maxval) if maxval is not None else maxval
         if self.min is not None and self.max is not None and self.min > self.max:
             raise ValueError('Max must be larger then min!')
         if self.min is None and self.max is None:
@@ -210,29 +209,28 @@ class EnumType(DataType):
 
 
 class BLOBType(DataType):
+    minsize = None
+    maxsize = None
+    def __init__(self, maxsize=None, minsize=0):
 
-    def __init__(self, minsize=0, maxsize=None):
-        # if only one arg is given it is maxsize!
-        if maxsize is None and minsize:
-            maxsize = minsize
-            minsize = 0
+        if maxsize is None:
+            raise ValueError('BLOBType needs a maximum number of Bytes count!')
+        minsize, maxsize = min(minsize, maxsize), max(minsize, maxsize)
         self.minsize = minsize
         self.maxsize = maxsize
+        if minsize < 0:
+            raise ValueError('sizes must be bigger than or equal to 0!')
         if minsize:
             self.as_json = ['blob', maxsize, minsize]
-        elif maxsize:
-            self.as_json = ['blob', maxsize]
         else:
-            self.as_json = ['blob']
-        if minsize is not None and maxsize is not None and minsize > maxsize:
-            raise ValueError('maxsize must be bigger than minsize!')
+            self.as_json = ['blob', maxsize]
 
     def __repr__(self):
-        if self.maxsize:
-            return 'BLOB(%s, %s)' % (str(self.minsize), str(self.maxsize))
         if self.minsize:
-            return 'BLOB(%d)' % self.minsize
-        return 'BLOB()'
+            return 'BLOB(%s, %s)' % (
+                str(self.minsize) if self.minsize else 'unspecified',
+                str(self.maxsize) if self.maxsize else 'unspecified')
+        return 'BLOB(%s)' % (str(self.minsize) if self.minsize else 'unspecified')
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
@@ -259,29 +257,28 @@ class BLOBType(DataType):
 
 class StringType(DataType):
     as_json = ['string']
+    minsize = None
+    maxsize = None
 
-    def __init__(self, minsize=0, maxsize=None):
-        # if only one arg is given it is maxsize!
-        if maxsize is None and minsize:
-            maxsize = minsize
-            minsize = 0
-            self.as_json = ['string', maxsize]
-        elif maxsize or minsize:
+    def __init__(self, maxsize=None, minsize=0):
+        if maxsize is None:
+            raise ValueError('StringType needs a maximum bytes count!')
+        minsize, maxsize = min(minsize, maxsize), max(minsize, maxsize)
+
+        if minsize < 0:
+            raise ValueError('sizes must be >= 0')
+        if minsize:
             self.as_json = ['string', maxsize, minsize]
         else:
-            self.as_json = ['string']
+            self.as_json = ['string', maxsize]
         self.minsize = minsize
         self.maxsize = maxsize
-        if minsize is not None and maxsize is not None and minsize > maxsize:
-            raise ValueError('maxsize must be bigger than minsize!')
 
     def __repr__(self):
-        if self.maxsize:
-            return 'StringType(%s, %s)' % (
-                str(self.minsize), str(self.maxsize))
         if self.minsize:
-            return 'StringType(%d)' % str(self.minsize)
-        return 'StringType()'
+            return 'StringType(%s, %s)' % (
+                str(self.minsize) or 'unspecified', str(self.maxsize) or 'unspecified')
+        return 'StringType(%d)' % str(self.maxsize)
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
@@ -339,36 +336,32 @@ class BoolType(DataType):
 
 
 class ArrayOf(DataType):
-
-    def __init__(self, subtype, minsize=0, maxsize=None):
+    minsize = None
+    maxsize = None
+    def __init__(self, subtype, maxsize=None, minsize=0):
+        self.subtype = subtype
         if not isinstance(subtype, DataType):
             raise ValueError(
                 'ArrayOf only works with DataType objs as first argument!')
+
+        if maxsize is None:
+            raise ValueError('ArrayOf needs a maximum size')
+        minsize, maxsize = min(minsize, maxsize), max(minsize, maxsize)
+        if minsize < 0:
+            raise ValueError('sizes must be > 0')
+        if maxsize < 1:
+            raise ValueError('Maximum size must be >= 1!')
         # if only one arg is given, it is maxsize!
-        if minsize and not maxsize:
-            maxsize = minsize
-            minsize = 0
-            self.as_json = ['array', subtype.as_json, maxsize]
-        elif maxsize:
+        if minsize:
             self.as_json = ['array', subtype.as_json, maxsize, minsize]
         else:
-            self.as_json = ['array', subtype.as_json]
-        self.minsize = minsize or 0
+            self.as_json = ['array', subtype.as_json, maxsize]
+        self.minsize = minsize
         self.maxsize = maxsize
-        self.subtype = subtype
-        if self.maxsize is not None and self.minsize > maxsize:
-            raise ValueError('minsize must be less than or equal to maxsize!')
-
-        if self.minsize < 0:
-            raise ValueError('Minimum size must be >= 0!')
-        if self.maxsize is not None and self.maxsize < 1:
-            raise ValueError('Maximum size must be >= 1!')
-        if self.maxsize is not None and self.minsize > self.maxsize:
-            raise ValueError('Maximum size must be >= Minimum size')
 
     def __repr__(self):
         return 'ArrayOf(%s, %s, %s)' % (
-            repr(self.subtype), self.minsize, self.maxsize)
+            repr(self.subtype), self.minsize or 'unspecified', self.maxsize or 'unspecified')
 
     def validate(self, value):
         """validate a external representation to an internal one"""
@@ -391,7 +384,8 @@ class ArrayOf(DataType):
         return [self.subtype.export(elem) for elem in value]
 
     def from_string(self, text):
-        value = eval(text)  # XXX: !!!
+        # XXX: parse differntly than using eval!
+        value = eval(text)  # pylint: disable=W0123
         return self.validate(value)
 
 
@@ -429,7 +423,8 @@ class TupleOf(DataType):
         return [sub.export(elem) for sub, elem in zip(self.subtypes, value)]
 
     def from_string(self, text):
-        value = eval(text)  # XXX: !!!
+        # XXX: parse differntly than using eval!
+        value = eval(text)  # pylint: disable=W0123
         return self.validate(tuple(value))
 
 
@@ -476,7 +471,8 @@ class StructOf(DataType):
                     for k, v in value.items())
 
     def from_string(self, text):
-        value = eval(text)  # XXX: !!!
+        # XXX: parse differntly than using eval!
+        value = eval(text)  # pylint: disable=W0123
         return self.validate(dict(value))
 
 
@@ -484,8 +480,8 @@ class StructOf(DataType):
 class Command(DataType):
     IS_COMMAND = True
 
-    def __init__(self, argtypes=[], resulttype=None):
-        for arg in argsin:
+    def __init__(self, argtypes=tuple(), resulttype=None):
+        for arg in argtypes:
             if not isinstance(arg, DataType):
                 raise ValueError('Command: Argument types must be DataTypes!')
         if resulttype is not None:
@@ -537,15 +533,12 @@ class Command(DataType):
 
 # XXX: derive from above classes automagically!
 DATATYPES = dict(
-    bool=lambda: BoolType(),
+    bool=BoolType,
     int=lambda _min=None, _max=None: IntRange(_min, _max),
     double=lambda _min=None, _max=None: FloatRange(_min, _max),
-    blob=lambda _max=None, _min=None: BLOBType(
-        _min, _max) if _min else BLOBType(_max),
-    string=lambda _max=None, _min=None: StringType(
-        _min, _max) if _min else StringType(_max),
-    array=lambda subtype, _max=None, _min=None: ArrayOf(
-        get_datatype(subtype), _min, _max) if _min else ArrayOf(getdatatype(subtype), _min),
+    blob=lambda _max=None, _min=0: BLOBType(_max, _min),
+    string=lambda _max=None, _min=0: StringType(_max, _min),
+    array=lambda subtype, _max=None, _min=0: ArrayOf(get_datatype(subtype), _max, _min),
     tuple=lambda subtypes: TupleOf(*map(get_datatype, subtypes)),
     enum=lambda kwds: EnumType(**kwds),
     struct=lambda named_subtypes: StructOf(
@@ -567,12 +560,6 @@ def get_datatype(json):
     if json is None:
         return json
     if not isinstance(json, list):
-        import mlzlog
-        if mlzlog.log is None:
-            mlzlog.initLogging('xxxxxxxxx')
-        mlzlog.getLogger('datatypes').warning(
-            "WARNING: invalid datatype specified! trying fallback mechanism. ymmv!")
-        return get_datatype([json])
         raise ValueError(
             'Can not interpret datatype %r, it should be a list!', json)
     if len(json) < 1:
@@ -588,6 +575,6 @@ def get_datatype(json):
             args = json[1:]
         try:
             return DATATYPES[base](*args)
-        except (TypeError, AttributeError) as exc:
+        except (TypeError, AttributeError):
             raise ValueError('Invalid datatype descriptor in %r', json)
     raise ValueError('can not convert %r to datatype', json)
