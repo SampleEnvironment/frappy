@@ -1,3 +1,69 @@
+secop-core (0.3.0) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix formatting of timestamps
+  * add doc/open_questions.md
+  * fixups
+  * Only send async updates for exported params
+  * fixups
+  * fixups
+
+  [ Alexander Lenz ]
+  * doc: initial sphinx files.
+  * Improve doc.
+
+  [ Enrico Faulhaber ]
+  * fixups
+  * adopt to new jsonify of string/blob/arrayof datatyes
+  * gix broken stop command for cryo
+  * fix transport and display of node-properties
+  * update descriptions of provided configurations
+  * fix requirements.txt
+  * fixups
+
+  [ Alexander Lenz ]
+  * doc: add datatypes.
+
+  [ Enrico Faulhaber ]
+  * remove unneeded commands
+  * implement Writable as specified.
+  * make sip optional
+
+  [ Alexander Lenz ]
+  * doc: improve layout.
+  * doc: fix protocol/datatypes.
+  * Fix requirements files.
+  * doc: remove html escapes.
+  * doc: Fix escapes.
+  * doc: fix cp errors.
+
+  [ Markus Zolliker ]
+  * doc update (commands and datatypes)
+
+  [ Alexander Lenz ]
+  * doc: fix format.
+
+  [ Enrico Faulhaber ]
+  * provide an mean to use commands in the gui
+
+  [ Alexander Lenz ]
+  * Makefile: add convenience targets.
+  * Add pylintrc.
+
+  [ Enrico Faulhaber ]
+  * Improve pylintrc.
+
+  [ Alexander Lenz ]
+  * tmp: test gerrit pylint.
+
+  [ Enrico Faulhaber ]
+  * fix tests
+  * make StringType default maximum size = 255 Bytes
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Mon, 18 Sep 2017 14:18:36 +0200
+
 secop-core (0.2.0) unstable; urgency=low
 
   [ Enrico Faulhaber ]
