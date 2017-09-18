@@ -145,8 +145,7 @@ def test_BLOBType():
 
 def test_StringType():
     # test constructor catching illegal arguments
-    with pytest.raises(ValueError):
-        dt = StringType()
+    dt = StringType()
     dt = StringType(12)
     assert dt.as_json == ['string', 12]
 

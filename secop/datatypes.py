@@ -260,7 +260,7 @@ class StringType(DataType):
     minsize = None
     maxsize = None
 
-    def __init__(self, maxsize=None, minsize=0):
+    def __init__(self, maxsize=255, minsize=0):
         if maxsize is None:
             raise ValueError('StringType needs a maximum bytes count!')
         minsize, maxsize = min(minsize, maxsize), max(minsize, maxsize)
