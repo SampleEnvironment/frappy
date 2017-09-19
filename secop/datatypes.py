@@ -278,7 +278,7 @@ class StringType(DataType):
         if self.minsize:
             return 'StringType(%s, %s)' % (
                 str(self.minsize) or 'unspecified', str(self.maxsize) or 'unspecified')
-        return 'StringType(%d)' % str(self.maxsize)
+        return 'StringType(%s)' % str(self.maxsize)
 
     def validate(self, value):
         """return the validated (internal) value or raise"""

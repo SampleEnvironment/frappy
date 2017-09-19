@@ -971,9 +971,9 @@ class StringIO(PyTangoDevice, Module):
                 ArrayOf(
                     TupleOf(
                         StringType(),
-                        IntRange()))],
+                        IntRange()),100)],
             result=ArrayOf(
-                StringType())),
+                StringType(),100)),
     }
 
     def do_communicate(self, value=StringType()):
