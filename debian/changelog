@@ -1,3 +1,12 @@
+secop-core (0.4.1) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix init script
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 22 Sep 2017 13:25:28 +0200
+
 secop-core (0.4.0) unstable; urgency=low
 
   [ Enrico Faulhaber ]
