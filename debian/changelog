@@ -1,3 +1,13 @@
+secop-core (0.4.0) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Remove obsolete protocol implementations
+  * fix entangle integration
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 22 Sep 2017 10:33:04 +0200
+
 secop-core (0.3.0) unstable; urgency=low
 
   [ Enrico Faulhaber ]
