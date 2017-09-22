@@ -1,3 +1,12 @@
+secop-core (0.4.3) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * wait for tango
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 22 Sep 2017 17:29:46 +0200
+
 secop-core (0.4.2) unstable; urgency=low
 
   [ Enrico Faulhaber ]
