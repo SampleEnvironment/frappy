@@ -38,7 +38,7 @@ import signal
 
 
 CFG_DIR = '/etc/secop'
-PID_DIR = '/var/run'
+PID_DIR = '/var/run/secop'
 SRV_EXEC = 'secop-server'
 
 inplace_basedir = os.path.join(os.path.dirname(__file__), '..')
