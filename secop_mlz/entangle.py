@@ -213,7 +213,12 @@ class PyTangoDevice(Module):
 
     @lazy_property
     def _dev(self):
-        return self._createPyTangoDevice(self.tangodevice)
+        # for startup be very permissive, wait up to 15 min per device
+        settings = self.comdelay, self.comtries
+        self.comdelay, self.comtries = 10, 90
+        res = self._createPyTangoDevice(self.tangodevice)
+        self.comdelay, self.comtries = settings
+        return res
 
     def _hw_wait(self):
         """Wait until hardware status is not BUSY."""
