@@ -235,7 +235,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
                 'Symmetry is shorted, please select another symmetry first!')
 
         wanted_current = self._field2current(abs(target))
-        wanted_polarity = '-1' if target < 0 else ('+1' if target else '0')
+        wanted_polarity = -1 if target < 0 else (+1 if target else 0)
         current_polarity = self._get_field_polarity()
 
         # generate Step sequence and start it
