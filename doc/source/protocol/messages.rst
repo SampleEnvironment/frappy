@@ -19,15 +19,21 @@ or one of a fixed list of predefined keywords, depending on the message keyword.
 
 At the moment it is considered syntactic sugar to omit the parametername in a request.
 In replies the SEC-node (in the playground) will always use the correct parameter.
-On change-requests the parameter is assumed to be 'target', on trigger-requests it is assumed to be 'value'.
-Clients should not rely on this and explicitly state the parametername!
+On change-requests the parameter is assumed to be 'target', on trigger-requests it is
+assumed to be 'value'. Clients should not rely on this and explicitly state the parametername!
 
-All names and keywords are defined to be identifiers in the sense, that they are not longer than 63 characters and consist only of letters, digits and underscore and do not start with a digit. (i.e. T_9 is ok, whereas t{9} is not!)
-No rule is without exception, there is exactly ONE special case: the identify request consists of the literal string '\*IDN?\\n' and its answer is formatted like an valid SCPI response for \*IDN?.
+All names and keywords are defined to be identifiers in the sense, that they are not longer
+than 63 characters and consist only of letters, digits and underscore and do not start
+with a digit. (i.e. T_9 is ok, whereas t{9} is not!)
+No rule is without exception, there is exactly ONE special case: the identify request
+consists of the literal string '\*IDN?\\n' and its answer is formatted like an valid SCPI
+response for \*IDN?.
 
-We rely on the underlying transport to not split messages, i.e. all messages are transported as a whole and no message interrupts another.
+We rely on the underlying transport to not split messages, i.e. all messages are
+transported as a whole and no message interrupts another.
 
-Also: each client MUST at any time correctly handle incoming event messages, even if it didn't activate them!
+Also: each client MUST at any time correctly handle incoming event messages, even
+if it didn't activate them!
 
 Implementation node:
 Both SEC-node and ECS-client can close the connection at any time!
@@ -62,8 +68,9 @@ Identify
   * Request: type A: '\*IDN?'
   * Reply:   special: 'SECoP, SECoPTCP, V2016-11-30, rc1'
   * queries if SECoP protocol is supported and which version it is
-    Format is intentionally choosen to be compatible to SCPI (for this query only).
-    It is NOT intended to transport information about the manufacturer of the hardware, but to identify this as a SECoP device and transfer the protocol version!
+
+  The format is intentionally choosen to be compatible to SCPI (for this query only).
+  It is NOT intended to transport information about the manufacturer of the hardware, but to identify this as a SECoP device and transfer the protocol version!
 
 
 Describe
@@ -73,7 +80,8 @@ Describe
   * Reply:   type C: 'describing <ID> {"modules":{"T1":{"baseclass":"Readable", ....'
   * request the 'descriptive data'. The format needs to be better defined and
     may possibly just follow the reference implementation.
-    <ID> identifies the equipment. It should be unique. Our suggestion is to use something along <facility>_<id>, i.e. MLZ_ccr12 or PSI_oven4.
+
+  <ID> identifies the equipment. It should be unique. Our suggestion is to use something along <facility>_<id>, i.e. MLZ_ccr12 or PSI_oven4.
 
 
 Activate Async Events
@@ -109,7 +117,8 @@ Write
   * Request: type C: 'change <module>[:<param>] JSON_value'
   * Reply: type C: 'changed <module>:<param> JSON_read_back_value'
   * initiate setting a new value for the module or a parameter of it.
-    Once this is done, the read_back value is confirmed by the reply.
+
+  Once this is done, the read_back value is confirmed by the reply.
 
 
 Trigger
@@ -128,7 +137,8 @@ Heartbeat
   * Reply:   type A: 'pong'
   * Reply:   type B: 'pong <nonce>'
   * Replies the given argument to check the round-trip-time or to confirm that the connection is still working.
-    <nonce> may not contain <space>. It is suggested to limit to a string of up to 63 chars consisting of letters, digits and underscore not beginning with a digit. If <nonce> is not given (Type A), reply without it.
+
+  <nonce> may not contain <space>. It is suggested to limit to a string of up to 63 chars consisting of letters, digits and underscore not beginning with a digit. If <nonce> is not given (Type A), reply without it.
 
 
 EVENT
@@ -139,8 +149,8 @@ Events can be emitted any time from the SEC-node (except if they would interrupt
   * Request: None. Events can be requested by Trigger or by Activating Async Mode.
   * Reply:   type C: 'event <module>:<param> JSON_VALUE'
   * Informs the client that a parameter got changed its value.
-    In any case the JSON_value contain the available qualifiers as well:
 
+  In any case the JSON_value contain the available qualifiers as well:
     * "t" for the timestamp of the event.
     * "e" for the error of the value.
     * "u" for the unit of the value, if deviating from the descriptive data
@@ -162,20 +172,19 @@ ERROR
   * Request: None. can only be a reply if some request fails.
   * Reply: type C: 'ERROR <errorclass> JSON_additional_stuff'
   * Following <errorclass> are defined so far:
-
-    * NoSuchDevice: The action can not be performed as the specified device is non-existent.
-    * NoSuchParameter: The action can not be performed as the specified parameter is non-existent.
-    * NoSuchCommand: The specified command does not exist.
-    * CommandFailed: The command failed to execute.
-    * CommandRunning: The command is already executing.
-    * ReadOnly: The requested write can not be performed on a readonly value..
-    * BadValue: The requested write or Command can not be performed as the value is malformed or of wrong type.
-    * CommunicationFailed: Some communication (with hardware controlled by this SEC-Node) failed.
-    * IsBusy: The reequested write can not be performed while the Module is Busy
-    * IsError: The requested action can not be performed while the module is in error state.
-    * Disabled: The requested action can not be performed at the moment. (Interlocks?)
-    * SyntaxError: A malformed Request was send
-    * InternalError: Something that should never happen just happened.
+        - NoSuchDevice: The action can not be performed as the specified device is non-existent.
+        - NoSuchParameter: The action can not be performed as the specified parameter is non-existent.
+        - NoSuchCommand: The specified command does not exist.
+        - CommandFailed: The command failed to execute.
+        - CommandRunning: The command is already executing.
+        - ReadOnly: The requested write can not be performed on a readonly value..
+        - BadValue: The requested write or Command can not be performed as the value is malformed or of wrong type.
+        - CommunicationFailed: Some communication (with hardware controlled by this SEC-Node) failed.
+        - IsBusy: The reequested write can not be performed while the Module is Busy
+        - IsError: The requested action can not be performed while the module is in error state.
+        - Disabled: The requested action can not be performed at the moment. (Interlocks?)
+        - SyntaxError: A malformed Request was send
+        - InternalError: Something that should never happen just happened.
 
   The JSON part should reference the offending request and give an explanatory string.
 
@@ -189,20 +198,22 @@ ERROR
 Examples
 --------
 
-(client connects):
-(client)    '\*IDN?'
-(SEC-node)  'Sine2020WP7.1&ISSE, SECoP, V2016-11-30, rc1'
-(client)    'describe'
-(SEC-node)  'describing SECoP_Testing {"modules":{"T1":{"baseclass":"Readable", ...
-(client)    'activate'
-(SEC-node)  'update T1 [3.45,{"t":"149128925.914882","e":0.01924}]'
-...
-(SEC-node)  'active'
-(SEC-node)  'update T1 [3.46,{"t":"149128935.914882","e":0.01912}]'
-(client)    'ping fancy_nonce_37'
-(SEC-node)  'pong fancy_nonce_37'
-(SEC-node)  'update T1 [3.49,{"t":"149128945.921397","e":0.01897}]'
-...
+::
+
+    (client connects):
+    (client)    '\*IDN?'
+    (SEC-node)  'Sine2020WP7.1&ISSE, SECoP, V2016-11-30, rc1'
+    (client)    'describe'
+    (SEC-node)  'describing SECoP_Testing {"modules":{"T1":{"baseclass":"Readable", ...
+    (client)    'activate'
+    (SEC-node)  'update T1 [3.45,{"t":"149128925.914882","e":0.01924}]'
+    ...
+    (SEC-node)  'active'
+    (SEC-node)  'update T1 [3.46,{"t":"149128935.914882","e":0.01912}]'
+    (client)    'ping fancy_nonce_37'
+    (SEC-node)  'pong fancy_nonce_37'
+    (SEC-node)  'update T1 [3.49,{"t":"149128945.921397","e":0.01897}]'
+    ...
 
 merge datatype and validator:
 -----------------------------

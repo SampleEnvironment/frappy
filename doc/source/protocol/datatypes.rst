@@ -9,8 +9,8 @@ double
     :stub-columns: 1
 
     * - Datatype
-      - | ["double"] **or**
-        | ["double", <min>] **or**
+      - | ["double"] *or*
+        | ["double", <min>] *or*
         | ["double", <min>, <max>]
         |
         | if <max> is not given or null, there is no upper limit
@@ -30,8 +30,8 @@ int
     :stub-columns: 1
 
     * - Datatype
-      - | ["int"] **or**
-        | ["int", <min>] **or**
+      - | ["int"] *or*
+        | ["int", <min>] *or*
         | ["int", <min>, <max>]
         |
         | if <max> is not given or null, there is no upper limit
@@ -85,8 +85,8 @@ string
     :stub-columns: 1
 
     * - Datatype
-      - | ["string"] **or**
-        | ["string", <max len>] **or**
+      - | ["string"] *or*
+        | ["string", <max len>] *or*
         | ["string", <max len>, <min len>]
         |
         | if <max len> is not given, it is assumed as 255.
@@ -96,7 +96,7 @@ string
     * - Transport example
       - | "hello!"
 
-    * - Datatype in C/C++
+    * - Datatype in C/C++ API
       - | char \*
 
 blob
@@ -107,7 +107,7 @@ blob
     :stub-columns: 1
 
     * - Datatype
-      - | ["blob", <max len>] **or**
+      - | ["blob", <max len>] *or*
         | ["blob", <max len>, <min len>]
         |
         | if <min len> is not given, it is assumed as 0.
@@ -115,7 +115,7 @@ blob
     * - Transport example
       - | "AA=="  (base64 encoded)
 
-    * - Datatype in C/C++
+    * - Datatype in C/C++ API
       - | struct {int64_t len, char \*data}
 
 array
@@ -126,7 +126,7 @@ array
     :stub-columns: 1
 
     * - Datatype
-      - | ["array", <basic type>, <max len>] **or**
+      - | ["array", <basic type>, <max len>] *or*
         | ["array", <basic type>, <max len>, <min len>]
         |
         | if <min len> is not given, it is assumed as 0.
@@ -135,7 +135,7 @@ array
     * - Transport example
       - | [3,4,7,2,1]
 
-    * - Datatype in C/C++
+    * - Datatype in C/C++ API
       - | <basic_datatype>[]
  
 tuple
@@ -151,8 +151,8 @@ tuple
     * - Transport example
       - | [0,"idle"]
 
-    * - Datatype in C/C++
-      - | struct ??
+    * - Datatype in C/C++ API
+      - | struct
 
 struct
 ------
@@ -167,7 +167,7 @@ struct
     * - Transport example
       - | {"x": 0, "y": 1}
 
-    * - Datatype in C/C++
-      - | struct ??
+    * - Datatype in C/C++ API
+      - | struct
         |
         | might be null

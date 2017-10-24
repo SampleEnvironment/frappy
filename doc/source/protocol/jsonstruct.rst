@@ -90,5 +90,3 @@ vorerst folgende Festlegung:
                   ],
      "version": "2017.01"
     }
-
-

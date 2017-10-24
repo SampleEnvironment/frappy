@@ -13,6 +13,9 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+# pylint: disable-all
+# pylint: skip-file
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -55,8 +58,9 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'SECoP'
-copyright = '2017, Dr. Enrico Faulhaber'
-author = 'Dr. Enrico Faulhaber'
+#copyright = '2017, Enrico Faulhaber, Markus Zolliker'
+copyright = '2017, SECoP Committee'
+author = 'Enrico Faulhaber, Markus Zolliker'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -77,7 +81,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**/._*']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -153,7 +157,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'SECoP.tex', 'SECoP source documentation',
-     'Dr. Enrico Faulhaber', 'manual'),
+     'Enrico Faulhaber, Markus Zolliker', 'manual'),
 ]
 
 
