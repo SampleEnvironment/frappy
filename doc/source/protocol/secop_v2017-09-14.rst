@@ -1,5 +1,5 @@
 SECoP: Sample Environment Communication Protocol
-================================================
+################################################
 
 V2017-09-14
 
@@ -179,8 +179,6 @@ Properties
 ----------
 
 *definition of properties to be rewitten, see* `SECoP issue 5`_
-
-.. _`SECoP issue 5`: SECoP_issues/issue_5.html
 
   Definition: Properties
     Parameters have a value, live properties and descriptive properties. All properties have a predefined name and meaning.
@@ -400,8 +398,6 @@ It is not yet clear what the second item in the reply message should be.
 In this example it is the equipment ID, but this is redundant, as
 "equipment_id" is also a SEC node property.
 See `SECoP Issue 2`_ (Equipment ID in Describing Message)
-
-.. _`SECoP Issue 2`: SECoP_Issues/issue_2.html
 
 Remark:
 this reply might be a very long line, no line breaks are allowed in the
@@ -624,11 +620,6 @@ synchronize the time.
 See also `SECoP Issue 4`_ (Timeout), `SECoP Issue 6`_ (Keep Alive),
 `SECoP Issue 3`_ (Timestamps) or `SECoP Issue 7`_ (Time Synchronization)
 
-.. _`SECoP Issue 3`: SECoP_Issues/issue_3.html
-.. _`SECoP Issue 4`: SECoP_Issues/issue_4.html
-.. _`SECoP Issue 6`: SECoP_Issues/issue_6.html
-.. _`SECoP Issue 7`: SECoP_Issues/issue_7.html
-
 Multiple Connections
 --------------------
 
@@ -711,8 +702,6 @@ communication of a SEC node.
 -  **timeout** (optional value in seconds, a SEC node should be able to respond within
    a time well below this value. Default: 3 sec, see `SECoP issue 4`_ )
 
-.. _`SECoP issue 4`: SECoP_issues/issue_4.html
-
 
 Module Properties
 ~~~~~~~~~~~~~~~~~
@@ -732,9 +721,6 @@ Module Properties
    
 -  **meaning**, **importance** (*see* `SECoP issue 9`_)
 
-.. _`SECoP issue 8`: SECoP_issues/issue_8.html
-
-.. _`SECoP issue 9`: SECoP_issues/issue_9.html
 
 Parameter Properties
 ~~~~~~~~~~~~~~~~~~~~
@@ -928,3 +914,11 @@ struct
         |
         | might be null
 
+.. _`SECoP Issue 2`: SECoP_Issues/issue_2.html
+.. _`SECoP Issue 3`: SECoP_Issues/issue_3.html
+.. _`SECoP Issue 4`: SECoP_Issues/issue_4.html
+.. _`SECoP issue 5`: SECoP_issues/issue_5.html
+.. _`SECoP Issue 6`: SECoP_Issues/issue_6.html
+.. _`SECoP Issue 7`: SECoP_Issues/issue_7.html
+.. _`SECoP issue 8`: SECoP_issues/issue_8.html
+.. _`SECoP issue 9`: SECoP_issues/issue_9.html

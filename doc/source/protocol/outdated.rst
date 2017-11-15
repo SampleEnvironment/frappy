@@ -2,7 +2,7 @@ Outdated documentation
 ======================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 0
 
    messages
    descprop

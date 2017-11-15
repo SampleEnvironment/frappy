@@ -2,7 +2,7 @@ Protocol documentation
 ======================
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 1
 
    secop_v2017-09-14
    issue_1
