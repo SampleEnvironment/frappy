@@ -28,12 +28,11 @@ Supporting classes for FRM2 magnets, currently only Garfield (amagnet).
 
 import math
 
-from secop.lib import lazy_property, mkthread
 from secop.lib.sequence import SequencerMixin, Step
 from secop.protocol import status
-from secop.datatypes import *
-from secop.errors import SECoPServerError, ConfigError, ProgrammingError, CommunicationError, HardwareError, DisabledError
-from secop.modules import PARAM, CMD, OVERRIDE, Readable, Drivable
+from secop.datatypes import StringType, TupleOf, FloatRange, ArrayOf, StructOf
+from secop.errors import DisabledError, ConfigError
+from secop.modules import PARAM, Drivable
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):
@@ -132,7 +131,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
                 trycurr = (maxcurr - mincurr) * ratio + mincurr
                 self.log.debug('current for %g T is %g A', field, trycurr)
                 return trycurr  # interpolated
-        raise ConfigurationError(self,
+        raise ConfigError(self,
                                  '_current2field polynome not monotonic!')
 
     def init(self):
@@ -195,6 +194,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
     def _set_field_polarity(self, polarity):
         current_pol = self._get_field_polarity()
+        polarity = int(polarity)
         if current_pol == polarity:
             return
         if polarity == 0:
@@ -202,7 +202,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         if current_pol == 0:
             # safe to switch
             self._polswitch.write_target(
-                '+1' if polarity == 1 else str(polarity))
+                '+1' if polarity > 0 else str(polarity))
             return 0
         if self._currentsource.value < 0.1:
             self._polswitch.write_target('0')
@@ -222,8 +222,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         if self._enable.read_status(maxage)[0] != status.OK:
             return self._enable.status
         if self._polswitch.value in ['0', 0]:
-            return self._currentsource.status[
-                0], 'Shorted, ' + self._currentsource.status[1]
+            return status.OK, 'Shorted, ' + self._currentsource.status[1]
         if self._symmetry.value in ['short', 0]:
             return self._currentsource.status[
                 0], 'Shorted, ' + self._currentsource.status[1]
@@ -236,7 +235,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
         wanted_current = self._field2current(abs(target))
         wanted_polarity = -1 if target < 0 else (+1 if target else 0)
-        current_polarity = self._get_field_polarity()
+        current_polarity = int(self._get_field_polarity())
 
         # generate Step sequence and start it
         seq = []
@@ -320,7 +319,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     def _set_polarity(self, store, target):
         if self._polswitch.read_status(0)[0] == status.BUSY:
             return True
-        if self._polswitch.value == target:
+        if int(self._polswitch.value) == int(target):
             return False  # done with this step
         if self._polswitch.read_value(0) != 0:
             self._polswitch.write_target(0)

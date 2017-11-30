@@ -142,11 +142,11 @@ class OVERRIDE(object):
 # storage for CMDs settings (description + call signature...)
 class CMD(object):
 
-    def __init__(self, description, arguments=[], result=None):
+    def __init__(self, description, arguments=None, result=None):
         # descriptive text for humans
         self.description = description
         # list of datatypes for arguments
-        self.arguments = arguments
+        self.arguments = arguments or []
         # datatype for result
         self.resulttype = result
 
@@ -210,18 +210,16 @@ class ModuleMeta(type):
                 if rfunc:
                     self.log.debug("rfunc(%s): call %r" % (pname, rfunc))
                     value = rfunc(self, maxage)
-                    setattr(self, pname, value)
-                    return value
                 else:
                     # return cached value
                     self.log.debug("rfunc(%s): return cached value" % pname)
                     value = self.PARAMS[pname].value
-                    setattr(self, pname, value)
-                    return value
+                setattr(self, pname, value)  # important! trigger the setter
+                return value
 
             if rfunc:
                 wrapped_rfunc.__doc__ = rfunc.__doc__
-            if getattr(rfunc, '__wrapped__', False) == False:
+            if getattr(rfunc, '__wrapped__', False) is False:
                 setattr(newtype, 'read_' + pname, wrapped_rfunc)
             wrapped_rfunc.__wrapped__ = True
 
@@ -246,7 +244,7 @@ class ModuleMeta(type):
 
                 if wfunc:
                     wrapped_wfunc.__doc__ = wfunc.__doc__
-                if getattr(wfunc, '__wrapped__', False) == False:
+                if getattr(wfunc, '__wrapped__', False) is False:
                     setattr(newtype, 'write_' + pname, wrapped_wfunc)
                 wrapped_wfunc.__wrapped__ = True
 
@@ -268,16 +266,16 @@ class ModuleMeta(type):
 
         # also collect/update information about CMD's
         setattr(newtype, 'CMDS', getattr(newtype, 'CMDS', {}))
-        for name in attrs:
-            if name.startswith('do_'):
-                if name[3:] in newtype.CMDS:
+        for attrname in attrs:
+            if attrname.startswith('do_'):
+                if attrname[3:] in newtype.CMDS:
                     continue
-                value = getattr(newtype, name)
+                value = getattr(newtype, attrname)
                 if isinstance(value, types.MethodType):
                     argspec = inspect.getargspec(value)
                     if argspec[0] and argspec[0][0] == 'self':
                         del argspec[0][0]
-                        newtype.CMDS[name[3:]] = CMD(
+                        newtype.CMDS[attrname[3:]] = CMD(
                             getattr(value, '__doc__'), argspec.args,
                             None)  # XXX: how to find resulttype?
         attrs['__constructed__'] = True
@@ -400,11 +398,11 @@ class Module(object):
                 # only check if datatype given
                 try:
                     v = datatype.validate(v)
-                except (ValueError, TypeError) as e:
+                except (ValueError, TypeError):
                     self.log.exception(formatExtendedStack())
                     raise
-                    raise ConfigError('Module %s: config parameter %r:\n%r' %
-                                      (self.name, k, e))
+#                    raise ConfigError('Module %s: config parameter %r:\n%r' %
+#                                      (self.name, k, e))
             setattr(self, k, v)
         self._requestLock = threading.RLock()
 
@@ -431,7 +429,7 @@ class Readable(Module):
                         datatype=TupleOf(
             EnumType(**{
                 'IDLE': status.OK,
-#                'BUSY': status.BUSY,
+                'BUSY': status.BUSY,
                 'WARN': status.WARN,
                 'UNSTABLE': status.UNSTABLE,
                 'ERROR': status.ERROR,
@@ -475,7 +473,7 @@ class Readable(Module):
                 # status was already polled above
                 continue
             if ((int(pobj.poll) < 0) and fastpoll) or (
-                    0 == nr % abs(int(pobj.poll))):
+                    nr % abs(int(pobj.poll))) == 0:
                 # poll always if pobj.poll is negative and fastpoll (i.e. Module is busy)
                 # otherwise poll every 'pobj.poll' iteration
                 rfunc = getattr(self, 'read_' + pname, None)
@@ -511,18 +509,6 @@ class Drivable(Writable):
     Also status gets extended with a BUSY state indicating a running action.
     """
 
-    OVERRIDES = {
-        "status" : OVERRIDE(datatype=TupleOf(
-            EnumType(**{
-                'IDLE': status.OK,
-                'BUSY': status.BUSY,
-                'WARN': status.WARN,
-                'UNSTABLE': status.UNSTABLE,
-                'ERROR': status.ERROR,
-                'UNKNOWN': status.UNKNOWN
-            }), StringType())),
-    }
-
     def do_stop(self):
         """default implementation of the stop command
 
@@ -536,7 +522,7 @@ class Communicator(Module):
     """
 
     CMDS = {
-        "communicate" : CMD("provides the simplest mean to communication", 
+        "communicate" : CMD("provides the simplest mean to communication",
                             arguments=[StringType()],
                             result=StringType()
                            ),
