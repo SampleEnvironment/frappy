@@ -29,7 +29,6 @@
 import time
 import types
 import inspect
-import threading
 
 from secop.lib import formatExtendedStack, mkthread
 from secop.lib.parsing import format_time
@@ -338,6 +337,7 @@ class Module(object):
                 if k[1:] in self.PROPERTIES:
                     self.PROPERTIES[k[1:]] = v
                     del cfgdict[k]
+
         # derive automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
@@ -372,6 +372,7 @@ class Module(object):
                     'Module %s:config Parameter %r '
                     'not unterstood! (use on of %r)' %
                     (self.name, k, self.PARAMS.keys()))
+
         # complain if a PARAM entry has no default value and
         # is not specified in cfgdict
         for k, v in self.PARAMS.items():
@@ -404,7 +405,6 @@ class Module(object):
 #                    raise ConfigError('Module %s: config parameter %r:\n%r' %
 #                                      (self.name, k, e))
             setattr(self, k, v)
-        self._requestLock = threading.RLock()
 
     def init(self):
         # may be overriden in derived classes to init stuff
@@ -440,9 +440,7 @@ class Readable(Module):
 
     def init(self):
         Module.init(self)
-        self._pollthread = threading.Thread(target=self.__pollThread)
-        self._pollthread.daemon = True
-        self._pollthread.start()
+        self._pollthread = mkthread(self.__pollThread)
 
     def __pollThread(self):
         """super simple and super stupid per-module polling thread"""
