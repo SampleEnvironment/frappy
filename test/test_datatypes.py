@@ -40,7 +40,8 @@ def test_DataType():
     with pytest.raises(NotImplementedError):
         dt = DataType()
         dt.validate('')
-        dt.export('')
+        dt.export_value('')
+        dt.import_value('')
 
 
 def test_FloatRange():
@@ -57,7 +58,8 @@ def test_FloatRange():
         dt.validate([19, 'X'])
     dt.validate(1)
     dt.validate(0)
-    assert dt.export(-2.718) == -2.718
+    assert dt.export_value(-2.718) == -2.718
+    assert dt.import_value(-2.718) == -2.718
     with pytest.raises(ValueError):
         FloatRange('x', 'Y')
 
@@ -111,11 +113,16 @@ def test_EnumType():
     with pytest.raises(ValueError):
         dt.validate(2)
 
-    assert dt.export('c') == 7
-    assert dt.export('stuff') == 1
-    assert dt.export(1) == 1
+    assert dt.export_value('c') == 7
+    assert dt.export_value('stuff') == 1
+    assert dt.export_value(1) == 1
+    assert dt.import_value(7) == 'c'
+    assert dt.import_value(3) == 'a'
+    assert dt.import_value(1) == 'stuff'
     with pytest.raises(ValueError):
-        dt.export(2)
+        dt.export_value(2)
+    with pytest.raises(ValueError):
+        dt.import_value('A')
 
 
 def test_BLOBType():
@@ -138,9 +145,10 @@ def test_BLOBType():
     assert dt.validate(b'abcd') == b'abcd'
     assert dt.validate(u'abcd') == b'abcd'
 
-    assert dt.export('abcd') == b'abcd'
-    assert dt.export(b'abcd') == b'abcd'
-    assert dt.export(u'abcd') == b'abcd'
+    assert dt.export_value('abcd') == 'YWJjZA=='
+    assert dt.export_value(b'abcd') == 'YWJjZA=='
+    assert dt.export_value(u'abcd') == 'YWJjZA=='
+    assert dt.import_value('YWJjZA==') == 'abcd'
 
 
 def test_StringType():
@@ -164,9 +172,10 @@ def test_StringType():
     assert dt.validate(b'abcd') == b'abcd'
     assert dt.validate(u'abcd') == b'abcd'
 
-    assert dt.export('abcd') == b'abcd'
-    assert dt.export(b'abcd') == b'abcd'
-    assert dt.export(u'abcd') == b'abcd'
+    assert dt.export_value('abcd') == b'abcd'
+    assert dt.export_value(b'abcd') == b'abcd'
+    assert dt.export_value(u'abcd') == b'abcd'
+    assert dt.import_value(u'abcd') == 'abcd'
 
 
 def test_BoolType():
@@ -183,9 +192,14 @@ def test_BoolType():
     assert dt.validate('off') is False
     assert dt.validate(1) is True
 
-    assert dt.export('false') is False
-    assert dt.export(0) is False
-    assert dt.export('on') is True
+    assert dt.export_value('false') is False
+    assert dt.export_value(0) is False
+    assert dt.export_value('on') is True
+
+    assert dt.import_value(False) is False
+    assert dt.import_value(True) is True
+    with pytest.raises(ValueError):
+        dt.import_value('av')
 
 
 def test_ArrayOf():
@@ -206,7 +220,8 @@ def test_ArrayOf():
 
     assert dt.validate([1, 2, 3]) == [1, 2, 3]
 
-    assert dt.export([1, 2, 3]) == [1, 2, 3]
+    assert dt.export_value([1, 2, 3]) == [1, 2, 3]
+    assert dt.import_value([1, 2, 3]) == [1, 2, 3]
 
 
 def test_TupleOf():
@@ -224,7 +239,8 @@ def test_TupleOf():
 
     assert dt.validate([1, True]) == [1, True]
 
-    assert dt.export([1, True]) == [1, True]
+    assert dt.export_value([1, True]) == [1, True]
+    assert dt.import_value([1, True]) == [1, True]
 
 
 def test_StructOf():
@@ -248,8 +264,8 @@ def test_StructOf():
 
     assert dt.validate(dict(a_string='XXX', an_int=8)) == {'a_string': 'XXX',
                                                            'an_int': 8}
-    assert dt.export({'an_int': 13, 'a_string': 'WFEC'}) == {'a_string': 'WFEC',
-                                                             'an_int': 13}
+    assert dt.export_value({'an_int': 13, 'a_string': 'WFEC'}) == {'a_string': 'WFEC', 'an_int': 13}
+    assert dt.import_value({'an_int': 13, 'a_string': 'WFEC'}) == {'a_string': 'WFEC', 'an_int': 13}
 
 
 def test_get_datatype():

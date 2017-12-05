@@ -35,7 +35,7 @@ from secop.lib import formatExtendedStack, mkthread
 from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
 from secop.protocol import status
-from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange, export_datatype, get_datatype
+from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange, get_datatype
 
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
@@ -101,7 +101,7 @@ class PARAM(object):
         res = dict(
             description=self.description,
             readonly=self.readonly,
-            datatype=export_datatype(self.datatype),
+            datatype=self.datatype.export_datatype(),
         )
         if self.unit:
             res['unit'] = self.unit
@@ -113,9 +113,8 @@ class PARAM(object):
                 res['timestamp'] = format_time(self.timestamp)
         return res
 
-    @property
     def export_value(self):
-        return self.datatype.export(self.value)
+        return self.datatype.export_value(self.value)
 
 
 class OVERRIDE(object):
@@ -158,8 +157,9 @@ class CMD(object):
         # used for serialisation only
         return dict(
             description=self.description,
-            arguments=map(export_datatype, self.arguments),
-            resulttype=export_datatype(self.resulttype), )
+            arguments=[arg.export_datatype() for arg in self.arguments],
+            resulttype=self.resulttype.export_datatype() if self.resulttype else None,
+        )
 
 
 # Meta class

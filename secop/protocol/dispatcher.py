@@ -40,8 +40,11 @@ Interface to the modules:
 import time
 import threading
 
-from messages import *
-from errors import *
+from secop.protocol.messages import Value, CommandReply, HelpMessage, \
+    DeactivateReply, IdentifyReply, DescribeReply, HeartbeatReply, \
+    ActivateReply, WriteReply
+from secop.protocol.errors import SECOPError, NoSuchModuleError, \
+    NoSuchCommandError, NoSuchParamError, BadValueError, ReadonlyError
 from secop.lib.parsing import format_time
 from secop.lib import formatExtendedStack, formatException
 
@@ -130,7 +133,7 @@ class Dispatcher(object):
         msg = Value(
             moduleobj.name,
             parameter=pname,
-            value=pobj.export_value,
+            value=pobj.export_value(),
             t=pobj.timestamp)
         self.broadcast_event(msg)
 
@@ -328,10 +331,10 @@ class Dispatcher(object):
             res = Value(
                 modulename,
                 parameter=pname,
-                value=pobj.export_value,
+                value=pobj.export_value(),
                 t=pobj.timestamp)
         else:
-            res = Value(modulename, parameter=pname, value=pobj.export_value)
+            res = Value(modulename, parameter=pname, value=pobj.export_value())
         return res
 
     # now the (defined) handlers for the different requests
@@ -409,7 +412,7 @@ class Dispatcher(object):
                     res = Value(
                         module=modulename,
                         parameter=pname,
-                        value=pobj.export_value,
+                        value=pobj.export_value(),
                         t=pobj.timestamp,
                         unit=pobj.unit)
                 if res.value != Ellipsis:  # means we do not have a value at all so skip this

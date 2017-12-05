@@ -21,6 +21,8 @@
 # *****************************************************************************
 """Define validated data types."""
 
+from ast import literal_eval
+from base64 import b64encode, b64decode
 
 from .errors import ProgrammingError
 
@@ -42,21 +44,31 @@ class DataType(object):
     IS_COMMAND = False
 
     def validate(self, value):
-        """validate a external representation and return an internal one"""
-        raise NotImplementedError
+        """check if given value (a python obj) is valid for this datatype
 
-    def export(self, value):
-        """returns a python object fit for external serialisation or logging"""
+        returns the value or raises an appropriate exception"""
         raise NotImplementedError
 
     def from_string(self, text):
         """interprets a given string and returns a validated (internal) value"""
-        # to evaluate values from configfiles, etc...
+        # to evaluate values from configfiles, ui, etc...
         raise NotImplementedError
 
-    # goodie: if called, validate
-    def __call__(self, value):
-        return self.validate(value)
+    def export_datatype(self):
+        """return a python object which after jsonifying identifies this datatype"""
+        return self.as_json
+
+    def export_value(self, value):
+        """if needed, reformat value for transport"""
+        return value
+
+    def import_value(self, value):
+        """opposite of export_value, reformat from transport to internal repr
+
+        note: for importing from gui/configfile/commandline use :meth:`from_string`
+        instead.
+        """
+        return value
 
 
 class FloatRange(DataType):
@@ -100,8 +112,12 @@ class FloatRange(DataType):
             return "FloatRange(%r)" % self.min
         return "FloatRange()"
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
+        return float(value)
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
         return float(value)
 
     def from_string(self, text):
@@ -142,8 +158,12 @@ class IntRange(DataType):
             return "IntRange(%d)" % self.min
         return "IntRange()"
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
+        return int(value)
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
         return int(value)
 
     def from_string(self, text):
@@ -155,7 +175,7 @@ class EnumType(DataType):
     as_json = ['enum']
 
     def __init__(self, *args, **kwds):
-        # enum keys are ints! check
+        # enum keys are ints! remember mapping from intvalue to 'name'
         self.entries = {}
         num = 0
         for arg in args:
@@ -174,6 +194,7 @@ class EnumType(DataType):
             self.entries[v] = k
 #        if len(self.entries) == 0:
 #            raise ValueError('Empty enums ae not allowed!')
+        # also keep a mapping from name strings to numbers
         self.reversed = {}
         for k, v in self.entries.items():
             if v in self.reversed:
@@ -185,7 +206,7 @@ class EnumType(DataType):
         return "EnumType(%s)" % ', '.join(
             ['%s=%d' % (v, k) for k, v in self.entries.items()])
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
         if value in self.reversed:
             return self.reversed[value]
@@ -193,6 +214,11 @@ class EnumType(DataType):
             return int(value)
         raise ValueError('%r is not one of %s', str(
             value), ', '.join(self.reversed.keys()))
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
+        # internally we store the key (which is a string)
+        return self.entries[int(value)]
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
@@ -246,12 +272,17 @@ class BLOBType(DataType):
                     '%r must be at most %d bytes long!', value, self.maxsize)
         return value
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return b'%s' % value
+        return b64encode(value)
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
+        return b64decode(value)
 
     def from_string(self, text):
         value = text
+        # XXX:
         return self.validate(value)
 
 
@@ -297,12 +328,17 @@ class StringType(DataType):
                 'Strings are not allowed to embed a \\0! Use a Blob instead!')
         return value
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
         return '%s' % value
 
+    def import_value(self, value):
+        """returns a python object from serialisation"""
+        # XXX: do we keep it as unicode str, or convert it to something else? (UTF-8 maybe?)
+        return str(value)
+
     def from_string(self, text):
-        value = text
+        value = str(text)
         return self.validate(value)
 
 # Bool is a special enum
@@ -322,9 +358,13 @@ class BoolType(DataType):
             return True
         raise ValueError('%r is not a boolean value!', value)
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
         return True if self.validate(value) else False
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
+        return self.validate(value)
 
     def from_string(self, text):
         value = text
@@ -379,9 +419,13 @@ class ArrayOf(DataType):
         raise ValueError(
             'Can not convert %s to ArrayOf DataType!', repr(value))
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return [self.subtype.export(elem) for elem in value]
+        return [self.subtype.export_value(elem) for elem in value]
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
+        return [self.subtype.import_value(elem) for elem in value]
 
     def from_string(self, text):
         # XXX: parse differntly than using eval!
@@ -418,13 +462,16 @@ class TupleOf(DataType):
         except Exception as exc:
             raise ValueError('Can not validate:', str(exc))
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return [sub.export(elem) for sub, elem in zip(self.subtypes, value)]
+        return [sub.export_value(elem) for sub, elem in zip(self.subtypes, value)]
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
+        return [sub.import_value(elem) for sub, elem in zip(self.subtypes, value)]
 
     def from_string(self, text):
-        # XXX: parse differntly than using eval!
-        value = eval(text)  # pylint: disable=W0123
+        value = literal_eval(text)
         return self.validate(tuple(value))
 
 
@@ -461,18 +508,26 @@ class StructOf(DataType):
         except Exception as exc:
             raise ValueError('Can not validate %s: %s', repr(value), str(exc))
 
-    def export(self, value):
+    def export_value(self, value):
         """returns a python object fit for serialisation"""
         if len(value.keys()) != len(self.named_subtypes.keys()):
             raise ValueError(
                 'Illegal number of Arguments! Need %d arguments.', len(
                     self.namd_subtypes.keys()))
-        return dict((str(k), self.named_subtypes[k].export(v))
+        return dict((str(k), self.named_subtypes[k].export_value(v))
+                    for k, v in value.items())
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
+        if len(value.keys()) != len(self.named_subtypes.keys()):
+            raise ValueError(
+                'Illegal number of Arguments! Need %d arguments.', len(
+                    self.namd_subtypes.keys()))
+        return dict((str(k), self.named_subtypes[k].import_value(v))
                     for k, v in value.items())
 
     def from_string(self, text):
-        # XXX: parse differntly than using eval!
-        value = eval(text)  # pylint: disable=W0123
+        value = literal_eval(text)
         return self.validate(dict(value))
 
 
@@ -517,17 +572,14 @@ class Command(DataType):
         except Exception as exc:
             raise ValueError('Can not validate %s: %s', repr(value), str(exc))
 
-    def export(self, value):
-        """returns a python object fit for serialisation"""
-        if len(value) != len(self.argtypes):
-            raise ValueError(
-                'Illegal number of Arguments! Need %d arguments.' % len(
-                    self.argtypes))
-#        return [t.export(v) for t,v in zip(self.argtypes, value)]
+    def export_value(self, value):
+        raise ProgrammingError('values of type command can not be transported!')
+
+    def import_value(self, value):
+        raise ProgrammingError('values of type command can not be transported!')
 
     def from_string(self, text):
-        import ast
-        value = ast.literal_eval(text)
+        value = literal_eval(text)
         return self.validate(value)
 
 
@@ -547,16 +599,12 @@ DATATYPES = dict(
 )
 
 
-# probably not needed...
-def export_datatype(datatype):
-    if datatype is None:
-        return datatype
-    return datatype.as_json
-
 # important for getting the right datatype from formerly jsonified descr.
-
-
 def get_datatype(json):
+    """returns a DataType object from description
+
+    inverse of <DataType>.export_datatype()
+    """
     if json is None:
         return json
     if not isinstance(json, list):
