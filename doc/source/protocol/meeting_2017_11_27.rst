@@ -161,7 +161,7 @@ Agenda Topic: Interfaceclasses
 Agenda Topic: discussing existing Issues
 ----------------------------------------
 
- 1) Issues: agreement to have to Issues for documenting, closed
+ 1) Issues: agreement to use Issues for documenting, closed
  2) Equipment_id is stored as a node property and is no longer part of the describing reply: agreement, closed
  3) already closed
  4) default timeout: change default to 10s, agreement, closed
@@ -187,7 +187,7 @@ Agenda Topic: discussing existing Issues
 Agenda Topic: Grouping/Hierachy (Issue 8)
 -----------------------------------------
 
- * discussion about namespaces und use cases for groups
+ * discussion about namespaces and use cases for groups
  * grouping is 'giving modules or parameters a name to allow guis to group them together'
  * the (lowercase) name of a (parameter)group is not allowed to clash with (lowercased) names of parameters of the same module
  * the (lowercase) name of a (module)group is not allowed to clash with (lowercased) names of modules of the same node
