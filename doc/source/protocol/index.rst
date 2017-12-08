@@ -4,6 +4,7 @@ Protocol documentation
 .. toctree::
    :maxdepth: 1
 
+   motivation
    secop_v2017-09-14
    issue_1
    issue_2
