@@ -24,7 +24,6 @@
 """Utilities for devices that require sequenced actions on value change."""
 
 from time import sleep
-from threading import Thread
 
 from secop.lib import mkthread
 from secop.protocol import status
@@ -140,7 +139,7 @@ class SequencerMixin(object):
             return status.WARN, self._seq_stopped
         if hasattr(self, 'read_hw_status'):
             return self.read_hw_status(maxage)
-        return OK, ''
+        return status.OK, ''
 
     def do_stop(self):
         if self.seq_is_alive():
@@ -165,7 +164,9 @@ class SequencerMixin(object):
             self._seq_phase = step.desc
             self.log.debug('sequence: entering phase: %s', step.desc)
             try:
+                i = 0
                 while True:
+                    store.i = i
                     result = step.func(store, *step.args)
                     if self._seq_stopflag:
                         if result:
@@ -183,6 +184,7 @@ class SequencerMixin(object):
                     sleep(step.waittime)
                     if not result:
                         break
+                    i += 1
             except Exception as e:
                 self.log.exception(
                     'error in sequence step %r: %s', step.desc, e)
