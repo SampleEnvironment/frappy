@@ -25,9 +25,11 @@ from __future__ import print_function
 
 import json
 import socket
-import serial
 from select import select
 import threading
+from collections import OrderedDict
+
+import serial
 
 # Py2/3
 try:
@@ -35,16 +37,14 @@ try:
 except ImportError:
     import queue as Queue
 
-from collections import OrderedDict
-
 import mlzlog
 
 from secop.datatypes import get_datatype
 from secop.lib import mkthread, formatException
 from secop.lib.parsing import parse_time, format_time
-from secop.protocol.encoding import ENCODERS
-from secop.protocol.framing import FRAMERS
-from secop.protocol.messages import *
+#from secop.protocol.encoding import ENCODERS
+#from secop.protocol.framing import FRAMERS
+#from secop.protocol.messages import *
 from secop.protocol.errors import EXCEPTIONS
 
 
@@ -52,7 +52,6 @@ class TCPConnection(object):
     # disguise a TCP connection as serial one
 
     def __init__(self, host, port):
-        import mlzlog
         self.log = mlzlog.getLogger('TCPConnection')
         self._host = host
         self._port = int(port)
@@ -131,14 +130,15 @@ class TCPConnection(object):
 
 
 class Value(object):
-    t = None
+    t = None  # pylint: disable = C0103
     u = None
     e = None
     fmtstr = '%s'
 
-    def __init__(self, value, qualifiers={}):
+    def __init__(self, value, qualifiers=None):
         self.value = value
-        self.__dict__.update(qualifiers)
+        if qualifiers:
+            self.__dict__.update(qualifiers)
         if 't' in qualifiers:
             try:
                 self.t = float(qualifiers['t'])
@@ -310,15 +310,15 @@ class Client(object):
             self.log.warning("deprecated specifier %r" % spec)
             spec = '%s:value' % spec
         modname, pname = spec.split(':', 1)
-        previous = '<unset>'
-        if modname in self._cache:
-            if pname in self._cache:
-                previous = self._cache[modname][pname]
+#        previous = '<unset>'
+#        if modname in self._cache:
+#            if pname in self._cache:
+#                previous = self._cache[modname][pname]
         if data:
             self._cache.setdefault(modname, {})[pname] = Value(*data)
         else:
             self.log.warning(
-                'got malformed answer! (spec data)' % (spec, data))
+                'got malformed answer! (%s,%s)' % (spec, data))
 #        self.log.info('cache: %s:%s=%r (was: %s)', modname, pname, data, previous)
         if spec in self.callbacks:
             for func in self.callbacks[spec]:
@@ -353,7 +353,7 @@ class Client(object):
             result[key] = value
         return result
 
-    def _decode_substruct(self, specialkeys=[], data={}):
+    def _decode_substruct(self, specialkeys=[], data={}):  # pylint: disable=W0102
         # take a dict and move all keys which are not in specialkeys
         # into a 'properties' subdict
         # specialkeys entries are converted from list to ordereddict
@@ -386,11 +386,11 @@ class Client(object):
                     datatype = get_datatype(parameterData['datatype'])
                     self.describing_data['modules'][module]['parameters'] \
                         [parameter]['datatype'] = datatype
-                for cmdname, cmdData in moduleData[
+                for _cmdname, cmdData in moduleData[
                         'commands'].items():
                     cmdData['arguments'] = map(get_datatype, cmdData['arguments'])
                     cmdData['resulttype'] = get_datatype(cmdData['resulttype'])
-        except Exception as exc:
+        except Exception as _exc:
             print(formatException(verbose=True))
             raise
 
@@ -411,7 +411,7 @@ class Client(object):
     def _get_reply_from_request(self, requesttype):
         # maps each (sync) request to the corresponding reply
         # XXX: should go to the encoder! and be imported here
-        REPLYMAP = {
+        REPLYMAP = {  # pylint: disable=C0103
             "describe": "describing",
             "do": "done",
             "change": "changed",
@@ -494,12 +494,12 @@ class Client(object):
         if self._thread and self._thread.is_alive():
             self.thread.join(self._thread)
 
-    def startup(self, async=False):
+    def startup(self, _async=False):
         self._issueDescribe()
         # always fill our cache
         self.communicate('activate')
         # deactivate updates if not wanted
-        if not async:
+        if not _async:
             self.communicate('deactivate')
 
     def queryCache(self, module, parameter=None):
@@ -517,7 +517,7 @@ class Client(object):
         datatype = self._getDescribingParameterData(module,
                                                     parameter)['datatype']
 
-        value = datatype.export(datatype.validate(value))
+        value = datatype.export_value(datatype.validate(value))
         self.communicate('change', '%s:%s' % (module, parameter), value)
 
     @property
@@ -560,13 +560,13 @@ class Client(object):
         return self.describing_data['modules'][module]['parameters'][parameter]
 
     def syncCommunicate(self, *msg):
-        res = self._communicate(*msg)
+        res = self._communicate(*msg)  # pylint: disable=E1120
         try:
             res = self.encode_message(*res)
         except Exception:
             res = str(res)
         return res
 
-    def ping(self, pingctr=[0]):
+    def ping(self, pingctr=[0]):  # pylint: disable=W0102
         pingctr[0] = pingctr[0] + 1
         self.communicate("ping", pingctr[0])
