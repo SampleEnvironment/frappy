@@ -29,6 +29,7 @@ from select import select
 import threading
 from collections import OrderedDict
 
+import time
 import serial
 
 # Py2/3
@@ -164,6 +165,7 @@ class Client(object):
     secop_id = 'unknown'
     describing_data = {}
     stopflag = False
+    connection_established = False
 
     def __init__(self, opts, autoconnect=True):
         if 'testing' not in opts:
@@ -234,6 +236,7 @@ class Client(object):
 
         while not self.stopflag:
             line = self.connection.readline()
+            self.connection_established = True
             self.log.debug('got answer %r' % line)
             if line.startswith(('SECoP', 'SINE2020&ISSE,SECoP')):
                 self.log.info('connected to: ' + line.strip())
@@ -467,6 +470,9 @@ class Client(object):
 
         # send request
         msg = self.encode_message(msgtype, spec, data)
+        while not self.connection_established:
+            self.log.debug('connection not established yet, waiting ...')
+            time.sleep(0.1)
         self.connection.writeline(msg)
         self.log.debug('sent msg %r' % msg)
 
