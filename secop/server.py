@@ -24,7 +24,6 @@
 import os
 import ast
 import time
-import psutil
 import threading
 import ConfigParser
 
@@ -105,15 +104,15 @@ class Server(object):
 
         self._interfaces = []
 
-        deviceopts = []
+        moduleopts = []
         interfaceopts = []
         equipment_id = None
         nodeopts = []
         for section in parser.sections():
-            if section.lower().startswith('device '):
-                # device section
-                # omit leading 'device ' string
-                devname = section[len('device '):]
+            if section.lower().startswith('module '):
+                # module section
+                # omit leading 'module ' string
+                devname = section[len('module '):]
                 devopts = dict(item for item in parser.items(section))
                 if 'class' not in devopts:
                     self.log.error('Module %s needs a class option!')
@@ -123,7 +122,7 @@ class Server(object):
                 # try to import the class, raise if this fails
                 devopts['class'] = get_class(devopts['class'])
                 # all went well so far
-                deviceopts.append([devname, devopts])
+                moduleopts.append([devname, devopts])
             if section.lower().startswith('interface '):
                 # interface section
                 # omit leading 'interface ' string
@@ -161,14 +160,14 @@ class Server(object):
         self._dispatcher = self._buildObject(
             'Dispatcher', Dispatcher, nodeopts)
         self._processInterfaceOptions(interfaceopts)
-        self._processModuleOptions(deviceopts)
+        self._processModuleOptions(moduleopts)
 
-    def _processModuleOptions(self, deviceopts):
-        # check devices opts by creating them
+    def _processModuleOptions(self, moduleopts):
+        # check modules opts by creating them
         devs = []
-        for devname, devopts in deviceopts:
+        for devname, devopts in moduleopts:
             devclass = devopts.pop('class')
-            # create device
+            # create module
             self.log.debug('Creating Module %r' % devname)
             export = devopts.pop('export', '1')
             export = export.lower() in ('1', 'on', 'true', 'yes')
@@ -184,13 +183,13 @@ class Server(object):
                 self.log.getChild(devname), devopts, devname, self._dispatcher)
             devs.append([devname, devobj, export])
 
-        # connect devices with dispatcher
+        # connect modules with dispatcher
         for devname, devobj, export in devs:
-            self.log.info('registering device %r' % devname)
+            self.log.info('registering module %r' % devname)
             self._dispatcher.register_module(devobj, devname, export)
-            # also call init on the devices
+            # also call init on the modules
             devobj.init()
-        # call a possibly empty postinit on each device after registering all
+        # call a possibly empty postinit on each module after registering all
         for _devname, devobj, _export in devs:
             postinit = getattr(devobj, 'postinit', None)
             if postinit:

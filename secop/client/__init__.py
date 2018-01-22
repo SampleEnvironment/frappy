@@ -101,7 +101,7 @@ import mlzlog
 
 from secop.protocol.encoding import ENCODERS
 from secop.protocol.framing import FRAMERS
-from secop.protocol.messages import *
+from secop.protocol.messages import EventMessage, DescribeRequest
 
 
 class TCPConnection(object):
@@ -146,20 +146,20 @@ class TCPConnection(object):
                         self.handle(msg)
 
     def handle(self, msg):
-        if isinstance(msg, AsyncDataUnit):
+        if isinstance(msg, EventMessage):
             self.log.info("got Async: %r" % msg)
             for cb in self.callbacks:
                 try:
                     cb(msg)
                 except Exception as e:
                     self.log.debug(
-                        "handle_async: got exception %r" % e, exception=true)
+                        "handle_async: got exception %r" % e, exception=True)
         else:
             self.queue.append(msg)
 
     def read(self):
-        while not len(self.queue):
-            pass
+        while not self.queue:
+            pass  # XXX: remove BUSY polling
         return self.queue.popleft()
 
     def register_callback(self, callback):
@@ -181,15 +181,15 @@ class Client(object):
 
     def handle_async(self, msg):
         self.log.info("Got async update %r" % msg)
-        device = msg.device
+        module = msg.module
         param = msg.param
         value = msg.value
-        self._cache.getdefault(device, {})[param] = value
+        self._cache.getdefault(module, {})[param] = value
         # XXX: further notification-callbacks needed ???
 
     def populateNamespace(self, namespace):
-        self.connection.send(ListModulesRequest())
+        self.connection.send(DescribeRequest())
         #        reply = self.connection.read()
-        #        self.log.info("found devices %r" % reply)
+        #        self.log.info("found modules %r" % reply)
         # create proxies, populate cache....
         namespace.setconst('connection', self.connection)

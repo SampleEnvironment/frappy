@@ -21,7 +21,7 @@
 #
 # *****************************************************************************
 
-"""Utilities for devices that require sequenced actions on value change."""
+"""Utilities for modules that require sequenced actions on value change."""
 
 from time import sleep
 
@@ -98,11 +98,11 @@ class SequencerMixin(object):
         **Error handling**
 
         If *fault_on_error* in ``init_sequencer`` is true and an exception is
-        raised during an atomic step, the device goes into an ERROR state
+        raised during an atomic step, the module goes into an ERROR state
         because it cannot be ensured that further actions will be safe to
         execute.  A manual reset is required.
 
-        Otherwise, the device goes into the WARN state and can be started
+        Otherwise, the module goes into the WARN state and can be started
         again normally.
 
         **Stop handling**
@@ -111,7 +111,7 @@ class SequencerMixin(object):
         which is set by the mixin's ``Stop`` method.
 
         The *fault_on_stop* argument in ``init_sequencer`` controls which state
-        the device enters when the sequence is interrupted by a stop.  Here,
+        the module enters when the sequence is interrupted by a stop.  Here,
         the default is to only go into ALARM.
         """
         if self.seq_is_alive():

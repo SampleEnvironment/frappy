@@ -181,9 +181,9 @@ class Client(object):
                 exception = info
             self.log = logStub()
         self._cache = dict()
-        if 'device' in opts:
+        if 'module' in opts:
             # serial port
-            devport = opts.pop('device')
+            devport = opts.pop('module')
             baudrate = int(opts.pop('baudrate', 115200))
             self.contactPoint = "serial://%s:%s" % (devport, baudrate)
             self.connection = serial.Serial(
