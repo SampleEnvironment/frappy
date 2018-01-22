@@ -39,6 +39,8 @@ class SimBase(object):
         # read and change messages correctly
         if '.extra_params' in cfgdict:
             extra_params = cfgdict.pop('.extra_params')
+            # make a copy of self.PARAMS
+            self.PARAMS=dict((k,v.copy()) for k,v in self.PARAMS.items())
             for k in extra_params.split(','):
                 self.PARAMS[k] = PARAM('extra_param: %s' % k.strip(),
                                        datatype=FloatRange(),
@@ -81,6 +83,10 @@ class SimWritable(SimBase, Writable):
         SimBase.__init__(self, cfgdict)
         Writable.__init__(self, logger, cfgdict, devname, dispatcher)
         self._value = self.PARAMS['value'].default
+    def read_value(self, maxage=0):
+        return self.target
+    def write_target(self, value):
+        self.value = value
 
 
 class SimDrivable(SimBase, Drivable):
