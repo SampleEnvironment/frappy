@@ -187,10 +187,8 @@ class EnumType(DataType):
             v = int(v)
             if v in self.entries:
                 raise ValueError(
-                    'keyword argument %r=%d is already assigned %r',
-                    k,
-                    v,
-                    self.entries[v])
+                    'keyword argument %r=%d is already assigned %r' %
+                    (k, v, self.entries[v]))
             self.entries[v] = k
 #        if len(self.entries) == 0:
 #            raise ValueError('Empty enums ae not allowed!')
@@ -198,7 +196,7 @@ class EnumType(DataType):
         self.reversed = {}
         for k, v in self.entries.items():
             if v in self.reversed:
-                raise ValueError('Mapping for %r=%r is not Unique!', v, k)
+                raise ValueError('Mapping for %r=%r is not Unique!' % (v, k))
             self.reversed[v] = k
         self.as_json = ['enum', self.reversed.copy()]
 
@@ -212,8 +210,8 @@ class EnumType(DataType):
             return self.reversed[value]
         if int(value) in self.entries:
             return int(value)
-        raise ValueError('%r is not one of %s', str(
-            value), ', '.join(self.reversed.keys()))
+        raise ValueError('%r is not one of %s' %
+            (str(value), ', '.join(self.reversed.keys())))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
@@ -226,8 +224,8 @@ class EnumType(DataType):
             return value
         if int(value) in self.entries:
             return self.entries[int(value)]
-        raise ValueError('%r is not one of %s', str(value),
-                         ', '.join(map(str, self.entries.keys())))
+        raise ValueError('%r is not one of %s' %
+                         (str(value), ', '.join(map(str, self.entries.keys()))))
 
     def from_string(self, text):
         value = text
@@ -261,15 +259,15 @@ class BLOBType(DataType):
     def validate(self, value):
         """return the validated (internal) value or raise"""
         if type(value) not in [str, unicode]:
-            raise ValueError('%r has the wrong type!', value)
+            raise ValueError('%r has the wrong type!' % value)
         size = len(value)
         if size < self.minsize:
             raise ValueError(
-                '%r must be at least %d bytes long!', value, self.minsize)
+                '%r must be at least %d bytes long!' % (value, self.minsize))
         if self.maxsize is not None:
             if size > self.maxsize:
                 raise ValueError(
-                    '%r must be at most %d bytes long!', value, self.maxsize)
+                    '%r must be at most %d bytes long!' % (value, self.maxsize))
         return value
 
     def export_value(self, value):
@@ -314,15 +312,15 @@ class StringType(DataType):
     def validate(self, value):
         """return the validated (internal) value or raise"""
         if type(value) not in [str, unicode]:
-            raise ValueError('%r has the wrong type!', value)
+            raise ValueError('%r has the wrong type!' % value)
         size = len(value)
         if size < self.minsize:
             raise ValueError(
-                '%r must be at least %d bytes long!', value, self.minsize)
+                '%r must be at least %d bytes long!' % (value, self.minsize))
         if self.maxsize is not None:
             if size > self.maxsize:
                 raise ValueError(
-                    '%r must be at most %d bytes long!', value, self.maxsize)
+                    '%r must be at most %d bytes long!' % (value, self.maxsize))
         if '\0' in value:
             raise ValueError(
                 'Strings are not allowed to embed a \\0! Use a Blob instead!')
@@ -356,7 +354,7 @@ class BoolType(DataType):
             return False
         if value in [1, '1', 'True', 'true', 'yes', 'on', True]:
             return True
-        raise ValueError('%r is not a boolean value!', value)
+        raise ValueError('%r is not a boolean value!' % value)
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -409,15 +407,15 @@ class ArrayOf(DataType):
             # check number of elements
             if self.minsize is not None and len(value) < self.minsize:
                 raise ValueError(
-                    'Array too small, needs at least %d elements!',
+                    'Array too small, needs at least %d elements!' %
                     self.minsize)
             if self.maxsize is not None and len(value) > self.maxsize:
                 raise ValueError(
-                    'Array too big, holds at most %d elements!', self.minsize)
+                    'Array too big, holds at most %d elements!' % self.minsize)
             # apply subtype valiation to all elements and return as list
             return [self.subtype.validate(elem) for elem in value]
         raise ValueError(
-            'Can not convert %s to ArrayOf DataType!', repr(value))
+            'Can not convert %s to ArrayOf DataType!' % repr(value))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -454,8 +452,8 @@ class TupleOf(DataType):
         try:
             if len(value) != len(self.subtypes):
                 raise ValueError(
-                    'Illegal number of Arguments! Need %d arguments.', len(
-                        self.subtypes))
+                    'Illegal number of Arguments! Need %d arguments.' %
+                        (len(self.subtypes)))
             # validate elements and return as list
             return [sub.validate(elem)
                     for sub, elem in zip(self.subtypes, value)]
@@ -500,19 +498,19 @@ class StructOf(DataType):
         try:
             if len(value.keys()) != len(self.named_subtypes.keys()):
                 raise ValueError(
-                    'Illegal number of Arguments! Need %d arguments.', len(
-                        self.named_subtypes.keys()))
+                    'Illegal number of Arguments! Need %d arguments.' %
+                        len(self.named_subtypes.keys()))
             # validate elements and return as dict
             return dict((str(k), self.named_subtypes[k].validate(v))
                         for k, v in value.items())
         except Exception as exc:
-            raise ValueError('Can not validate %s: %s', repr(value), str(exc))
+            raise ValueError('Can not validate %s: %s' % (repr(value), str(exc)))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
         if len(value.keys()) != len(self.named_subtypes.keys()):
             raise ValueError(
-                'Illegal number of Arguments! Need %d arguments.', len(
+                'Illegal number of Arguments! Need %d arguments.' % len(
                     self.namd_subtypes.keys()))
         return dict((str(k), self.named_subtypes[k].export_value(v))
                     for k, v in value.items())
@@ -521,7 +519,7 @@ class StructOf(DataType):
         """returns a python object from serialisation"""
         if len(value.keys()) != len(self.named_subtypes.keys()):
             raise ValueError(
-                'Illegal number of Arguments! Need %d arguments.', len(
+                'Illegal number of Arguments! Need %d arguments.' % len(
                     self.namd_subtypes.keys()))
         return dict((str(k), self.named_subtypes[k].import_value(v))
                     for k, v in value.items())
@@ -565,12 +563,12 @@ class Command(DataType):
         try:
             if len(value) != len(self.argtypes):
                 raise ValueError(
-                    'Illegal number of Arguments! Need %d arguments.', len(
-                        self.argtypes))
+                    'Illegal number of Arguments! Need %d arguments.' %
+                        len(self.argtypes))
             # validate elements and return
             return [t.validate(v) for t, v in zip(self.argtypes, value)]
         except Exception as exc:
-            raise ValueError('Can not validate %s: %s', repr(value), str(exc))
+            raise ValueError('Can not validate %s: %s' % (repr(value), str(exc)))
 
     def export_value(self, value):
         raise ProgrammingError('values of type command can not be transported!')
@@ -609,9 +607,9 @@ def get_datatype(json):
         return json
     if not isinstance(json, list):
         raise ValueError(
-            'Can not interpret datatype %r, it should be a list!', json)
+            'Can not interpret datatype %r, it should be a list!' % json)
     if len(json) < 1:
-        raise ValueError('can not validate %r', json)
+        raise ValueError('can not validate %r' % json)
     base = json[0]
     if base in DATATYPES:
         if base in ('enum', 'struct'):
@@ -624,5 +622,5 @@ def get_datatype(json):
         try:
             return DATATYPES[base](*args)
         except (TypeError, AttributeError):
-            raise ValueError('Invalid datatype descriptor in %r', json)
-    raise ValueError('can not convert %r to datatype', json)
+            raise ValueError('Invalid datatype descriptor in %r' % json)
+    raise ValueError('can not convert %r to datatype' % json)
