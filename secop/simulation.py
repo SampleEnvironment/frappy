@@ -42,6 +42,7 @@ class SimBase(object):
             # make a copy of self.PARAMS
             self.PARAMS=dict((k,v.copy()) for k,v in self.PARAMS.items())
             for k in extra_params.split(','):
+                k = k.strip()
                 self.PARAMS[k] = PARAM('extra_param: %s' % k.strip(),
                                        datatype=FloatRange(),
                                        default=0.0)

@@ -119,6 +119,13 @@ class Server(object):
                     raise ConfigError(
                         'cfgfile %r: Module %s needs a class option!' %
                         (self._cfgfile, devname))
+                # MAGIC: transform \n.\n into \n\n which are normally stripped
+                # by the ini parser
+                for k in devopts:
+                    v = devopts[k]
+                    while '\n.\n' in v:
+                        v = v.replace('\n.\n', '\n\n')
+                    devopts[k] = v
                 # try to import the class, raise if this fails
                 devopts['class'] = get_class(devopts['class'])
                 # all went well so far
