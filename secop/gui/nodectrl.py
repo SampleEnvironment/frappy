@@ -141,6 +141,7 @@ class NodeCtrl(QWidget):
             description = modprops['description']
 
             # fallback: allow (now) invalid 'Driveable'
+            unit = ''
             try:
                 if 'Drivable' in interfaces or 'Driveable' in interfaces:
                     widget = DrivableWidget(self._node, modname, self)
@@ -150,7 +151,6 @@ class NodeCtrl(QWidget):
                     unit = self._node.getProperties(modname, 'value').get('unit', '')
                 else:
                     widget = QLabel('Unsupported Interfaceclass %r' % interfaces)
-                    unit = ''
             except Exception as e:
                 widget = QLabel('Bad configured Module %s! (%s)' % (modname, e))
 
