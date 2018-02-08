@@ -146,6 +146,10 @@ class NodeCtrl(QWidget):
                 if 'Drivable' in interfaces or 'Driveable' in interfaces:
                     widget = DrivableWidget(self._node, modname, self)
                     unit = self._node.getProperties(modname, 'value').get('unit', '')
+                elif 'Writable' in interfaces or 'Writeable' in interfaces:
+                    # XXX !!!
+                    widget = DrivableWidget(self._node, modname, self)
+                    unit = self._node.getProperties(modname, 'value').get('unit', '')
                 elif 'Readable' in interfaces:
                     widget = ReadableWidget(self._node, modname, self)
                     unit = self._node.getProperties(modname, 'value').get('unit', '')
@@ -181,7 +185,7 @@ class ReadableWidget(QWidget):
         self._module = module
 
         # XXX: avoid a nasty race condition, mainly biting on M$
-        for i in range(30):
+        for i in range(15):
             if 'status' in self._node.describing_data['modules'][module]['parameters']:
                 break
             sleep(0.01*i)
