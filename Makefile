@@ -19,7 +19,11 @@ install: build
 	python setup.py install
 
 test:
-	python $(shell which pytest) -v test
+ifdef T
+	python $(shell which pytest) -v test -l -k $(T)
+else
+	python $(shell which pytest) -v test -l
+endif
 
 test-verbose:
 	python $(shell which pytest) -v test -s
