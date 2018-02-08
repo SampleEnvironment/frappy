@@ -23,6 +23,8 @@
 
 from __future__ import print_function
 
+import sys
+
 from PyQt4.QtGui import QMainWindow, QInputDialog, QTreeWidgetItem, QMessageBox
 from PyQt4.QtCore import pyqtSignature as qtsig, QObject, pyqtSignal
 
@@ -32,7 +34,6 @@ from secop.gui.modulectrl import ModuleCtrl
 from secop.gui.paramview import ParameterView
 from secop.client.baseclient import Client as SECNode
 
-import sys
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
 ITEM_TYPE_GROUP = QTreeWidgetItem.UserType + 2
@@ -80,6 +81,8 @@ class MainWindow(QMainWindow):
 
         self._nodes = {}
         self._nodeCtrls = {}
+        self._moduleCtrls = {}
+        self._paramCtrls = {}
         self._topItems = {}
         self._currentWidget = self.splitter.widget(1).layout().takeAt(0)
 
@@ -127,7 +130,7 @@ class MainWindow(QMainWindow):
             self._displayParameter(current.parent().parent().text(0),
                                    current.parent().text(0), current.text(0))
 
-    def _removeSubTree(self, toplevelItem):
+    def _removeSubTree(self, toplevel_item):
         #....
         pass
 
@@ -160,25 +163,32 @@ class MainWindow(QMainWindow):
             for param in sorted(node.getParameters(module)):
                 paramItem = QTreeWidgetItem(moduleItem, [param],
                                             ITEM_TYPE_PARAMETER)
+                paramItem.setDisabled(False)
 
         self.treeWidget.addTopLevelItem(nodeItem)
         self._topItems[node] = nodeItem
 
     def _displayNode(self, node):
-
         ctrl = self._nodeCtrls.get(node, None)
-
         if ctrl is None:
             ctrl = self._nodeCtrls[node] = NodeCtrl(self._nodes[node])
 
         self._replaceCtrlWidget(ctrl)
 
     def _displayModule(self, node, module):
-        self._replaceCtrlWidget(ModuleCtrl(self._nodes[node], module))
+        ctrl = self._moduleCtrls.get((node, module), None)
+        if ctrl is None:
+            ctrl = self._moduleCtrls[(node, module)] = ModuleCtrl(self._nodes[node], module)
+
+        self._replaceCtrlWidget(ctrl)
 
     def _displayParameter(self, node, module, parameter):
-        self._replaceCtrlWidget(
-            ParameterView(self._nodes[node], module, parameter))
+        ctrl = self._paramCtrls.get((node, module, parameter), None)
+        if ctrl is None:
+            ctrl = ParameterView(self._nodes[node], module, parameter)
+            self._paramCtrls[(node, module, parameter)] = ctrl
+
+        self._replaceCtrlWidget(ctrl)
 
     def _replaceCtrlWidget(self, new):
         old = self.splitter.widget(1).layout().takeAt(0)

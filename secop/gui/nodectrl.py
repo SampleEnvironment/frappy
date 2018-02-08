@@ -231,7 +231,7 @@ class ReadableWidget(QWidget):
         self.update_status(self._get('status', (999, '<not supported>')), {})
         # XXX: also connect update_status signal to LineEdit ??
 
-    def update_status(self, status, qualifiers):
+    def update_status(self, status, qualifiers=None):
         display_string = self._status_type.subtypes[0].entries.get(status[0])
         if status[1]:
             display_string += ':' + status[1]
@@ -241,7 +241,7 @@ class ReadableWidget(QWidget):
     def _init_current_widgets(self):
         self.update_current(self._get('value', ''), {})
 
-    def update_current(self, value, qualifiers):
+    def update_current(self, value, qualifiers=None):
         self.currentLineEdit.setText(str(value))
 
     def _init_target_widgets(self):
@@ -250,7 +250,7 @@ class ReadableWidget(QWidget):
         self.targetComboBox.setHidden(True)
         self.cmdPushButton.setHidden(True)
 
-    def update_target(self, target, qualifiers):
+    def update_target(self, target, qualifiers=None):
         pass
 
     def target_go(self, target):
@@ -288,13 +288,13 @@ class DrivableWidget(ReadableWidget):
                 else:
                     self.update_target(target)
 
-    def update_current(self, value, qualifiers):
+    def update_current(self, value, qualifiers=None):
         if self._is_enum:
             self.currentLineEdit.setText(self._map[self._revmap[value]][0])
         else:
             self.currentLineEdit.setText(str(value))
 
-    def update_target(self, target, qualifiers):
+    def update_target(self, target, qualifiers=None):
         if self._is_enum:
             # update selected item
             if target in self._revmap:
