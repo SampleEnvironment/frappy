@@ -22,11 +22,13 @@
 # *****************************************************************************
 """error class for our little framework"""
 
-
+# base class
 class SECoPServerError(Exception):
-    pass
+    errorclass = 'InternalError'
 
 
+# those errors should never be seen remotely!
+# just in case they are, these are flagged as InternalError
 class ConfigError(SECoPServerError):
     pass
 
@@ -35,9 +37,9 @@ class ProgrammingError(SECoPServerError):
     pass
 
 
-# for remote operation
+# to be exported for remote operation
 class SECoPError(SECoPServerError):
-    errorclass = 'InternalError'
+    pass
 
 
 class NoSuchModuleError(SECoPError):
