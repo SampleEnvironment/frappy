@@ -23,6 +23,7 @@
 
 import pprint
 import json
+from time import sleep
 
 from PyQt4.QtGui import QWidget, QTextCursor, QFont, QFontMetrics, QLabel, QMessageBox
 from PyQt4.QtCore import pyqtSignature as qtsig, Qt
@@ -175,6 +176,12 @@ class ReadableWidget(QWidget):
         super(ReadableWidget, self).__init__(parent)
         self._node = node
         self._module = module
+
+        # XXX: avoid a nasty race condition, mainly biting on M$
+        for i in range(30):
+            if 'status' in self._node.describing_data['modules'][module]['parameters']:
+                break
+            sleep(0.01*i)
 
         self._status_type = self._node.getProperties(
             self._module, 'status').get('datatype')
