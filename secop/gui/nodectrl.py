@@ -24,8 +24,8 @@
 import pprint
 import json
 
-from PyQt4.QtGui import QWidget, QTextCursor, QFont, QFontMetrics, QLabel, QPushButton, QLineEdit, QMessageBox, QCheckBox, QSizePolicy
-from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
+from PyQt4.QtGui import QWidget, QTextCursor, QFont, QFontMetrics, QLabel, QMessageBox
+from PyQt4.QtCore import pyqtSignature as qtsig, Qt
 
 from secop.gui.util import loadUi
 from secop.protocol.errors import SECOPError
@@ -221,10 +221,10 @@ class ReadableWidget(QWidget):
             raise
 
     def _init_status_widgets(self):
-        self.update_status(self._get('status', (999, '<not supported>')))
+        self.update_status(self._get('status', (999, '<not supported>')), {})
         # XXX: also connect update_status signal to LineEdit ??
 
-    def update_status(self, status, qualifiers={}):
+    def update_status(self, status, qualifiers):
         display_string = self._status_type.subtypes[0].entries.get(status[0])
         if status[1]:
             display_string += ':' + status[1]
@@ -232,9 +232,9 @@ class ReadableWidget(QWidget):
         # may change meaning of cmdPushButton
 
     def _init_current_widgets(self):
-        self.update_current(self._get('value', ''))
+        self.update_current(self._get('value', ''), {})
 
-    def update_current(self, value, qualifiers={}):
+    def update_current(self, value, qualifiers):
         self.currentLineEdit.setText(str(value))
 
     def _init_target_widgets(self):
@@ -243,13 +243,15 @@ class ReadableWidget(QWidget):
         self.targetComboBox.setHidden(True)
         self.cmdPushButton.setHidden(True)
 
-    def update_target(self, target, qualifiers={}):
+    def update_target(self, target, qualifiers):
         pass
 
     def target_go(self, target):
+        print self, target
         try:
             self._node.setParameter(self._module, 'target', target)
         except Exception as e:
+            self.log.exception(e)
             QMessageBox.warning(self.parent(), 'Operation failed', str(e))
 
     def _updateValue(self, module, parameter, value):
@@ -266,7 +268,6 @@ class ReadableWidget(QWidget):
 class DrivableWidget(ReadableWidget):
 
     def _init_target_widgets(self):
-        params = self._node.getProperties(self._module, 'target')
         if self._is_enum:
             # EnumType: disable Linedit
             self.targetLineEdit.setHidden(True)
@@ -280,13 +281,13 @@ class DrivableWidget(ReadableWidget):
                 else:
                     self.update_target(target)
 
-    def update_current(self, value, qualifiers={}):
+    def update_current(self, value, qualifiers):
         if self._is_enum:
             self.currentLineEdit.setText(self._map[self._revmap[value]][0])
         else:
             self.currentLineEdit.setText(str(value))
 
-    def update_target(self, target, qualifiers={}):
+    def update_target(self, target, qualifiers):
         if self._is_enum:
             # update selected item
             if target in self._revmap:

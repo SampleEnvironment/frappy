@@ -150,7 +150,6 @@ class Value(object):
         r = []
         if self.t is not None:
             r.append("timestamp=%r" % format_time(self.t))
-            print("Check 3")
         if self.u is not None:
             r.append('unit=%r' % self.u)
         if self.e is not None:
@@ -523,7 +522,8 @@ class Client(object):
         datatype = self._getDescribingParameterData(module,
                                                     parameter)['datatype']
 
-        value = datatype.export_value(datatype.validate(value))
+        value = datatype.from_string(value)
+        value = datatype.export_value(value)
         self.communicate('change', '%s:%s' % (module, parameter), value)
 
     @property

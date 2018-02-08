@@ -21,10 +21,12 @@
 # *****************************************************************************
 """Define validated data types."""
 
-from ast import literal_eval
 from base64 import b64encode, b64decode
 
-from .errors import ProgrammingError
+from .errors import ProgrammingError, ParsingError
+from .parse import Parser
+
+Parser = Parser()
 
 # Only export these classes for 'from secop.datatypes import *'
 __all__ = [
@@ -426,8 +428,9 @@ class ArrayOf(DataType):
         return [self.subtype.import_value(elem) for elem in value]
 
     def from_string(self, text):
-        # XXX: parse differntly than using eval!
-        value = eval(text)  # pylint: disable=W0123
+        value, rem = Parser.parse(text)
+        if rem:
+            raise ParsingError('trailing garbage: %r' % rem)
         return self.validate(value)
 
 
@@ -469,8 +472,10 @@ class TupleOf(DataType):
         return [sub.import_value(elem) for sub, elem in zip(self.subtypes, value)]
 
     def from_string(self, text):
-        value = literal_eval(text)
-        return self.validate(tuple(value))
+        value, rem = Parser.parse(text)
+        if rem:
+            raise ParsingError('trailing garbage: %r' % rem)
+        return self.validate(value)
 
 
 class StructOf(DataType):
@@ -525,7 +530,9 @@ class StructOf(DataType):
                     for k, v in value.items())
 
     def from_string(self, text):
-        value = literal_eval(text)
+        value, rem = Parser.parse(text)
+        if rem:
+            raise ParsingError('trailing garbage: %r' % rem)
         return self.validate(dict(value))
 
 
@@ -577,7 +584,9 @@ class Command(DataType):
         raise ProgrammingError('values of type command can not be transported!')
 
     def from_string(self, text):
-        value = literal_eval(text)
+        value, rem = Parser.parse(text)
+        if rem:
+            raise ParsingError('trailing garbage: %r' % rem)
         return self.validate(value)
 
 

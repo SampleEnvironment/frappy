@@ -37,6 +37,10 @@ class ProgrammingError(SECoPServerError):
     pass
 
 
+class ParsingError(SECoPServerError):
+    pass
+
+
 # to be exported for remote operation
 class SECoPError(SECoPServerError):
     pass
