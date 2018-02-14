@@ -22,7 +22,7 @@
 
 import random
 
-from secop.modules import Readable, Drivable, Communicator, PARAM
+from secop.modules import Readable, Drivable, Communicator, Param
 from secop.datatypes import FloatRange, StringType
 
 
@@ -43,8 +43,8 @@ class Heater(Drivable):
     class name indicates it to be some heating element,
     but the implementation may do anything
     """
-    PARAMS = {
-        'maxheaterpower': PARAM('maximum allowed heater power',
+    parameters = {
+        'maxheaterpower': Param('maximum allowed heater power',
                                 datatype=FloatRange(0, 100), unit='W',
                                 ),
     }
@@ -62,15 +62,15 @@ class Temp(Drivable):
     class name indicates it to be some temperature controller,
     but the implementation may do anything
     """
-    PARAMS = {
-        'sensor': PARAM(
+    parameters = {
+        'sensor': Param(
             "Sensor number or calibration id",
             datatype=StringType(
                 8,
                 16),
             readonly=True,
         ),
-        'target': PARAM(
+        'target': Param(
             "Target temperature",
             default=300.0,
             datatype=FloatRange(0),

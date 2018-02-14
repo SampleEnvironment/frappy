@@ -194,7 +194,7 @@ class Dispatcher(object):
         if modulename in self._export:
             # omit export=False params!
             res = {}
-            for paramname, param in self.get_module(modulename).PARAMS.items():
+            for paramname, param in self.get_module(modulename).parameters.items():
                 if param.export:
                     res[paramname] = param.as_dict(only_static)
             self.log.debug('list params for module %s -> %r' %
@@ -208,7 +208,7 @@ class Dispatcher(object):
         if modulename in self._export:
             # omit export=False params!
             res = {}
-            for cmdname, cmdobj in self.get_module(modulename).CMDS.items():
+            for cmdname, cmdobj in self.get_module(modulename).commands.items():
                 res[cmdname] = cmdobj.as_dict()
             self.log.debug('list cmds for module %s -> %r' % (modulename, res))
             return res
@@ -229,7 +229,7 @@ class Dispatcher(object):
                 mod_desc['parameters'].extend([pname, param])
             for cname, cmd in self.list_module_cmds(modulename).items():
                 mod_desc['commands'].extend([cname, cmd])
-            for propname, prop in module.PROPERTIES.items():
+            for propname, prop in module.properties.items():
                 mod_desc[propname] = prop
             result['modules'].extend([modulename, mod_desc])
         result['equipment_id'] = self.equipment_id
@@ -250,7 +250,7 @@ class Dispatcher(object):
                     modulename,
                     only_static=True),
                 'commands': self.list_module_cmds(modulename),
-                'properties': module.PROPERTIES,
+                'properties': module.properties,
             }
             result['modules'][modulename] = dd
         result['equipment_id'] = self.equipment_id
@@ -267,7 +267,7 @@ class Dispatcher(object):
         if moduleobj is None:
             raise NoSuchModuleError(module=modulename)
 
-        cmdspec = moduleobj.CMDS.get(command, None)
+        cmdspec = moduleobj.commands.get(command, None)
         if cmdspec is None:
             raise NoSuchCommandError(module=modulename, command=command)
         if len(cmdspec.arguments) != len(arguments):
@@ -293,7 +293,7 @@ class Dispatcher(object):
         if moduleobj is None:
             raise NoSuchModuleError(module=modulename)
 
-        pobj = moduleobj.PARAMS.get(pname, None)
+        pobj = moduleobj.parameters.get(pname, None)
         if pobj is None:
             raise NoSuchParamError(module=modulename, parameter=pname)
         if pobj.readonly:
@@ -318,7 +318,7 @@ class Dispatcher(object):
         if moduleobj is None:
             raise NoSuchModuleError(module=modulename)
 
-        pobj = moduleobj.PARAMS.get(pname, None)
+        pobj = moduleobj.parameters.get(pname, None)
         if pobj is None:
             raise NoSuchParamError(module=modulename, parameter=pname)
 
@@ -368,7 +368,7 @@ class Dispatcher(object):
             res = self._setParamValue(msg.module, msg.parameter, msg.value)
         else:
             # first check if module has a target
-            if 'target' not in self.get_module(msg.module).PARAMS:
+            if 'target' not in self.get_module(msg.module).parameters:
                 raise ReadonlyError(module=msg.module, parameter=None)
             res = self._setParamValue(msg.module, 'target', msg.value)
             res.parameter = 'target'
@@ -398,10 +398,10 @@ class Dispatcher(object):
         self.activate_connection(conn)
         # easy approach: poll all values...
         for modulename, moduleobj in self._modules.items():
-            for pname, pobj in moduleobj.PARAMS.items():
+            for pname, pobj in moduleobj.parameters.items():
                 if not pobj.export:
                     continue
-                # WARNING: THIS READS ALL PARAMS FROM HW!
+                # WARNING: THIS READS ALL parameters FROM HW!
                 # XXX: should we send the cached values instead? (pbj.value)
                 # also: ignore errors here.
                 try:

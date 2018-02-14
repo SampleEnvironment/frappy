@@ -22,26 +22,25 @@
 # *****************************************************************************
 
 # This is based upon the entangle-nicos integration
-"""
-This module contains the MLZ SECoP - TANGO integration.
+"""This module contains the MLZ SECoP - TANGO integration.
 
 Here we support devices which fulfill the official
 MLZ TANGO interface for the respective device classes.
 """
 
 import re
-import sys
 from time import sleep, time as currenttime
 import threading
 
 import PyTango
-import numpy
 
-from secop.lib import lazy_property, mkthread
+from secop.lib import lazy_property
 from secop.protocol import status
-from secop.datatypes import *
-from secop.errors import SECoPServerError, ConfigError, ProgrammingError, CommunicationError, HardwareError
-from secop.modules import PARAM, CMD, OVERRIDE, Module, Readable, Drivable
+from secop.parse import Parser
+from secop.datatypes import IntRange, FloatRange, StringType, TupleOf, \
+    ArrayOf, EnumType
+from secop.errors import ConfigError, ProgrammingError, CommunicationError, HardwareError
+from secop.modules import Param, Command, Override, Module, Readable, Drivable
 
 #####
 
@@ -158,13 +157,13 @@ class PyTangoDevice(Module):
     execution and attribute operations with logging and exception mapping.
     """
 
-    PARAMS = {
-        'comtries': PARAM('Maximum retries for communication',
+    parameters = {
+        'comtries': Param('Maximum retries for communication',
                           datatype=IntRange(1, 100), default=3, readonly=False, group='communication'),
-        'comdelay': PARAM('Delay between retries', datatype=FloatRange(0), unit='s', default=0.1,
+        'comdelay': Param('Delay between retries', datatype=FloatRange(0), unit='s', default=0.1,
                           readonly=False, group='communication'),
 
-        'tangodevice': PARAM('Tango device name',
+        'tangodevice': Param('Tango device name',
                              datatype=StringType(), readonly=True,
                              # export=True,   # for testing only
                              export=False,
@@ -186,7 +185,7 @@ class PyTangoDevice(Module):
     def _com_retry(self, info, function, *args, **kwds):
         """Try communicating with the hardware/device.
 
-        PARAMeter "info" is passed to _com_return and _com_raise methods that
+        Parameter "info" is passed to _com_return and _com_raise methods that
         process the return value or exception raised after maximum tries.
         """
         tries = self.comtries
@@ -380,7 +379,7 @@ class AnalogInput(PyTangoDevice, Readable):
         # prefer configured unit if nothing is set on the Tango device, else
         # update
         if attrInfo.unit != 'No unit':
-            self.PARAMS['value'].unit = attrInfo.unit
+            self.parameters['value'].unit = attrInfo.unit
 
     def read_value(self, maxage=0):
         return self._dev.value
@@ -397,8 +396,8 @@ class Sensor(AnalogInput):
     # note: we don't transport the formula to secop....
     #       we support the adjust method
 
-    CMDS = {
-        'setposition' : CMD('Set the position to the given value.',
+    commands = {
+        'setposition' : Command('Set the position to the given value.',
                             arguments=[FloatRange()],
                             result=None
                            ),
@@ -409,8 +408,7 @@ class Sensor(AnalogInput):
 
 
 class AnalogOutput(PyTangoDevice, Drivable):
-    """
-    The AnalogOutput handles all devices which set an analogue value.
+    """The AnalogOutput handles all devices which set an analogue value.
 
     The main application field is the output of any signal which may be
     considered as continously in a range. The values may have nearly any
@@ -421,41 +419,25 @@ class AnalogOutput(PyTangoDevice, Drivable):
     controllers, ...
     """
 
-    PARAMS = {
-        'userlimits': PARAM(
-            'User defined limits of device value',
-            unit='main',
-            datatype=TupleOf(
-                FloatRange(),
-                FloatRange()),
-            default=(
-                float('-Inf'),
-                float('+Inf')),
-            readonly=False,
-            poll=10),
-        'abslimits': PARAM(
-            'Absolute limits of device value',
-            unit='main',
-            datatype=TupleOf(
-                FloatRange(),
-                FloatRange()),
-        ),
-        'precision': PARAM(
-            'Precision of the device value (allowed deviation '
-            'of stable values from target)',
-            unit='main',
-            datatype=FloatRange(1e-38),
-            readonly=False,
-        ),
-        'window': PARAM(
-            'Time window for checking stabilization if > 0',
-            unit='s',
-            default=60.0,
-            datatype=FloatRange(
-                0,
-                900),
-            readonly=False,
-        ),
+    parameters = {
+        'userlimits': Param('User defined limits of device value',
+                            datatype=TupleOf(FloatRange(), FloatRange()),
+                            default=(float('-Inf'),float('+Inf')),
+                            unit='main', readonly=False, poll=10,
+                           ),
+        'abslimits': Param('Absolute limits of device value',
+                           datatype=TupleOf(FloatRange(), FloatRange()),
+                           unit='main',
+                          ),
+        'precision': Param('Precision of the device value (allowed deviation '
+                           'of stable values from target)',
+                           unit='main', datatype=FloatRange(1e-38),
+                           readonly=False,
+                          ),
+        'window': Param('Time window for checking stabilization if > 0',
+                        unit='s', default=60.0, readonly=False,
+                        datatype=FloatRange(0, 900),
+                       ),
     }
 
     def init(self):
@@ -470,7 +452,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         # prefer configured unit if nothing is set on the Tango device, else
         # update
         if attrInfo.unit != 'No unit':
-            self.PARAMS['value'].unit = attrInfo.unit
+            self.parameters['value'].unit = attrInfo.unit
 
     def poll(self, nr):
         super(AnalogOutput, self).poll(nr)
@@ -563,9 +545,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
 
 
 class Actuator(AnalogOutput):
-    """
-    The actuator interface describes all analog devices which DO something in a
-    defined way.
+    """The aAtuator interface describes all analog devices which DO something
+    in a defined way.
 
     The difference to AnalogOutput is that there is a speed attribute, and the
     value attribute is converted from the “raw value” with a formula and
@@ -573,22 +554,18 @@ class Actuator(AnalogOutput):
     """
     # for secop: support the speed and ramp parameters
 
-    PARAMS = {
-        'speed': PARAM(
-            'The speed of changing the value',
-            unit='main/s',
-            readonly=False,
-            datatype=FloatRange(0)),
-        'ramp': PARAM(
-            'The speed of changing the value',
-            unit='main/min',
-            readonly=False,
-            datatype=FloatRange(0),
-            poll=30),
+    parameters = {
+        'speed': Param('The speed of changing the value',
+                       unit='main/s', readonly=False, datatype=FloatRange(0),
+                      ),
+        'ramp': Param('The speed of changing the value',
+                      unit='main/min', readonly=False, datatype=FloatRange(0),
+                      poll=30,
+                     ),
     }
 
-    CMDS = {
-        'setposition' : CMD('Set the position to the given value.',
+    commands = {
+        'setposition' : Command('Set the position to the given value.',
                             arguments=[FloatRange()],
                             result=None
                            ),
@@ -612,28 +589,22 @@ class Actuator(AnalogOutput):
 
 
 class Motor(Actuator):
-    """
-    This class implements a motor device (in a sense of a real motor
+    """This class implements a motor device (in a sense of a real motor
     (stepper motor, servo motor, ...)).
 
     It has the ability to move a real object from one place to another place.
     """
 
-    PARAMS = {
-        'refpos': PARAM(
-            'Reference position',
-            datatype=FloatRange(),
-            unit='main'),
-        'accel': PARAM(
-            'Acceleration',
-            datatype=FloatRange(),
-            readonly=False,
-            unit='main/s^2'),
-        'decel': PARAM(
-            'Deceleration',
-            datatype=FloatRange(),
-            readonly=False,
-            unit='main/s^2'),
+    parameters = {
+        'refpos': Param('Reference position',
+                        datatype=FloatRange(), unit='main',
+                       ),
+        'accel': Param('Acceleration',
+                       datatype=FloatRange(), readonly=False, unit='main/s^2',
+                      ),
+        'decel': Param('Deceleration',
+                       datatype=FloatRange(), readonly=False, unit='main/s^2',
+                      ),
     }
 
     def read_refpos(self, maxage=0):
@@ -657,35 +628,35 @@ class Motor(Actuator):
 
 
 class TemperatureController(Actuator):
-    """
-    A temperature control loop device.
+    """A temperature control loop device.
     """
 
-    PARAMS = {
-        'p': PARAM('Proportional control PARAMeter', datatype=FloatRange(),
+    parameters = {
+        'p': Param('Proportional control Parameter', datatype=FloatRange(),
                    readonly=False, group='pid',
                    ),
-        'i': PARAM('Integral control PARAMeter', datatype=FloatRange(),
+        'i': Param('Integral control Parameter', datatype=FloatRange(),
                    readonly=False, group='pid',
                    ),
-        'd': PARAM('Derivative control PARAMeter', datatype=FloatRange(),
+        'd': Param('Derivative control Parameter', datatype=FloatRange(),
                    readonly=False, group='pid',
                    ),
-        'pid': PARAM('pid control PARAMeters', datatype=TupleOf(FloatRange(), FloatRange(), FloatRange()),
+        'pid': Param('pid control Parameters',
+                     datatype=TupleOf(FloatRange(), FloatRange(), FloatRange()),
                      readonly=False, group='pid', poll=30,
                      ),
-        'setpoint': PARAM('Current setpoint', datatype=FloatRange(), poll=1,
+        'setpoint': Param('Current setpoint', datatype=FloatRange(), poll=1,
                           ),
-        'heateroutput': PARAM('Heater output', datatype=FloatRange(), poll=1,
+        'heateroutput': Param('Heater output', datatype=FloatRange(), poll=1,
                               ),
-        'ramp': PARAM('Temperature ramp', unit='main/min',
+        'ramp': Param('Temperature ramp', unit='main/min',
                       datatype=FloatRange(), readonly=False, poll=30),
     }
 
-    OVERRIDES = {
+    overrides = {
         # We want this to be freely user-settable, and not produce a warning
         # on startup, so select a usually sensible default.
-        'precision': OVERRIDE(default=0.1),
+        'precision': Override(default=0.1),
     }
 
     def read_ramp(self, maxage=0):
@@ -732,16 +703,15 @@ class TemperatureController(Actuator):
 
 
 class PowerSupply(Actuator):
-    """
-    A power supply (voltage and current) device.
+    """A power supply (voltage and current) device.
     """
 
-    PARAMS = {
-        'ramp': PARAM('Current/voltage ramp', unit='main/min',
+    parameters = {
+        'ramp': Param('Current/voltage ramp', unit='main/min',
                       datatype=FloatRange(), readonly=False, poll=30,),
-        'voltage': PARAM('Actual voltage', unit='V',
+        'voltage': Param('Actual voltage', unit='V',
                          datatype=FloatRange(), poll=-5),
-        'current': PARAM('Actual current', unit='A',
+        'current': Param('Actual current', unit='A',
                          datatype=FloatRange(), poll=-5),
     }
 
@@ -759,12 +729,11 @@ class PowerSupply(Actuator):
 
 
 class DigitalInput(PyTangoDevice, Readable):
-    """
-    A device reading a bitfield.
+    """A device reading a bitfield.
     """
 
-    OVERRIDES = {
-        'value': OVERRIDE(datatype=IntRange()),
+    overrides = {
+        'value': Override(datatype=IntRange()),
     }
 
     def read_value(self, maxage=0):
@@ -772,19 +741,22 @@ class DigitalInput(PyTangoDevice, Readable):
 
 
 class NamedDigitalInput(DigitalInput):
-    """
-    A DigitalInput with numeric values mapped to names.
+    """A DigitalInput with numeric values mapped to names.
     """
 
-    PARAMS = {
-        'mapping': PARAM('A dictionary mapping state names to integers',
+    parameters = {
+        'mapping': Param('A dictionary mapping state names to integers',
                          datatype=StringType(), export=False),  # XXX:!!!
     }
 
     def init(self):
         super(NamedDigitalInput, self).init()
         try:
-            self.PARAMS['value'].datatype = EnumType(**eval(self.mapping))
+            mapping, rem = Parser().parse(self.mapping)
+            if rem:
+                raise ValueError('Illegal Value for mapping, '
+                                 'trailing garbage: %r' % rem)
+            self.parameters['value'].datatype = EnumType(**mapping)
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
@@ -794,26 +766,21 @@ class NamedDigitalInput(DigitalInput):
 
 
 class PartialDigitalInput(NamedDigitalInput):
-    """
-    Base class for a TANGO DigitalInput with only a part of the full
+    """Base class for a TANGO DigitalInput with only a part of the full
     bit width accessed.
     """
 
-    PARAMS = {
-        'startbit': PARAM(
-            'Number of the first bit',
-            datatype=IntRange(0),
-            default=0),
-        'bitwidth': PARAM(
-            'Number of bits',
-            datatype=IntRange(0),
-            default=1),
+    parameters = {
+        'startbit': Param('Number of the first bit',
+                          datatype=IntRange(0), default=0),
+        'bitwidth': Param('Number of bits',
+                          datatype=IntRange(0), default=1),
     }
 
     def init(self):
         super(PartialDigitalInput, self).init()
         self._mask = (1 << self.bitwidth) - 1
-        #self.PARAMS['value'].datatype = IntRange(0, self._mask)
+        #self.parameters['value'].datatype = IntRange(0, self._mask)
 
     def read_value(self, maxage=0):
         raw_value = self._dev.value
@@ -822,14 +789,13 @@ class PartialDigitalInput(NamedDigitalInput):
 
 
 class DigitalOutput(PyTangoDevice, Drivable):
-    """
-    A devices that can set and read a digital value corresponding to a
+    """A device that can set and read a digital value corresponding to a
     bitfield.
     """
 
-    OVERRIDES = {
-        'value': OVERRIDE(datatype=IntRange()),
-        'target': OVERRIDE(datatype=IntRange()),
+    overrides = {
+        'value': Override(datatype=IntRange()),
+        'target': Override(datatype=IntRange()),
     }
 
     def read_value(self, maxage=0):
@@ -845,88 +811,74 @@ class DigitalOutput(PyTangoDevice, Drivable):
 
 
 class NamedDigitalOutput(DigitalOutput):
-    """
-    A DigitalOutput with numeric values mapped to names.
+    """A DigitalOutput with numeric values mapped to names.
     """
 
-#    PARAMS = {
-#        'mapping': PARAM('A dictionary mapping state names to integers',
+#    parameters = {
+#        'mapping': Param('A dictionary mapping state names to integers',
 #                         datatype=EnumType(), export=False),  # XXX: !!!
 #    }
 #
 #    def init(self):
 #        super(NamedDigitalOutput, self).init()
 #        try:  # XXX: !!!
-#            self.PARAMS['value'].datatype = EnumType(**eval(self.mapping))
+#            self.parameters['value'].datatype = EnumType(**eval(self.mapping))
 #        except Exception as e:
 #            raise ValueError('Illegal Value for mapping: %r' % e)
 
-    def write_target(self, target):
+    def write_target(self, value):
         # map from enum-str to integer value
-        self._dev.value = self.PARAMS[
-            'target'].datatype.reversed.get(target, target)
+        self._dev.value = self.parameters[
+            'target'].datatype.reversed.get(value, value)
         self.read_value()
 
 
 class PartialDigitalOutput(NamedDigitalOutput):
-    """
-    Base class for a TANGO DigitalOutput with only a part of the full
+    """Base class for a TANGO DigitalOutput with only a part of the full
     bit width accessed.
     """
 
-    PARAMS = {
-        'startbit': PARAM(
-            'Number of the first bit',
-            datatype=IntRange(0),
-            default=0),
-        'bitwidth': PARAM(
-            'Number of bits',
-            datatype=IntRange(0),
-            default=1),
+    parameters = {
+        'startbit': Param('Number of the first bit',
+                          datatype=IntRange(0), default=0),
+        'bitwidth': Param('Number of bits',
+                          datatype=IntRange(0), default=1),
     }
 
-    def init(self, mode):
+    def init(self):
         super(PartialDigitalOutput, self).init()
         self._mask = (1 << self.bitwidth) - 1
-        #self.PARAMS['value'].datatype = IntRange(0, self._mask)
-        #self.PARAMS['target'].datatype = IntRange(0, self._mask)
+        #self.parameters['value'].datatype = IntRange(0, self._mask)
+        #self.parameters['target'].datatype = IntRange(0, self._mask)
 
     def read_value(self, maxage=0):
         raw_value = self._dev.value
         value = (raw_value >> self.startbit) & self._mask
         return value  # mapping is done by datatype upon export()
 
-    def write_target(self, target):
+    def write_target(self, value):
         curvalue = self._dev.value
         newvalue = (curvalue & ~(self._mask << self.startbit)) | \
-                   (target << self.startbit)
+                   (value << self.startbit)
         self._dev.value = newvalue
         self.read_value()
 
 
 class StringIO(PyTangoDevice, Module):
-    """
-    StringIO abstracts communication over a hardware bus that sends and
+    """StringIO abstracts communication over a hardware bus that sends and
     receives strings.
     """
 
-    PARAMS = {
-        'bustimeout': PARAM(
-            'Communication timeout',
-            datatype=FloatRange(),
-            readonly=False,
-            unit='s',
-            group='communication'),
-        'endofline': PARAM(
-            'End of line',
-            datatype=StringType(),
-            readonly=False,
-            group='communication'),
-        'startofline': PARAM(
-            'Start of line',
-            datatype=StringType(),
-            readonly=False,
-            group='communication'),
+    parameters = {
+        'bustimeout': Param('Communication timeout',
+                            datatype=FloatRange(), readonly=False,
+                            unit='s', group='communication'),
+        'endofline': Param('End of line',
+                           datatype=StringType(), readonly=False,
+                           group='communication'),
+        'startofline': Param('Start of line',
+                             datatype=StringType(), readonly=False,
+                             group='communication'),
     }
 
     def read_bustimeout(self, maxage=0):
@@ -947,52 +899,28 @@ class StringIO(PyTangoDevice, Module):
     def write_startofline(self, value):
         self._dev.startOfLine = value
 
-    CMDS = {
-        'communicate': CMD(
-            'Send a string and return the reply',
-            arguments=[
-                StringType()],
-            result=StringType()),
-        'flush': CMD(
-            'Flush output buffer',
-            arguments=[],
-            result=None),
-        'read': CMD(
-            'read some characters from input buffer',
-            arguments=[
-                IntRange()],
-            result=StringType()),
-        'write': CMD(
-            'write some chars to output',
-            arguments=[
-                StringType()],
-            result=None),
-        'readLine': CMD(
-            'Read sol - a whole line - eol',
-            arguments=[],
-            result=StringType()),
-        'writeLine': CMD(
-            'write sol + a whole line + eol',
-            arguments=[
-                StringType()],
-            result=None),
-        'availablechars': CMD(
-            'return number of chars in input buffer',
-            arguments=[],
-            result=IntRange(0)),
-        'availablelines': CMD(
-            'return number of lines in input buffer',
-            arguments=[],
-            result=IntRange(0)),
-        'multicommunicate': CMD(
-            'perform a sequence of communications',
-            arguments=[
-                ArrayOf(
-                    TupleOf(
-                        StringType(),
-                        IntRange()),100)],
-            result=ArrayOf(
-                StringType(),100)),
+    commands = {
+        'communicate': Command('Send a string and return the reply',
+                               arguments=[StringType()],
+                               result=StringType()),
+        'flush': Command('Flush output buffer',
+                         arguments=[], result=None),
+        'read': Command('read some characters from input buffer',
+                        arguments=[IntRange()], result=StringType()),
+        'write': Command('write some chars to output',
+                         arguments=[StringType()], result=None),
+        'readLine': Command('Read sol - a whole line - eol',
+                            arguments=[], result=StringType()),
+        'writeLine': Command('write sol + a whole line + eol',
+                             arguments=[StringType()], result=None),
+        'availablechars': Command('return number of chars in input buffer',
+                                  arguments=[], result=IntRange(0)),
+        'availablelines': Command('return number of lines in input buffer',
+                                  arguments=[], result=IntRange(0)),
+        'multicommunicate': Command('perform a sequence of communications',
+                                    arguments=[ArrayOf(
+                                        TupleOf(StringType(), IntRange()),100)],
+                                    result=ArrayOf(StringType(),100)),
     }
 
     def do_communicate(self, value=StringType()):

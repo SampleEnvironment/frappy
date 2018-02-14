@@ -23,9 +23,8 @@
 from math import atan
 import time
 import random
-import threading
 
-from secop.modules import Drivable, CMD, PARAM
+from secop.modules import Drivable, Command, Param
 from secop.protocol import status
 from secop.datatypes import FloatRange, EnumType, TupleOf
 from secop.lib import clamp, mkthread
@@ -42,90 +41,90 @@ class Cryostat(CryoBase):
     - cooling power
     - thermal transfer between regulation and samplen
     """
-    PARAMS = dict(
-        jitter=PARAM("amount of random noise on readout values",
+    parameters = dict(
+        jitter=Param("amount of random noise on readout values",
                      datatype=FloatRange(0, 1), unit="K",
                      default=0.1, readonly=False, export=False,
                      ),
-        T_start=PARAM("starting temperature for simulation",
+        T_start=Param("starting temperature for simulation",
                       datatype=FloatRange(0), default=10,
                       export=False,
                       ),
-        looptime=PARAM("timestep for simulation",
+        looptime=Param("timestep for simulation",
                        datatype=FloatRange(0.01, 10), unit="s", default=1,
                        readonly=False, export=False,
                        ),
-        ramp=PARAM("ramping speed of the setpoint",
+        ramp=Param("ramping speed of the setpoint",
                    datatype=FloatRange(0, 1e3), unit="K/min", default=1,
                    readonly=False,
                    ),
-        setpoint=PARAM("current setpoint during ramping else target",
+        setpoint=Param("current setpoint during ramping else target",
                        datatype=FloatRange(), default=1, unit='K',
                        ),
-        maxpower=PARAM("Maximum heater power",
+        maxpower=Param("Maximum heater power",
                        datatype=FloatRange(0), default=1, unit="W",
                        readonly=False,
                        group='heater_settings',
                        ),
-        heater=PARAM("current heater setting",
+        heater=Param("current heater setting",
                      datatype=FloatRange(0, 100), default=0, unit="%",
                      group='heater_settings',
                      ),
-        heaterpower=PARAM("current heater power",
+        heaterpower=Param("current heater power",
                           datatype=FloatRange(0), default=0, unit="W",
                           group='heater_settings',
                           ),
-        target=PARAM("target temperature",
+        target=Param("target temperature",
                      datatype=FloatRange(0), default=0, unit="K",
                      readonly=False,
                      ),
-        value=PARAM("regulation temperature",
+        value=Param("regulation temperature",
                     datatype=FloatRange(0), default=0, unit="K",
                     ),
-        pid=PARAM("regulation coefficients",
+        pid=Param("regulation coefficients",
                   datatype=TupleOf(FloatRange(0), FloatRange(0, 100),
                                    FloatRange(0, 100)),
                   default=(40, 10, 2), readonly=False,
                   group='pid',
                   ),
-        p=PARAM("regulation coefficient 'p'",
+        p=Param("regulation coefficient 'p'",
                 datatype=FloatRange(0), default=40, unit="%/K", readonly=False,
                 group='pid',
                 ),
-        i=PARAM("regulation coefficient 'i'",
+        i=Param("regulation coefficient 'i'",
                 datatype=FloatRange(0, 100), default=10, readonly=False,
                 group='pid',
                 ),
-        d=PARAM("regulation coefficient 'd'",
+        d=Param("regulation coefficient 'd'",
                 datatype=FloatRange(0, 100), default=2, readonly=False,
                 group='pid',
                 ),
-        mode=PARAM("mode of regulation",
+        mode=Param("mode of regulation",
                    datatype=EnumType('ramp', 'pid', 'openloop'),
                    default='ramp',
                    readonly=False,
                    ),
-        pollinterval=PARAM("polling interval",
+        pollinterval=Param("polling interval",
                            datatype=FloatRange(0), default=5,
                            ),
-        tolerance=PARAM("temperature range for stability checking",
+        tolerance=Param("temperature range for stability checking",
                         datatype=FloatRange(0, 100), default=0.1, unit='K',
                         readonly=False,
                         group='stability',
                         ),
-        window=PARAM("time window for stability checking",
+        window=Param("time window for stability checking",
                      datatype=FloatRange(1, 900), default=30, unit='s',
                      readonly=False,
                      group='stability',
                      ),
-        timeout=PARAM("max waiting time for stabilisation check",
+        timeout=Param("max waiting time for stabilisation check",
                       datatype=FloatRange(1, 36000), default=900, unit='s',
                       readonly=False,
                       group='stability',
                       ),
     )
-    CMDS = dict(
-        stop=CMD(
+    commands = dict(
+        stop=Command(
             "Stop ramping the setpoint\n\nby setting the current setpoint as new target",
             [],
             None),
@@ -236,7 +235,7 @@ class Cryostat(CryoBase):
         lastflow = 0
         last_heaters = (0, 0)
         delta = 0
-        I = D = 0
+        _I = _D = 0
         lastD = 0
         damper = 1
         lastmode = self.mode
@@ -283,32 +282,32 @@ class Cryostat(CryoBase):
                 kp = self.p / 10.  # LakeShore P = 10*k_p
                 ki = kp * abs(self.i) / 500.  # LakeShore I = 500/T_i
                 kd = kp * abs(self.d) / 2.  # LakeShore D = 2*T_d
-                P = kp * error
-                I += ki * error * h
-                D = kd * delta / h
+                _P = kp * error
+                _I += ki * error * h
+                _D = kd * delta / h
 
                 # avoid reset windup
-                I = clamp(I, 0., 100.)  # I is in %
+                _I = clamp(_I, 0., 100.)  # _I is in %
 
                 # avoid jumping heaterpower if switching back to pid mode
                 if lastmode != self.mode:
                     # adjust some values upon switching back on
-                    I = self.heater - P - D
+                    _I = self.heater - _P - _D
 
-                v = P + I + D
+                v = _P + _I + _D
                 # in damping mode, use a weighted sum of old + new heaterpower
                 if damper > 1:
                     v = ((damper**2 - 1) * self.heater + v) / damper**2
 
                 # damp oscillations due to D switching signs
-                if D * lastD < -0.2:
+                if _D * lastD < -0.2:
                     v = (v + heater) / 2.
                 # clamp new heater power to 0..100%
                 heater = clamp(v, 0., 100.)
-                lastD = D
+                lastD = _D
 
                 self.log.debug('PID: P = %.2f, I = %.2f, D = %.2f, '
-                               'heater = %.2f' % (P, I, D, heater))
+                               'heater = %.2f' % (_P, _I, _D, heater))
 
                 # check for turn-around points to detect oscillations ->
                 # increase damper
@@ -351,9 +350,9 @@ class Cryostat(CryoBase):
                 window.pop(0)
             # obtain min/max
             deviation = 0
-            for _, T in window:
-                if abs(T - self.target) > deviation:
-                    deviation = abs(T - self.target)
+            for _, _T in window:
+                if abs(_T - self.target) > deviation:
+                    deviation = abs(_T - self.target)
             if (len(window) < 3) or deviation > self.tolerance:
                 self.status = status.BUSY, 'unstable'
             elif self.setpoint == self.target:

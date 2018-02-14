@@ -32,7 +32,7 @@ from secop.lib.sequence import SequencerMixin, Step
 from secop.protocol import status
 from secop.datatypes import StringType, TupleOf, FloatRange, ArrayOf, StructOf
 from secop.errors import DisabledError, ConfigError
-from secop.modules import PARAM, Drivable
+from secop.modules import Param, Drivable
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):
@@ -48,31 +48,31 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     the symmetry setting selects which.
     """
 
-    PARAMS = {
-        'subdev_currentsource': PARAM('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False),
-        'subdev_enable': PARAM('Switch to set for on/off', datatype=StringType(), readonly=True, export=False),
-        'subdev_polswitch': PARAM('Switch to set for polarity', datatype=StringType(), readonly=True, export=False),
-        'subdev_symmetry': PARAM('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False),
-        'userlimits': PARAM('User defined limits of device value',
+    parameters = {
+        'subdev_currentsource': Param('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False),
+        'subdev_enable': Param('Switch to set for on/off', datatype=StringType(), readonly=True, export=False),
+        'subdev_polswitch': Param('Switch to set for polarity', datatype=StringType(), readonly=True, export=False),
+        'subdev_symmetry': Param('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False),
+        'userlimits': Param('User defined limits of device value',
                             unit='main', datatype=TupleOf(FloatRange(), FloatRange()),
                             default=(float('-Inf'), float('+Inf')), readonly=False, poll=10),
-        'abslimits': PARAM('Absolute limits of device value',
+        'abslimits': Param('Absolute limits of device value',
                            unit='main', datatype=TupleOf(FloatRange(), FloatRange()),
                            default=(-0.5, 0.5), poll=True,
                            ),
-        'precision': PARAM('Precision of the device value (allowed deviation '
+        'precision': Param('Precision of the device value (allowed deviation '
                            'of stable values from target)',
                            unit='main', datatype=FloatRange(0.001), default=0.001, readonly=False,
                            ),
-        'ramp': PARAM('Target rate of field change per minute', readonly=False,
+        'ramp': Param('Target rate of field change per minute', readonly=False,
                       unit='main/min', datatype=FloatRange(), default=1.0),
-        'calibration': PARAM('Coefficients for calibration '
+        'calibration': Param('Coefficients for calibration '
                              'function: [c0, c1, c2, c3, c4] calculates '
                              'B(I) = c0*I + c1*erf(c2*I) + c3*atan(c4*I)'
                              ' in T', poll=1,
                              datatype=ArrayOf(FloatRange(), 5, 5),
                              default=(1.0, 0.0, 0.0, 0.0, 0.0)),
-        'calibrationtable': PARAM('Map of Coefficients for calibration per symmetry setting',
+        'calibrationtable': Param('Map of Coefficients for calibration per symmetry setting',
                                   datatype=StructOf(symmetric=ArrayOf(FloatRange(), 5, 5),
                                                     short=ArrayOf(
                                                         FloatRange(), 5, 5),
@@ -175,7 +175,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     def read_abslimits(self, maxage=0):
         maxfield = self._current2field(self._currentsource.abslimits[1])
         # limit to configured value (if any)
-        maxfield = min(maxfield, max(self.PARAMS['abslimits'].default))
+        maxfield = min(maxfield, max(self.parameters['abslimits'].default))
         return -maxfield, maxfield
 
     def read_ramp(self, maxage=0):
@@ -203,10 +203,10 @@ class GarfieldMagnet(SequencerMixin, Drivable):
             # safe to switch
             self._polswitch.write_target(
                 '+1' if polarity > 0 else str(polarity))
-            return 0
+            return
         if self._currentsource.value < 0.1:
             self._polswitch.write_target('0')
-            return current_pol
+            return
         # unsafe to switch, go to safe state first
         self._currentsource.write_target(0)
 

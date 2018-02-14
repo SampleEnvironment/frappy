@@ -20,10 +20,8 @@
 #   Erik Dahlbäck <erik.dahlback@esss.se>
 # *****************************************************************************
 
-import random
-
-from secop.datatypes import EnumType, TupleOf, FloatRange, get_datatype, StringType
-from secop.modules import Readable, Module, Drivable, PARAM
+from secop.datatypes import EnumType, FloatRange, StringType
+from secop.modules import Readable, Drivable, Param
 from secop.protocol import status
 
 try:
@@ -59,18 +57,18 @@ except ImportError:
 
 class EpicsReadable(Readable):
     """EpicsDrivable handles a Drivable interfacing to EPICS v4"""
-    # Commmon PARAMS for all EPICS devices
-    PARAMS = {
-        'value': PARAM('EPICS generic value',
+    # Commmon parameter for all EPICS devices
+    parameters = {
+        'value': Param('EPICS generic value',
                        datatype=FloatRange(),
                        default=300.0,),
-        'epics_version': PARAM("EPICS version used, v3 or v4",
+        'epics_version': Param("EPICS version used, v3 or v4",
                                datatype=EnumType(v3=3, v4=4),),
         # 'private' parameters: not remotely accessible
-        'value_pv': PARAM('EPICS pv_name of value',
+        'value_pv': Param('EPICS pv_name of value',
                           datatype=StringType(),
                           default="unset", export=False),
-        'status_pv': PARAM('EPICS pv_name of status',
+        'status_pv': Param('EPICS pv_name of status',
                            datatype=StringType(),
                            default="unset", export=False),
     }
@@ -119,20 +117,20 @@ class EpicsReadable(Readable):
 
 class EpicsDrivable(Drivable):
     """EpicsDrivable handles a Drivable interfacing to EPICS v4"""
-    # Commmon PARAMS for all EPICS devices
-    PARAMS = {
-        'target': PARAM('EPICS generic target', datatype=FloatRange(),
+    # Commmon parameter for all EPICS devices
+    parameters = {
+        'target': Param('EPICS generic target', datatype=FloatRange(),
                         default=300.0, readonly=False),
-        'value': PARAM('EPICS generic value', datatype=FloatRange(),
+        'value': Param('EPICS generic value', datatype=FloatRange(),
                        default=300.0,),
-        'epics_version': PARAM("EPICS version used, v3 or v4",
+        'epics_version': Param("EPICS version used, v3 or v4",
                                datatype=StringType(),),
         # 'private' parameters: not remotely accessible
-        'target_pv': PARAM('EPICS pv_name of target', datatype=StringType(),
+        'target_pv': Param('EPICS pv_name of target', datatype=StringType(),
                            default="unset", export=False),
-        'value_pv': PARAM('EPICS pv_name of value', datatype=StringType(),
+        'value_pv': Param('EPICS pv_name of value', datatype=StringType(),
                           default="unset", export=False),
-        'status_pv': PARAM('EPICS pv_name of status', datatype=StringType(),
+        'status_pv': Param('EPICS pv_name of status', datatype=StringType(),
                            default="unset", export=False),
     }
 
@@ -188,22 +186,22 @@ class EpicsDrivable(Drivable):
             'Moving')
 
 
-"""Temperature control loop"""
+# """Temperature control loop"""
 # should also derive from secop.core.temperaturecontroller, once its
 # features are agreed upon
 
 
 class EpicsTempCtrl(EpicsDrivable):
 
-    PARAMS = {
+    parameters = {
         # TODO: restrict possible values with oneof datatype
-        'heaterrange': PARAM('Heater range', datatype=StringType(),
+        'heaterrange': Param('Heater range', datatype=StringType(),
                              default='Off', readonly=False,),
-        'tolerance': PARAM('allowed deviation between value and target',
+        'tolerance': Param('allowed deviation between value and target',
                            datatype=FloatRange(1e-6, 1e6), default=0.1,
                            readonly=False,),
         # 'private' parameters: not remotely accessible
-        'heaterrange_pv': PARAM('EPICS pv_name of heater range',
+        'heaterrange_pv': Param('EPICS pv_name of heater range',
                                 datatype=StringType(), default="unset", export=False,),
     }
 

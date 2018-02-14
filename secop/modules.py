@@ -39,14 +39,14 @@ from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange,
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
 
-# storage for PARAMeter settings:
+# storage for Parameter settings:
 # if readonly is False, the value can be changed (by code, or remote)
 # if no default is given, the parameter MUST be specified in the configfile
 # during startup, value is initialized with the default value or
 # from the config file if specified there
 
 
-class PARAM(object):
+class Param(object):
 
     def __init__(self,
                  description,
@@ -85,7 +85,7 @@ class PARAM(object):
 
     def copy(self):
         # return a copy of ourselfs
-        return PARAM(description=self.description,
+        return Param(description=self.description,
                      datatype=self.datatype,
                      default=self.default,
                      unit=self.unit,
@@ -116,13 +116,13 @@ class PARAM(object):
         return self.datatype.export_value(self.value)
 
 
-class OVERRIDE(object):
+class Override(object):
 
     def __init__(self, **kwds):
         self.kwds = kwds
 
     def apply(self, paramobj):
-        if isinstance(paramobj, PARAM):
+        if isinstance(paramobj, Param):
             for k, v in self.kwds.iteritems():
                 if hasattr(paramobj, k):
                     setattr(paramobj, k, v)
@@ -133,12 +133,12 @@ class OVERRIDE(object):
                         (k, v, paramobj))
         else:
             raise ProgrammingError(
-                "Overrides can only be applied to PARAM's, %r is none!" %
+                "Overrides can only be applied to Param's, %r is none!" %
                 paramobj)
 
 
-# storage for CMDs settings (description + call signature...)
-class CMD(object):
+# storage for Commands settings (description + call signature...)
+class Command(object):
 
     def __init__(self, description, arguments=None, result=None):
         # descriptive text for humans
@@ -171,8 +171,8 @@ class ModuleMeta(type):
         if '__constructed__' in attrs:
             return newtype
 
-        # merge PROPERTIES, PARAM and CMDS from all sub-classes
-        for entry in ['PROPERTIES', 'PARAMS', 'CMDS']:
+        # merge properties, Param and commands from all sub-classes
+        for entry in ['properties', 'parameters', 'commands']:
             newentry = {}
             for base in reversed(bases):
                 if hasattr(base, entry):
@@ -181,20 +181,20 @@ class ModuleMeta(type):
             setattr(newtype, entry, newentry)
 
         # apply Overrides from all sub-classes
-        newparams = getattr(newtype, 'PARAMS')
+        newparams = getattr(newtype, 'parameters')
         for base in reversed(bases):
-            overrides = getattr(base, 'OVERRIDES', {})
+            overrides = getattr(base, 'overrides', {})
             for n, o in overrides.iteritems():
                 newparams[n] = o.apply(newparams[n].copy())
-        for n, o in attrs.get('OVERRIDES', {}).iteritems():
+        for n, o in attrs.get('overrides', {}).iteritems():
             newparams[n] = o.apply(newparams[n].copy())
 
-        # check validity of PARAM entries
-        for pname, pobj in newtype.PARAMS.items():
+        # check validity of Param entries
+        for pname, pobj in newtype.parameters.items():
             # XXX: allow dicts for overriding certain aspects only.
-            if not isinstance(pobj, PARAM):
-                raise ProgrammingError('%r: PARAMs entry %r should be a '
-                                       'PARAM object!' % (name, pname))
+            if not isinstance(pobj, Param):
+                raise ProgrammingError('%r: Params entry %r should be a '
+                                       'Param object!' % (name, pname))
 
             # XXX: create getters for the units of params ??
 
@@ -212,7 +212,7 @@ class ModuleMeta(type):
                 else:
                     # return cached value
                     self.log.debug("rfunc(%s): return cached value" % pname)
-                    value = self.PARAMS[pname].value
+                    value = self.parameters[pname].value
                 setattr(self, pname, value)  # important! trigger the setter
                 return value
 
@@ -231,13 +231,13 @@ class ModuleMeta(type):
 
                 def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
                     self.log.debug("wfunc(%s): set %r" % (pname, value))
-                    pobj = self.PARAMS[pname]
+                    pobj = self.parameters[pname]
                     value = pobj.datatype.validate(value)
                     if wfunc:
                         self.log.debug('calling %r(%r)' % (wfunc, value))
                         value = wfunc(self, value) or value
                     # XXX: use setattr or direct manipulation
-                    # of self.PARAMS[pname]?
+                    # of self.parameters[pname]?
                     setattr(self, pname, value)
                     return value
 
@@ -248,33 +248,33 @@ class ModuleMeta(type):
                 wrapped_wfunc.__wrapped__ = True
 
             def getter(self, pname=pname):
-                return self.PARAMS[pname].value
+                return self.parameters[pname].value
 
             def setter(self, value, pname=pname):
-                pobj = self.PARAMS[pname]
+                pobj = self.parameters[pname]
                 value = pobj.datatype.validate(value)
                 pobj.timestamp = time.time()
                 if not EVENT_ONLY_ON_CHANGED_VALUES or (value != pobj.value):
                     pobj.value = value
                     # also send notification
-                    if self.PARAMS[pname].export:
+                    if self.parameters[pname].export:
                         self.log.debug('%s is now %r' % (pname, value))
                         self.DISPATCHER.announce_update(self, pname, pobj)
 
             setattr(newtype, pname, property(getter, setter))
 
-        # also collect/update information about CMD's
-        setattr(newtype, 'CMDS', getattr(newtype, 'CMDS', {}))
+        # also collect/update information about Command's
+        setattr(newtype, 'commands', getattr(newtype, 'commands', {}))
         for attrname in attrs:
             if attrname.startswith('do_'):
-                if attrname[3:] in newtype.CMDS:
+                if attrname[3:] in newtype.commands:
                     continue
                 value = getattr(newtype, attrname)
                 if isinstance(value, types.MethodType):
                     argspec = inspect.getargspec(value)
                     if argspec[0] and argspec[0][0] == 'self':
                         del argspec[0][0]
-                        newtype.CMDS[attrname[3:]] = CMD(
+                        newtype.commands[attrname[3:]] = Command(
                             getattr(value, '__doc__'), argspec.args,
                             None)  # XXX: how to find resulttype?
         attrs['__constructed__'] = True
@@ -294,9 +294,9 @@ class ModuleMeta(type):
 class Module(object):
     """Basic Module, doesn't do much"""
     __metaclass__ = ModuleMeta
-    # static PROPERTIES, definitions in derived classes should overwrite earlier ones.
+    # static properties, definitions in derived classes should overwrite earlier ones.
     # how to configure some stuff which makes sense to take from configfile???
-    PROPERTIES = {
+    properties = {
         'group': None,  # some Modules may be grouped together
         'meaning': None,  # XXX: ???
         'priority': None,  # XXX: ???
@@ -304,11 +304,11 @@ class Module(object):
         'description': "The manufacturer forgot to set a meaningful description. please nag him!",
         # what else?
     }
-    # PARAMS and CMDS are auto-merged upon subclassing
-#    PARAMS = {
-#        'description': PARAM('short description of this module and its function', datatype=StringType(), default='no specified'),
+    # parameter and commands are auto-merged upon subclassing
+#    parameters = {
+#        'description': Param('short description of this module and its function', datatype=StringType(), default='no specified'),
 #    }
-    CMDS = {}
+    commands = {}
     DISPATCHER = None
 
     def __init__(self, logger, cfgdict, devname, dispatcher):
@@ -316,48 +316,48 @@ class Module(object):
         self.DISPATCHER = dispatcher
         self.log = logger
         self.name = devname
-        # make local copies of PARAMS
+        # make local copies of parameter
         params = {}
-        for k, v in self.PARAMS.items()[:]:
+        for k, v in self.parameters.items()[:]:
             params[k] = v.copy()
 
-        self.PARAMS = params
-        # make local copies of PROPERTIES
+        self.parameters = params
+        # make local copies of properties
         props = {}
-        for k, v in self.PROPERTIES.items()[:]:
+        for k, v in self.properties.items()[:]:
             props[k] = v
 
-        self.PROPERTIES = props
+        self.properties = props
 
         # check and apply properties specified in cfgdict
         # moduleproperties are to be specified as
         # '.<propertyname>=<propertyvalue>'
         for k, v in cfgdict.items():
             if k[0] == '.':
-                if k[1:] in self.PROPERTIES:
-                    self.PROPERTIES[k[1:]] = v
+                if k[1:] in self.properties:
+                    self.properties[k[1:]] = v
                     del cfgdict[k]
 
         # derive automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
-        self.PROPERTIES['_implementation'] = myclassname
-        self.PROPERTIES['interface_class'] = [
+        self.properties['_implementation'] = myclassname
+        self.properties['interface_class'] = [
             b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
-        #self.PROPERTIES['interface'] = self.PROPERTIES['interfaces'][0]
+        #self.properties['interface'] = self.properties['interfaces'][0]
 
         # remove unset (default) module properties
-        for k, v in self.PROPERTIES.items():
+        for k, v in self.properties.items():
             if v is None:
-                del self.PROPERTIES[k]
+                del self.properties[k]
 
         # check and apply parameter_properties
         # specified as '<paramname>.<propertyname> = <propertyvalue>'
         for k, v in cfgdict.items()[:]:
             if '.' in k[1:]:
                 paramname, propname = k.split('.', 1)
-                if paramname in self.PARAMS:
-                    paramobj = self.PARAMS[paramname]
+                if paramname in self.parameters:
+                    paramobj = self.parameters[paramname]
                     if propname == 'datatype':
                         paramobj.datatype = get_datatype(cfgdict.pop(k))
                     elif hasattr(paramobj, propname):
@@ -365,17 +365,17 @@ class Module(object):
                         del cfgdict[k]
 
         # check config for problems
-        # only accept config items specified in PARAMS
+        # only accept config items specified in parameters
         for k, v in cfgdict.items():
-            if k not in self.PARAMS:
+            if k not in self.parameters:
                 raise ConfigError(
                     'Module %s:config Parameter %r '
                     'not unterstood! (use on of %r)' %
-                    (self.name, k, self.PARAMS.keys()))
+                    (self.name, k, self.parameters.keys()))
 
-        # complain if a PARAM entry has no default value and
+        # complain if a Param entry has no default value and
         # is not specified in cfgdict
-        for k, v in self.PARAMS.items():
+        for k, v in self.parameters.items():
             if k not in cfgdict:
                 if v.default is Ellipsis and k != 'value':
                     # Ellipsis is the one single value you can not specify....
@@ -385,8 +385,8 @@ class Module(object):
                 # assume default value was given
                 cfgdict[k] = v.default
 
-            # replace CLASS level PARAM objects with INSTANCE level ones
-            self.PARAMS[k] = self.PARAMS[k].copy()
+            # replace CLASS level Param objects with INSTANCE level ones
+            self.parameters[k] = self.parameters[k].copy()
 
         # now 'apply' config:
         # pass values through the datatypes and store as attributes
@@ -394,7 +394,7 @@ class Module(object):
             if k == 'value':
                 continue
             # apply datatype, complain if type does not fit
-            datatype = self.PARAMS[k].datatype
+            datatype = self.parameters[k].datatype
             if datatype is not None:
                 # only check if datatype given
                 try:
@@ -420,12 +420,12 @@ class Readable(Module):
 
     providing the readonly parameter 'value' and 'status'
     """
-    PARAMS = {
-        'value': PARAM('current value of the Module', readonly=True, default=0.,
+    parameters = {
+        'value': Param('current value of the Module', readonly=True, default=0.,
                        datatype=FloatRange(), unit='', poll=True),
-        'pollinterval': PARAM('sleeptime between polls', default=5,
+        'pollinterval': Param('sleeptime between polls', default=5,
                               readonly=False, datatype=FloatRange(0.1, 120), ),
-        'status': PARAM('current status of the Module', default=(status.OK, ''),
+        'status': Param('current status of the Module', default=(status.OK, ''),
                         datatype=TupleOf(
             EnumType(**{
                 'IDLE': status.OK,
@@ -458,13 +458,13 @@ class Readable(Module):
     def poll(self, nr):
         # poll status first
         fastpoll = False
-        if 'status' in self.PARAMS:
+        if 'status' in self.parameters:
             stat = self.read_status(0)
 #            self.log.info('polling read_status -> %r' % (stat,))
             fastpoll = stat[0] == status.BUSY
 #        if fastpoll:
 #            self.log.info('fastpoll!')
-        for pname, pobj in self.PARAMS.iteritems():
+        for pname, pobj in self.parameters.iteritems():
             if not pobj.poll:
                 continue
             if pname == 'status':
@@ -489,15 +489,15 @@ class Writable(Readable):
 
     providing a settable 'target' parameter to those of a Readable
     """
-    PARAMS = {
-        'target': PARAM(
+    parameters = {
+        'target': Param(
             'target value of the Module',
             default=0.,
             readonly=False,
             datatype=FloatRange(),
         ),
     }
-    # XXX: CMDS ???? auto deriving working well enough?
+    # XXX: commands ???? auto deriving working well enough?
 
 
 class Drivable(Writable):
@@ -519,8 +519,8 @@ class Communicator(Module):
     providing no parameters, but a 'communicate' command.
     """
 
-    CMDS = {
-        "communicate" : CMD("provides the simplest mean to communication",
+    commands = {
+        "communicate" : Command("provides the simplest mean to communication",
                             arguments=[StringType()],
                             result=StringType()
                            ),

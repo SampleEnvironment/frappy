@@ -24,7 +24,7 @@ import time
 import random
 import threading
 
-from secop.modules import Readable, Drivable, PARAM
+from secop.modules import Readable, Drivable, Param
 from secop.datatypes import EnumType, FloatRange, IntRange, ArrayOf, StringType, TupleOf, StructOf, BoolType
 from secop.protocol import status
 
@@ -32,19 +32,19 @@ from secop.protocol import status
 class Switch(Drivable):
     """switch it on or off....
     """
-    PARAMS = {
-        'value': PARAM('current state (on or off)',
+    parameters = {
+        'value': Param('current state (on or off)',
                        datatype=EnumType(on=1, off=0), default=0,
                        ),
-        'target': PARAM('wanted state (on or off)',
+        'target': Param('wanted state (on or off)',
                         datatype=EnumType(on=1, off=0), default=0,
                         readonly=False,
                         ),
-        'switch_on_time': PARAM('seconds to wait after activating the switch',
+        'switch_on_time': Param('seconds to wait after activating the switch',
                                 datatype=FloatRange(0, 60), unit='s',
                                 default=10, export=False,
                                 ),
-        'switch_off_time': PARAM('cool-down time in seconds',
+        'switch_off_time': Param('cool-down time in seconds',
                                  datatype=FloatRange(0, 60), unit='s',
                                  default=10, export=False,
                                  ),
@@ -77,7 +77,7 @@ class Switch(Drivable):
         return status.BUSY, info
 
     def _update(self):
-        started = self.PARAMS['target'].timestamp
+        started = self.parameters['target'].timestamp
         info = ''
         if self.target > self.value:
             info = 'waiting for ON'
@@ -97,23 +97,23 @@ class Switch(Drivable):
 class MagneticField(Drivable):
     """a liquid magnet
     """
-    PARAMS = {
-        'value': PARAM('current field in T',
+    parameters = {
+        'value': Param('current field in T',
                        unit='T', datatype=FloatRange(-15, 15), default=0,
                        ),
-        'target': PARAM('target field in T',
+        'target': Param('target field in T',
                         unit='T', datatype=FloatRange(-15, 15), default=0,
                         readonly=False,
                         ),
-        'ramp': PARAM('ramping speed',
+        'ramp': Param('ramping speed',
                       unit='T/min', datatype=FloatRange(0, 1), default=0.1,
                       readonly=False,
                       ),
-        'mode': PARAM('what to do after changing field',
+        'mode': Param('what to do after changing field',
                       default=1, datatype=EnumType(persistent=1, hold=0),
                       readonly=False,
                       ),
-        'heatswitch': PARAM('name of heat switch device',
+        'heatswitch': Param('name of heat switch device',
                             datatype=StringType(), export=False,
                             ),
     }
@@ -184,11 +184,11 @@ class MagneticField(Drivable):
 class CoilTemp(Readable):
     """a coil temperature
     """
-    PARAMS = {
-        'value': PARAM('Coil temperatur',
+    parameters = {
+        'value': Param('Coil temperatur',
                        unit='K', datatype=FloatRange(), default=0,
                        ),
-        'sensor': PARAM("Sensor number or calibration id",
+        'sensor': Param("Sensor number or calibration id",
                         datatype=StringType(), readonly=True,
                         ),
     }
@@ -200,14 +200,14 @@ class CoilTemp(Readable):
 class SampleTemp(Drivable):
     """a sample temperature
     """
-    PARAMS = {
-        'value': PARAM('Sample temperature',
+    parameters = {
+        'value': Param('Sample temperature',
                        unit='K', datatype=FloatRange(), default=10,
                        ),
-        'sensor': PARAM("Sensor number or calibration id",
+        'sensor': Param("Sensor number or calibration id",
                         datatype=StringType(), readonly=True,
                         ),
-        'ramp': PARAM('moving speed in K/min',
+        'ramp': Param('moving speed in K/min',
                       datatype=FloatRange(0, 100), unit='K/min', default=0.1,
                       readonly=False,
                       ),
@@ -241,20 +241,23 @@ class SampleTemp(Drivable):
 
 
 class Label(Readable):
-    """
+    """Displays the status of a cryomagnet
 
+       by composing its (stringtype) value from the status/value
+       of several subdevices. used for demoing connections between
+       modules.
     """
-    PARAMS = {
-        'system': PARAM("Name of the magnet system",
+    parameters = {
+        'system': Param("Name of the magnet system",
                         datatype=StringType, export=False,
                         ),
-        'subdev_mf': PARAM("name of subdevice for magnet status",
+        'subdev_mf': Param("name of subdevice for magnet status",
                            datatype=StringType, export=False,
                            ),
-        'subdev_ts': PARAM("name of subdevice for sample temp",
+        'subdev_ts': Param("name of subdevice for sample temp",
                            datatype=StringType, export=False,
                            ),
-        'value': PARAM("final value of label string",
+        'value': Param("final value of label string",
                        datatype=StringType,
                        ),
     }
@@ -265,7 +268,7 @@ class Label(Readable):
         dev_ts = self.DISPATCHER.get_module(self.subdev_ts)
         if dev_ts:
             strings.append('at %.3f %s' %
-                           (dev_ts.read_value(), dev_ts.PARAMS['value'].unit))
+                           (dev_ts.read_value(), dev_ts.parameters['value'].unit))
         else:
             strings.append('No connection to sample temp!')
 
@@ -274,7 +277,7 @@ class Label(Readable):
             mf_stat = dev_mf.read_status()
             mf_mode = dev_mf.mode
             mf_val = dev_mf.value
-            mf_unit = dev_mf.PARAMS['value'].unit
+            mf_unit = dev_mf.parameters['value'].unit
             if mf_stat[0] == status.OK:
                 state = 'Persistent' if mf_mode else 'Non-persistent'
             else:
@@ -287,21 +290,28 @@ class Label(Readable):
 
 
 class DatatypesTest(Readable):
+    """for demoing all datatypes
     """
-    """
-    PARAMS = {
-        'enum': PARAM(
+    parameters = {
+        'enum': Param(
             'enum', datatype=EnumType(
-                'boo', 'faar', z=9), readonly=False, default=1), 'tupleof': PARAM(
+                'boo', 'faar', z=9), readonly=False, default=1), 'tupleof': Param(
             'tuple of int, float and str', datatype=TupleOf(
                 IntRange(), FloatRange(), StringType()), readonly=False, default=(
-                1, 2.3, 'a')), 'arrayof': PARAM(
+                1, 2.3, 'a')), 'arrayof': Param(
             'array: 2..3 times bool', datatype=ArrayOf(
                 BoolType(), 2, 3), readonly=False, default=[
-                1, 0, 1]), 'intrange': PARAM(
+                1, 0, 1]), 'intrange': Param(
             'intrange', datatype=IntRange(
-                2, 9), readonly=False, default=4), 'floatrange': PARAM(
+                2, 9), readonly=False, default=4), 'floatrange': Param(
             'floatrange', datatype=FloatRange(
-                -1, 1), readonly=False, default=0, ), 'struct': PARAM(
+                -1, 1), readonly=False, default=0, ), 'struct': Param(
             'struct(a=str, b=int, c=bool)', datatype=StructOf(
                 a=StringType(), b=IntRange(), c=BoolType()), ), }
+
+
+class ArrayTest(Readable):
+    parameters = {
+        "x" : Param('value', datatype=ArrayOf(FloatRange(),100000,100000),
+                        default = 100000 * [0]),
+    }
