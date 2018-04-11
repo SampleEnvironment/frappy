@@ -25,8 +25,8 @@ import pprint
 import json
 from time import sleep
 
-from PyQt4.QtGui import QWidget, QTextCursor, QFont, QFontMetrics, QLabel, QMessageBox
-from PyQt4.QtCore import pyqtSignature as qtsig, Qt
+from secop.gui.qt import QWidget, QTextCursor, QFont, QFontMetrics, QLabel, \
+    QMessageBox, pyqtSlot, toHtmlEscaped
 
 from secop.gui.util import loadUi
 from secop.protocol.errors import SECOPError
@@ -51,7 +51,7 @@ class NodeCtrl(QWidget):
         # now populate modules tab
         self._init_modules_tab()
 
-    @qtsig('')
+    @pyqtSlot()
     def on_sendPushButton_clicked(self):
         msg = self.msgLineEdit.text().strip()
 
@@ -79,7 +79,7 @@ class NodeCtrl(QWidget):
                 pretty=True,
                 error=True)
 
-    @qtsig('')
+    @pyqtSlot()
     def on_clearPushButton_clicked(self):
         self._clearLog()
 
@@ -102,11 +102,11 @@ class NodeCtrl(QWidget):
 
         if not raw:
             if error:
-                msg = '<div style="color:#FF0000"><b><pre>%s</pre></b></div>' % Qt.escape(
+                msg = '<div style="color:#FF0000"><b><pre>%s</pre></b></div>' % toHtmlEscaped(
                     str(msg)).replace('\n', '<br />')
             else:
-                msg = '<pre>%s</pre>' % Qt.escape(str(msg)).replace('\n',
-                                                                    '<br />')
+                msg = '<pre>%s</pre>' % toHtmlEscaped(
+                    str(msg)).replace('\n', '<br />')
 
         content = ''
         if self.logTextBrowser.toPlainText():

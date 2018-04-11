@@ -21,11 +21,10 @@
 #
 # *****************************************************************************
 
-from PyQt4.QtGui import QWidget, QLabel, QSizePolicy
-from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
+from secop.gui.qt import QWidget, QLabel, QSizePolicy
 
 from secop.gui.util import loadUi
-from secop.datatypes import get_datatype
+#from secop.datatypes import get_datatype
 
 
 class ParameterView(QWidget):

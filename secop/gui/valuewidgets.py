@@ -21,11 +21,13 @@
 #
 # *****************************************************************************
 
-from secop.datatypes import *
+from __future__ import print_function
 
-from PyQt4.QtGui import QDialog, QPushButton, QLabel, QApplication, QLineEdit,\
-    QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, QRadioButton, \
-    QVBoxLayout, QGridLayout, QScrollArea, QFrame
+from secop.datatypes import *  # pylint: disable=unused-wildcard-import,wildcard-import
+
+from secop.gui.qt import QDialog, QLabel, QLineEdit,\
+    QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, \
+    QVBoxLayout, QGridLayout,  QFrame
 
 from secop.gui.util import loadUi
 
@@ -48,8 +50,8 @@ class StringWidget(QLineEdit):
 
 
 class BlobWidget(StringWidget):
-     #  XXX: make an editable hex-table ?
-     pass
+    #  XXX: make an editable hex-table ?
+    pass
 
 # or derive from widget and switch between combobox and radiobuttons?
 class EnumWidget(QComboBox):
@@ -126,7 +128,7 @@ class TupleWidget(QFrame):
         super(TupleWidget, self).__init__(parent)
 
         self.datatypes = datatype.subtypes
-        
+
         self.layout = QVBoxLayout()
         self.subwidgets = []
         for t in self.datatypes:
@@ -142,20 +144,20 @@ class TupleWidget(QFrame):
         return [v.validate(w.get_value()) for w,v in zip(self.subwidgets, self.datatypes)]
 
     def set_value(self, value):
-        for w, v in zip(self.subwidgets, value):
+        for w, _ in zip(self.subwidgets, value):
             w.set_value(value)
 
-       
+
 class StructWidget(QGroupBox):
     def __init__(self, datatype, readonly=False, parent=None):
         super(StructWidget, self).__init__(parent)
-       
+
         self.layout = QGridLayout()
         self.subwidgets = {}
         self.datatypes = []
         self._labels = []
         for idx, name in enumerate(sorted(datatype.named_subtypes)):
-            dt = datatype.named_subtypes[name] 
+            dt = datatype.named_subtypes[name]
             w = get_widget(dt, readonly=readonly, parent=self)
             l = QLabel(name)
             self.layout.addWidget(l, idx, 0)
@@ -178,15 +180,15 @@ class StructWidget(QGroupBox):
             w, dt = entry
             w.set_value(dt.validate(v))
 
-       
+
 class ArrayWidget(QGroupBox):
     def __init__(self, datatype, readonly=False, parent=None):
         super(ArrayWidget, self).__init__(parent)
         self.datatype = datatype.subtype
-        
+
         self.layout = QVBoxLayout()
         self.subwidgets = []
-        for i in range(datatype.maxsize):
+        for _ in range(datatype.maxsize):
             w = get_widget(self.datatype, readonly=readonly, parent=self)
             self.layout.addWidget(w)
             self.subwidgets.append(w)
@@ -199,7 +201,7 @@ class ArrayWidget(QGroupBox):
         for w, v in zip(self.subwidgets, values):
             w.set_value(v)
 
-       
+
 
 def get_widget(datatype, readonly=False, parent=None):
     return {FloatRange: FloatWidget,
@@ -221,32 +223,15 @@ class msg(QDialog):
         print(dir(self))
         self.setWindowTitle('Please enter the arguments for calling command "blubb()"')
         row = 0
-        # self.gridLayout.addWidget(QLabel('String'), row, 0); self.gridLayout.addWidget(StringWidget(StringType()), row, 1); row += 1
-        # self.gridLayout.addWidget(QLabel('Blob'), row, 0); self.gridLayout.addWidget(BlobWidget(BLOBType()), row, 1); row += 1
-        # self.gridLayout.addWidget(QLabel('Enum'), row, 0); self.gridLayout.addWidget(EnumWidget(EnumType(a=1,b=9)), row, 1); row += 1
-        # self.gridLayout.addWidget(QLabel('Bool'), row, 0); self.gridLayout.addWidget(BoolWidget(BoolType()), row, 1); row += 1
-        # self.gridLayout.addWidget(QLabel('int'), row, 0); self.gridLayout.addWidget(IntWidget(IntRange(0,9)), row, 1); row += 1
-        # self.gridLayout.addWidget(QLabel('float'), row, 0); self.gridLayout.addWidget(FloatWidget(FloatRange(-9,9)), row, 1); row += 1
-        
-        #self.gridLayout.addWidget(QLabel('tuple'), row, 0);
-        #dt = TupleOf(BoolType(), EnumType(a=2,b=3))
-        #w = TupleWidget(dt)
-        #self.gridLayout.addWidget(w, row, 1)
-        #row+=1
 
-        #self.gridLayout.addWidget(QLabel('array'), row, 0);
-        #dt = ArrayOf(IntRange(0,10), 10)
-        #w = ArrayWidget(dt)
-        #self.gridLayout.addWidget(w, row, 1)
-        #row+=1
-
-        self.gridLayout.addWidget(QLabel('struct'), row, 0);
+        self.gridLayout.addWidget(QLabel('struct'), row, 0)
         dt = StructOf(i=IntRange(0,10), f=FloatRange(), b=BoolType())
         w = StructWidget(dt)
         self.gridLayout.addWidget(w, row, 1)
         row+=1
 
-        self.gridLayout.addWidget(QLabel('stuff'), row, 0, 1, 0); row += 1  # at pos (0,0) span 2 cols, 1 row
+        self.gridLayout.addWidget(QLabel('stuff'), row, 0, 1, 0)
+        row += 1  # at pos (0,0) span 2 cols, 1 row
         self.gridLayout.setRowStretch(row, 1)
         self.setModal(True)
 
@@ -261,4 +246,3 @@ class msg(QDialog):
     def done(self, how):
         print('done(%r)' % how)
         return super(msg, self).done(how)
-

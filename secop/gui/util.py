@@ -23,7 +23,7 @@
 
 from os import path
 
-from PyQt4 import uic
+from secop.gui.qt import uic
 
 uipath = path.dirname(__file__)
 

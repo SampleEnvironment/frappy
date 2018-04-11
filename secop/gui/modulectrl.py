@@ -18,22 +18,19 @@
 #
 # Module authors:
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
 
 from __future__ import print_function
 
-from PyQt4.QtGui import QWidget, QLabel, QPushButton as QButton, QLineEdit, QMessageBox, QCheckBox, QSizePolicy, QDialog
-from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
-
 from secop.gui.util import loadUi
 from secop.gui.params import ParameterView
 
-from secop.datatypes import *
+from secop.datatypes import *  # pylint: disable=unused-wildcard-import,wildcard-import
 
-from PyQt4.QtGui import QDialog, QPushButton, QLabel, QApplication, QLineEdit,\
-    QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, QRadioButton, \
-    QVBoxLayout, QGridLayout, QScrollArea, QFrame
+from secop.gui.qt import QDialog, QLabel, QCheckBox, QWidget, QMessageBox, \
+    QPushButton, QSizePolicy
 
 from secop.gui.valuewidgets import get_widget
 
@@ -67,7 +64,7 @@ class CommandDialog(QDialog):
     def exec_(self):
         if super(CommandDialog, self).exec_():
             return self.get_value()
-
+        return None
 
 
 def showCommandResultDialog(command, args, result, extras=''):
@@ -117,7 +114,7 @@ class ParameterGroup(QWidget):
                 w.hide()
 
 
-class CommandButton(QButton):
+class CommandButton(QPushButton):
 
     def __init__(self, cmdname, cmdinfo, cb, parent=None):
         super(CommandButton, self).__init__(parent)

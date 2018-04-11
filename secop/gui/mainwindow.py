@@ -25,8 +25,8 @@ from __future__ import print_function
 
 import sys
 
-from PyQt4.QtGui import QMainWindow, QInputDialog, QTreeWidgetItem, QMessageBox
-from PyQt4.QtCore import pyqtSignature as qtsig, QObject, pyqtSignal
+from secop.gui.qt import QMainWindow, QInputDialog, QTreeWidgetItem, QMessageBox, \
+    pyqtSlot, QObject, pyqtSignal
 
 from secop.gui.util import loadUi
 from secop.gui.nodectrl import NodeCtrl
@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 print(e)
 
-    @qtsig('')
+    @pyqtSlot()
     def on_actionAdd_SEC_node_triggered(self):
         host, ok = QInputDialog.getText(self, 'Add SEC node',
                                         'Enter SEC node hostname:')

@@ -21,11 +21,11 @@
 #
 # *****************************************************************************
 
-from PyQt4.QtGui import QWidget, QLabel, QPushButton as QButton, QLineEdit, QMessageBox, QCheckBox, QSizePolicy
-from PyQt4.QtCore import pyqtSignature as qtsig, Qt, pyqtSignal
+from secop.gui.qt import QWidget, QLabel, QPushButton as QButton, QLineEdit, \
+    QMessageBox, QCheckBox, QSizePolicy, Qt, pyqtSignal
 
 from secop.gui.util import loadUi
-from secop.datatypes import *
+from secop.datatypes import *  # pylint: disable=wildcard-import
 
 
 class ParameterWidget(QWidget):
@@ -88,11 +88,11 @@ class EnumParameterWidget(GenericParameterWidget):
         self._map = {}  # maps index to enumstring
         self._revmap = {}  # maps enumstring to index
         index = 0
-        for data, entry in sorted(self._datatype.entries.items()):
-            self.setComboBox.addItem(entry, data)
-            self._map[index] = entry
-            self._revmap[entry] = index
-            self._revmap[data] = index
+        for enumval, enumname in sorted(self._datatype.entries.items()):
+            self.setComboBox.addItem(enumname, enumval)
+            self._map[index] = (enumval, enumname)
+            self._revmap[enumname] = index
+            self._revmap[enumval] = index
             index += 1
         if self._readonly:
             self.setLabel.setEnabled(False)
@@ -105,18 +105,19 @@ class EnumParameterWidget(GenericParameterWidget):
         self.updateValue(str(initvalue))
 
     def on_setPushButton_clicked(self):
-        self.setRequested.emit(
-            self._module, self._paramcmd, str(
-                self._datatype.reversed[
-                    self._map[
-                        self.setComboBox.currentIndex()]]))
+        enumval, enumname = self._map[self.setComboBox.currentIndex()]
+        self.setRequested.emit(self._module, self._paramcmd, enumname)
+        self.setRequested.emit(self._module, self._paramcmd, str(enumval))
 
     def updateValue(self, valuestr):
         try:
-            self.currentLineEdit.setText(
-                self._datatype.entries.get(
-                    int(valuestr), valuestr))
+            valuestr = int(valuestr)
         except ValueError:
+            pass
+        if valuestr in self._revmap:
+            index = self._revmap[valuestr]
+            self.currentLineEdit.setText('(%d): %s' % self._map[index])
+        else:
             self.currentLineEdit.setText('undefined Value: %r' % valuestr)
 
 
