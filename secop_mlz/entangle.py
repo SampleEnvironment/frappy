@@ -397,6 +397,13 @@ class Sensor(AnalogInput):
     # note: we don't transport the formula to secop....
     #       we support the adjust method
 
+    CMDS = {
+        'setposition' : CMD('Set the position to the given value.',
+                            arguments=[FloatRange()],
+                            result=None
+                           ),
+    }
+
     def do_setposition(self, value):
         self._dev.Adjust(value)
 
@@ -580,6 +587,13 @@ class Actuator(AnalogOutput):
             poll=30),
     }
 
+    CMDS = {
+        'setposition' : CMD('Set the position to the given value.',
+                            arguments=[FloatRange()],
+                            result=None
+                           ),
+    }
+
     def read_speed(self, maxage=0):
         return self._dev.speed
 
@@ -593,8 +607,8 @@ class Actuator(AnalogOutput):
         self.write_speed(value / 60.)
         return self.read_speed(0) * 60
 
-#    def do_setposition(self, value=FloatRange()):
-#        self._dev.Adjust(value)
+    def do_setposition(self, value=FloatRange()):
+        self._dev.Adjust(value)
 
 
 class Motor(Actuator):
