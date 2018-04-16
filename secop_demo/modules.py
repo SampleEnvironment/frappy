@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # This program is free software; you can redistribute it and/or modify it under
@@ -17,6 +16,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#
 # *****************************************************************************
 """testing devices"""
 
@@ -312,6 +312,6 @@ class DatatypesTest(Readable):
 
 class ArrayTest(Readable):
     parameters = {
-        "x" : Param('value', datatype=ArrayOf(FloatRange(),100000,100000),
+        "x": Param('value', datatype=ArrayOf(FloatRange(), 100000, 100000),
                         default = 100000 * [0]),
     }

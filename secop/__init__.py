@@ -18,6 +18,7 @@
 #
 # Module authors:
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
 
@@ -26,5 +27,4 @@ try:
     sip.setapi('QString', 2)
     sip.setapi('QVariant', 2)
 except ImportError:
-    print('can not import sip, the gui may not work as expected')
-
+    pass

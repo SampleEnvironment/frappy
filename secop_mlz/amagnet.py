@@ -20,8 +20,7 @@
 #
 # *****************************************************************************
 
-"""
-Supporting classes for FRM2 magnets, currently only Garfield (amagnet).
+"""Supporting classes for FRM2 magnets, currently only Garfield (amagnet).
 """
 
 # partially borrowed from nicos
@@ -127,7 +126,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
                 maxfield = tryfield
             # if interval is so small, that any error within is acceptable:
             if maxfield - minfield < 1e-4:
-                ratio = (field - minfield) / (maxfield - minfield)
+                ratio = (field - minfield) / float(maxfield - minfield)
                 trycurr = (maxcurr - mincurr) * ratio + mincurr
                 self.log.debug('current for %g T is %g A', field, trycurr)
                 return trycurr  # interpolated
@@ -184,7 +183,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
     def write_ramp(self, newramp):
         # This is an approximation!
-        self._currentsource.ramp = newramp / self.calibration[0]
+        self._currentsource.ramp = float(newramp) / self.calibration[0]
 
     def _get_field_polarity(self):
         sign = int(self._polswitch.read_value())

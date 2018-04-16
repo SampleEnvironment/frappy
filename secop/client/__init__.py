@@ -26,6 +26,19 @@
 from __future__ import print_function
 
 import code
+from os import path
+import socket
+import threading
+from collections import deque
+
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
+import mlzlog
+from secop.protocol.interface.tcp import decode_msg, get_msg, encode_msg_frame
+from secop.protocol.messages import EVENTREPLY, DESCRIPTIONREQUEST, Message
 
 
 class NameSpace(dict):
@@ -49,23 +62,15 @@ class NameSpace(dict):
         dict.__delitem__(self, name)
 
 
-try:
-    import ConfigParser
-except ImportError:
-    import configparser as ConfigParser
-
 
 def getClientOpts(cfgfile):
-    parser = ConfigParser.SafeConfigParser()
+    parser = configparser.SafeConfigParser()
     if not parser.read([cfgfile + '.cfg']):
         print("Error reading cfg file %r" % cfgfile)
         return {}
     if not parser.has_section('client'):
         print("No Server section found!")
     return dict(item for item in parser.items('client'))
-
-
-from os import path
 
 
 class ClientConsole(object):
@@ -93,23 +98,10 @@ class ClientConsole(object):
             help(arg)
 
 
-import socket
-import threading
-from collections import deque
-
-import mlzlog
-
-from secop.protocol.encoding import ENCODERS
-from secop.protocol.framing import FRAMERS
-from secop.protocol.messages import EventMessage, DescribeRequest
-
-
 class TCPConnection(object):
 
-    def __init__(self, connect, port, encoding, framing, **kwds):
+    def __init__(self, connect, port, **kwds):
         self.log = mlzlog.log.getChild('connection', False)
-        self.encoder = ENCODERS[encoding]()
-        self.framer = FRAMERS[framing]()
         self.connection = socket.create_connection((connect, port), 3)
         self.queue = deque()
         self._rcvdata = ''
@@ -120,8 +112,7 @@ class TCPConnection(object):
 
     def send(self, msg):
         self.log.debug("Sending msg %r" % msg)
-        frame = self.encoder.encode(msg)
-        data = self.framer.encode(frame)
+        data = encode_msg_frame(*msg.serialize())
         self.log.debug("raw data: %r" % data)
         self.connection.sendall(data)
 
@@ -133,20 +124,29 @@ class TCPConnection(object):
                 self.log.exception("Exception in RCV thread: %r" % e)
 
     def thread_step(self):
+        data = b''
         while True:
-            data = self.connection.recv(1024)
-            self.log.debug("RCV: got raw data %r" % data)
-            if data:
-                frames = self.framer.decode(data)
-                self.log.debug("RCV: frames %r" % frames)
-                for frame in frames:
-                    msgs = self.encoder.decode(frame)
-                    self.log.debug("RCV: msgs %r" % msgs)
-                    for msg in msgs:
-                        self.handle(msg)
+            newdata = self.connection.recv(1024)
+            self.log.debug("RCV: got raw data %r" % newdata)
+            data = data + newdata
+            while True:
+                origin, data = get_msg(data)
+                if origin is None:
+                    break  # no more messages to process
+                if not origin:  # empty string
+                    continue  # ???
+                msg = decode_msg(origin)
+                # construct msgObj from msg
+                try:
+                    msgObj = Message(*msg)
+                    msgObj.origin = origin.decode('latin-1')
+                    self.handle(msgObj)
+                except Exception:
+                    # ??? what to do here?
+                    pass
 
     def handle(self, msg):
-        if isinstance(msg, EventMessage):
+        if msg.action == EVENTREPLY:
             self.log.info("got Async: %r" % msg)
             for cb in self.callbacks:
                 try:
@@ -188,7 +188,7 @@ class Client(object):
         # XXX: further notification-callbacks needed ???
 
     def populateNamespace(self, namespace):
-        self.connection.send(DescribeRequest())
+        self.connection.send(Message(DESCRIPTIONREQUEST))
         #        reply = self.connection.read()
         #        self.log.info("found modules %r" % reply)
         # create proxies, populate cache....

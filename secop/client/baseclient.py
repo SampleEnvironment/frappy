@@ -32,11 +32,12 @@ from collections import OrderedDict
 import time
 import serial
 
-# Py2/3
 try:
-    import Queue
+    # py3
+    import queue
 except ImportError:
-    import queue as Queue
+    # py2
+    import Queue as queue
 
 import mlzlog
 
@@ -61,7 +62,7 @@ class TCPConnection(object):
         self.connect()
 
     def connect(self):
-        self._readbuffer = Queue.Queue(100)
+        self._readbuffer = queue.Queue(100)
         io = socket.create_connection((self._host, self._port))
         io.setblocking(False)
         io.settimeout(0.3)
@@ -75,7 +76,7 @@ class TCPConnection(object):
             data = u''
             while True:
                 try:
-                    newdata = u''
+                    newdata = b''
                     dlist = [self._io.fileno()]
                     rlist, wlist, xlist = select(dlist, dlist, dlist, 1)
                     if dlist[0] in rlist + wlist:
@@ -92,14 +93,14 @@ class TCPConnection(object):
                     for cb, arg in self.callbacks:
                         cb(arg)
                     return
-                data += newdata
+                data += newdata.decode('latin-1')
                 while '\n' in data:
                     line, data = data.split('\n', 1)
                     try:
                         self._readbuffer.put(line.strip('\r'),
                                              block=True,
                                              timeout=1)
-                    except Queue.Full:
+                    except queue.Full:
                         self.log.debug('rcv queue full! dropping line: %r' %
                                        line)
         finally:
@@ -111,7 +112,7 @@ class TCPConnection(object):
         while i:
             try:
                 return self._readbuffer.get(block=True, timeout=1)
-            except Queue.Empty:
+            except queue.Empty:
                 continue
             if not block:
                 i -= 1
@@ -120,7 +121,7 @@ class TCPConnection(object):
         return not self._readbuffer.empty()
 
     def write(self, data):
-        self._io.sendall(data)
+        self._io.sendall(data.encode('latin-1'))
 
     def writeline(self, line):
         self.write(line + '\n')
@@ -370,7 +371,7 @@ class Client(object):
         try:
             describing_data = self._decode_substruct(
                 ['modules'], describing_data)
-            for modname, module in describing_data['modules'].items():
+            for modname, module in list(describing_data['modules'].items()):
                 describing_data['modules'][modname] = self._decode_substruct(
                     ['parameters', 'commands'], module)
 
@@ -383,14 +384,12 @@ class Client(object):
 #            pprint.pprint(r(describing_data))
 
             for module, moduleData in self.describing_data['modules'].items():
-                for parameter, parameterData in moduleData[
-                        'parameters'].items():
+                for parameter, parameterData in moduleData['parameters'].items():
                     datatype = get_datatype(parameterData['datatype'])
                     self.describing_data['modules'][module]['parameters'] \
                         [parameter]['datatype'] = datatype
-                for _cmdname, cmdData in moduleData[
-                        'commands'].items():
-                    cmdData['arguments'] = map(get_datatype, cmdData['arguments'])
+                for _cmdname, cmdData in moduleData['commands'].items():
+                    cmdData['arguments'] = list(map(get_datatype, cmdData['arguments']))
                     cmdData['resulttype'] = get_datatype(cmdData['resulttype'])
         except Exception as _exc:
             print(formatException(verbose=True))
@@ -544,10 +543,10 @@ class Client(object):
 
     @property
     def modules(self):
-        return self.describing_data['modules'].keys()
+        return list(self.describing_data['modules'].keys())
 
     def getParameters(self, module):
-        return self.describing_data['modules'][module]['parameters'].keys()
+        return list(self.describing_data['modules'][module]['parameters'].keys())
 
     def getModuleProperties(self, module):
         return self.describing_data['modules'][module]['properties']

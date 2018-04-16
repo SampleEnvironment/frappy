@@ -24,10 +24,17 @@
 
 from __future__ import print_function
 
+try:
+    # py2
+    unicode(u'')
+except NameError:
+    # py3
+    unicode = str  # pylint: disable=redefined-builtin
+
 from secop.gui.util import loadUi
 from secop.gui.params import ParameterView
 
-from secop.datatypes import *  # pylint: disable=unused-wildcard-import,wildcard-import
+#from secop.datatypes import ...
 
 from secop.gui.qt import QDialog, QLabel, QCheckBox, QWidget, QMessageBox, \
     QPushButton, QSizePolicy
@@ -93,7 +100,7 @@ class ParameterGroup(QWidget):
         self._row = 0
         self._widgets = []
 
-        self.paramGroupBox.setTitle('Group: ' + str(groupname))
+        self.paramGroupBox.setTitle('Group: ' + unicode(groupname))
         self.paramGroupBox.toggled.connect(self.on_toggle_clicked)
         self.paramGroupBox.setChecked(False)
 
@@ -275,7 +282,7 @@ class ModuleCtrl(QWidget):
             label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
             # make 'display' label
-            view = QLabel(str(props[prop]))
+            view = QLabel(unicode(props[prop]))
             view.setFont(self.font())
             view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
             view.setWordWrap(True)
@@ -351,9 +358,9 @@ class ModuleCtrl(QWidget):
         try:
             self._node.setParameter(module, parameter, target)
         except Exception as e:
-            QMessageBox.warning(self.parent(), 'Operation failed', str(e))
+            QMessageBox.warning(self.parent(), 'Operation failed', unicode(e))
 
     def _updateValue(self, module, parameter, value):
         if module != self._module:
             return
-        self._paramWidgets[parameter][1].updateValue(str(value[0]))
+        self._paramWidgets[parameter][1].updateValue(unicode(value[0]))

@@ -21,6 +21,14 @@
 #
 # *****************************************************************************
 
+from __future__ import print_function, division
+
+try:
+    # py2
+    unicode(u'')
+except NameError:
+    unicode = str  # pylint: disable=redefined-builtin
+
 import pprint
 import json
 from time import sleep
@@ -121,9 +129,9 @@ class NodeCtrl(QWidget):
 
     def _getLogWidth(self):
         fontMetrics = QFontMetrics(QFont('Monospace'))
-        # calculate max avail characters by using an a (which is possible
+        # calculate max avail characters by using an m (which is possible
         # due to monospace)
-        result = self.logTextBrowser.width() / fontMetrics.width('a')
+        result = self.logTextBrowser.width() / fontMetrics.width('m')
         return result
 
     def _init_modules_tab(self):
@@ -277,6 +285,7 @@ class DrivableWidget(ReadableWidget):
         if self._is_enum:
             # EnumType: disable Linedit
             self.targetLineEdit.setHidden(True)
+            self.cmdPushButton.setHidden(True)
         else:
             # normal types: disable Combobox
             self.targetComboBox.setHidden(True)

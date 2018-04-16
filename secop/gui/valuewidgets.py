@@ -23,7 +23,8 @@
 
 from __future__ import print_function
 
-from secop.datatypes import *  # pylint: disable=unused-wildcard-import,wildcard-import
+from secop.datatypes import FloatRange, IntRange, StringType, BLOBType, \
+    EnumType, BoolType, TupleOf, StructOf, ArrayOf
 
 from secop.gui.qt import QDialog, QLabel, QLineEdit,\
     QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, \
@@ -112,8 +113,8 @@ class FloatWidget(QDoubleSpinBox):
         self.datatype = datatype
         if readonly:
             self.setEnabled(False)
-        self.setMaximum(datatype.max)
-        self.setMinimum(datatype.min)
+        self.setMaximum(datatype.max or 1e6)  # XXX!
+        self.setMinimum(datatype.min or 0)  # XXX!
         self.setDecimals(12)
 
     def get_value(self):
@@ -141,7 +142,7 @@ class TupleWidget(QFrame):
         self.update()
 
     def get_value(self):
-        return [v.validate(w.get_value()) for w,v in zip(self.subwidgets, self.datatypes)]
+        return [v.validate(w.get_value()) for w, v in zip(self.subwidgets, self.datatypes)]
 
     def set_value(self, value):
         for w, _ in zip(self.subwidgets, value):
@@ -225,7 +226,7 @@ class msg(QDialog):
         row = 0
 
         self.gridLayout.addWidget(QLabel('struct'), row, 0)
-        dt = StructOf(i=IntRange(0,10), f=FloatRange(), b=BoolType())
+        dt = StructOf(i=IntRange(0, 10), f=FloatRange(), b=BoolType())
         w = StructWidget(dt)
         self.gridLayout.addWidget(w, row, 1)
         row+=1

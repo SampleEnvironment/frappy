@@ -109,7 +109,7 @@ def mkthread(func, *args, **kwds):
 
 def formatExtendedFrame(frame):
     ret = []
-    for key, value in frame.f_locals.iteritems():
+    for key, value in frame.f_locals.items():
         try:
             valstr = repr(value)[:256]
         except Exception:
@@ -217,7 +217,8 @@ def tcpSocket(host, defaultport, timeout=None):
     return s
 
 
-def closeSocket(sock, socket=socket):
+# keep a reference to socket to avoid (interpreter) shut-down problems
+def closeSocket(sock, socket=socket):  # pylint: disable=redefined-outer-name
     """Do our best to close a socket."""
     if sock is None:
         return

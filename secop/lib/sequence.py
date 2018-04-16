@@ -73,7 +73,7 @@ class SequencerMixin(object):
         self._seq_fault_on_error = fault_on_error
         self._seq_fault_on_stop = fault_on_stop
         self._seq_stopflag = False
-        self._seq_phase = ''
+        self._seq_phase = u''
         self._seq_error = None
         self._seq_stopped = None
 
@@ -115,7 +115,7 @@ class SequencerMixin(object):
         the default is to only go into ALARM.
         """
         if self.seq_is_alive():
-            raise IsBusyError('move sequence already in progress')
+            raise IsBusyError(u'move sequence already in progress')
 
         self._seq_stopflag = False
         self._seq_error = self._seq_stopped = None
@@ -128,7 +128,7 @@ class SequencerMixin(object):
 
     def read_status(self, maxage=0):
         if self.seq_is_alive():
-            return status.BUSY, 'moving: ' + self._seq_phase
+            return status.BUSY, u'moving: ' + self._seq_phase
         elif self._seq_error:
             if self._seq_fault_on_error:
                 return status.ERROR, self._seq_error
@@ -137,9 +137,9 @@ class SequencerMixin(object):
             if self._seq_fault_on_stop:
                 return status.ERROR, self._seq_stopped
             return status.WARN, self._seq_stopped
-        if hasattr(self, 'read_hw_status'):
+        if hasattr(self, u'read_hw_status'):
             return self.read_hw_status(maxage)
-        return status.OK, ''
+        return status.OK, u''
 
     def do_stop(self):
         if self.seq_is_alive():
@@ -149,7 +149,7 @@ class SequencerMixin(object):
         try:
             self._seq_thread_inner(seq, store_init)
         except Exception as e:
-            self.log.exception('unhandled error in sequence thread: %s', e)
+            self.log.exception(u'unhandled error in sequence thread: %s', e)
             self._seq_error = str(e)
         finally:
             self._seq_thread = None
@@ -158,11 +158,11 @@ class SequencerMixin(object):
     def _seq_thread_inner(self, seq, store_init):
         store = Namespace()
         store.__dict__.update(store_init)
-        self.log.debug('sequence: starting, values %s', store_init)
+        self.log.debug(u'sequence: starting, values %s', store_init)
 
         for step in seq:
             self._seq_phase = step.desc
-            self.log.debug('sequence: entering phase: %s', step.desc)
+            self.log.debug(u'sequence: entering phase: %s', step.desc)
             try:
                 i = 0
                 while True:
@@ -170,10 +170,10 @@ class SequencerMixin(object):
                     result = step.func(store, *step.args)
                     if self._seq_stopflag:
                         if result:
-                            self._seq_stopped = 'stopped while %s' % step.desc
+                            self._seq_stopped = u'stopped while %s' % step.desc
                         else:
-                            self._seq_stopped = 'stopped after %s' % step.desc
-                        cleanup_func = step.kwds.get('cleanup', None)
+                            self._seq_stopped = u'stopped after %s' % step.desc
+                        cleanup_func = step.kwds.get(u'cleanup', None)
                         if callable(cleanup_func):
                             try:
                                 cleanup_func(store, result, *step.args)
@@ -187,6 +187,6 @@ class SequencerMixin(object):
                     i += 1
             except Exception as e:
                 self.log.exception(
-                    'error in sequence step %r: %s', step.desc, e)
-                self._seq_error = 'during %s: %s' % (step.desc, e)
+                    u'error in sequence step %r: %s', step.desc, e)
+                self._seq_error = u'during %s: %s' % (step.desc, e)
                 break

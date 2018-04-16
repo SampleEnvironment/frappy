@@ -36,24 +36,28 @@ Interface to the modules:
  - remove_module(modulename_or_obj): removes the module (during shutdown)
 
 """
+from __future__ import print_function
 
-import time
+from time import time as currenttime
 import threading
 
-from secop.protocol.messages import Value, CommandReply, HelpMessage, \
-    DeactivateReply, IdentifyReply, DescribeReply, HeartbeatReply, \
-    ActivateReply, WriteReply
+from secop.protocol.messages import Message, EVENTREPLY, IDENTREQUEST
 from secop.protocol.errors import SECOPError, NoSuchModuleError, \
     NoSuchCommandError, NoSuchParamError, BadValueError, ReadonlyError
-from secop.lib.parsing import format_time
 from secop.lib import formatExtendedStack, formatException
+
+try:
+    unicode('a')
+except NameError:
+    # no unicode on py3
+    unicode = str  # pylint: disable=redefined-builtin
 
 
 class Dispatcher(object):
 
     def __init__(self, logger, options):
         # to avoid errors, we want to eat all options here
-        self.equipment_id = options['equipment_id']
+        self.equipment_id = options[u'equipment_id']
         self.nodeopts = {}
         for k in list(options):
             self.nodeopts[k] = options.pop(k)
@@ -71,80 +75,43 @@ class Dispatcher(object):
         self._subscriptions = {}
         self._lock = threading.RLock()
 
-    def handle_request(self, conn, msg):
-        """handles incoming request
-
-        will call 'queue.request(data)' on conn to send reply before returning
-        """
-        self.log.debug('Dispatcher: handling msg: %r' % msg)
-        # play thread safe !
-        with self._lock:
-            reply = None
-            # generate reply (coded and framed)
-            msgname = msg.__class__.__name__
-            if msgname.endswith('Request'):
-                msgname = msgname[:-len('Request')]
-            if msgname.endswith('Message'):
-                msgname = msgname[:-len('Message')]
-            self.log.debug('Looking for handle_%s' % msgname)
-            handler = getattr(self, 'handle_%s' % msgname, None)
-            if handler:
-                try:
-                    reply = handler(conn, msg)
-                except SECOPError as err:
-                    self.log.exception(err)
-                    reply = msg.get_error(
-                        errorclass=err.__class__.__name__,
-                        errorinfo=[repr(err), str(msg)])
-                except (ValueError, TypeError) as err:
-                    self.log.exception(err)
-                    reply = msg.get_error(
-                        errorclass='BadValue',
-                        errorinfo=[repr(err), str(msg)])
-                except Exception as err:
-                    self.log.exception(err)
-                    reply = msg.get_error(
-                        errorclass='InternalError', errorinfo=[
-                            formatException(), str(msg), formatExtendedStack()])
-            else:
-                self.log.debug('Can not handle msg %r' % msg)
-                reply = self.unhandled(conn, msg)
-            if reply:
-                conn.queue_reply(reply)
-
     def broadcast_event(self, msg, reallyall=False):
-        """broadcasts a msg to all active connections"""
+        """broadcasts a msg to all active connections
+
+        used from the dispatcher"""
         if reallyall:
             listeners = self._connections
         else:
-            if getattr(msg, 'command', None) is None:
-                eventname = '%s:%s' % (msg.module, msg.parameter
-                                       if msg.parameter else 'value')
+            if getattr(msg, u'command', None) is None:
+                eventname = u'%s:%s' % (msg.module, msg.parameter
+                                       if msg.parameter else u'value')
             else:
-                eventname = '%s:%s()' % (msg.module, msg.command)
-            listeners = self._subscriptions.get(eventname, [])
-            listeners += list(self._active_connections)
+                eventname = u'%s:%s()' % (msg.module, msg.command)
+            listeners = self._subscriptions.get(eventname, set()).copy()
+            listeners.update(self._subscriptions.get(msg.module, set()))
+            listeners.update(self._active_connections)
         for conn in listeners:
             conn.queue_async_reply(msg)
 
     def announce_update(self, moduleobj, pname, pobj):
         """called by modules param setters to notify subscribers of new values
         """
-        msg = Value(
-            moduleobj.name,
-            parameter=pname,
-            value=pobj.export_value(),
-            t=pobj.timestamp)
+        msg = Message(EVENTREPLY, module=moduleobj.name, parameter=pname)
+        msg.set_result(pobj.export_value(), dict(t=pobj.timestamp))
         self.broadcast_event(msg)
 
-    def subscribe(self, conn, modulename, pname='value'):
-        eventname = '%s:%s' % (modulename, pname)
+    def subscribe(self, conn, modulename, pname=u'value'):
+        eventname = modulename
+        if pname:
+            eventname = u'%s:%s' % (modulename, pname)
         self._subscriptions.setdefault(eventname, set()).add(conn)
 
-    def unsubscribe(self, conn, modulename, pname='value'):
-        eventname = '%s:%s' % (modulename, pname)
+    def unsubscribe(self, conn, modulename, pname=u'value'):
+        eventname = modulename
+        if pname:
+            eventname = u'%s:%s' % (modulename, pname)
         if eventname in self._subscriptions:
-            self._subscriptions.remove(conn)
+            self._subscriptions.setdefault(eventname, set()).discard(conn)
 
     def add_connection(self, conn):
         """registers new connection"""
@@ -154,17 +121,11 @@ class Dispatcher(object):
         """removes now longer functional connection"""
         if conn in self._connections:
             self._connections.remove(conn)
-        for _evt, conns in self._subscriptions.items():
+        for _evt, conns in list(self._subscriptions.items()):
             conns.discard(conn)
 
-    def activate_connection(self, conn):
-        self._active_connections.add(conn)
-
-    def deactivate_connection(self, conn):
-        self._active_connections.discard(conn)
-
     def register_module(self, moduleobj, modulename, export=True):
-        self.log.debug('registering module %r as %s (export=%r)' %
+        self.log.debug(u'registering module %r as %s (export=%r)' %
                        (moduleobj, modulename, export))
         self._modules[modulename] = moduleobj
         if export:
@@ -173,9 +134,9 @@ class Dispatcher(object):
     def get_module(self, modulename):
         if modulename in self._modules:
             return self._modules[modulename]
-        elif modulename in self._modules.values():
+        elif modulename in list(self._modules.values()):
             return modulename
-        raise NoSuchModuleError(module=str(modulename))
+        raise NoSuchModuleError(module=unicode(modulename))
 
     def remove_module(self, modulename_or_obj):
         moduleobj = self.get_module(modulename_or_obj) or modulename_or_obj
@@ -190,72 +151,52 @@ class Dispatcher(object):
         return self._export[:]
 
     def list_module_params(self, modulename, only_static=False):
-        self.log.debug('list_module_params(%r)' % modulename)
+        self.log.debug(u'list_module_params(%r)' % modulename)
         if modulename in self._export:
             # omit export=False params!
             res = {}
-            for paramname, param in self.get_module(modulename).parameters.items():
+            for paramname, param in list(self.get_module(modulename).parameters.items()):
                 if param.export:
                     res[paramname] = param.as_dict(only_static)
-            self.log.debug('list params for module %s -> %r' %
+            self.log.debug(u'list params for module %s -> %r' %
                            (modulename, res))
             return res
-        self.log.debug('-> module is not to be exported!')
+        self.log.debug(u'-> module is not to be exported!')
         return {}
 
     def list_module_cmds(self, modulename):
-        self.log.debug('list_module_cmds(%r)' % modulename)
+        self.log.debug(u'list_module_cmds(%r)' % modulename)
         if modulename in self._export:
             # omit export=False params!
             res = {}
-            for cmdname, cmdobj in self.get_module(modulename).commands.items():
+            for cmdname, cmdobj in list(self.get_module(modulename).commands.items()):
                 res[cmdname] = cmdobj.as_dict()
-            self.log.debug('list cmds for module %s -> %r' % (modulename, res))
+            self.log.debug(u'list cmds for module %s -> %r' % (modulename, res))
             return res
-        self.log.debug('-> module is not to be exported!')
+        self.log.debug(u'-> module is not to be exported!')
         return {}
 
     def get_descriptive_data(self):
         """returns a python object which upon serialisation results in the descriptive data"""
         # XXX: be lazy and cache this?
         # format: {[{[{[, specific entries first
-        result = {'modules': []}
+        result = {u'modules': []}
         for modulename in self._export:
             module = self.get_module(modulename)
             # some of these need rework !
-            mod_desc = {'parameters': [], 'commands': []}
-            for pname, param in self.list_module_params(
-                    modulename, only_static=True).items():
-                mod_desc['parameters'].extend([pname, param])
-            for cname, cmd in self.list_module_cmds(modulename).items():
-                mod_desc['commands'].extend([cname, cmd])
-            for propname, prop in module.properties.items():
+            mod_desc = {u'parameters': [], u'commands': []}
+            for pname, param in list(self.list_module_params(
+                    modulename, only_static=True).items()):
+                mod_desc[u'parameters'].extend([pname, param])
+            for cname, cmd in list(self.list_module_cmds(modulename).items()):
+                mod_desc[u'commands'].extend([cname, cmd])
+            for propname, prop in list(module.properties.items()):
                 mod_desc[propname] = prop
-            result['modules'].extend([modulename, mod_desc])
-        result['equipment_id'] = self.equipment_id
-        result['firmware'] = 'The SECoP playground'
-        result['version'] = "2017.07"
+            result[u'modules'].extend([modulename, mod_desc])
+        result[u'equipment_id'] = self.equipment_id
+        result[u'firmware'] = u'The SECoP playground'
+        result[u'version'] = u'2017.07'
         result.update(self.nodeopts)
-        # XXX: what else?
-        return result
-
-    def get_descriptive_data_old(self):
-        # XXX: be lazy and cache this?
-        result = {'modules': {}}
-        for modulename in self._export:
-            module = self.get_module(modulename)
-            # some of these need rework !
-            dd = {
-                'parameters': self.list_module_params(
-                    modulename,
-                    only_static=True),
-                'commands': self.list_module_cmds(modulename),
-                'properties': module.properties,
-            }
-            result['modules'][modulename] = dd
-        result['equipment_id'] = self.equipment_id
-        result['firmware'] = 'The SECoP playground'
-        result['version'] = "2017.01"
         # XXX: what else?
         return result
 
@@ -274,19 +215,13 @@ class Dispatcher(object):
             raise BadValueError(
                 module=modulename,
                 command=command,
-                reason='Wrong number of arguments!')
+                reason=u'Wrong number of arguments!')
 
         # now call func and wrap result as value
         # note: exceptions are handled in handle_request, not here!
-        func = getattr(moduleobj, 'do_' + command)
+        func = getattr(moduleobj, u'do_' + command)
         res = func(*arguments)
-        res = CommandReply(
-            module=modulename,
-            command=command,
-            result=res,
-            qualifiers=dict(t=time.time()))
-        # res = Value(modulename, command=command, value=func(*arguments), t=time.time())
-        return res
+        return res, dict(t=currenttime())
 
     def _setParamValue(self, modulename, pname, value):
         moduleobj = self.get_module(modulename)
@@ -299,19 +234,15 @@ class Dispatcher(object):
         if pobj.readonly:
             raise ReadonlyError(module=modulename, parameter=pname)
 
-        writefunc = getattr(moduleobj, 'write_%s' % pname, None)
+        writefunc = getattr(moduleobj, u'write_%s' % pname, None)
         # note: exceptions are handled in handle_request, not here!
         if writefunc:
             value = writefunc(value)
         else:
             setattr(moduleobj, pname, value)
         if pobj.timestamp:
-            return WriteReply(
-                module=modulename,
-                parameter=pname,
-                value=[pobj.value, dict(t=format_time(pobj.timestamp))])
-        return WriteReply(
-            module=modulename, parameter=pname, value=[pobj.value, {}])
+            return pobj.export_value(), dict(t=pobj.timestamp)
+        return pobj.export_value(), {}
 
     def _getParamValue(self, modulename, pname):
         moduleobj = self.get_module(modulename)
@@ -322,121 +253,181 @@ class Dispatcher(object):
         if pobj is None:
             raise NoSuchParamError(module=modulename, parameter=pname)
 
-        readfunc = getattr(moduleobj, 'read_%s' % pname, None)
+        readfunc = getattr(moduleobj, u'read_%s' % pname, None)
         if readfunc:
             # should also update the pobj (via the setter from the metaclass)
             # note: exceptions are handled in handle_request, not here!
             readfunc()
         if pobj.timestamp:
-            res = Value(
-                modulename,
-                parameter=pname,
-                value=pobj.export_value(),
-                t=pobj.timestamp)
-        else:
-            res = Value(modulename, parameter=pname, value=pobj.export_value())
-        return res
+            return pobj.export_value(), dict(t=pobj.timestamp)
+        return pobj.export_value(), {}
+
+    #
+    # api to be called from the 'interface'
+    # any method above has no idea about 'messages', this is handled here
+    #
+    def handle_request(self, conn, msg):
+        """handles incoming request
+
+        will call 'queue.request(data)' on conn to send reply before returning
+        """
+        self.log.debug(u'Dispatcher: handling msg: %r' % msg)
+        # if there was an error in the frontend, bounce the resulting
+        # error msgObj directly back to the client
+        if msg.errorclass:
+            return msg
+
+        # play thread safe !
+        with self._lock:
+            if msg.action == IDENTREQUEST:
+                self.log.debug(u'Looking for handle_ident')
+                handler = self.handle_ident
+            else:
+                self.log.debug(u'Looking for handle_%s' % msg.action)
+                handler = getattr(self, u'handle_%s' % msg.action, None)
+            if handler:
+                try:
+                    reply = handler(conn, msg)
+                    if reply:
+                        conn.queue_reply(reply)
+                    return None
+                except SECOPError as err:
+                    self.log.exception(err)
+                    msg.set_error(err.name, unicode(err), {})#u'traceback': formatException(),
+                                                       #u'extended_stack':formatExtendedStack()})
+                    return msg
+                except (ValueError, TypeError) as err:
+                    self.log.exception(err)
+                    msg.set_error(u'BadValue', unicode(err), {u'traceback': formatException()})
+                    print(u'--------------------')
+                    print(formatExtendedStack())
+                    print(u'====================')
+                    return msg
+                except Exception as err:
+                    self.log.exception(err)
+                    msg.set_error(u'InternalError', unicode(err), {u'traceback': formatException()})
+                    print(u'--------------------')
+                    print(formatExtendedStack())
+                    print(u'====================')
+                    return msg
+            else:
+                self.log.error(u'Can not handle msg %r' % msg)
+                msg.set_error(u'Protocol', u'unhandled msg', {})
+                return msg
 
     # now the (defined) handlers for the different requests
-    def handle_Help(self, conn, msg):
-        return HelpMessage()
+    def handle_help(self, conn, msg):
+        msg.mkreply()
+        return msg
 
-    def handle_Identify(self, conn, msg):
-        return IdentifyReply(version_string='currently,is,ignored,here')
+    def handle_ident(self, conn, msg):
+        msg.mkreply()
+        return msg
 
-    def handle_Describe(self, conn, msg):
+    def handle_describe(self, conn, msg):
         # XXX:collect descriptive data
-        return DescribeReply(
-            equipment_id=self.equipment_id,
-            description=self.get_descriptive_data())
+        msg.setvalue(u'specifier', u'.')
+        msg.setvalue(u'data', self.get_descriptive_data())
+        msg.mkreply()
+        return msg
 
-    def handle_Poll(self, conn, msg):
+    def handle_read(self, conn, msg):
         # XXX: trigger polling and force sending event
-        res = self._getParamValue(msg.module, msg.parameter or 'value')
-        # self.broadcast_event(res)
-        if conn in self._active_connections:
-            return None  # already send to myself
-        return res  # send reply to inactive conns
+        if not msg.parameter:
+            msg.parameter = u'value'
+        msg.set_result(*self._getParamValue(msg.module, msg.parameter))
 
-    def handle_Write(self, conn, msg):
-        # notify all by sending WriteReply
-        #msg1 = WriteReply(**msg.as_dict())
-        # self.broadcast_event(msg1)
+        #if conn in self._active_connections:
+        #    return None  # already send to myself
+        #if conn in self._subscriptions.get(msg.module, set()):
+        #    return None  # already send to myself
+        msg.mkreply()
+        return msg  # send reply to inactive conns
+
+    def handle_change(self, conn, msg):
         # try to actually write  XXX: should this be done asyncron? we could
         # just return the reply in that case
-        if msg.parameter:
-            res = self._setParamValue(msg.module, msg.parameter, msg.value)
-        else:
-            # first check if module has a target
-            if 'target' not in self.get_module(msg.module).parameters:
-                raise ReadonlyError(module=msg.module, parameter=None)
-            res = self._setParamValue(msg.module, 'target', msg.value)
-            res.parameter = 'target'
-        # self.broadcast_event(res)
-        # if conn in self._active_connections:
-        #    return None  # already send to myself
-        return res
+        if not msg.parameter:
+            msg.parameter = u'target'
+        msg.set_result(*self._setParamValue(msg.module, msg.parameter, msg.data))
 
-    def handle_Command(self, conn, msg):
-        # notify all by sending CommandReply
-        #msg1 = CommandReply(**msg.as_dict())
-        # self.broadcast_event(msg1)
+        #if conn in self._active_connections:
+        #    return None  # already send to myself
+        #if conn in self._subscriptions.get(msg.module, set()):
+        #    return None  # already send to myself
+        msg.mkreply()
+        return msg  # send reply to inactive conns
+
+    def handle_do(self, conn, msg):
         # XXX: should this be done asyncron? we could just return the reply in
         # that case
-
+        if not msg.args:
+            msg.args = []
         # try to actually execute command
-        res = self._execute_command(msg.module, msg.command, msg.arguments)
-        # self.broadcast_event(res)
-        # if conn in self._active_connections:
+        msg.set_result(*self._execute_command(msg.module, msg.command, msg.args))
+
+        #if conn in self._active_connections:
         #    return None  # already send to myself
-        return res  # send reply to inactive conns
+        #if conn in self._subscriptions.get(msg.module, set()):
+        #    return None  # already send to myself
+        msg.mkreply()
+        return msg  # send reply to inactive conns
 
-    def handle_Heartbeat(self, conn, msg):
-        return HeartbeatReply(**msg.as_dict())
+    def handle_ping(self, conn, msg):
+        msg.setvalue(u'data', {u't':currenttime()})
+        msg.mkreply()
+        return msg
 
-    def handle_Activate(self, conn, msg):
-        self.activate_connection(conn)
-        # easy approach: poll all values...
-        for modulename, moduleobj in self._modules.items():
+    def handle_activate(self, conn, msg):
+        if msg.module:
+            if msg.module not in self._modules:
+                raise NoSuchModuleError()
+            # activate only ONE module
+            self.subscribe(conn, msg.specifier, u'')
+            modules = [msg.specifier]
+        else:
+            # activate all modules
+            self._active_connections.add(conn)
+            modules = self._modules
+
+        # for initial update poll all values...
+        for modulename in modules:
+            moduleobj = self._modules.get(modulename, None)
+            if moduleobj is None:
+                self.log.error(u'activate: can not lookup module %r, skipping it' % modulename)
+                continue
             for pname, pobj in moduleobj.parameters.items():
-                if not pobj.export:
+                if not pobj.export:  # XXX: handle export_as cases!
                     continue
                 # WARNING: THIS READS ALL parameters FROM HW!
                 # XXX: should we send the cached values instead? (pbj.value)
                 # also: ignore errors here.
                 try:
                     res = self._getParamValue(modulename, pname)
+                    if res[0] == Ellipsis:  # means we do not have a value at all so skip this
+                        self.log.error(
+                                u'activate: got no value for %s:%s!' %
+                                (modulename, pname))
+                    #else:
+                        #rm = Message(EVENTREPLY, u'%s:%s' % (modulename, pname))
+                        #rm.set_result(*res)
+                        #self.broadcast_event(rm)
                 except SECOPError as e:
-                    self.log.error('decide what to do here!')
+                    self.log.error(u'decide what to do here! (ignore error and skip update)')
                     self.log.exception(e)
-                    res = Value(
-                        module=modulename,
-                        parameter=pname,
-                        value=pobj.export_value(),
-                        t=pobj.timestamp,
-                        unit=pobj.unit)
-                if res.value != Ellipsis:  # means we do not have a value at all so skip this
-                    self.broadcast_event(res)
-                else:
-                    self.log.error(
-                        'activate: got no value for %s:%s!' %
-                        modulename, pname)
-        conn.queue_async_reply(ActivateReply(**msg.as_dict()))
+        msg.mkreply()
+        conn.queue_async_reply(msg)  # should be sent AFTER all the ^^initial updates
         return None
 
-    def handle_Deactivate(self, conn, msg):
-        self.deactivate_connection(conn)
-        conn.queue_async_reply(DeactivateReply(**msg.as_dict()))
-        return None
-
-    def handle_Error(self, conn, msg):
+    def handle_deactivate(self, conn, msg):
+        if msg.specifier:
+            self.unsubscribe(conn, msg.specifier, u'')
+        else:
+            self._active_connections.discard(conn)
+            # XXX: also check all entries in self._subscriptions?
+        msg.mkreply()
         return msg
 
-    def unhandled(self, conn, msg):
-        """handler for unhandled Messages
-
-        (no handle_<messagename> method was defined)
-        """
-        self.log.error('IGN: got unhandled request %s' % msg)
-        return msg.get_error(
-            errorclass="InternalError", errorinfo="Unhandled Request")
+    def handle_error(self, conn, msg):
+        # is already an error-reply (came from interface frontend) -> just send it back
+        return msg

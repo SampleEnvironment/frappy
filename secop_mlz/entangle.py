@@ -37,7 +37,7 @@ import PyTango
 
 from secop.lib import lazy_property
 from secop.protocol import status
-
+#from secop.parse import Parser
 from secop.datatypes import IntRange, FloatRange, StringType, TupleOf, \
     ArrayOf, EnumType
 from secop.errors import ConfigError, ProgrammingError, CommunicationError, \

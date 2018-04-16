@@ -40,7 +40,7 @@ class SimBase(object):
         if '.extra_params' in cfgdict:
             extra_params = cfgdict.pop('.extra_params')
             # make a copy of self.parameter
-            self.parameters = dict((k,v.copy()) for k,v in self.parameters.items())
+            self.parameters = dict((k, v.copy()) for k, v in self.parameters.items())
             for k in extra_params.split(','):
                 k = k.strip()
                 self.parameters[k] = Param('extra_param: %s' % k.strip(),

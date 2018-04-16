@@ -30,6 +30,8 @@ import time
 import types
 import inspect
 
+import six  # for py2/3 compat
+
 from secop.lib import formatExtendedStack, mkthread
 from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
@@ -123,7 +125,7 @@ class Override(object):
 
     def apply(self, paramobj):
         if isinstance(paramobj, Param):
-            for k, v in self.kwds.iteritems():
+            for k, v in self.kwds.items():
                 if hasattr(paramobj, k):
                     setattr(paramobj, k, v)
                     return paramobj
@@ -184,9 +186,9 @@ class ModuleMeta(type):
         newparams = getattr(newtype, 'parameters')
         for base in reversed(bases):
             overrides = getattr(base, 'overrides', {})
-            for n, o in overrides.iteritems():
+            for n, o in overrides.items():
                 newparams[n] = o.apply(newparams[n].copy())
-        for n, o in attrs.get('overrides', {}).iteritems():
+        for n, o in attrs.get('overrides', {}).items():
             newparams[n] = o.apply(newparams[n].copy())
 
         # check validity of Param entries
@@ -291,9 +293,9 @@ class ModuleMeta(type):
 # if you want to 'update from the hardware', call self.read_<pname>
 # the return value of this method will be used as the new cached value and
 # be returned.
+@six.add_metaclass(ModuleMeta)
 class Module(object):
     """Basic Module, doesn't do much"""
-    __metaclass__ = ModuleMeta
     # static properties, definitions in derived classes should overwrite earlier ones.
     # how to configure some stuff which makes sense to take from configfile???
     properties = {
@@ -318,13 +320,13 @@ class Module(object):
         self.name = devname
         # make local copies of parameter
         params = {}
-        for k, v in self.parameters.items()[:]:
+        for k, v in list(self.parameters.items()):
             params[k] = v.copy()
 
         self.parameters = params
         # make local copies of properties
         props = {}
-        for k, v in self.properties.items()[:]:
+        for k, v in list(self.properties.items()):
             props[k] = v
 
         self.properties = props
@@ -332,7 +334,7 @@ class Module(object):
         # check and apply properties specified in cfgdict
         # moduleproperties are to be specified as
         # '.<propertyname>=<propertyvalue>'
-        for k, v in cfgdict.items():
+        for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if k[0] == '.':
                 if k[1:] in self.properties:
                     self.properties[k[1:]] = v
@@ -347,13 +349,13 @@ class Module(object):
         #self.properties['interface'] = self.properties['interfaces'][0]
 
         # remove unset (default) module properties
-        for k, v in self.properties.items():
+        for k, v in list(self.properties.items()):  # keep list() as dict may change during iter
             if v is None:
                 del self.properties[k]
 
         # check and apply parameter_properties
         # specified as '<paramname>.<propertyname> = <propertyvalue>'
-        for k, v in cfgdict.items()[:]:
+        for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if '.' in k[1:]:
                 paramname, propname = k.split('.', 1)
                 if paramname in self.parameters:
@@ -370,8 +372,8 @@ class Module(object):
             if k not in self.parameters:
                 raise ConfigError(
                     'Module %s:config Parameter %r '
-                    'not unterstood! (use on of %r)' %
-                    (self.name, k, self.parameters.keys()))
+                    'not unterstood! (use one of %s)' %
+                    (self.name, k, ', '.join(self.parameters)))
 
         # complain if a Param entry has no default value and
         # is not specified in cfgdict
@@ -464,7 +466,7 @@ class Readable(Module):
             fastpoll = stat[0] == status.BUSY
 #        if fastpoll:
 #            self.log.info('fastpoll!')
-        for pname, pobj in self.parameters.iteritems():
+        for pname, pobj in self.parameters.items():
             if not pobj.poll:
                 continue
             if pname == 'status':
@@ -520,7 +522,7 @@ class Communicator(Module):
     """
 
     commands = {
-        "communicate" : Command("provides the simplest mean to communication",
+        "communicate": Command("provides the simplest mean to communication",
                             arguments=[StringType()],
                             result=StringType()
                            ),

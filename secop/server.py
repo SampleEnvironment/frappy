@@ -21,11 +21,17 @@
 #
 # *****************************************************************************
 """Define helpers"""
+from __future__ import print_function
+
 import os
 import ast
 import time
 import threading
-import ConfigParser
+
+try:
+    import configparser  # py3
+except ImportError:
+    import ConfigParser as configparser  # py2
 
 from daemon import DaemonContext
 
@@ -42,14 +48,14 @@ from secop.errors import ConfigError
 
 class Server(object):
 
-    def __init__(self, name, parentLogger=None):
+    def __init__(self, name, parent_logger=None):
         self._name = name
 
-        self.log = parentLogger.getChild(name, True)
+        self.log = parent_logger.getChild(name, True)
 
         cfg = getGeneralConfig()
-        self._pidfile = os.path.join(cfg['piddir'], name + '.pid')
-        self._cfgfile = os.path.join(cfg['confdir'], name + '.cfg')
+        self._pidfile = os.path.join(cfg[u'piddir'], name + u'.pid')
+        self._cfgfile = os.path.join(cfg[u'confdir'], name + u'.cfg')
 
         self._dispatcher = None
         self._interface = None
@@ -61,7 +67,7 @@ class Server(object):
         pidfile = pidlockfile.TimeoutPIDLockFile(self._pidfile)
 
         if pidfile.is_locked():
-            self.log.error('Pidfile already exists. Exiting')
+            self.log.error(u'Pidfile already exists. Exiting')
 
         with DaemonContext(
                 pidfile=pidfile,
@@ -72,13 +78,13 @@ class Server(object):
         try:
             self._processCfg()
         except Exception:
-            print formatException(verbose=True)
+            print(formatException(verbose=True))
             raise
 
-        self.log.info('startup done, handling transport messages')
+        self.log.info(u'startup done, handling transport messages')
         self._threads = set()
         for _if in self._interfaces:
-            self.log.debug('starting thread for interface %r' % _if)
+            self.log.debug(u'starting thread for interface %r' % _if)
             t = threading.Thread(target=_if.serve_forever)
             t.daemon = True
             t.start()
@@ -87,20 +93,20 @@ class Server(object):
             time.sleep(1)
             for t in self._threads:
                 if not t.is_alive():
-                    self.log.debug('thread %r died (%d still running)' %
+                    self.log.debug(u'thread %r died (%d still running)' %
                                    (t, len(self._threads)))
                     t.join()
                     self._threads.discard(t)
 
     def _processCfg(self):
-        self.log.debug('Parse config file %s ...' % self._cfgfile)
+        self.log.debug(u'Parse config file %s ...' % self._cfgfile)
 
-        parser = ConfigParser.SafeConfigParser()
+        parser = configparser.SafeConfigParser()
         parser.optionxform = str
 
         if not parser.read([self._cfgfile]):
-            self.log.error("Couldn't read cfg file !")
-            raise ConfigError("Couldn't read cfg file %r" % self._cfgfile)
+            self.log.error(u'Couldn\'t read cfg file !')
+            raise ConfigError(u'Couldn\'t read cfg file %r' % self._cfgfile)
 
         self._interfaces = []
 
@@ -109,63 +115,63 @@ class Server(object):
         equipment_id = None
         nodeopts = []
         for section in parser.sections():
-            if section.lower().startswith('module '):
+            if section.lower().startswith(u'module '):
                 # module section
                 # omit leading 'module ' string
-                devname = section[len('module '):]
+                devname = section[len(u'module '):]
                 devopts = dict(item for item in parser.items(section))
-                if 'class' not in devopts:
-                    self.log.error('Module %s needs a class option!')
+                if u'class' not in devopts:
+                    self.log.error(u'Module %s needs a class option!')
                     raise ConfigError(
-                        'cfgfile %r: Module %s needs a class option!' %
+                        u'cfgfile %r: Module %s needs a class option!' %
                         (self._cfgfile, devname))
                 # MAGIC: transform \n.\n into \n\n which are normally stripped
                 # by the ini parser
                 for k in devopts:
                     v = devopts[k]
-                    while '\n.\n' in v:
-                        v = v.replace('\n.\n', '\n\n')
+                    while u'\n.\n' in v:
+                        v = v.replace(u'\n.\n', u'\n\n')
                     devopts[k] = v
                 # try to import the class, raise if this fails
-                devopts['class'] = get_class(devopts['class'])
+                devopts[u'class'] = get_class(devopts[u'class'])
                 # all went well so far
                 moduleopts.append([devname, devopts])
-            if section.lower().startswith('interface '):
+            if section.lower().startswith(u'interface '):
                 # interface section
                 # omit leading 'interface ' string
-                ifname = section[len('interface '):]
+                ifname = section[len(u'interface '):]
                 ifopts = dict(item for item in parser.items(section))
-                if 'interface' not in ifopts:
-                    self.log.error('Interface %s needs an interface option!')
+                if u'interface' not in ifopts:
+                    self.log.error(u'Interface %s needs an interface option!')
                     raise ConfigError(
-                        'cfgfile %r: Interface %s needs an interface option!' %
+                        u'cfgfile %r: Interface %s needs an interface option!' %
                         (self._cfgfile, ifname))
                 # all went well so far
                 interfaceopts.append([ifname, ifopts])
-            if section.lower().startswith('equipment ') or section.lower().startswith('node '):
+            if section.lower().startswith(u'equipment ') or section.lower().startswith(u'node '):
                 if equipment_id is not None:
-                    raise ConfigError('cfgfile %r: only one [node <id>] section allowed, found another [%s]!' % (
+                    raise ConfigError(u'cfgfile %r: only one [node <id>] section allowed, found another [%s]!' % (
                         self._cfgfile, section))
                 # equipment/node settings
-                equipment_id = section.split(' ', 1)[1].replace(' ', '_')
+                equipment_id = section.split(u' ', 1)[1].replace(u' ', u'_')
                 nodeopts = dict(item for item in parser.items(section))
-                nodeopts['equipment_id'] = equipment_id
-                nodeopts['id'] = equipment_id
+                nodeopts[u'equipment_id'] = equipment_id
+                nodeopts[u'id'] = equipment_id
                 # MAGIC: transform \n.\n into \n\n which are normally stripped
                 # by the ini parser
                 for k in nodeopts:
                     v = nodeopts[k]
-                    while '\n.\n' in v:
-                        v = v.replace('\n.\n', '\n\n')
+                    while u'\n.\n' in v:
+                        v = v.replace(u'\n.\n', u'\n\n')
                     nodeopts[k] = v
 
         if equipment_id is None:
-            self.log.error('Need a [node <id>] section, none found!')
+            self.log.error(u'Need a [node <id>] section, none found!')
             raise ConfigError(
-                'cfgfile %r: need an [node <id>] option!' % (self._cfgfile))
+                u'cfgfile %r: need an [node <id>] option!' % (self._cfgfile))
 
         self._dispatcher = self._buildObject(
-            'Dispatcher', Dispatcher, nodeopts)
+            u'Dispatcher', Dispatcher, nodeopts)
         self._processInterfaceOptions(interfaceopts)
         self._processModuleOptions(moduleopts)
 
@@ -173,13 +179,13 @@ class Server(object):
         # check modules opts by creating them
         devs = []
         for devname, devopts in moduleopts:
-            devclass = devopts.pop('class')
+            devclass = devopts.pop(u'class')
             # create module
-            self.log.debug('Creating Module %r' % devname)
-            export = devopts.pop('export', '1')
-            export = export.lower() in ('1', 'on', 'true', 'yes')
-            if 'default' in devopts:
-                devopts['value'] = devopts.pop('default')
+            self.log.debug(u'Creating Module %r' % devname)
+            export = devopts.pop(u'export', u'1')
+            export = export.lower() in (u'1', u'on', u'true', u'yes')
+            if u'default' in devopts:
+                devopts[u'value'] = devopts.pop(u'default')
             # strip '"
             for k, v in devopts.items():
                 try:
@@ -192,13 +198,13 @@ class Server(object):
 
         # connect modules with dispatcher
         for devname, devobj, export in devs:
-            self.log.info('registering module %r' % devname)
+            self.log.info(u'registering module %r' % devname)
             self._dispatcher.register_module(devobj, devname, export)
             # also call init on the modules
             devobj.init()
         # call a possibly empty postinit on each module after registering all
         for _devname, devobj, _export in devs:
-            postinit = getattr(devobj, 'postinit', None)
+            postinit = getattr(devobj, u'postinit', None)
             if postinit:
                 postinit()
 
@@ -206,17 +212,17 @@ class Server(object):
         # eval interfaces
         self._interfaces = []
         for ifname, ifopts in interfaceopts:
-            ifclass = ifopts.pop('interface')
+            ifclass = ifopts.pop(u'interface')
             ifclass = INTERFACES[ifclass]
             interface = self._buildObject(ifname, ifclass, ifopts,
                                           self._dispatcher)
             self._interfaces.append(interface)
 
     def _buildObject(self, name, cls, options, *args):
-        self.log.debug('Creating %s ...' % name)
+        self.log.debug(u'Creating %s ...' % name)
         # cls.__init__ should pop all used args from options!
         obj = cls(self.log.getChild(name.lower()), options, *args)
         if options:
-            raise ConfigError('%s: don\'t know how to handle option(s): %s' %
-                              (cls.__name__, ', '.join(options.keys())))
+            raise ConfigError(u'%s: don\'t know how to handle option(s): %s' %
+                              (cls.__name__, u', '.join(options)))
         return obj

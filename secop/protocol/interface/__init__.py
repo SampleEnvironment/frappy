@@ -20,8 +20,9 @@
 #
 # *****************************************************************************
 """provide server interfaces to be used by clients"""
+from __future__ import absolute_import
 
-from tcp import TCPServer
+from .tcp import TCPServer
 
 INTERFACES = {'tcp': TCPServer, }
 

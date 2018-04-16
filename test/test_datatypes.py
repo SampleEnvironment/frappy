@@ -107,9 +107,9 @@ def test_EnumType():
     with pytest.raises(TypeError):
         dt.validate([19, 'X'])
 
-    assert dt.validate('a') == 'a'
-    assert dt.validate('stuff') == 'stuff'
-    assert dt.validate(1) == 'stuff'
+    assert dt.validate('a') == 3
+    assert dt.validate('stuff') == 1
+    assert dt.validate(1) == 1
     with pytest.raises(ValueError):
         dt.validate(2)
 

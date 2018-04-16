@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # This program is free software; you can redistribute it and/or modify it under
@@ -17,6 +16,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#
 # *****************************************************************************
 """playing implementation of a (simple) simulated cryostat"""
 
@@ -277,11 +277,11 @@ class Cryostat(CryoBase):
 
                 error = self.setpoint - newregulation
                 # use a simple filter to smooth delta a little
-                delta = (delta + regulation - newregulation) / 2.
+                delta = (delta + regulation - newregulation) * 0.5
 
-                kp = self.p / 10.  # LakeShore P = 10*k_p
+                kp = self.p * 0.1             # LakeShore P = 10*k_p
                 ki = kp * abs(self.i) / 500.  # LakeShore I = 500/T_i
-                kd = kp * abs(self.d) / 2.  # LakeShore D = 2*T_d
+                kd = kp * abs(self.d) / 2.    # LakeShore D = 2*T_d
                 _P = kp * error
                 _I += ki * error * h
                 _D = kd * delta / h
@@ -301,7 +301,7 @@ class Cryostat(CryoBase):
 
                 # damp oscillations due to D switching signs
                 if _D * lastD < -0.2:
-                    v = (v + heater) / 2.
+                    v = (v + heater) * 0.5
                 # clamp new heater power to 0..100%
                 heater = clamp(v, 0., 100.)
                 lastD = _D
@@ -357,10 +357,10 @@ class Cryostat(CryoBase):
                 self.status = status.BUSY, 'unstable'
             elif self.setpoint == self.target:
                 self.status = status.OK, 'at target'
-                damper -= (damper - 1) / 10.  # max value for damper is 11
+                damper -= (damper - 1) * 0.1  # max value for damper is 11
             else:
                 self.status = status.BUSY, 'ramping setpoint'
-            damper -= (damper - 1) / 20.
+            damper -= (damper - 1) * 0.05
             self.regulationtemp = round(regulation, 3)
             self.sampletemp = round(sample, 3)
             self.heaterpower = round(heater * self.maxpower * 0.01, 3)

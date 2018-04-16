@@ -20,178 +20,185 @@
 #
 # *****************************************************************************
 """Define SECoP Messages"""
+from __future__ import print_function
+
+import json
+from secop.protocol.errors import EXCEPTIONS
+
+# allowed actions:
+
+IDENTREQUEST = u'*IDN?'  # literal
+# literal! first part is fixed!
+IDENTREPLY = u'SINE2020&ISSE,SECoP,V2018-02-13,rc2'
+
+DESCRIPTIONREQUEST = u'describe'  # literal
+DESCRIPTIONREPLY = u'describing'  # +<id> +json
+
+ENABLEEVENTSREQUEST = u'activate'  # literal + optional spec
+ENABLEEVENTSREPLY = u'active'  # literal + optional spec, is end-of-initial-data-transfer
+
+DISABLEEVENTSREQUEST = u'deactivate'  # literal + optional spec
+DISABLEEVENTSREPLY = u'inactive'  # literal + optional spec
+
+COMMANDREQUEST = u'do'  # +module:command +json args (if needed)
+# +module:command +json args (if needed) # send after the command finished !
+COMMANDREPLY = u'done'
+
+# +module[:parameter] +json_value -> NO direct reply, calls POLL internally
+WRITEREQUEST = u'change'
+# +module[:parameter] +json_value # send with the read back value
+WRITEREPLY = u'changed'
+
+# +module[:parameter] -> NO direct reply, calls POLL internally!
+POLLREQUEST = u'read'
+EVENTREPLY = u'update'  # +module[:parameter] +json_value (value, qualifiers_as_dict)
+
+HEARTBEATREQUEST = u'ping'  # +nonce_without_space
+HEARTBEATREPLY = u'pong'  # +nonce_without_space
+
+ERRORREPLY = u'error'  # +errorclass +json_extended_info
+
+HELPREQUEST = u'help'  # literal
+HELPREPLY = u'helping'  # +line number +json_text
+
+# helper mapping to find the REPLY for a REQUEST
+REQUEST2REPLY = {
+    IDENTREQUEST:         IDENTREPLY,
+    DESCRIPTIONREQUEST:   DESCRIPTIONREPLY,
+    ENABLEEVENTSREQUEST:  ENABLEEVENTSREPLY,
+    DISABLEEVENTSREQUEST: DISABLEEVENTSREPLY,
+    COMMANDREQUEST:       COMMANDREPLY,
+    WRITEREQUEST:         WRITEREPLY,
+    POLLREQUEST:          EVENTREPLY,
+    HEARTBEATREQUEST:     HEARTBEATREPLY,
+    HELPREQUEST:          HELPREPLY,
+}
+
 
 
 class Message(object):
     """base class for messages"""
-    is_request = False
-    is_reply = False
-    is_error = False
-    qualifiers = {}
-    origin = "<unknown source>"
+    origin = u'<unknown source>'
+    action = u'<unknown message type>'
+    specifier = None
+    data = None
 
-    def __init__(self, **kwds):
-        self.ARGS = set()
+    # cooked versions
+    module = None
+    parameter = None
+    command = None
+    args = None
+
+    # if set, these are used for generating the reply
+    qualifiers = None  # will be rectified to dict() in __init__
+    value = None  # also the result of a command
+
+    # if set, these are used for generating the error msg
+    errorclass = ''  # -> specifier
+    errordescription = ''  # -> data[1] (data[0] is origin)
+    errorinfo = {}  # -> data[2]
+
+    def __init__(self, action, specifier=None, data=None, **kwds):
+        self.qualifiers = {}
+        self.action = action
+        if data:
+            data = json.loads(data)
+        if specifier:
+            self.module = specifier
+            self.specifier = specifier
+            if ':' in specifier:
+                self.module, p = specifier.split(':',1)
+                if action in (COMMANDREQUEST, COMMANDREPLY):
+                    self.command = p
+                    # XXX: extract args?
+                    self.args = data
+                else:
+                    self.parameter = p
+                    if data is not None:
+                        self.data = data
+            elif data is not None:
+                self.data = data
+        # record extra values
+        self.__arguments = set()
         for k, v in kwds.items():
             self.setvalue(k, v)
 
     def setvalue(self, key, value):
         setattr(self, key, value)
-        self.ARGS.add(key)
+        self.__arguments.add(key)
+
+    def setqualifier(self, key, value):
+        self.qualifiers[key] = value
 
     def __repr__(self):
-        return self.__class__.__name__ + '(' + \
-            ', '.join('%s=%s' % (k, repr(getattr(self, k)))
-                      for k in sorted(self.ARGS)) + ')'
+        return u'Message(%r' % self.action + \
+            u', '.join('%s=%s' % (k, repr(getattr(self, k)))
+                      for k in sorted(self.__arguments)) + u')'
 
-    def as_dict(self):
-        """returns set parameters as dict"""
-        return dict(map(lambda k: (k, getattr(self, k)), self.ARGS))
+    def serialize(self):
+        """return <action>,<specifier>,<jsonyfied_data> triple"""
+        if self.errorclass:
+            for k in self.__arguments:
+                if k in (u'origin', u'errorclass', u'errorinfo', u'errordescription'):
+                    if k in self.errorinfo:
+                        del self.errorinfo[k]
+                    continue
+                self.errorinfo[k] = getattr(self, k)
+            data = [self.origin, self.errordescription, self.errorinfo]
+            print(repr(data))
+            return ERRORREPLY, self.errorclass, json.dumps(data)
+        elif self.value or self.qualifiers:
+            data = [self.value, self.qualifiers]
+        else:
+            data = self.data
 
+        try:
+            data = json.dumps(data) if data else u''
+        except TypeError:
+            print('Can not serialze: %s' % repr(data))
+            data = u'none'
 
-class Value(object):
+        if self.specifier:
+            specifier = self.specifier
+        else:
+            specifier = self.module
+            if self.parameter:
+                specifier = u'%s:%s' %(self.module, self.parameter)
+            if self.command:
+                specifier = u'%s:%s' %(self.module, self.command)
+        return self.action, specifier, data
 
-    def __init__(self,
-                 module,
-                 parameter=None,
-                 command=None,
-                 value=Ellipsis,
-                 **qualifiers):
-        self.module = module
-        self.parameter = parameter
-        self.command = command
-        self.value = value
-        self.qualifiers = qualifiers
-        self.msgtype = 'update'  # 'changed' or 'done'
+    def mkreply(self):
+        self.action = REQUEST2REPLY.get(self.action, self.action)
 
-    def __repr__(self):
-        devspec = self.module
-        if self.parameter:
-            devspec = '%s:%s' % (devspec, self.parameter)
-        elif self.command:
-            devspec = '%s:%s()' % (devspec, self.command)
-        return '%s:Value(%s)' % (devspec, ', '.join([repr(self.value)] + [
-            '%s=%s' % (k, format_time(v) if k == "timestamp" else repr(v))
-            for k, v in self.qualifiers.items()
-        ]))
+    def set_error(self, errorclass, errordescription, errorinfo):
+        if errorclass not in EXCEPTIONS:
+            errordescription = '%s is not an official errorclass!\n%s' % (errorclass, errordescription)
+            errorclass = u'Internal'
+        # used to mark thes as an error message
+        # XXX: check errorclass for allowed values !
+        self.setvalue(u'errorclass', errorclass)  # a str
+        self.setvalue(u'errordescription', errordescription)   # a str
+        self.setvalue(u'errorinfo', errorinfo)  # a dict
+        self.action = ERRORREPLY
 
-
-class Request(Message):
-    is_request = True
-
-    def get_reply(self):
-        """returns a Reply object prefilled with the attributes from this request."""
-        m = Message()
-        m.is_request = False
-        m.is_reply = True
-        m.is_error = False
-        m.qualifiers = self.qualifiers
-        m.origin = self.origin
-        for k in self.ARGS:
-            m.setvalue(k, self.__dict__[k])
-        return m
-
-    def get_error(self, errorclass, errorinfo):
-        """returns a Reply object prefilled with the attributes from this request."""
-        m = ErrorMessage()
-        m.qualifiers = self.qualifiers
-        m.origin = self.origin
-        for k in self.ARGS:
-            m.setvalue(k, self.__dict__[k])
-        m.setvalue("errorclass", errorclass[:-5]
-                   if errorclass.endswith('rror') else errorclass)
-        m.setvalue("errorinfo", errorinfo)
-        return m
+    def set_result(self, value, qualifiers):
+        # used to mark thes as an result reply message
+        self.setvalue(u'value', value)
+        self.qualifiers.update(qualifiers)
+        self.__arguments.add(u'qualifier')
 
 
-class IdentifyRequest(Request):
-    pass
 
-
-class IdentifyReply(Message):
-    is_reply = True
-    version_string = None
-
-
-class DescribeRequest(Request):
-    pass
-
-
-class DescribeReply(Message):
-    is_reply = True
-    equipment_id = None
-    description = None
-
-
-class ActivateRequest(Request):
-    pass
-
-
-class ActivateReply(Message):
-    is_reply = True
-
-
-class DeactivateRequest(Request):
-    pass
-
-
-class DeactivateReply(Message):
-    is_reply = True
-
-
-class CommandRequest(Request):
-    command = ''
-    arguments = []
-
-
-class CommandReply(Message):
-    is_reply = True
-    command = ''
-    result = None
-
-
-class WriteRequest(Request):
-    module = None
-    parameter = None
-    value = None
-
-
-class WriteReply(Message):
-    is_reply = True
-    module = None
-    parameter = None
-    value = None
-
-
-class PollRequest(Request):
-    is_request = True
-    module = None
-    parameter = None
-
-
-class HeartbeatRequest(Request):
-    nonce = 'alive'
-
-
-class HeartbeatReply(Message):
-    is_reply = True
-    nonce = 'undefined'
-
-
-class EventMessage(Message):
-    # use Value directly for Replies !
-    is_reply = True
-    module = None
-    parameter = None
-    command = None
-    value = None  # Value object ! (includes qualifiers!)
-
-
-class ErrorMessage(Message):
-    is_error = True
-    errorclass = 'InternalError'
-    errorinfo = None
-
-
-class HelpMessage(Request):
-    is_reply = True  # !sic!
+HelpMessage = u"""Try one of the following:
+            '%s' to query protocol version
+            '%s' to read the description
+            '%s <module>[:<parameter>]' to request reading a value
+            '%s <module>[:<parameter>] value' to request changing a value
+            '%s <module>[:<command>]' to execute a command
+            '%s <nonce>' to request a heartbeat response
+            '%s' to activate async updates
+            '%s' to deactivate updates
+            """ % (IDENTREQUEST, DESCRIPTIONREQUEST, POLLREQUEST,
+                   WRITEREQUEST, COMMANDREQUEST, HEARTBEATREQUEST,
+                   ENABLEEVENTSREQUEST, DISABLEEVENTSREQUEST)

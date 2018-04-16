@@ -21,11 +21,17 @@
 #
 # *****************************************************************************
 
+try:
+    # py2
+    unicode(u'')
+except NameError:
+    unicode = str  # pylint: disable=redefined-builtin
+
 from secop.gui.qt import QWidget, QLabel, QPushButton as QButton, QLineEdit, \
     QMessageBox, QCheckBox, QSizePolicy, Qt, pyqtSignal, pyqtSlot
 
 from secop.gui.util import loadUi
-from secop.datatypes import *  # pylint: disable=wildcard-import
+from secop.datatypes import EnumType
 
 
 class ParameterWidget(QWidget):
@@ -107,9 +113,8 @@ class EnumParameterWidget(GenericParameterWidget):
 
     @pyqtSlot()
     def on_setPushButton_clicked(self):
-        enumval, enumname = self._map[self.setComboBox.currentIndex()]
+        _enumval, enumname = self._map[self.setComboBox.currentIndex()]
         self.setRequested.emit(self._module, self._paramcmd, enumname)
-        self.setRequested.emit(self._module, self._paramcmd, str(enumval))
 
     def updateValue(self, valuestr):
         try:

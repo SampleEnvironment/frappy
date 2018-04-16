@@ -25,13 +25,14 @@
 class SECOPError(RuntimeError):
 
     def __init__(self, *args, **kwds):
+        RuntimeError.__init__(self)
         self.args = args
-        for k, v in kwds.items():
+        for k, v in list(kwds.items()):
             setattr(self, k, v)
 
     def __repr__(self):
         args = ', '.join(map(repr, self.args))
-        kwds = ', '.join(['%s=%r' % i for i in self.__dict__.items()])
+        kwds = ', '.join(['%s=%r' % i for i in list(self.__dict__.items())])
         res = []
         if args:
             res.append(args)
@@ -45,14 +46,13 @@ class SECOPError(RuntimeError):
 
 
 class InternalError(SECOPError):
-    pass
+    name = 'InternalError'
 
 
 class ProtocolError(SECOPError):
-    pass
+    name = 'SyntaxError'
 
 
-# XXX: unifiy NoSuch...Error ?
 class NoSuchModuleError(SECOPError):
     pass
 
@@ -77,17 +77,42 @@ class CommandFailedError(SECOPError):
     pass
 
 
-class InvalidParamValueError(SECOPError):
+class CommandRunningError(SECOPError):
     pass
 
 
+class CommunicationFailedError(SECOPError):
+    pass
+
+
+class IsBusyError(SECOPError):
+    pass
+
+
+class IsErrorError(SECOPError):
+    pass
+
+
+class DisabledError(SECOPError):
+    pass
+
+
+
 EXCEPTIONS = dict(
-    Internal=InternalError,
-    Protocol=ProtocolError,
     NoSuchModule=NoSuchModuleError,
     NoSuchParam=NoSuchParamError,
     NoSuchCommand=NoSuchCommandError,
-    BadValue=BadValueError,
-    Readonly=ReadonlyError,
     CommandFailed=CommandFailedError,
-    InvalidParam=InvalidParamValueError, )
+    CommandRunning=CommandRunningError,
+    Readonly=ReadonlyError,
+    BadValue=BadValueError,
+    CommunicationFailed=CommunicationFailedError,
+    IsBusy=IsBusyError,
+    IsError=IsErrorError,
+    Disabled=DisabledError,
+    SyntaxError=ProtocolError,
+    InternalError=InternalError,
+# internal short versions (candidates for spec)
+    Protocol=ProtocolError,
+    Internal=InternalError,
+)

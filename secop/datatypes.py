@@ -21,6 +21,13 @@
 # *****************************************************************************
 """Define validated data types."""
 
+try:
+    # py2
+    unicode(u'')
+except NameError:
+    # py3
+    unicode = str  # pylint: disable=redefined-builtin
+
 from base64 import b64encode, b64decode
 
 from .errors import ProgrammingError, ParsingError
@@ -30,19 +37,19 @@ Parser = Parser()
 
 # Only export these classes for 'from secop.datatypes import *'
 __all__ = [
-    "DataType",
-    "FloatRange", "IntRange",
-    "BoolType", "EnumType",
-    "BLOBType", "StringType",
-    "TupleOf", "ArrayOf", "StructOf",
-    "Command",
+    u'DataType',
+    u'FloatRange', u'IntRange',
+    u'BoolType', u'EnumType',
+    u'BLOBType', u'StringType',
+    u'TupleOf', u'ArrayOf', u'StructOf',
+    u'Command',
 ]
 
 # base class for all DataTypes
 
 
 class DataType(object):
-    as_json = ['undefined']
+    as_json = [u'undefined']
     IS_COMMAND = False
 
     def validate(self, value):
@@ -80,39 +87,39 @@ class FloatRange(DataType):
         self.min = None if minval is None else float(minval)
         self.max = None if maxval is None else float(maxval)
         # note: as we may compare to Inf all comparisons would be false
-        if (self.min or float('-inf')) <= (self.max or float('+inf')):
+        if (self.min or float(u'-inf')) <= (self.max or float(u'+inf')):
             if minval is None and maxval is None:
-                self.as_json = ['double']
+                self.as_json = [u'double']
             else:
-                self.as_json = ['double', minval, maxval]
+                self.as_json = [u'double', minval, maxval]
         else:
-            raise ValueError('Max must be larger then min!')
+            raise ValueError(u'Max must be larger then min!')
 
     def validate(self, value):
         try:
             value = float(value)
         except:
-            raise ValueError('Can not validate %r to float' % value)
+            raise ValueError(u'Can not validate %r to float' % value)
         if self.min is not None and value < self.min:
-            raise ValueError('%r should not be less then %s' %
+            raise ValueError(u'%r should not be less then %s' %
                              (value, self.min))
         if self.max is not None and value > self.max:
-            raise ValueError('%r should not be greater than %s' %
+            raise ValueError(u'%r should not be greater than %s' %
                              (value, self.max))
         if None in (self.min, self.max):
             return value
         if self.min <= value <= self.max:
             return value
-        raise ValueError('%r should be an float between %.3f and %.3f' %
+        raise ValueError(u'%r should be an float between %.3f and %.3f' %
                          (value, self.min, self.max))
 
     def __repr__(self):
         if self.max is not None:
-            return "FloatRange(%r, %r)" % (
-                float('-inf') if self.min is None else self.min, self.max)
+            return u'FloatRange(%r, %r)' % (
+                float(u'-inf') if self.min is None else self.min, self.max)
         if self.min is not None:
-            return "FloatRange(%r)" % self.min
-        return "FloatRange()"
+            return u'FloatRange(%r)' % self.min
+        return u'FloatRange()'
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -134,31 +141,31 @@ class IntRange(DataType):
         self.min = int(minval) if minval is not None else minval
         self.max = int(maxval) if maxval is not None else maxval
         if self.min is not None and self.max is not None and self.min > self.max:
-            raise ValueError('Max must be larger then min!')
+            raise ValueError(u'Max must be larger then min!')
         if self.min is None and self.max is None:
-            self.as_json = ['int']
+            self.as_json = [u'int']
         else:
-            self.as_json = ['int', self.min, self.max]
+            self.as_json = [u'int', self.min, self.max]
 
     def validate(self, value):
         try:
             value = int(value)
             if self.min is not None and value < self.min:
-                raise ValueError('%r should be an int between %d and %d' %
+                raise ValueError(u'%r should be an int between %d and %d' %
                                  (value, self.min, self.max or 0))
             if self.max is not None and value > self.max:
-                raise ValueError('%r should be an int between %d and %d' %
+                raise ValueError(u'%r should be an int between %d and %d' %
                                  (value, self.min or 0, self.max))
             return value
         except:
-            raise ValueError('Can not validate %r to int' % value)
+            raise ValueError(u'Can not validate %r to int' % value)
 
     def __repr__(self):
         if self.max is not None:
-            return "IntRange(%d, %d)" % (self.min, self.max)
+            return u'IntRange(%d, %d)' % (self.min, self.max)
         if self.min is not None:
-            return "IntRange(%d)" % self.min
-        return "IntRange()"
+            return u'IntRange(%d)' % self.min
+        return u'IntRange()'
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -174,37 +181,37 @@ class IntRange(DataType):
 
 
 class EnumType(DataType):
-    as_json = ['enum']
+    as_json = [u'enum']
 
     def __init__(self, *args, **kwds):
         # enum keys are ints! remember mapping from intvalue to 'name'
-        self.entries = {}
+        self.entries = {}  # maps ints to strings
         num = 0
         for arg in args:
-            if not isinstance(arg, str):
-                raise ValueError('EnumType entries MUST be strings!')
+            if not isinstance(arg, (str, unicode)):
+                raise ValueError(u'EnumType entries MUST be strings!')
             self.entries[num] = arg
             num += 1
-        for k, v in kwds.items():
+        for k, v in list(kwds.items()):
             v = int(v)
             if v in self.entries:
                 raise ValueError(
-                    'keyword argument %r=%d is already assigned %r' %
+                    u'keyword argument %r=%d is already assigned %r' %
                     (k, v, self.entries[v]))
-            self.entries[v] = k
+            self.entries[v] = unicode(k)
 #        if len(self.entries) == 0:
 #            raise ValueError('Empty enums ae not allowed!')
         # also keep a mapping from name strings to numbers
-        self.reversed = {}
+        self.reversed = {}  # maps Strings to ints
         for k, v in self.entries.items():
             if v in self.reversed:
-                raise ValueError('Mapping for %r=%r is not Unique!' % (v, k))
+                raise ValueError(u'Mapping for %r=%r is not Unique!' % (v, k))
             self.reversed[v] = k
-        self.as_json = ['enum', self.reversed.copy()]
+        self.as_json = [u'enum', self.reversed.copy()]
 
     def __repr__(self):
-        return "EnumType(%s)" % ', '.join(
-            ['%s=%d' % (v, k) for k, v in self.entries.items()])
+        return u'EnumType(%s)' % u', '.join(
+            [u'%s=%d' % (v, k) for k, v in list(self.entries.items())])
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -212,8 +219,8 @@ class EnumType(DataType):
             return self.reversed[value]
         if int(value) in self.entries:
             return int(value)
-        raise ValueError('%r is not one of %s' %
-            (str(value), ', '.join(self.reversed.keys())))
+        raise ValueError(u'%r is not one of %s' %
+            (unicode(value), u', '.join(list(self.reversed.keys()))))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
@@ -223,11 +230,11 @@ class EnumType(DataType):
     def validate(self, value):
         """return the validated (internal) value or raise"""
         if value in self.reversed:
-            return value
+            return self.reversed[value]
         if int(value) in self.entries:
-            return self.entries[int(value)]
-        raise ValueError('%r is not one of %s' %
-                         (str(value), ', '.join(map(str, self.entries.keys()))))
+            return int(value)
+        raise ValueError(u'%r is not one of %s' %
+                         (unicode(value), u', '.join(map(unicode, self.entries))))
 
     def from_string(self, text):
         value = text
@@ -240,36 +247,36 @@ class BLOBType(DataType):
     def __init__(self, maxsize=None, minsize=0):
 
         if maxsize is None:
-            raise ValueError('BLOBType needs a maximum number of Bytes count!')
+            raise ValueError(u'BLOBType needs a maximum number of Bytes count!')
         minsize, maxsize = min(minsize, maxsize), max(minsize, maxsize)
         self.minsize = minsize
         self.maxsize = maxsize
         if minsize < 0:
-            raise ValueError('sizes must be bigger than or equal to 0!')
+            raise ValueError(u'sizes must be bigger than or equal to 0!')
         if minsize:
-            self.as_json = ['blob', maxsize, minsize]
+            self.as_json = [u'blob', maxsize, minsize]
         else:
-            self.as_json = ['blob', maxsize]
+            self.as_json = [u'blob', maxsize]
 
     def __repr__(self):
         if self.minsize:
-            return 'BLOB(%s, %s)' % (
-                str(self.minsize) if self.minsize else 'unspecified',
-                str(self.maxsize) if self.maxsize else 'unspecified')
-        return 'BLOB(%s)' % (str(self.minsize) if self.minsize else 'unspecified')
+            return u'BLOB(%s, %s)' % (
+                unicode(self.minsize) if self.minsize else u'unspecified',
+                unicode(self.maxsize) if self.maxsize else u'unspecified')
+        return u'BLOB(%s)' % (unicode(self.minsize) if self.minsize else u'unspecified')
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
-        if type(value) not in [str, unicode]:
-            raise ValueError('%r has the wrong type!' % value)
+        if type(value) not in [unicode, str]:
+            raise ValueError(u'%r has the wrong type!' % value)
         size = len(value)
         if size < self.minsize:
             raise ValueError(
-                '%r must be at least %d bytes long!' % (value, self.minsize))
+                u'%r must be at least %d bytes long!' % (value, self.minsize))
         if self.maxsize is not None:
             if size > self.maxsize:
                 raise ValueError(
-                    '%r must be at most %d bytes long!' % (value, self.maxsize))
+                    u'%r must be at most %d bytes long!' % (value, self.maxsize))
         return value
 
     def export_value(self, value):
@@ -287,76 +294,76 @@ class BLOBType(DataType):
 
 
 class StringType(DataType):
-    as_json = ['string']
+    as_json = [u'string']
     minsize = None
     maxsize = None
 
     def __init__(self, maxsize=255, minsize=0):
         if maxsize is None:
-            raise ValueError('StringType needs a maximum bytes count!')
+            raise ValueError(u'StringType needs a maximum bytes count!')
         minsize, maxsize = min(minsize, maxsize), max(minsize, maxsize)
 
         if minsize < 0:
-            raise ValueError('sizes must be >= 0')
+            raise ValueError(u'sizes must be >= 0')
         if minsize:
-            self.as_json = ['string', maxsize, minsize]
+            self.as_json = [u'string', maxsize, minsize]
         else:
-            self.as_json = ['string', maxsize]
+            self.as_json = [u'string', maxsize]
         self.minsize = minsize
         self.maxsize = maxsize
 
     def __repr__(self):
         if self.minsize:
-            return 'StringType(%s, %s)' % (
-                str(self.minsize) or 'unspecified', str(self.maxsize) or 'unspecified')
-        return 'StringType(%s)' % str(self.maxsize)
+            return u'StringType(%s, %s)' % (
+                unicode(self.minsize) or u'unspecified', unicode(self.maxsize) or u'unspecified')
+        return u'StringType(%s)' % unicode(self.maxsize)
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
-        if type(value) not in [str, unicode]:
-            raise ValueError('%r has the wrong type!' % value)
+        if type(value) not in (unicode, str):
+            raise ValueError(u'%r has the wrong type!' % value)
         size = len(value)
         if size < self.minsize:
             raise ValueError(
-                '%r must be at least %d bytes long!' % (value, self.minsize))
+                u'%r must be at least %d bytes long!' % (value, self.minsize))
         if self.maxsize is not None:
             if size > self.maxsize:
                 raise ValueError(
-                    '%r must be at most %d bytes long!' % (value, self.maxsize))
-        if '\0' in value:
+                    u'%r must be at most %d bytes long!' % (value, self.maxsize))
+        if u'\0' in value:
             raise ValueError(
-                'Strings are not allowed to embed a \\0! Use a Blob instead!')
+                u'Strings are not allowed to embed a \\0! Use a Blob instead!')
         return value
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return '%s' % value
+        return u'%s' % value
 
     def import_value(self, value):
         """returns a python object from serialisation"""
         # XXX: do we keep it as unicode str, or convert it to something else? (UTF-8 maybe?)
-        return str(value)
+        return unicode(value)
 
     def from_string(self, text):
-        value = str(text)
+        value = unicode(text)
         return self.validate(value)
 
 # Bool is a special enum
 
 
 class BoolType(DataType):
-    as_json = ['bool']
+    as_json = [u'bool']
 
     def __repr__(self):
-        return 'BoolType()'
+        return u'BoolType()'
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
-        if value in [0, '0', 'False', 'false', 'no', 'off', False]:
+        if value in [0, u'0', u'False', u'false', u'no', u'off', False]:
             return False
-        if value in [1, '1', 'True', 'true', 'yes', 'on', True]:
+        if value in [1, u'1', u'True', u'true', u'yes', u'on', True]:
             return True
-        raise ValueError('%r is not a boolean value!' % value)
+        raise ValueError(u'%r is not a boolean value!' % value)
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -382,26 +389,26 @@ class ArrayOf(DataType):
         self.subtype = subtype
         if not isinstance(subtype, DataType):
             raise ValueError(
-                'ArrayOf only works with DataType objs as first argument!')
+                u'ArrayOf only works with DataType objs as first argument!')
 
         if maxsize is None:
-            raise ValueError('ArrayOf needs a maximum size')
+            raise ValueError(u'ArrayOf needs a maximum size')
         minsize, maxsize = min(minsize, maxsize), max(minsize, maxsize)
         if minsize < 0:
-            raise ValueError('sizes must be > 0')
+            raise ValueError(u'sizes must be > 0')
         if maxsize < 1:
-            raise ValueError('Maximum size must be >= 1!')
+            raise ValueError(u'Maximum size must be >= 1!')
         # if only one arg is given, it is maxsize!
         if minsize:
-            self.as_json = ['array', subtype.as_json, maxsize, minsize]
+            self.as_json = [u'array', subtype.as_json, maxsize, minsize]
         else:
-            self.as_json = ['array', subtype.as_json, maxsize]
+            self.as_json = [u'array', subtype.as_json, maxsize]
         self.minsize = minsize
         self.maxsize = maxsize
 
     def __repr__(self):
-        return 'ArrayOf(%s, %s, %s)' % (
-            repr(self.subtype), self.minsize or 'unspecified', self.maxsize or 'unspecified')
+        return u'ArrayOf(%s, %s, %s)' % (
+            repr(self.subtype), self.minsize or u'unspecified', self.maxsize or u'unspecified')
 
     def validate(self, value):
         """validate a external representation to an internal one"""
@@ -409,15 +416,15 @@ class ArrayOf(DataType):
             # check number of elements
             if self.minsize is not None and len(value) < self.minsize:
                 raise ValueError(
-                    'Array too small, needs at least %d elements!' %
+                    u'Array too small, needs at least %d elements!' %
                     self.minsize)
             if self.maxsize is not None and len(value) > self.maxsize:
                 raise ValueError(
-                    'Array too big, holds at most %d elements!' % self.minsize)
+                    u'Array too big, holds at most %d elements!' % self.minsize)
             # apply subtype valiation to all elements and return as list
             return [self.subtype.validate(elem) for elem in value]
         raise ValueError(
-            'Can not convert %s to ArrayOf DataType!' % repr(value))
+            u'Can not convert %s to ArrayOf DataType!' % repr(value))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -430,7 +437,7 @@ class ArrayOf(DataType):
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ParsingError('trailing garbage: %r' % rem)
+            raise ParsingError(u'trailing garbage: %r' % rem)
         return self.validate(value)
 
 
@@ -438,16 +445,16 @@ class TupleOf(DataType):
 
     def __init__(self, *subtypes):
         if not subtypes:
-            raise ValueError('Empty tuples are not allowed!')
+            raise ValueError(u'Empty tuples are not allowed!')
         for subtype in subtypes:
             if not isinstance(subtype, DataType):
                 raise ValueError(
-                    'TupleOf only works with DataType objs as arguments!')
+                    u'TupleOf only works with DataType objs as arguments!')
         self.subtypes = subtypes
-        self.as_json = ['tuple', [subtype.as_json for subtype in subtypes]]
+        self.as_json = [u'tuple', [subtype.as_json for subtype in subtypes]]
 
     def __repr__(self):
-        return 'TupleOf(%s)' % ', '.join([repr(st) for st in self.subtypes])
+        return u'TupleOf(%s)' % u', '.join([repr(st) for st in self.subtypes])
 
     def validate(self, value):
         """return the validated value or raise"""
@@ -455,13 +462,13 @@ class TupleOf(DataType):
         try:
             if len(value) != len(self.subtypes):
                 raise ValueError(
-                    'Illegal number of Arguments! Need %d arguments.' %
+                    u'Illegal number of Arguments! Need %d arguments.' %
                         (len(self.subtypes)))
             # validate elements and return as list
             return [sub.validate(elem)
                     for sub, elem in zip(self.subtypes, value)]
         except Exception as exc:
-            raise ValueError('Can not validate:', str(exc))
+            raise ValueError(u'Can not validate:', unicode(exc))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -474,7 +481,7 @@ class TupleOf(DataType):
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ParsingError('trailing garbage: %r' % rem)
+            raise ParsingError(u'trailing garbage: %r' % rem)
         return self.validate(value)
 
 
@@ -482,57 +489,57 @@ class StructOf(DataType):
 
     def __init__(self, **named_subtypes):
         if not named_subtypes:
-            raise ValueError('Empty structs are not allowed!')
-        for name, subtype in named_subtypes.items():
+            raise ValueError(u'Empty structs are not allowed!')
+        for name, subtype in list(named_subtypes.items()):
             if not isinstance(subtype, DataType):
                 raise ProgrammingError(
-                    'StructOf only works with named DataType objs as keyworded arguments!')
-            if not isinstance(name, (str, unicode)):
+                    u'StructOf only works with named DataType objs as keyworded arguments!')
+            if not isinstance(name, (unicode, str)):
                 raise ProgrammingError(
-                    'StructOf only works with named DataType objs as keyworded arguments!')
+                    u'StructOf only works with named DataType objs as keyworded arguments!')
         self.named_subtypes = named_subtypes
-        self.as_json = ['struct', dict((n, s.as_json)
-                                       for n, s in named_subtypes.items())]
+        self.as_json = [u'struct', dict((n, s.as_json)
+                                       for n, s in list(named_subtypes.items()))]
 
     def __repr__(self):
-        return 'StructOf(%s)' % ', '.join(
-            ['%s=%s' % (n, repr(st)) for n, st in self.named_subtypes.iteritems()])
+        return u'StructOf(%s)' % u', '.join(
+            [u'%s=%s' % (n, repr(st)) for n, st in list(self.named_subtypes.items())])
 
     def validate(self, value):
         """return the validated value or raise"""
         try:
-            if len(value.keys()) != len(self.named_subtypes.keys()):
+            if len(list(value.keys())) != len(list(self.named_subtypes.keys())):
                 raise ValueError(
-                    'Illegal number of Arguments! Need %d arguments.' %
-                        len(self.named_subtypes.keys()))
+                    u'Illegal number of Arguments! Need %d arguments.' %
+                        len(list(self.named_subtypes.keys())))
             # validate elements and return as dict
-            return dict((str(k), self.named_subtypes[k].validate(v))
-                        for k, v in value.items())
+            return dict((unicode(k), self.named_subtypes[k].validate(v))
+                        for k, v in list(value.items()))
         except Exception as exc:
-            raise ValueError('Can not validate %s: %s' % (repr(value), str(exc)))
+            raise ValueError(u'Can not validate %s: %s' % (repr(value), unicode(exc)))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        if len(value.keys()) != len(self.named_subtypes.keys()):
+        if len(list(value.keys())) != len(list(self.named_subtypes.keys())):
             raise ValueError(
-                'Illegal number of Arguments! Need %d arguments.' % len(
-                    self.namd_subtypes.keys()))
-        return dict((str(k), self.named_subtypes[k].export_value(v))
-                    for k, v in value.items())
+                u'Illegal number of Arguments! Need %d arguments.' % len(
+                    list(self.namd_subtypes.keys())))
+        return dict((unicode(k), self.named_subtypes[k].export_value(v))
+                    for k, v in list(value.items()))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        if len(value.keys()) != len(self.named_subtypes.keys()):
+        if len(list(value.keys())) != len(list(self.named_subtypes.keys())):
             raise ValueError(
-                'Illegal number of Arguments! Need %d arguments.' % len(
-                    self.namd_subtypes.keys()))
-        return dict((str(k), self.named_subtypes[k].import_value(v))
-                    for k, v in value.items())
+                u'Illegal number of Arguments! Need %d arguments.' % len(
+                    list(self.namd_subtypes.keys())))
+        return dict((unicode(k), self.named_subtypes[k].import_value(v))
+                    for k, v in list(value.items()))
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ParsingError('trailing garbage: %r' % rem)
+            raise ParsingError(u'trailing garbage: %r' % rem)
         return self.validate(dict(value))
 
 
@@ -543,50 +550,50 @@ class Command(DataType):
     def __init__(self, argtypes=tuple(), resulttype=None):
         for arg in argtypes:
             if not isinstance(arg, DataType):
-                raise ValueError('Command: Argument types must be DataTypes!')
+                raise ValueError(u'Command: Argument types must be DataTypes!')
         if resulttype is not None:
             if not isinstance(resulttype, DataType):
-                raise ValueError('Command: result type must be DataTypes!')
+                raise ValueError(u'Command: result type must be DataTypes!')
         self.argtypes = argtypes
         self.resulttype = resulttype
 
         if resulttype is not None:
-            self.as_json = ['command',
+            self.as_json = [u'command',
                             [t.as_json for t in argtypes],
                             resulttype.as_json]
         else:
-            self.as_json = ['command',
+            self.as_json = [u'command',
                             [t.as_json for t in argtypes],
                             None]  # XXX: or NoneType ???
 
     def __repr__(self):
-        argstr = ', '.join(repr(arg) for arg in self.argtypes)
+        argstr = u', '.join(repr(arg) for arg in self.argtypes)
         if self.resulttype is None:
-            return 'Command(%s)' % argstr
-        return 'Command(%s)->%s' % (argstr, repr(self.resulttype))
+            return u'Command(%s)' % argstr
+        return u'Command(%s)->%s' % (argstr, repr(self.resulttype))
 
     def validate(self, value):
         """return the validated arguments value or raise"""
         try:
             if len(value) != len(self.argtypes):
                 raise ValueError(
-                    'Illegal number of Arguments! Need %d arguments.' %
+                    u'Illegal number of Arguments! Need %d arguments.' %
                         len(self.argtypes))
             # validate elements and return
             return [t.validate(v) for t, v in zip(self.argtypes, value)]
         except Exception as exc:
-            raise ValueError('Can not validate %s: %s' % (repr(value), str(exc)))
+            raise ValueError(u'Can not validate %s: %s' % (repr(value), unicode(exc)))
 
     def export_value(self, value):
-        raise ProgrammingError('values of type command can not be transported!')
+        raise ProgrammingError(u'values of type command can not be transported!')
 
     def import_value(self, value):
-        raise ProgrammingError('values of type command can not be transported!')
+        raise ProgrammingError(u'values of type command can not be transported!')
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ParsingError('trailing garbage: %r' % rem)
+            raise ParsingError(u'trailing garbage: %r' % rem)
         return self.validate(value)
 
 
@@ -601,7 +608,7 @@ DATATYPES = dict(
     tuple=lambda subtypes: TupleOf(*map(get_datatype, subtypes)),
     enum=lambda kwds: EnumType(**kwds),
     struct=lambda named_subtypes: StructOf(
-        **dict((n, get_datatype(t)) for n, t in named_subtypes.items())),
+        **dict((n, get_datatype(t)) for n, t in list(named_subtypes.items()))),
     command=Command,
 )
 
@@ -616,12 +623,12 @@ def get_datatype(json):
         return json
     if not isinstance(json, list):
         raise ValueError(
-            'Can not interpret datatype %r, it should be a list!' % json)
+            u'Can not interpret datatype %r, it should be a list!' % json)
     if len(json) < 1:
-        raise ValueError('can not validate %r' % json)
+        raise ValueError(u'can not validate %r' % json)
     base = json[0]
     if base in DATATYPES:
-        if base in ('enum', 'struct'):
+        if base in (u'enum', u'struct'):
             if len(json) > 1:
                 args = json[1:]
             else:
@@ -631,5 +638,5 @@ def get_datatype(json):
         try:
             return DATATYPES[base](*args)
         except (TypeError, AttributeError):
-            raise ValueError('Invalid datatype descriptor in %r' % json)
-    raise ValueError('can not convert %r to datatype' % json)
+            raise ValueError(u'Invalid datatype descriptor in %r' % json)
+    raise ValueError(u'can not convert %r to datatype' % json)

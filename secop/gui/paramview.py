@@ -21,10 +21,16 @@
 #
 # *****************************************************************************
 
+try:
+    # py2
+    unicode(u'')
+except NameError:
+    # py3
+    unicode = str  # pylint: disable=redefined-builtin
+
 from secop.gui.qt import QWidget, QLabel, QSizePolicy
 
 from secop.gui.util import loadUi
-#from secop.datatypes import get_datatype
 
 
 class ParameterView(QWidget):

@@ -44,14 +44,12 @@ class LocalTimezone(tzinfo):
     def utcoffset(self, dt):
         if self._isdst(dt):
             return self.DSTOFFSET
-        else:
-            return self.STDOFFSET
+        return self.STDOFFSET
 
     def dst(self, dt):
         if self._isdst(dt):
             return self.DSTDIFF
-        else:
-            return self.ZERO
+        return self.ZERO
 
     def tzname(self, dt):
         return time.tzname[self._isdst(dt)]
@@ -81,7 +79,7 @@ def format_time(timestamp=None):
 
 class Timezone(tzinfo):
 
-    def __init__(self, offset, name='unknown timezone'):
+    def __init__(self, offset, name='unknown timezone'): # pylint: disable=W0231
         self.offset = offset
         self.name = name
 
@@ -114,7 +112,7 @@ def _parse_isostring(isostring):
             kw['microsecond'] = kw['microsecond'].ljust(6, '0')
         _tzinfo = kw.pop('tzinfo')
         if _tzinfo == 'Z':
-            _tzinfo = timezone.utc
+            _tzinfo = timezone.utc  # pylint: disable=E0602
         elif _tzinfo is not None:
             offset_mins = int(_tzinfo[-2:]) if len(_tzinfo) > 3 else 0
             offset_hours = int(_tzinfo[1:3])
@@ -304,9 +302,9 @@ class ArgsParser(object):
         if self.peek() == '-':
             self.get()
             number = self.parse_pos_int()
-            if number is None:
-                return number
-            return -number
+            if number is not None:
+                return -number  # pylint: disable=invalid-unary-operand-type
+            return None
         return self.parse_pos_int()
 
     def parse_pos_int(self):
@@ -314,7 +312,7 @@ class ArgsParser(object):
         number = 0
         if self.peek() not in self.DIGITS_CHARS:
             return None
-        while (self.peek() in self.DIGITS_CHARS):
+        while self.peek() in self.DIGITS_CHARS:
             number = number * 10 + int(self.get())
         self.skip()
         return number

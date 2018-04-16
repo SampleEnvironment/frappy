@@ -36,6 +36,7 @@ text -> string
 
 further convertions are done by the validator of the datatype....
 """
+from __future__ import print_function
 
 from collections import OrderedDict
 
@@ -160,7 +161,7 @@ class Parser(object):
         return self.parse_string(orgtext)
 
     def parse(self, orgtext):
-        print "parsing %r" % orgtext
+        print("parsing %r" % orgtext)
         res, rem = self.parse_sub(orgtext)
         if rem and rem[0] in u',;':
             return self.parse_sub(u'[%s]' % orgtext)
