@@ -348,10 +348,6 @@ class ModuleCtrl(QWidget):
         return label, buttons
 
     def _set_Button_pressed(self, module, parameter, target):
-        sig = (module, parameter, target)
-        if self._lastclick == sig:
-            return
-        self._lastclick = sig
         try:
             self._node.setParameter(module, parameter, target)
         except Exception as e:

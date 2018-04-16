@@ -319,9 +319,11 @@ class DrivableWidget(ReadableWidget):
         else:
             self.on_targetLineEdit_returnPressed()
 
+    @pyqtSlot()
     def on_targetLineEdit_returnPressed(self):
         self.target_go(self.targetLineEdit.text())
 
+    @pyqtSlot(unicode)
     def on_targetComboBox_activated(self, stuff=''):
         if isinstance(stuff, (str, unicode)):
             return

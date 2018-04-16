@@ -22,7 +22,7 @@
 # *****************************************************************************
 
 from secop.gui.qt import QWidget, QLabel, QPushButton as QButton, QLineEdit, \
-    QMessageBox, QCheckBox, QSizePolicy, Qt, pyqtSignal
+    QMessageBox, QCheckBox, QSizePolicy, Qt, pyqtSignal, pyqtSlot
 
 from secop.gui.util import loadUi
 from secop.datatypes import *  # pylint: disable=wildcard-import
@@ -70,6 +70,7 @@ class GenericParameterWidget(ParameterWidget):
                 self.on_setPushButton_clicked)
         self.updateValue(str(initvalue))
 
+    @pyqtSlot()
     def on_setPushButton_clicked(self):
         self.setRequested.emit(self._module, self._paramcmd,
                                self.setLineEdit.text())
@@ -104,6 +105,7 @@ class EnumParameterWidget(GenericParameterWidget):
 
         self.updateValue(str(initvalue))
 
+    @pyqtSlot()
     def on_setPushButton_clicked(self):
         enumval, enumname = self._map[self.setComboBox.currentIndex()]
         self.setRequested.emit(self._module, self._paramcmd, enumname)
@@ -132,6 +134,7 @@ class GenericCmdWidget(ParameterWidget):
         self.cmdLineEdit.returnPressed.connect(
             self.on_cmdPushButton_clicked)
 
+    @pyqtSlot()
     def on_cmdPushButton_clicked(self):
         # wait until command complete before retrying
         self.cmdPushButton.setEnabled(False)
