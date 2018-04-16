@@ -229,7 +229,7 @@ class ReadableWidget(QWidget):
             val = self._node.getParameter(self._module, pname)[0]
             return val
         except Exception:
-            self.log.exception()
+            self._node.log.exception()
             if fallback is not Ellipsis:
                 return fallback
             raise
@@ -259,14 +259,6 @@ class ReadableWidget(QWidget):
 
     def update_target(self, target, qualifiers=None):
         pass
-
-    def target_go(self, target):
-        print self, target
-        try:
-            self._node.setParameter(self._module, 'target', target)
-        except Exception as e:
-            self.log.exception(e)
-            QMessageBox.warning(self.parent(), 'Operation failed', str(e))
 
     def _updateValue(self, module, parameter, value):
         if module != self._module:
@@ -312,6 +304,14 @@ class DrivableWidget(ReadableWidget):
                     (self._module, target))
         else:
             self.targetLineEdit.setText(str(target))
+
+    def target_go(self, target):
+        print self, target
+        try:
+            self._node.setParameter(self._module, 'target', target)
+        except Exception as e:
+            self._node.log.exception(e)
+            QMessageBox.warning(self.parent(), 'Operation failed', str(e))
 
     def on_cmdPushButton_clicked(self, toggle=False):
         if toggle:
