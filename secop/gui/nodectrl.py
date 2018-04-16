@@ -306,16 +306,14 @@ class DrivableWidget(ReadableWidget):
             self.targetLineEdit.setText(str(target))
 
     def target_go(self, target):
-        print self, target
         try:
             self._node.setParameter(self._module, 'target', target)
         except Exception as e:
             self._node.log.exception(e)
             QMessageBox.warning(self.parent(), 'Operation failed', str(e))
 
-    def on_cmdPushButton_clicked(self, toggle=False):
-        if toggle:
-            return
+    @pyqtSlot()
+    def on_cmdPushButton_clicked(self):
         if self._is_enum:
             self.on_targetComboBox_activated()
         else:
