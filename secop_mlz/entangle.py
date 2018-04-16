@@ -27,6 +27,7 @@
 Here we support devices which fulfill the official
 MLZ TANGO interface for the respective device classes.
 """
+from __future__ import division
 
 import re
 from time import sleep, time as currenttime
@@ -397,10 +398,9 @@ class Sensor(AnalogInput):
     #       we support the adjust method
 
     commands = {
-        'setposition' : Command('Set the position to the given value.',
-                            arguments=[FloatRange()],
-                            result=None
-                           ),
+        'setposition': Command('Set the position to the given value.',
+                               arguments=[FloatRange()], result=None,
+                               ),
     }
 
     def do_setposition(self, value):
@@ -422,22 +422,22 @@ class AnalogOutput(PyTangoDevice, Drivable):
     parameters = {
         'userlimits': Param('User defined limits of device value',
                             datatype=TupleOf(FloatRange(), FloatRange()),
-                            default=(float('-Inf'),float('+Inf')),
+                            default=(float('-Inf'), float('+Inf')),
                             unit='main', readonly=False, poll=10,
-                           ),
+                            ),
         'abslimits': Param('Absolute limits of device value',
                            datatype=TupleOf(FloatRange(), FloatRange()),
                            unit='main',
-                          ),
+                           ),
         'precision': Param('Precision of the device value (allowed deviation '
                            'of stable values from target)',
                            unit='main', datatype=FloatRange(1e-38),
                            readonly=False,
-                          ),
+                           ),
         'window': Param('Time window for checking stabilization if > 0',
                         unit='s', default=60.0, readonly=False,
                         datatype=FloatRange(0, 900),
-                       ),
+                        ),
     }
 
     def init(self):
@@ -557,18 +557,17 @@ class Actuator(AnalogOutput):
     parameters = {
         'speed': Param('The speed of changing the value',
                        unit='main/s', readonly=False, datatype=FloatRange(0),
-                      ),
+                       ),
         'ramp': Param('The speed of changing the value',
                       unit='main/min', readonly=False, datatype=FloatRange(0),
                       poll=30,
-                     ),
+                      ),
     }
 
     commands = {
-        'setposition' : Command('Set the position to the given value.',
-                            arguments=[FloatRange()],
-                            result=None
-                           ),
+        'setposition': Command('Set the position to the given value.',
+                               arguments=[FloatRange()], result=None,
+                               ),
     }
 
     def read_speed(self, maxage=0):
@@ -598,13 +597,13 @@ class Motor(Actuator):
     parameters = {
         'refpos': Param('Reference position',
                         datatype=FloatRange(), unit='main',
-                       ),
+                        ),
         'accel': Param('Acceleration',
                        datatype=FloatRange(), readonly=False, unit='main/s^2',
-                      ),
+                       ),
         'decel': Param('Deceleration',
                        datatype=FloatRange(), readonly=False, unit='main/s^2',
-                      ),
+                       ),
     }
 
     def read_refpos(self, maxage=0):
@@ -814,17 +813,20 @@ class NamedDigitalOutput(DigitalOutput):
     """A DigitalOutput with numeric values mapped to names.
     """
 
-#    parameters = {
-#        'mapping': Param('A dictionary mapping state names to integers',
-#                         datatype=EnumType(), export=False),  # XXX: !!!
-#    }
-#
-#    def init(self):
-#        super(NamedDigitalOutput, self).init()
-#        try:  # XXX: !!!
-#            self.parameters['value'].datatype = EnumType(**eval(self.mapping))
-#        except Exception as e:
-#            raise ValueError('Illegal Value for mapping: %r' % e)
+    parameters = {
+        'mapping': Param('A dictionary mapping state names to integers',
+                         datatype=StringType(), export=False),
+    }
+
+    def init(self):
+        super(NamedDigitalOutput, self).init()
+        try:
+            # pylint: disable=eval-used
+            self.parameters['value'].datatype = EnumType(**eval(self.mapping))
+            # pylint: disable=eval-used
+            self.parameters['target'].datatype = EnumType(**eval(self.mapping))
+        except Exception as e:
+            raise ValueError('Illegal Value for mapping: %r' % e)
 
     def write_target(self, value):
         # map from enum-str to integer value
@@ -919,8 +921,8 @@ class StringIO(PyTangoDevice, Module):
                                   arguments=[], result=IntRange(0)),
         'multicommunicate': Command('perform a sequence of communications',
                                     arguments=[ArrayOf(
-                                        TupleOf(StringType(), IntRange()),100)],
-                                    result=ArrayOf(StringType(),100)),
+                                        TupleOf(StringType(), IntRange()), 100)],
+                                    result=ArrayOf(StringType(), 100)),
     }
 
     def do_communicate(self, value=StringType()):
