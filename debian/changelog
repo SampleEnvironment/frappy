@@ -1,3 +1,66 @@
+secop-core (0.5.0) unstable; urgency=low
+
+  [ Markus Zolliker ]
+  * revision of SECoP documentation
+  * - fixed documentation hierarchy
+
+  [ Enrico Faulhaber ]
+  * fix amagnet
+  * add info about Meeting @PSI
+  * fix typo and include comment from Niklas
+  * playground: give sequencermixin a loopcounter (per step)
+
+  [ Frank Wutzler ]
+  * describe SECoP motivation discussed in meeting 2017-11-27
+
+  [ Enrico Faulhaber ]
+  * extend datatypes
+  * Provide a mean for simulation dummy devices
+  * Fix gui (leftover from extending datatypes)
+
+  [ Lutz Rossa ]
+  * fix a connection timeout bug
+
+  [ Enrico Faulhaber ]
+  * Provide mlz_ccr12 simulation mockup cfg
+  * fix PARAMS handling + initialisation for simulation
+  * replace last references to device by module
+  * fix exceptions
+  * minor fixes
+  * More simulation cfg's
+  * Remove old demo code (no longer used)
+  * fix regression from renaming device to module
+  * Makefile: allow specifying only a subset of the tests to run
+  * secop/errors: add comments
+  * Add value parser + use it for the gui
+  * Avoid race condition upon gui start with autoconnect
+  * remember Widgets for modulectrl and paramctl
+  * GUI: Saveguard against missing mandatory parameter status
+  * fix unbound unit access
+  * minor adoptions
+  * Support PyQt5 (fallback to PyQt4)
+
+  [ Jens Krüger ]
+  * UI: Add connection from exit button to close the window
+  * MLZ: enable the 'setposition' commands in entangle
+  * NODECTRL: Fix some problems with logging and callbacks
+
+  [ Enrico Faulhaber ]
+  * improve readability be renaming PARAMS,PROPS,CMDS
+  * MLZ: Fix mapping in NamedDigitalOutput device
+
+  [ Jens Krüger ]
+  * STRESSIHTF2: add setup
+  * CCR12: Fix setup to new parameter names
+
+  [ Enrico Faulhaber ]
+  * amagnet: fix wrongly renamed tangomodule
+  * [GUI] fix 'double' click on go-buttons
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 17 Apr 2018 12:45:58 +0200
+
 secop-core (0.4.4) unstable; urgency=low
 
   [ Enrico Faulhaber ]
