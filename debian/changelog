@@ -1,3 +1,23 @@
+secop-core (0.6.0) unstable; urgency=low
+
+  [ Jens Krüger ]
+  * STRESSIHTF2: Fix maximum ramp value
+
+  [ Enrico Faulhaber ]
+  * GUI: Fix doubled slot on 'set' button click
+
+  [ Jens Krüger ]
+  * GUI: clean up callback for enum ComboBoxes
+
+  [ Enrico Faulhaber ]
+  * MLZ: fix tango WindowTimeout
+  * improve Py2/3 compat
+  * [MLZ:stressihtf2] add sensor
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 17 Apr 2018 17:38:52 +0200
+
 secop-core (0.5.0) unstable; urgency=low
 
   [ Markus Zolliker ]
