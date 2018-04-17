@@ -315,7 +315,7 @@ class DrivableWidget(ReadableWidget):
     @pyqtSlot()
     def on_cmdPushButton_clicked(self):
         if self._is_enum:
-            self.on_targetComboBox_activated()
+            self.on_targetComboBox_activated(self.targetComboBox.currentText())
         else:
             self.on_targetLineEdit_returnPressed()
 
@@ -324,7 +324,5 @@ class DrivableWidget(ReadableWidget):
         self.target_go(self.targetLineEdit.text())
 
     @pyqtSlot(unicode)
-    def on_targetComboBox_activated(self, stuff=''):
-        if isinstance(stuff, (str, unicode)):
-            return
-        self.target_go(self._map[self.targetComboBox.currentIndex()][0])
+    def on_targetComboBox_activated(self, stuff):
+        self.target_go(stuff)
