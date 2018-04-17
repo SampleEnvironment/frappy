@@ -37,10 +37,11 @@ import PyTango
 
 from secop.lib import lazy_property
 from secop.protocol import status
-from secop.parse import Parser
+
 from secop.datatypes import IntRange, FloatRange, StringType, TupleOf, \
     ArrayOf, EnumType
-from secop.errors import ConfigError, ProgrammingError, CommunicationError, HardwareError
+from secop.errors import ConfigError, ProgrammingError, CommunicationError, \
+    HardwareError
 from secop.modules import Param, Command, Override, Module, Readable, Drivable
 
 #####
@@ -160,9 +161,11 @@ class PyTangoDevice(Module):
 
     parameters = {
         'comtries': Param('Maximum retries for communication',
-                          datatype=IntRange(1, 100), default=3, readonly=False, group='communication'),
-        'comdelay': Param('Delay between retries', datatype=FloatRange(0), unit='s', default=0.1,
-                          readonly=False, group='communication'),
+                          datatype=IntRange(1, 100), default=3, readonly=False,
+                          group='communication'),
+        'comdelay': Param('Delay between retries', datatype=FloatRange(0),
+                          unit='s', default=0.1, readonly=False,
+                          group='communication'),
 
         'tangodevice': Param('Tango device name',
                              datatype=StringType(), readonly=True,
@@ -432,18 +435,26 @@ class AnalogOutput(PyTangoDevice, Drivable):
         'precision': Param('Precision of the device value (allowed deviation '
                            'of stable values from target)',
                            unit='main', datatype=FloatRange(1e-38),
-                           readonly=False,
+                           readonly=False, group='stability',
                            ),
         'window': Param('Time window for checking stabilization if > 0',
                         unit='s', default=60.0, readonly=False,
-                        datatype=FloatRange(0, 900),
+                        datatype=FloatRange(0, 900), group='stability',
                         ),
+        'timeout': Param('Timeout for waiting for a stable value (if > 0)',
+                         unit='s', default=60.0, readonly=False,
+                         datatype=FloatRange(0, 900), group='stability',
+                         ),
     }
+    _history = ()
+    _timeout = None
+    _moving = False
 
     def init(self):
         super(AnalogOutput, self).init()
         # init history
         self._history = []  # will keep (timestamp, value) tuple
+        self._timeout = None  # keeps the time at which we will timeout, or None
 
     def late_init(self):
         super(AnalogOutput, self).late_init()
@@ -458,7 +469,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         super(AnalogOutput, self).poll(nr)
         while len(self._history) > 2:
             # if history would be too short, break
-            if self._history[-1][0] - self._history[1][0] < self.window:
+            if self._history[-1][0] - self._history[1][0] <= self.window:
                 break
             # else: remove a stale point
             self._history.pop(0)
@@ -475,15 +486,31 @@ class AnalogOutput(PyTangoDevice, Drivable):
     def _isAtTarget(self):
         if self.target is None:
             return True  # avoid bootstrapping problems
+        if not self._history:
+            return False  # no history -> no knowledge
         # check subset of _history which is in window
         # also check if there is at least one value before window
         # to know we have enough datapoints
         hist = self._history[:]
         window_start = currenttime() - self.window
         hist_in_window = [v for (t, v) in hist if t >= window_start]
-        stable = all(abs(v - self.target) <= self.precision
-                     for v in hist_in_window)
-        return 0 < len(hist_in_window) < len(hist) and stable
+
+        max_in_hist = max(hist_in_window)
+        min_in_hist = min(hist_in_window)
+        stable = max_in_hist - min_in_hist <= 2*self.precision
+        at_target = min_in_hist <= self.target <= max_in_hist
+
+        return stable and at_target
+
+    def read_status(self, maxage=0):
+        if self._isAtTarget():
+            self._timeout = None
+            self._moving = False
+            return super(AnalogOutput, self).read_status()
+        if self._timeout:
+            if self._timeout < currenttime():
+                return status.UNSTABLE, 'timeout after waiting for stable value'
+        return (status.BUSY, 'Moving') if self._moving else (status.OK, 'stable')
 
     @property
     def absmin(self):
@@ -534,10 +561,22 @@ class AnalogOutput(PyTangoDevice, Drivable):
             self.do_stop()
             self._hw_wait()
         self._dev.value = value
+        # set meaningful timeout
+        self._timeout = currenttime() + self.window + self.timeout
+        if hasattr(self, 'ramp'):
+            self._timeout += abs((self.target or self.value) - self.value) / \
+                    ((self.ramp or 1e-8) * 60)
+        elif hasattr(self, 'speed'):
+            self._timeout += abs((self.target or self.value) - self.value) / \
+                    (self.speed or 1e-8)
+        if not self.timeout:
+            self._timeout = None
+        self._moving = True
+        self._history = []  # clear history
         self.read_status(0)  # poll our status to keep it updated
 
     def _hw_wait(self):
-        while self.read_status(0)[0] == status.BUSY:
+        while super(AnalogOutput, self).read_status()[0] == status.BUSY:
             sleep(0.3)
 
     def do_stop(self):
@@ -751,11 +790,8 @@ class NamedDigitalInput(DigitalInput):
     def init(self):
         super(NamedDigitalInput, self).init()
         try:
-            mapping, rem = Parser().parse(self.mapping)
-            if rem:
-                raise ValueError('Illegal Value for mapping, '
-                                 'trailing garbage: %r' % rem)
-            self.parameters['value'].datatype = EnumType(**mapping)
+            # pylint: disable=eval-used
+            self.parameters['value'].datatype = EnumType(**eval(self.mapping))
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
@@ -779,7 +815,7 @@ class PartialDigitalInput(NamedDigitalInput):
     def init(self):
         super(PartialDigitalInput, self).init()
         self._mask = (1 << self.bitwidth) - 1
-        #self.parameters['value'].datatype = IntRange(0, self._mask)
+        # self.parameters['value'].datatype = IntRange(0, self._mask)
 
     def read_value(self, maxage=0):
         raw_value = self._dev.value
@@ -850,8 +886,8 @@ class PartialDigitalOutput(NamedDigitalOutput):
     def init(self):
         super(PartialDigitalOutput, self).init()
         self._mask = (1 << self.bitwidth) - 1
-        #self.parameters['value'].datatype = IntRange(0, self._mask)
-        #self.parameters['target'].datatype = IntRange(0, self._mask)
+        # self.parameters['value'].datatype = IntRange(0, self._mask)
+        # self.parameters['target'].datatype = IntRange(0, self._mask)
 
     def read_value(self, maxage=0):
         raw_value = self._dev.value
