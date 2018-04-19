@@ -30,7 +30,25 @@ import time
 import types
 import inspect
 
-import six  # for py2/3 compat
+try:
+    from six import add_metaclass # for py2/3 compat
+except ImportError:
+    # copied from six v1.10.0
+    def add_metaclass(metaclass):
+        """Class decorator for creating a class with a metaclass."""
+        def wrapper(cls):
+            orig_vars = cls.__dict__.copy()
+            slots = orig_vars.get('__slots__')
+            if slots is not None:
+                if isinstance(slots, str):
+                    slots = [slots]
+                for slots_var in slots:
+                    orig_vars.pop(slots_var)
+            orig_vars.pop('__dict__', None)
+            orig_vars.pop('__weakref__', None)
+            return metaclass(cls.__name__, cls.__bases__, orig_vars)
+        return wrapper
+
 
 from secop.lib import formatExtendedStack, mkthread
 from secop.lib.parsing import format_time
@@ -293,7 +311,7 @@ class ModuleMeta(type):
 # if you want to 'update from the hardware', call self.read_<pname>
 # the return value of this method will be used as the new cached value and
 # be returned.
-@six.add_metaclass(ModuleMeta)
+@add_metaclass(ModuleMeta)
 class Module(object):
     """Basic Module, doesn't do much"""
     # static properties, definitions in derived classes should overwrite earlier ones.
