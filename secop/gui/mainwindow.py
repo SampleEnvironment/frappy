@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
         node = QSECNode({'connectto': host, 'port': port}, parent=self)
         host = '%s:%d' % (host, port)
 
-        host = '%s (%s)' % (node.equipment_id, host)
+        host = '%s (%s)' % (node.equipmentId, host)
         self._nodes[host] = node
         node.register_shutdown_callback(self._nodeDisconnected_callback, host)
 

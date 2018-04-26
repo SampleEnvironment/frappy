@@ -161,7 +161,6 @@ class Value(object):
 
 
 class Client(object):
-    equipment_id = 'unknown'
     secop_id = 'unknown'
     describing_data = {}
     stopflag = False
@@ -313,15 +312,13 @@ class Client(object):
             self.log.warning("deprecated specifier %r" % spec)
             spec = '%s:value' % spec
         modname, pname = spec.split(':', 1)
-#        previous = '<unset>'
-#        if modname in self._cache:
-#            if pname in self._cache:
-#                previous = self._cache[modname][pname]
+
         if data:
             self._cache.setdefault(modname, {})[pname] = Value(*data)
         else:
             self.log.warning(
                 'got malformed answer! (%s,%s)' % (spec, data))
+
 #        self.log.info('cache: %s:%s=%r (was: %s)', modname, pname, data, previous)
         if spec in self.callbacks:
             for func in self.callbacks[spec]:
@@ -367,7 +364,7 @@ class Client(object):
         return result
 
     def _issueDescribe(self):
-        _, self.equipment_id, describing_data = self._communicate('describe')
+        _, _, describing_data = self._communicate('describe')
         try:
             describing_data = self._decode_substruct(
                 ['modules'], describing_data)
@@ -535,7 +532,9 @@ class Client(object):
 
     @property
     def equipmentId(self):
-        return self.equipment_id
+        if self.describingData:
+            return self.describingData['properties']['equipment_id']
+        return 'Undetermined'
 
     @property
     def protocolVersion(self):
