@@ -21,6 +21,8 @@
 # *****************************************************************************
 """Define Baseclasses for real Modules implemented in the server"""
 
+from __future__ import print_function
+
 # XXX: connect with 'protocol'-Modules.
 # Idea: every Module defined herein is also a 'protocol'-Module,
 # all others MUST derive from those, the 'interface'-class is still derived
@@ -59,15 +61,23 @@ from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange,
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
 
-# storage for Parameter settings:
-# if readonly is False, the value can be changed (by code, or remote)
-# if no default is given, the parameter MUST be specified in the configfile
-# during startup, value is initialized with the default value or
-# from the config file if specified there
-
 
 class Param(object):
+    """storage for Parameter settings + value + qualifiers
 
+    if readonly is False, the value can be changed (by code, or remote)
+    if no default is given, the parameter MUST be specified in the configfile
+    during startup, value is initialized with the default value or
+    from the config file if specified there
+
+    poll can be:
+    - False  (never poll this parameter)
+    - True   (poll this ever pollinterval)
+    - positive int  (poll every N(th) pollinterval)
+    - negative int  (normally poll every N(th) pollinterval, if module is busy, poll every pollinterval)
+
+    note: Drivable (and derived classes) poll with 10 fold frequency if module is busy....
+    """
     def __init__(self,
                  description,
                  datatype=None,
@@ -432,6 +442,7 @@ class Module(object):
         mkthread(self.late_init)
 
     def late_init(self):
+        # this runs async somewhen after init
         self.log.debug('late init()')
 
 
@@ -463,45 +474,37 @@ class Readable(Module):
         self._pollthread = mkthread(self.__pollThread)
 
     def __pollThread(self):
+        try:
+            self.__pollThread_inner()
+        except Exception as e:
+            self.log.exception(e)
+            print(formatExtendedStack())
+
+    def __pollThread_inner(self):
         """super simple and super stupid per-module polling thread"""
         i = 0
-        fastpoll = True  # first update should be quick
         while True:
-            i = 1
+            fastpoll = self.poll(i)
+            i += 1
             try:
                 time.sleep(self.pollinterval * (0.1 if fastpoll else 1))
             except TypeError:
                 time.sleep(min(self.pollinterval)
                            if fastpoll else max(self.pollinterval))
-            fastpoll = self.poll(i)
 
-    def poll(self, nr):
-        # poll status first
-        fastpoll = False
-        if 'status' in self.parameters:
-            stat = self.read_status(0)
-#            self.log.info('polling read_status -> %r' % (stat,))
-            fastpoll = stat[0] == status.BUSY
-#        if fastpoll:
-#            self.log.info('fastpoll!')
+    def poll(self, nr=0):
+        # Just poll all parameters regularly where polling is enabled
         for pname, pobj in self.parameters.items():
             if not pobj.poll:
                 continue
-            if pname == 'status':
-                # status was already polled above
-                continue
-            if ((int(pobj.poll) < 0) and fastpoll) or (
-                    nr % abs(int(pobj.poll))) == 0:
-                # poll always if pobj.poll is negative and fastpoll (i.e. Module is busy)
-                # otherwise poll every 'pobj.poll' iteration
+            if nr % abs(int(pobj.poll)) == 0:
+                # poll every 'pobj.poll' iteration
                 rfunc = getattr(self, 'read_' + pname, None)
                 if rfunc:
                     try:
-                        # self.log.info('polling read_%s -> %r' % (pname, rfunc()))
                         rfunc()
                     except Exception:  # really all!
                         pass
-        return fastpoll
 
 
 class Writable(Readable):
@@ -526,6 +529,29 @@ class Drivable(Writable):
     provides a stop command to interrupt actions.
     Also status gets extended with a BUSY state indicating a running action.
     """
+
+    # improved polling: may poll faster if module is BUSY
+    def poll(self, nr=0):
+        # poll status first
+        stat = self.read_status(0)
+        fastpoll = stat[0] == status.BUSY
+        for pname, pobj in self.parameters.items():
+            if not pobj.poll:
+                continue
+            if pname == 'status':
+                # status was already polled above
+                continue
+            if ((int(pobj.poll) < 0) and fastpoll) or (
+                    nr % abs(int(pobj.poll))) == 0:
+                # poll always if pobj.poll is negative and fastpoll (i.e. Module is busy)
+                # otherwise poll every 'pobj.poll' iteration
+                rfunc = getattr(self, 'read_' + pname, None)
+                if rfunc:
+                    try:
+                        rfunc()
+                    except Exception:  # really all!
+                        pass
+        return fastpoll
 
     def do_stop(self):
         """default implementation of the stop command
