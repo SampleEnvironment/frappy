@@ -363,4 +363,7 @@ class ModuleCtrl(QWidget):
     def _updateValue(self, module, parameter, value):
         if module != self._module:
             return
-        self._paramWidgets[parameter][1].updateValue(unicode(value[0]))
+        # value is [data, qualifiers]
+        # note: update subwidgets with the data portion only
+        # note: paramwidgets[..][1] is a ParameterView from secop.gui.params
+        self._paramWidgets[parameter][1].updateValue(value[0])

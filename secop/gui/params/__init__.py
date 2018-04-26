@@ -35,7 +35,7 @@ from secop.datatypes import EnumType
 
 
 class ParameterWidget(QWidget):
-    setRequested = pyqtSignal(str, str, str)  # module, parameter, target
+    setRequested = pyqtSignal(str, str, object)  # module, parameter, target
     cmdRequested = pyqtSignal(str, str, list)  # module, command, args
 
     def __init__(self,
@@ -57,7 +57,7 @@ class ParameterWidget(QWidget):
         # load ui file, set initvalue to right widget
         pass
 
-    def updateValue(self, valuestr):
+    def updateValue(self, value):
         # async !
         pass
 
@@ -74,15 +74,17 @@ class GenericParameterWidget(ParameterWidget):
         else:
             self.setLineEdit.returnPressed.connect(
                 self.on_setPushButton_clicked)
-        self.updateValue(str(initvalue))
+        self.updateValue(initvalue)
 
     @pyqtSlot()
     def on_setPushButton_clicked(self):
         self.setRequested.emit(self._module, self._paramcmd,
                                self.setLineEdit.text())
 
-    def updateValue(self, valuestr):
-        self.currentLineEdit.setText(valuestr)
+    def updateValue(self, value):
+        if self._datatype:
+            value = self._datatype.import_value(value)
+        self.currentLineEdit.setText(str(value))
 
 
 class EnumParameterWidget(GenericParameterWidget):
@@ -109,23 +111,23 @@ class EnumParameterWidget(GenericParameterWidget):
         else:
             self.setComboBox.activated.connect(self.on_setPushButton_clicked)
 
-        self.updateValue(str(initvalue))
+        self.updateValue(initvalue)
 
     @pyqtSlot()
     def on_setPushButton_clicked(self):
         _enumval, enumname = self._map[self.setComboBox.currentIndex()]
         self.setRequested.emit(self._module, self._paramcmd, enumname)
 
-    def updateValue(self, valuestr):
+    def updateValue(self, value):
         try:
-            valuestr = int(valuestr)
+            value = int(value)
         except ValueError:
             pass
-        if valuestr in self._revmap:
-            index = self._revmap[valuestr]
+        if value in self._revmap:
+            index = self._revmap[value]
             self.currentLineEdit.setText('(%d): %s' % self._map[index])
         else:
-            self.currentLineEdit.setText('undefined Value: %r' % valuestr)
+            self.currentLineEdit.setText('undefined Value: %r' % value)
 
 
 class GenericCmdWidget(ParameterWidget):
@@ -142,6 +144,8 @@ class GenericCmdWidget(ParameterWidget):
     @pyqtSlot()
     def on_cmdPushButton_clicked(self):
         # wait until command complete before retrying
+        # since the command is scheduled async: what if an errot happens?
+        # XXX: button stays deactivated upon errors in execution of cmd...
         self.cmdPushButton.setEnabled(False)
         self.cmdRequested.emit(
             self._module,
@@ -149,7 +153,7 @@ class GenericCmdWidget(ParameterWidget):
             self._datatype.from_string(
                 self.cmdLineEdit.text()))
 
-    def updateValue(self, valuestr):
+    def updateValue(self, value):
         # open dialog and show value, if any.
         # then re-activate the command button
         self.cmdPushButton.setEnabled(True)
