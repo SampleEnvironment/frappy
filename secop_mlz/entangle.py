@@ -36,7 +36,6 @@ import threading
 import PyTango
 
 from secop.lib import lazy_property
-from secop.protocol import status
 #from secop.parse import Parser
 from secop.datatypes import IntRange, FloatRange, StringType, TupleOf, \
     ArrayOf, EnumType
@@ -175,11 +174,11 @@ class PyTangoDevice(Module):
     }
 
     tango_status_mapping = {
-        PyTango.DevState.ON: status.OK,
-        PyTango.DevState.ALARM: status.WARN,
-        PyTango.DevState.OFF: status.ERROR,
-        PyTango.DevState.FAULT: status.ERROR,
-        PyTango.DevState.MOVING: status.BUSY,
+        PyTango.DevState.ON:     Drivable.Status.IDLE,
+        PyTango.DevState.ALARM:  Drivable.Status.WARN,
+        PyTango.DevState.OFF:    Drivable.Status.ERROR,
+        PyTango.DevState.FAULT:  Drivable.Status.ERROR,
+        PyTango.DevState.MOVING: Drivable.Status.BUSY,
     }
 
     @lazy_property
@@ -225,7 +224,7 @@ class PyTangoDevice(Module):
 
     def _hw_wait(self):
         """Wait until hardware status is not BUSY."""
-        while self.read_status(0)[0] == 'BUSY':
+        while self.read_status(0)[0] == Drivable.Status.BUSY:
             sleep(0.3)
 
     def _getProperty(self, name, dev=None):
@@ -363,7 +362,7 @@ class PyTangoDevice(Module):
         tangoStatus = self._dev.Status()
 
         # Map status
-        myState = self.tango_status_mapping.get(tangoState, status.UNKNOWN)
+        myState = self.tango_status_mapping.get(tangoState, Drivable.Status.UNKNOWN)
 
         return (myState, tangoStatus)
 
@@ -465,7 +464,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         if attrInfo.unit != 'No unit':
             self.parameters['value'].unit = attrInfo.unit
 
-    def poll(self, nr):
+    def poll(self, nr=0):
         super(AnalogOutput, self).poll(nr)
         while len(self._history) > 2:
             # if history would be too short, break
@@ -509,8 +508,10 @@ class AnalogOutput(PyTangoDevice, Drivable):
             return super(AnalogOutput, self).read_status()
         if self._timeout:
             if self._timeout < currenttime():
-                return status.UNSTABLE, 'timeout after waiting for stable value'
-        return (status.BUSY, 'Moving') if self._moving else (status.OK, 'stable')
+                return self.Status.UNSTABLE, 'timeout after waiting for stable value'
+        if self._moving:
+            return (self.Status.BUSY, 'moving')
+        return (self.Status.OK, 'stable')
 
     @property
     def absmin(self):
@@ -555,7 +556,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         return self._checkLimits(value)
 
     def write_target(self, value=FloatRange()):
-        if self.status[0] == status.BUSY:
+        if self.status[0] == self.Status.BUSY:
             # changing target value during movement is not allowed by the
             # Tango base class state machine. If we are moving, stop first.
             self.do_stop()
@@ -576,7 +577,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         self.read_status(0)  # poll our status to keep it updated
 
     def _hw_wait(self):
-        while super(AnalogOutput, self).read_status()[0] == status.BUSY:
+        while super(AnalogOutput, self).read_status()[0] == self.Status.BUSY:
             sleep(0.3)
 
     def do_stop(self):
@@ -791,7 +792,7 @@ class NamedDigitalInput(DigitalInput):
         super(NamedDigitalInput, self).init()
         try:
             # pylint: disable=eval-used
-            self.parameters['value'].datatype = EnumType(**eval(self.mapping))
+            self.parameters['value'].datatype = EnumType('value', **eval(self.mapping))
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
@@ -858,16 +859,15 @@ class NamedDigitalOutput(DigitalOutput):
         super(NamedDigitalOutput, self).init()
         try:
             # pylint: disable=eval-used
-            self.parameters['value'].datatype = EnumType(**eval(self.mapping))
+            self.parameters['value'].datatype = EnumType('value', **eval(self.mapping))
             # pylint: disable=eval-used
-            self.parameters['target'].datatype = EnumType(**eval(self.mapping))
+            self.parameters['target'].datatype = EnumType('target', **eval(self.mapping))
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
     def write_target(self, value):
         # map from enum-str to integer value
-        self._dev.value = self.parameters[
-            'target'].datatype.reversed.get(value, value)
+        self._dev.value = int(value)
         self.read_value()
 
 
@@ -941,20 +941,20 @@ class StringIO(PyTangoDevice, Module):
         'communicate': Command('Send a string and return the reply',
                                arguments=[StringType()],
                                result=StringType()),
-        'flush': Command('Flush output buffer',
-                         arguments=[], result=None),
-        'read': Command('read some characters from input buffer',
-                        arguments=[IntRange()], result=StringType()),
-        'write': Command('write some chars to output',
-                         arguments=[StringType()], result=None),
-        'readLine': Command('Read sol - a whole line - eol',
-                            arguments=[], result=StringType()),
-        'writeLine': Command('write sol + a whole line + eol',
-                             arguments=[StringType()], result=None),
-        'availablechars': Command('return number of chars in input buffer',
-                                  arguments=[], result=IntRange(0)),
-        'availablelines': Command('return number of lines in input buffer',
-                                  arguments=[], result=IntRange(0)),
+        'flush':       Command('Flush output buffer',
+                               arguments=[], result=None),
+        'read':        Command('read some characters from input buffer',
+                               arguments=[IntRange()], result=StringType()),
+        'write':       Command('write some chars to output',
+                               arguments=[StringType()], result=None),
+        'readLine':    Command('Read sol - a whole line - eol',
+                               arguments=[], result=StringType()),
+        'writeLine':   Command('write sol + a whole line + eol',
+                               arguments=[StringType()], result=None),
+        'availablechars':   Command('return number of chars in input buffer',
+                                    arguments=[], result=IntRange(0)),
+        'availablelines':   Command('return number of lines in input buffer',
+                                    arguments=[], result=IntRange(0)),
         'multicommunicate': Command('perform a sequence of communications',
                                     arguments=[ArrayOf(
                                         TupleOf(StringType(), IntRange()), 100)],

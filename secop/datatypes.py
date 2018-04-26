@@ -21,17 +21,21 @@
 # *****************************************************************************
 """Define validated data types."""
 
+from __future__ import print_function
+
 try:
     # py2
-    unicode(u'')
+    unicode
 except NameError:
     # py3
     unicode = str  # pylint: disable=redefined-builtin
 
 from base64 import b64encode, b64decode
 
-from .errors import ProgrammingError, ParsingError
-from .parse import Parser
+from secop.lib.enum import Enum
+from secop.errors import ProgrammingError, ParsingError
+from secop.parse import Parser
+
 
 Parser = Parser()
 
@@ -181,64 +185,33 @@ class IntRange(DataType):
 
 
 class EnumType(DataType):
-    as_json = [u'enum']
+    def __init__(self, enum_or_name='', **kwds):
+        self._enum = Enum(enum_or_name, **kwds)
 
-    def __init__(self, *args, **kwds):
-        # enum keys are ints! remember mapping from intvalue to 'name'
-        self.entries = {}  # maps ints to strings
-        num = 0
-        for arg in args:
-            if not isinstance(arg, (str, unicode)):
-                raise ValueError(u'EnumType entries MUST be strings!')
-            self.entries[num] = arg
-            num += 1
-        for k, v in list(kwds.items()):
-            v = int(v)
-            if v in self.entries:
-                raise ValueError(
-                    u'keyword argument %r=%d is already assigned %r' %
-                    (k, v, self.entries[v]))
-            self.entries[v] = unicode(k)
-#        if len(self.entries) == 0:
-#            raise ValueError('Empty enums ae not allowed!')
-        # also keep a mapping from name strings to numbers
-        self.reversed = {}  # maps Strings to ints
-        for k, v in self.entries.items():
-            if v in self.reversed:
-                raise ValueError(u'Mapping for %r=%r is not Unique!' % (v, k))
-            self.reversed[v] = k
-        self.as_json = [u'enum', self.reversed.copy()]
+    @property
+    def as_json(self):
+        return [u'enum'] + [dict((m.name, m.value) for m in self._enum.members)]
 
     def __repr__(self):
-        return u'EnumType(%s)' % u', '.join(
-            [u'%s=%d' % (v, k) for k, v in list(self.entries.items())])
+        return "EnumType(%r, %s" % (self._enum.name, ', '.join('%s=%d' %(m.name, m.value) for m in self._enum.members))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        if value in self.reversed:
-            return self.reversed[value]
-        if int(value) in self.entries:
-            return int(value)
-        raise ValueError(u'%r is not one of %s' %
-            (unicode(value), u', '.join(list(self.reversed.keys()))))
+        return int(self.validate(value))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        # internally we store the key (which is a string)
-        return self.entries[int(value)]
+        return self.validate(value)
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
-        if value in self.reversed:
-            return self.reversed[value]
-        if int(value) in self.entries:
-            return int(value)
-        raise ValueError(u'%r is not one of %s' %
-                         (unicode(value), u', '.join(map(unicode, self.entries))))
+        try:
+            return self._enum[value]
+        except KeyError:
+            raise ValueError('%r is not a member of enum %r' % (value, self._enum))
 
     def from_string(self, text):
-        value = text
-        return self.validate(value)
+        return self.validate(text)
 
 
 class BLOBType(DataType):
@@ -606,7 +579,7 @@ DATATYPES = dict(
     string=lambda _max=None, _min=0: StringType(_max, _min),
     array=lambda subtype, _max=None, _min=0: ArrayOf(get_datatype(subtype), _max, _min),
     tuple=lambda subtypes: TupleOf(*map(get_datatype, subtypes)),
-    enum=lambda kwds: EnumType(**kwds),
+    enum=lambda kwds: EnumType('', **kwds),
     struct=lambda named_subtypes: StructOf(
         **dict((n, get_datatype(t)) for n, t in list(named_subtypes.items()))),
     command=Command,

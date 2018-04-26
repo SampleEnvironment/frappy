@@ -90,12 +90,12 @@ def test_IntRange():
 
 def test_EnumType():
     # test constructor catching illegal arguments
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         EnumType(1)
-    with pytest.raises(ValueError):
-        EnumType('a', b=0)
+    with pytest.raises(TypeError):
+        EnumType(['b', 0])
 
-    dt = EnumType(a=3, c=7, stuff=1)
+    dt = EnumType('dt', a=3, c=7, stuff=1)
     assert dt.as_json == ['enum', dict(a=3, c=7, stuff=1)]
 
     with pytest.raises(ValueError):
@@ -116,9 +116,9 @@ def test_EnumType():
     assert dt.export_value('c') == 7
     assert dt.export_value('stuff') == 1
     assert dt.export_value(1) == 1
-    assert dt.import_value(7) == 'c'
-    assert dt.import_value(3) == 'a'
-    assert dt.import_value(1) == 'stuff'
+    assert dt.import_value('c') == 7
+    assert dt.import_value('a') == 3
+    assert dt.import_value('stuff') == 1
     with pytest.raises(ValueError):
         dt.export_value(2)
     with pytest.raises(ValueError):
@@ -304,7 +304,7 @@ def test_get_datatype():
 
     with pytest.raises(ValueError):
         get_datatype(['enum'])
-    assert isinstance(get_datatype(['enum', dict(a=-2.718)]), EnumType)
+    assert isinstance(get_datatype(['enum', dict(a=-2)]), EnumType)
 
     with pytest.raises(ValueError):
         get_datatype(['enum', 10, -10])

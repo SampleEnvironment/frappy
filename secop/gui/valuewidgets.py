@@ -62,16 +62,14 @@ class EnumWidget(QComboBox):
 
         self._map = {}
         self._revmap = {}
-        for idx, (val, name) in enumerate(datatype.entries.items()):
-            self._map[idx] = (name, val)
-            self._revmap[name] = idx
-            self._revmap[val] = idx
-            self.addItem(name, val)
-        # XXX: fill Combobox from datatype
+        for idx, member in enumerate(datatype._enum.members):
+            self._map[idx] = member
+            self._revmap[member.name] = idx
+            self._revmap[member.value] = idx
+            self.addItem(member.name, member.value)
 
     def get_value(self):
-        # XXX: return integer corresponding to the selected item
-        return self._map[self.currentIndex()][1]
+        return self._map[self.currentIndex()].value
 
     def set_value(self, value):
         self.setCurrentIndex(self._revmap[value])

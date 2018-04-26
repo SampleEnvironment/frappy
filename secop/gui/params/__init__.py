@@ -21,6 +21,8 @@
 #
 # *****************************************************************************
 
+from __future__ import print_function
+
 try:
     # py2
     unicode(u'')
@@ -32,6 +34,7 @@ from secop.gui.qt import QWidget, QLabel, QPushButton as QButton, QLineEdit, \
 
 from secop.gui.util import loadUi
 from secop.datatypes import EnumType
+from secop.lib import formatExtendedStack
 
 
 class ParameterWidget(QWidget):
@@ -94,15 +97,12 @@ class EnumParameterWidget(GenericParameterWidget):
         loadUi(self, 'parambuttons_select.ui')
 
         # transfer allowed settings from datatype to comboBoxes
-        self._map = {}  # maps index to enumstring
-        self._revmap = {}  # maps enumstring to index
-        index = 0
-        for enumval, enumname in sorted(self._datatype.entries.items()):
-            self.setComboBox.addItem(enumname, enumval)
-            self._map[index] = (enumval, enumname)
-            self._revmap[enumname] = index
-            self._revmap[enumval] = index
-            index += 1
+        self._map = {}  # maps index to EnumMember
+        self._revmap = {}  # maps Enum.name + Enum.value to index
+        for index, member in enumerate(self._datatype._enum.members):
+            self.setComboBox.addItem(member.name, member.value)
+            self._map[index] = member
+            self._revmap[member.name] = self._revmap[member.value] = index
         if self._readonly:
             self.setLabel.setEnabled(False)
             self.setComboBox.setEnabled(False)
@@ -115,19 +115,16 @@ class EnumParameterWidget(GenericParameterWidget):
 
     @pyqtSlot()
     def on_setPushButton_clicked(self):
-        _enumval, enumname = self._map[self.setComboBox.currentIndex()]
-        self.setRequested.emit(self._module, self._paramcmd, enumname)
+        member = self._map[self.setComboBox.currentIndex()]
+        self.setRequested.emit(self._module, self._paramcmd, member)
 
     def updateValue(self, value):
         try:
-            value = int(value)
-        except ValueError:
-            pass
-        if value in self._revmap:
-            index = self._revmap[value]
-            self.currentLineEdit.setText('(%d): %s' % self._map[index])
-        else:
+            member = self._map[self._revmap[int(value)]]
+            self.currentLineEdit.setText('%s.%s (%d)' % (member.enum.name, member.name, member.value))
+        except Exception:
             self.currentLineEdit.setText('undefined Value: %r' % value)
+            print(formatExtendedStack())
 
 
 class GenericCmdWidget(ParameterWidget):

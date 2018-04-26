@@ -211,12 +211,11 @@ class ReadableWidget(QWidget):
         if self._is_enum:
             self._map = {}  # maps QT-idx to name/value
             self._revmap = {}  # maps value/name to QT-idx
-            for idx, (val, name) in enumerate(
-                    sorted(datatype.entries.items())):
-                self._map[idx] = (name, val)
-                self._revmap[name] = idx
-                self._revmap[val] = idx
-                self.targetComboBox.addItem(name, val)
+            for idx, member in enumerate(datatype._enum.members):
+                self._map[idx] = member
+                self._revmap[member.name] = idx
+                self._revmap[member.value] = idx
+                self.targetComboBox.addItem(member.name, member.value)
 
         self._init_status_widgets()
         self._init_current_widgets()
@@ -298,7 +297,8 @@ class DrivableWidget(ReadableWidget):
 
     def update_current(self, value, qualifiers=None):
         if self._is_enum:
-            self.currentLineEdit.setText(self._map[self._revmap[value]][0])
+            member = self._map[self._revmap[value]]
+            self.currentLineEdit.setText('%s.%s (%d)' % (member.enum.name, member.name, member.value))
         else:
             self.currentLineEdit.setText(str(value))
 
@@ -333,5 +333,5 @@ class DrivableWidget(ReadableWidget):
         self.target_go(self.targetLineEdit.text())
 
     @pyqtSlot(unicode)
-    def on_targetComboBox_activated(self, stuff):
-        self.target_go(stuff)
+    def on_targetComboBox_activated(self, selection):
+        self.target_go(selection)

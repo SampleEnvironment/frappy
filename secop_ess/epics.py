@@ -24,7 +24,6 @@ from __future__ import absolute_import
 
 from secop.datatypes import EnumType, FloatRange, StringType
 from secop.modules import Readable, Drivable, Param
-from secop.protocol import status
 
 try:
     from pvaccess import Channel  # import EPIVSv4 functionallity, PV access
@@ -112,9 +111,9 @@ class EpicsReadable(Readable):
         # XXX: Hardware may have it's own idea about the status: how to obtain?
         if self.status_pv != 'unset':
             # XXX: how to map an unknown type+value to an valid status ???
-            return status.UNKNOWN, self._read_pv(self.status_pv)
+            return Drivable.Status.UNKNOWN, self._read_pv(self.status_pv)
         # status_pv is unset
-        return (status.OK, 'no pv set')
+        return (Drivable.Status.IDLE, 'no pv set')
 
 
 class EpicsDrivable(Drivable):
@@ -179,13 +178,11 @@ class EpicsDrivable(Drivable):
         # XXX: Hardware may have it's own idea about the status: how to obtain?
         if self.status_pv != 'unset':
             # XXX: how to map an unknown type+value to an valid status ???
-            return status.UNKNOWN, self._read_pv(self.status_pv)
+            return Drivable.Status.UNKNOWN, self._read_pv(self.status_pv)
         # status_pv is unset, derive status from equality of value + target
-        return (
-            status.OK,
-            '') if self.read_value() == self.read_target() else (
-            status.BUSY,
-            'Moving')
+        if self.read_value() == self.read_target():
+            return (Drivable.Status.OK, '')
+        return (Drivable.Status.BUSY, 'Moving')
 
 
 # """Temperature control loop"""
@@ -223,11 +220,9 @@ class EpicsTempCtrl(EpicsDrivable):
         # XXX: comparison may need to collect a history to detect oscillations
         at_target = abs(self.read_value(maxage) - self.read_target(maxage)) \
             <= self.tolerance
-        return (
-            status.OK,
-            'at Target') if at_target else (
-            status.BUSY,
-            'Moving')
+        if at_target:
+            return (Drivable.Status.OK, 'at Target')
+        return (Drivable.Status.BUSY, 'Moving')
 
     # TODO: add support for strings over epics pv
     # def read_heaterrange(self, maxage=0):

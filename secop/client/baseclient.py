@@ -41,8 +41,8 @@ except ImportError:
 
 import mlzlog
 
-from secop.datatypes import get_datatype
-from secop.lib import mkthread, formatException
+from secop.datatypes import get_datatype, EnumType
+from secop.lib import mkthread, formatException, formatExtendedStack
 from secop.lib.parsing import parse_time, format_time
 #from secop.protocol.encoding import ENCODERS
 #from secop.protocol.framing import FRAMERS
@@ -226,6 +226,7 @@ class Client(object):
             try:
                 self._inner_run()
             except Exception as err:
+                print(formatExtendedStack())
                 self.log.exception(err)
                 raise
 
@@ -383,6 +384,11 @@ class Client(object):
             for module, moduleData in self.describing_data['modules'].items():
                 for parameter, parameterData in moduleData['parameters'].items():
                     datatype = get_datatype(parameterData['datatype'])
+                    # *sigh* special handling for 'some' parameters....
+                    if isinstance(datatype, EnumType):
+                        datatype._enum.name = parameter
+                    if parameter == 'status':
+                        datatype.subtypes[0]._enum.name = 'status'
                     self.describing_data['modules'][module]['parameters'] \
                         [parameter]['datatype'] = datatype
                 for _cmdname, cmdData in moduleData['commands'].items():

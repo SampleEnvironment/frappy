@@ -52,10 +52,10 @@ except ImportError:
         return wrapper
 
 
-from secop.lib import formatExtendedStack, mkthread
+from secop.lib import formatExtendedStack, mkthread, unset_value
+from secop.lib.enum import Enum
 from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
-from secop.protocol import status
 from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange, get_datatype
 
 
@@ -81,12 +81,14 @@ class Param(object):
     def __init__(self,
                  description,
                  datatype=None,
-                 default=Ellipsis,
-                 unit=None,
+                 default=unset_value,
+                 unit='',
                  readonly=True,
                  export=True,
                  group='',
-                 poll=False):
+                 poll=False,
+                 value=unset_value,
+                 timestamp=0):
         if not isinstance(datatype, DataType):
             if issubclass(datatype, DataType):
                 # goodie: make an instance from a class (forgotten ()???)
@@ -115,15 +117,7 @@ class Param(object):
 
     def copy(self):
         # return a copy of ourselfs
-        return Param(description=self.description,
-                     datatype=self.datatype,
-                     default=self.default,
-                     unit=self.unit,
-                     readonly=self.readonly,
-                     export=self.export,
-                     group=self.group,
-                     poll=self.poll,
-                     )
+        return Param(**self.__dict__)
 
     def as_dict(self, static_only=False):
         # used for serialisation only
@@ -147,7 +141,10 @@ class Param(object):
 
 
 class Override(object):
+    """Stores the overrides to ba applied to a Param
 
+    note: overrides are applied by the metaclass during class creating
+    """
     def __init__(self, **kwds):
         self.kwds = kwds
 
@@ -167,9 +164,9 @@ class Override(object):
                 paramobj)
 
 
-# storage for Commands settings (description + call signature...)
 class Command(object):
-
+    """storage for Commands settings (description + call signature...)
+    """
     def __init__(self, description, arguments=None, result=None):
         # descriptive text for humans
         self.description = description
@@ -195,7 +192,14 @@ class Command(object):
 # warning: MAGIC!
 
 class ModuleMeta(type):
+    """Metaclass
 
+    joining the class's properties, parameters and commands dicts with
+    those of base classes.
+    also creates getters/setter for parameter access
+    and wraps read_*/write_* methods
+    (so the dispatcher will get notfied of changed values)
+    """
     def __new__(mcs, name, bases, attrs):
         newtype = type.__new__(mcs, name, bases, attrs)
         if '__constructed__' in attrs:
@@ -218,6 +222,11 @@ class ModuleMeta(type):
                 newparams[n] = o.apply(newparams[n].copy())
         for n, o in attrs.get('overrides', {}).items():
             newparams[n] = o.apply(newparams[n].copy())
+
+        # Check naming of EnumType
+        for k, v in newparams.items():
+            if isinstance(v.datatype, EnumType) and not v.datatype._enum.name:
+                v.datatype._enum.name = k
 
         # check validity of Param entries
         for pname, pobj in newtype.parameters.items():
@@ -284,7 +293,7 @@ class ModuleMeta(type):
                 pobj = self.parameters[pname]
                 value = pobj.datatype.validate(value)
                 pobj.timestamp = time.time()
-                if not EVENT_ONLY_ON_CHANGED_VALUES or (value != pobj.value):
+                if (not EVENT_ONLY_ON_CHANGED_VALUES) or (value != pobj.value):
                     pobj.value = value
                     # also send notification
                     if self.parameters[pname].export:
@@ -311,52 +320,61 @@ class ModuleMeta(type):
         return newtype
 
 
-# Basic module class
-#
-# within Modules, parameters should only be addressed as self.<pname>
-# i.e. self.value, self.target etc...
-# these are accesses to the cached version.
-# they can also be written to
-# (which auto-calls self.write_<pname> and generate an async update)
-# if you want to 'update from the hardware', call self.read_<pname>
-# the return value of this method will be used as the new cached value and
-# be returned.
 @add_metaclass(ModuleMeta)
 class Module(object):
-    """Basic Module, doesn't do much"""
+    """Basic Module
+
+    ALL secop Modules derive from this
+
+    note: within Modules, parameters should only be addressed as self.<pname>
+    i.e. self.value, self.target etc...
+    these are accessing the cached version.
+    they can also be written to (which auto-calls self.write_<pname> and
+    generate an async update)
+
+    if you want to 'update from the hardware', call self.read_<pname>() instead
+    the return value of this method will be used as the new cached value and
+    be an async update sent automatically.
+    """
     # static properties, definitions in derived classes should overwrite earlier ones.
-    # how to configure some stuff which makes sense to take from configfile???
+    # note: properties don't change after startup and are usually filled
+    #       with data from a cfg file...
+    # note: so far all properties are STRINGS
+    # note: only the properties defined here are allowed to be set in the cfg file
     properties = {
         'group': None,  # some Modules may be grouped together
+        'description': "Short description of this Module class and its functionality.",
+
         'meaning': None,  # XXX: ???
         'priority': None,  # XXX: ???
         'visibility': None,  # XXX: ????
-        'description': "The manufacturer forgot to set a meaningful description. please nag him!",
         # what else?
     }
-    # parameter and commands are auto-merged upon subclassing
-#    parameters = {
-#        'description': Param('short description of this module and its function', datatype=StringType(), default='no specified'),
-#    }
+    # properties, parameter and commands are auto-merged upon subclassing
+    parameters = {}
     commands = {}
+
+    # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
 
-    def __init__(self, logger, cfgdict, devname, dispatcher):
+    def __init__(self, logger, cfgdict, modname, dispatcher):
         # remember the dispatcher object (for the async callbacks)
         self.DISPATCHER = dispatcher
         self.log = logger
-        self.name = devname
-        # make local copies of parameter
+        self.name = modname
+        # make local copies of parameter objects
+        # they need to be individual per instance since we use them also
+        # to cache the current value + qualifiers...
         params = {}
         for k, v in list(self.parameters.items()):
             params[k] = v.copy()
-
+        # do not re-use self.parameters as this is the same for all instances
         self.parameters = params
+
         # make local copies of properties
         props = {}
         for k, v in list(self.properties.items()):
             props[k] = v
-
         self.properties = props
 
         # check and apply properties specified in cfgdict
@@ -365,21 +383,21 @@ class Module(object):
         for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if k[0] == '.':
                 if k[1:] in self.properties:
-                    self.properties[k[1:]] = v
-                    del cfgdict[k]
+                    self.properties[k[1:]] = cfgdict.pop(k)
+                else:
+                    raise ConfigError('Module %r has no property %r' %
+                                      (self.name, k[1:]))
+        # remove unset (default) module properties
+        for k, v in list(self.properties.items()):  # keep list() as dict may change during iter
+            if v is None:
+                del self.properties[k]
 
-        # derive automatic properties
+        # MAGIC: derive automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
         self.properties['_implementation'] = myclassname
         self.properties['interface_class'] = [
             b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
-        #self.properties['interface'] = self.properties['interfaces'][0]
-
-        # remove unset (default) module properties
-        for k, v in list(self.properties.items()):  # keep list() as dict may change during iter
-            if v is None:
-                del self.properties[k]
 
         # check and apply parameter_properties
         # specified as '<paramname>.<propertyname> = <propertyvalue>'
@@ -391,11 +409,10 @@ class Module(object):
                     if propname == 'datatype':
                         paramobj.datatype = get_datatype(cfgdict.pop(k))
                     elif hasattr(paramobj, propname):
-                        setattr(paramobj, propname, v)
-                        del cfgdict[k]
+                        setattr(paramobj, propname, cfgdict.pop(k))
 
         # check config for problems
-        # only accept config items specified in parameters
+        # only accept remaining config items specified in parameters
         for k, v in cfgdict.items():
             if k not in self.parameters:
                 raise ConfigError(
@@ -407,8 +424,8 @@ class Module(object):
         # is not specified in cfgdict
         for k, v in self.parameters.items():
             if k not in cfgdict:
-                if v.default is Ellipsis and k != 'value':
-                    # Ellipsis is the one single value you can not specify....
+                if v.default is unset_value and k != 'value':
+                    # unset_value is the one single value you can not specify....
                     raise ConfigError('Module %s: Parameter %r has no default '
                                       'value and was not given in config!' %
                                       (self.name, k))
@@ -416,7 +433,7 @@ class Module(object):
                 cfgdict[k] = v.default
 
             # replace CLASS level Param objects with INSTANCE level ones
-            self.parameters[k] = self.parameters[k].copy()
+            # self.parameters[k] = self.parameters[k].copy() # already done above...
 
         # now 'apply' config:
         # pass values through the datatypes and store as attributes
@@ -425,15 +442,15 @@ class Module(object):
                 continue
             # apply datatype, complain if type does not fit
             datatype = self.parameters[k].datatype
-            if datatype is not None:
-                # only check if datatype given
-                try:
-                    v = datatype.validate(v)
-                except (ValueError, TypeError):
-                    self.log.exception(formatExtendedStack())
-                    raise
+            try:
+                v = datatype.validate(v)
+            except (ValueError, TypeError):
+                self.log.exception(formatExtendedStack())
+                raise
 #                    raise ConfigError('Module %s: config parameter %r:\n%r' %
 #                                      (self.name, k, e))
+            # note: this will call write_* methods which will
+            # write to the hardware, if possible!
             setattr(self, k, v)
 
     def init(self):
@@ -450,23 +467,26 @@ class Readable(Module):
     """Basic readable Module
 
     providing the readonly parameter 'value' and 'status'
+
+    Also allow configurable polling per 'pollinterval' parameter.
     """
+    # pylint: disable=invalid-name
+    Status = Enum('Status',
+                  IDLE = 100,
+                  WARN = 200,
+                  UNSTABLE = 250,
+                  ERROR = 400,
+                  UNKNOWN = 900,
+                 )
     parameters = {
         'value': Param('current value of the Module', readonly=True, default=0.,
                        datatype=FloatRange(), unit='', poll=True),
         'pollinterval': Param('sleeptime between polls', default=5,
                               readonly=False, datatype=FloatRange(0.1, 120), ),
-        'status': Param('current status of the Module', default=(status.OK, ''),
-                        datatype=TupleOf(
-            EnumType(**{
-                'IDLE': status.OK,
-                'BUSY': status.BUSY,
-                'WARN': status.WARN,
-                'UNSTABLE': status.UNSTABLE,
-                'ERROR': status.ERROR,
-                'UNKNOWN': status.UNKNOWN
-            }), StringType()),
-            readonly=True, poll=True),
+        'status': Param('current status of the Module',
+                        default=(Status.IDLE, ''),
+                        datatype=TupleOf(EnumType(Status), StringType()),
+                        readonly=True, poll=True),
     }
 
     def init(self):
@@ -530,11 +550,16 @@ class Drivable(Writable):
     Also status gets extended with a BUSY state indicating a running action.
     """
 
+    Status = Enum(Readable.Status, BUSY=300)
+    overrides = {
+        'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
+    }
+
     # improved polling: may poll faster if module is BUSY
     def poll(self, nr=0):
         # poll status first
         stat = self.read_status(0)
-        fastpoll = stat[0] == status.BUSY
+        fastpoll = stat[0] == self.Status.BUSY
         for pname, pobj in self.parameters.items():
             if not pobj.poll:
                 continue

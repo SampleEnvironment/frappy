@@ -25,7 +25,6 @@ import time
 import random
 
 from secop.modules import Drivable, Command, Param
-from secop.protocol import status
 from secop.datatypes import FloatRange, EnumType, TupleOf
 from secop.lib import clamp, mkthread
 
@@ -100,7 +99,7 @@ class Cryostat(CryoBase):
                 group='pid',
                 ),
         mode=Param("mode of regulation",
-                   datatype=EnumType('ramp', 'pid', 'openloop'),
+                   datatype=EnumType('mode', ramp=None, pid=None, openloop=None),
                    default='ramp',
                    readonly=False,
                    ),
@@ -153,7 +152,7 @@ class Cryostat(CryoBase):
             return value
         self.target = value
         # next read_status will see this status, until the loop updates it
-        self.status = status.BUSY, 'new target set'
+        self.status = self.Status.BUSY, 'new target set'
         return value
 
     def read_maxpower(self, maxage=0):
@@ -209,13 +208,13 @@ class Cryostat(CryoBase):
     def thread(self):
         self.sampletemp = self.T_start
         self.regulationtemp = self.T_start
-        self.status = status.OK, ''
+        self.status = self.Status.IDLE, ''
         while not self._stopflag:
             try:
                 self.__sim()
             except Exception as e:
                 self.log.exception(e)
-                self.status = status.ERROR, str(e)
+                self.status = self.Status.ERROR, str(e)
 
     def __sim(self):
         # complex thread handling:
@@ -264,7 +263,7 @@ class Cryostat(CryoBase):
             # b) see
             # http://brettbeauregard.com/blog/2011/04/
             # improving-the-beginners-pid-introduction/
-            if self.mode != 'openloop':
+            if self.mode != self.mode.openloop:
                 # fix artefacts due to too big timesteps
                 # actually i would prefer reducing looptime, but i have no
                 # good idea on when to increase it back again
@@ -328,7 +327,7 @@ class Cryostat(CryoBase):
             lastmode = self.mode
             # c)
             if self.setpoint != self.target:
-                if self.ramp == 0:
+                if self.ramp == 0 or self.mode == self.mode.enum.pid:
                     maxdelta = 10000
                 else:
                     maxdelta = self.ramp / 60. * h
@@ -354,12 +353,12 @@ class Cryostat(CryoBase):
                 if abs(_T - self.target) > deviation:
                     deviation = abs(_T - self.target)
             if (len(window) < 3) or deviation > self.tolerance:
-                self.status = status.BUSY, 'unstable'
+                self.status = self.Status.BUSY, 'unstable'
             elif self.setpoint == self.target:
-                self.status = status.OK, 'at target'
+                self.status = self.Status.IDLE, 'at target'
                 damper -= (damper - 1) * 0.1  # max value for damper is 11
             else:
-                self.status = status.BUSY, 'ramping setpoint'
+                self.status = self.Status.BUSY, 'ramping setpoint'
             damper -= (damper - 1) * 0.05
             self.regulationtemp = round(regulation, 3)
             self.sampletemp = round(sample, 3)

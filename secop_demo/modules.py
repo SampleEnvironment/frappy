@@ -24,9 +24,9 @@ import time
 import random
 import threading
 
+from secop.lib.enum import Enum
 from secop.modules import Readable, Drivable, Param
 from secop.datatypes import EnumType, FloatRange, IntRange, ArrayOf, StringType, TupleOf, StructOf, BoolType
-from secop.protocol import status
 
 
 class Switch(Drivable):
@@ -50,9 +50,6 @@ class Switch(Drivable):
                                  ),
     }
 
-    def init(self):
-        self._started = 0
-
     def read_value(self, maxage=0):
         # could ask HW
         # we just return the value of the target here.
@@ -65,7 +62,7 @@ class Switch(Drivable):
 
     def write_target(self, value):
         # could tell HW
-        pass
+        setattr(self, 'status', (self.Status.BUSY, 'switching %s' % value.name.upper()))
         # note: setting self.target to the new value is done after this....
         # note: we may also return the read-back value from the hw here
 
@@ -73,8 +70,8 @@ class Switch(Drivable):
         self.log.info("read status")
         info = self._update()
         if self.target == self.value:
-            return status.OK, ''
-        return status.BUSY, info
+            return self.Status.IDLE, ''
+        return self.Status.BUSY, info
 
     def _update(self):
         started = self.parameters['target'].timestamp
@@ -90,7 +87,7 @@ class Switch(Drivable):
                 info = 'is switched OFF'
                 self.value = self.target
         if info:
-            self.log.debug(info)
+            self.log.info(info)
         return info
 
 
@@ -119,7 +116,7 @@ class MagneticField(Drivable):
     }
 
     def init(self):
-        self._state = 'idle'
+        self._state = Enum('state', idle=1, switch_on=2, switch_off=3, ramp=4).idle
         self._heatswitch = self.DISPATCHER.get_module(self.heatswitch)
         _thread = threading.Thread(target=self._thread)
         _thread.daemon = True
@@ -135,44 +132,45 @@ class MagneticField(Drivable):
         # note: we may also return the read-back value from the hw here
 
     def read_status(self, maxage=0):
-        return (status.OK, '') if self._state == 'idle' else (status.BUSY,
-                                                              self._state)
+        if self._state == self._state.enum.idle:
+            return (self.Status.IDLE, '')
+        return (self.Status.BUSY, self._state.name)
 
     def _thread(self):
         loopdelay = 1
         while True:
             ts = time.time()
-            if self._state == 'idle':
+            if self._state == self._state.enum.idle:
                 if self.target != self.value:
                     self.log.debug('got new target -> switching heater on')
-                    self._state = 'switch_on'
+                    self._state = self._state.enum.switch_on
                     self._heatswitch.write_target('on')
-            if self._state == 'switch_on':
+            if self._state == self._state.enum.switch_on:
                 # wait until switch is on
                 if self._heatswitch.read_value() == 'on':
                     self.log.debug('heatswitch is on -> ramp to %.3f' %
                                    self.target)
-                    self._state = 'ramp'
-            if self._state == 'ramp':
+                    self._state = self._state.enum.ramp
+            if self._state == self._state.enum.ramp:
                 if self.target == self.value:
                     self.log.debug('at field! mode is %r' % self.mode)
                     if self.mode:
                         self.log.debug('at field -> switching heater off')
-                        self._state = 'switch_off'
+                        self._state = self._state.enum.switch_off
                         self._heatswitch.write_target('off')
                     else:
                         self.log.debug('at field -> hold')
-                        self._state = 'idle'
-                        self.status = self.read_status()  # push async
+                        self._state = self._state.enum.idle
+                        self.read_status()  # push async
                 else:
                     step = self.ramp * loopdelay / 60.
                     step = max(min(self.target - self.value, step), -step)
                     self.value += step
-            if self._state == 'switch_off':
+            if self._state == self._state.enum.switch_off:
                 # wait until switch is off
                 if self._heatswitch.read_value() == 'off':
                     self.log.debug('heatswitch is off at %.3f' % self.value)
-                    self._state = 'idle'
+                    self._state = self._state.enum.idle
             self.read_status()  # update async
             time.sleep(max(0.01, ts + loopdelay - time.time()))
         self.log.error(self, 'main thread exited unexpectedly!')
@@ -229,10 +227,10 @@ class SampleTemp(Drivable):
         while True:
             ts = time.time()
             if self.value == self.target:
-                if self.status != status.OK:
-                    self.status = status.OK, ''
+                if self.status[0] != self.Status.IDLE:
+                    self.status = self.Status.IDLE, ''
             else:
-                self.status = status.BUSY, 'ramping'
+                self.status = self.Status.BUSY, 'ramping'
                 step = self.ramp * loopdelay / 60.
                 step = max(min(self.target - self.value, step), -step)
                 self.value += step
@@ -278,7 +276,7 @@ class Label(Readable):
             mf_mode = dev_mf.mode
             mf_val = dev_mf.value
             mf_unit = dev_mf.parameters['value'].unit
-            if mf_stat[0] == status.OK:
+            if mf_stat[0] == self.Status.IDLE:
                 state = 'Persistent' if mf_mode else 'Non-persistent'
             else:
                 state = mf_stat[1] or 'ramping'
@@ -293,21 +291,24 @@ class DatatypesTest(Readable):
     """for demoing all datatypes
     """
     parameters = {
-        'enum': Param(
-            'enum', datatype=EnumType(
-                'boo', 'faar', z=9), readonly=False, default=1), 'tupleof': Param(
-            'tuple of int, float and str', datatype=TupleOf(
-                IntRange(), FloatRange(), StringType()), readonly=False, default=(
-                1, 2.3, 'a')), 'arrayof': Param(
-            'array: 2..3 times bool', datatype=ArrayOf(
-                BoolType(), 2, 3), readonly=False, default=[
-                1, 0, 1]), 'intrange': Param(
-            'intrange', datatype=IntRange(
-                2, 9), readonly=False, default=4), 'floatrange': Param(
-            'floatrange', datatype=FloatRange(
-                -1, 1), readonly=False, default=0, ), 'struct': Param(
-            'struct(a=str, b=int, c=bool)', datatype=StructOf(
-                a=StringType(), b=IntRange(), c=BoolType()), ), }
+        'enum':       Param('enum', datatype=EnumType(boo=None, faar=None, z=9),
+                            readonly=False, default=1),
+        'tupleof':    Param('tuple of int, float and str',
+                            datatype=TupleOf(IntRange(), FloatRange(),
+                                             StringType()),
+                            readonly=False, default=(1, 2.3, 'a')),
+        'arrayof':    Param('array: 2..3 times bool',
+                            datatype=ArrayOf(BoolType(), 2, 3),
+                            readonly=False, default=[1, 0, 1]),
+        'intrange':   Param('intrange', datatype=IntRange(2, 9),
+                            readonly=False, default=4),
+        'floatrange': Param('floatrange', datatype=FloatRange(-1, 1),
+                            readonly=False, default=0, ),
+        'struct':     Param('struct(a=str, b=int, c=bool)',
+                            datatype=StructOf(a=StringType(), b=IntRange(),
+                                              c=BoolType()),
+                           ),
+    }
 
 
 class ArrayTest(Readable):
