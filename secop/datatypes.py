@@ -570,6 +570,30 @@ class Command(DataType):
         return self.validate(value)
 
 
+# Goodie: Convenience Datatypes
+class LimitsType(StructOf):
+    def __init__(self, _min=None, _max=None):
+        StructOf.__init__(self, min=FloatRange(_min,_max), max=FloatRange(_min, _max))
+
+    def validate(self, value):
+        limits = StructOf.validate(self, value)
+        if limits.max < limits.min:
+            raise ValueError(u'Maximum Value %s must be greater than minimum value %s!' % (limits['max'], limits['min']))
+        return limits
+
+
+class Status(TupleOf):
+    # shorten initialisation and allow acces to status enumMembers from status values
+    def __init__(self, enum):
+        TupleOf.__init__(self, EnumType(enum), StringType(255))
+        self.enum = enum
+    def __getattr__(self, key):
+        enum = TupleOf.__getattr__(self, 'enum')
+        if hasattr(enum, key):
+            return getattr(enum, key)
+        return TupleOf.__getattr__(self, key)
+
+
 # XXX: derive from above classes automagically!
 DATATYPES = dict(
     bool=BoolType,
