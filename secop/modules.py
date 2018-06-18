@@ -367,7 +367,10 @@ class Module(object):
         # to cache the current value + qualifiers...
         params = {}
         for k, v in list(self.parameters.items()):
-            params[k] = v.copy()
+            entry = v.copy()
+            if '$' in entry.unit:
+                entry.unit = entry.unit.replace('$', self.parameters['value'].unit)
+            params[k] = entry
         # do not re-use self.parameters as this is the same for all instances
         self.parameters = params
 
