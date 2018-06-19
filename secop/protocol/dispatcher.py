@@ -150,14 +150,14 @@ class Dispatcher(object):
         # return a copy of our list
         return self._export[:]
 
-    def list_module_params(self, modulename, only_static=False):
+    def list_module_params(self, modulename):
         self.log.debug(u'list_module_params(%r)' % modulename)
         if modulename in self._export:
             # omit export=False params!
             res = {}
             for paramname, param in list(self.get_module(modulename).parameters.items()):
                 if param.export:
-                    res[paramname] = param.as_dict(only_static)
+                    res[paramname] = param.as_dict()
             self.log.debug(u'list params for module %s -> %r' %
                            (modulename, res))
             return res
@@ -186,7 +186,7 @@ class Dispatcher(object):
             # some of these need rework !
             mod_desc = {u'parameters': [], u'commands': []}
             for pname, param in list(self.list_module_params(
-                    modulename, only_static=True).items()):
+                    modulename).items()):
                 mod_desc[u'parameters'].extend([pname, param])
             for cname, cmd in list(self.list_module_cmds(modulename).items()):
                 mod_desc[u'commands'].extend([cname, cmd])

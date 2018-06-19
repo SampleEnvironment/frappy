@@ -54,7 +54,6 @@ except ImportError:
 
 from secop.lib import formatExtendedStack, mkthread, unset_value
 from secop.lib.enum import Enum
-from secop.lib.parsing import format_time
 from secop.errors import ConfigError, ProgrammingError
 from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange, get_datatype
 
@@ -119,7 +118,7 @@ class Param(object):
         # return a copy of ourselfs
         return Param(**self.__dict__)
 
-    def as_dict(self, static_only=False):
+    def as_dict(self):
         # used for serialisation only
         res = dict(
             description=self.description,
@@ -130,10 +129,6 @@ class Param(object):
             res['unit'] = self.unit
         if self.group:
             res['group'] = self.group
-        if not static_only:
-            res['value'] = self.value
-            if self.timestamp:
-                res['timestamp'] = format_time(self.timestamp)
         return res
 
     def export_value(self):
