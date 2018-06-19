@@ -59,7 +59,15 @@ from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange,
 EVENT_ONLY_ON_CHANGED_VALUES = False
 
 
-class Parameter(object):
+class CountedObj(object):
+    ctr = [0]
+    def __init__(self):
+        cl = self.__class__.ctr
+        cl[0] += 1
+        self.ctr = cl[0]
+
+
+class Parameter(CountedObj):
     """storage for Parameter settings + value + qualifiers
 
     if readonly is False, the value can be changed (by code, or remote)
@@ -88,6 +96,7 @@ class Parameter(object):
                  timestamp=0,
                  optional=False,
                  ctr=None):
+        super(Parameter, self).__init__()
         if not isinstance(datatype, DataType):
             if issubclass(datatype, DataType):
                 # goodie: make an instance from a class (forgotten ()???)
@@ -112,7 +121,7 @@ class Parameter(object):
         self.timestamp = 0
 
     def __repr__(self):
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(
+        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
     def copy(self):
@@ -136,13 +145,15 @@ class Parameter(object):
         return self.datatype.export_value(self.value)
 
 
-class Override(object):
+class Override(CountedObj):
     """Stores the overrides to ba applied to a Parameter
 
     note: overrides are applied by the metaclass during class creating
     """
     def __init__(self, **kwds):
+        super(Override, self).__init__()
         self.kwds = kwds
+        self.kwds['ctr'] = self.ctr
 
     def apply(self, paramobj):
         if isinstance(paramobj, Parameter):
@@ -160,10 +171,11 @@ class Override(object):
                 paramobj)
 
 
-class Command(object):
+class Command(CountedObj):
     """storage for Commands settings (description + call signature...)
     """
     def __init__(self, description, arguments=None, result=None, optional=False):
+        super(Command, self).__init__()
         # descriptive text for humans
         self.description = description
         # list of datatypes for arguments
@@ -174,7 +186,7 @@ class Command(object):
         self.optional = optional
 
     def __repr__(self):
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(
+        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
     def for_export(self):
