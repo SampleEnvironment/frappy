@@ -22,7 +22,7 @@
 
 import random
 
-from secop.modules import Readable, Drivable, Communicator, Param
+from secop.modules import Readable, Drivable, Communicator, Parameter
 from secop.datatypes import FloatRange, StringType
 
 
@@ -44,7 +44,7 @@ class Heater(Drivable):
     but the implementation may do anything
     """
     parameters = {
-        'maxheaterpower': Param('maximum allowed heater power',
+        'maxheaterpower': Parameter('maximum allowed heater power',
                                 datatype=FloatRange(0, 100), unit='W',
                                 ),
     }
@@ -63,14 +63,14 @@ class Temp(Drivable):
     but the implementation may do anything
     """
     parameters = {
-        'sensor': Param(
+        'sensor': Parameter(
             "Sensor number or calibration id",
             datatype=StringType(
                 8,
                 16),
             readonly=True,
         ),
-        'target': Param(
+        'target': Parameter(
             "Target temperature",
             default=300.0,
             datatype=FloatRange(0),

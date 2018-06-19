@@ -24,7 +24,7 @@
 import random
 from time import sleep
 
-from secop.modules import Module, Readable, Writable, Drivable, Param
+from secop.modules import Module, Readable, Writable, Drivable, Parameter
 from secop.lib import mkthread
 from secop.datatypes import FloatRange
 
@@ -42,7 +42,7 @@ class SimBase(object):
             self.parameters = dict((k, v.copy()) for k, v in self.parameters.items())
             for k in extra_params.split(','):
                 k = k.strip()
-                self.parameters[k] = Param('extra_param: %s' % k.strip(),
+                self.parameters[k] = Parameter('extra_param: %s' % k.strip(),
                                        datatype=FloatRange(),
                                        default=0.0)
                 def reader(maxage=0, pname=k):

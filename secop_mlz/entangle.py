@@ -41,7 +41,7 @@ from secop.datatypes import IntRange, FloatRange, StringType, TupleOf, \
     ArrayOf, EnumType
 from secop.errors import ConfigError, ProgrammingError, CommunicationError, \
     HardwareError
-from secop.modules import Param, Command, Override, Module, Readable, Drivable
+from secop.modules import Parameter, Command, Override, Module, Readable, Drivable
 
 #####
 
@@ -159,14 +159,14 @@ class PyTangoDevice(Module):
     """
 
     parameters = {
-        'comtries': Param('Maximum retries for communication',
+        'comtries': Parameter('Maximum retries for communication',
                           datatype=IntRange(1, 100), default=3, readonly=False,
                           group='communication'),
-        'comdelay': Param('Delay between retries', datatype=FloatRange(0),
+        'comdelay': Parameter('Delay between retries', datatype=FloatRange(0),
                           unit='s', default=0.1, readonly=False,
                           group='communication'),
 
-        'tangodevice': Param('Tango device name',
+        'tangodevice': Parameter('Tango device name',
                              datatype=StringType(), readonly=True,
                              # export=True,   # for testing only
                              export=False,
@@ -426,25 +426,25 @@ class AnalogOutput(PyTangoDevice, Drivable):
     """
 
     parameters = {
-        'userlimits': Param('User defined limits of device value',
+        'userlimits': Parameter('User defined limits of device value',
                             datatype=TupleOf(FloatRange(), FloatRange()),
                             default=(float('-Inf'), float('+Inf')),
                             unit='main', readonly=False, poll=10,
                             ),
-        'abslimits': Param('Absolute limits of device value',
+        'abslimits': Parameter('Absolute limits of device value',
                            datatype=TupleOf(FloatRange(), FloatRange()),
                            unit='main',
                            ),
-        'precision': Param('Precision of the device value (allowed deviation '
+        'precision': Parameter('Precision of the device value (allowed deviation '
                            'of stable values from target)',
                            unit='main', datatype=FloatRange(1e-38),
                            readonly=False, group='stability',
                            ),
-        'window': Param('Time window for checking stabilization if > 0',
+        'window': Parameter('Time window for checking stabilization if > 0',
                         unit='s', default=60.0, readonly=False,
                         datatype=FloatRange(0, 900), group='stability',
                         ),
-        'timeout': Param('Timeout for waiting for a stable value (if > 0)',
+        'timeout': Parameter('Timeout for waiting for a stable value (if > 0)',
                          unit='s', default=60.0, readonly=False,
                          datatype=FloatRange(0, 900), group='stability',
                          ),
@@ -599,10 +599,10 @@ class Actuator(AnalogOutput):
     # for secop: support the speed and ramp parameters
 
     parameters = {
-        'speed': Param('The speed of changing the value',
+        'speed': Parameter('The speed of changing the value',
                        unit='main/s', readonly=False, datatype=FloatRange(0),
                        ),
-        'ramp': Param('The speed of changing the value',
+        'ramp': Parameter('The speed of changing the value',
                       unit='main/min', readonly=False, datatype=FloatRange(0),
                       poll=30,
                       ),
@@ -639,13 +639,13 @@ class Motor(Actuator):
     """
 
     parameters = {
-        'refpos': Param('Reference position',
+        'refpos': Parameter('Reference position',
                         datatype=FloatRange(), unit='main',
                         ),
-        'accel': Param('Acceleration',
+        'accel': Parameter('Acceleration',
                        datatype=FloatRange(), readonly=False, unit='main/s^2',
                        ),
-        'decel': Param('Deceleration',
+        'decel': Parameter('Deceleration',
                        datatype=FloatRange(), readonly=False, unit='main/s^2',
                        ),
     }
@@ -679,24 +679,24 @@ class TemperatureController(Actuator):
     """
 
     parameters = {
-        'p': Param('Proportional control Parameter', datatype=FloatRange(),
+        'p': Parameter('Proportional control Parameter', datatype=FloatRange(),
                    readonly=False, group='pid',
                    ),
-        'i': Param('Integral control Parameter', datatype=FloatRange(),
+        'i': Parameter('Integral control Parameter', datatype=FloatRange(),
                    readonly=False, group='pid',
                    ),
-        'd': Param('Derivative control Parameter', datatype=FloatRange(),
+        'd': Parameter('Derivative control Parameter', datatype=FloatRange(),
                    readonly=False, group='pid',
                    ),
-        'pid': Param('pid control Parameters',
+        'pid': Parameter('pid control Parameters',
                      datatype=TupleOf(FloatRange(), FloatRange(), FloatRange()),
                      readonly=False, group='pid', poll=30,
                      ),
-        'setpoint': Param('Current setpoint', datatype=FloatRange(), poll=1,
+        'setpoint': Parameter('Current setpoint', datatype=FloatRange(), poll=1,
                           ),
-        'heateroutput': Param('Heater output', datatype=FloatRange(), poll=1,
+        'heateroutput': Parameter('Heater output', datatype=FloatRange(), poll=1,
                               ),
-        'ramp': Param('Temperature ramp', unit='main/min',
+        'ramp': Parameter('Temperature ramp', unit='main/min',
                       datatype=FloatRange(), readonly=False, poll=30),
     }
 
@@ -754,11 +754,11 @@ class PowerSupply(Actuator):
     """
 
     parameters = {
-        'ramp': Param('Current/voltage ramp', unit='main/min',
+        'ramp': Parameter('Current/voltage ramp', unit='main/min',
                       datatype=FloatRange(), readonly=False, poll=30,),
-        'voltage': Param('Actual voltage', unit='V',
+        'voltage': Parameter('Actual voltage', unit='V',
                          datatype=FloatRange(), poll=-5),
-        'current': Param('Actual current', unit='A',
+        'current': Parameter('Actual current', unit='A',
                          datatype=FloatRange(), poll=-5),
     }
 
@@ -792,7 +792,7 @@ class NamedDigitalInput(DigitalInput):
     """
 
     parameters = {
-        'mapping': Param('A dictionary mapping state names to integers',
+        'mapping': Parameter('A dictionary mapping state names to integers',
                          datatype=StringType(), export=False),  # XXX:!!!
     }
 
@@ -815,9 +815,9 @@ class PartialDigitalInput(NamedDigitalInput):
     """
 
     parameters = {
-        'startbit': Param('Number of the first bit',
+        'startbit': Parameter('Number of the first bit',
                           datatype=IntRange(0), default=0),
-        'bitwidth': Param('Number of bits',
+        'bitwidth': Parameter('Number of bits',
                           datatype=IntRange(0), default=1),
     }
 
@@ -859,7 +859,7 @@ class NamedDigitalOutput(DigitalOutput):
     """
 
     parameters = {
-        'mapping': Param('A dictionary mapping state names to integers',
+        'mapping': Parameter('A dictionary mapping state names to integers',
                          datatype=StringType(), export=False),
     }
 
@@ -885,9 +885,9 @@ class PartialDigitalOutput(NamedDigitalOutput):
     """
 
     parameters = {
-        'startbit': Param('Number of the first bit',
+        'startbit': Parameter('Number of the first bit',
                           datatype=IntRange(0), default=0),
-        'bitwidth': Param('Number of bits',
+        'bitwidth': Parameter('Number of bits',
                           datatype=IntRange(0), default=1),
     }
 
@@ -916,13 +916,13 @@ class StringIO(PyTangoDevice, Module):
     """
 
     parameters = {
-        'bustimeout': Param('Communication timeout',
+        'bustimeout': Parameter('Communication timeout',
                             datatype=FloatRange(), readonly=False,
                             unit='s', group='communication'),
-        'endofline': Param('End of line',
+        'endofline': Parameter('End of line',
                            datatype=StringType(), readonly=False,
                            group='communication'),
-        'startofline': Param('Start of line',
+        'startofline': Parameter('Start of line',
                              datatype=StringType(), readonly=False,
                              group='communication'),
     }

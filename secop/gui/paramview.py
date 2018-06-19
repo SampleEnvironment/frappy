@@ -45,11 +45,11 @@ class ParameterView(QWidget):
         self._propWidgets = {}  # widget cache do avoid garbage collection
 
         self.paramNameLabel.setText("%s:%s" % (module, parameter))
-        self._initParamWidgets()
+        self._initParameterWidgets()
 
         # self._node.newData.connect(self._updateValue)
 
-    def _initParamWidgets(self):
+    def _initParameterWidgets(self):
         # initValues = self._node.queryCache(self._module) #? mix live data?
         row = 0
 

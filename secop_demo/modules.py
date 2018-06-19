@@ -25,7 +25,7 @@ import random
 import threading
 
 from secop.lib.enum import Enum
-from secop.modules import Readable, Drivable, Param
+from secop.modules import Readable, Drivable, Parameter
 from secop.datatypes import EnumType, FloatRange, IntRange, ArrayOf, StringType, TupleOf, StructOf, BoolType
 
 
@@ -33,18 +33,18 @@ class Switch(Drivable):
     """switch it on or off....
     """
     parameters = {
-        'value': Param('current state (on or off)',
+        'value': Parameter('current state (on or off)',
                        datatype=EnumType(on=1, off=0), default=0,
                        ),
-        'target': Param('wanted state (on or off)',
+        'target': Parameter('wanted state (on or off)',
                         datatype=EnumType(on=1, off=0), default=0,
                         readonly=False,
                         ),
-        'switch_on_time': Param('seconds to wait after activating the switch',
+        'switch_on_time': Parameter('seconds to wait after activating the switch',
                                 datatype=FloatRange(0, 60), unit='s',
                                 default=10, export=False,
                                 ),
-        'switch_off_time': Param('cool-down time in seconds',
+        'switch_off_time': Parameter('cool-down time in seconds',
                                  datatype=FloatRange(0, 60), unit='s',
                                  default=10, export=False,
                                  ),
@@ -95,22 +95,22 @@ class MagneticField(Drivable):
     """a liquid magnet
     """
     parameters = {
-        'value': Param('current field in T',
+        'value': Parameter('current field in T',
                        unit='T', datatype=FloatRange(-15, 15), default=0,
                        ),
-        'target': Param('target field in T',
+        'target': Parameter('target field in T',
                         unit='T', datatype=FloatRange(-15, 15), default=0,
                         readonly=False,
                         ),
-        'ramp': Param('ramping speed',
+        'ramp': Parameter('ramping speed',
                       unit='T/min', datatype=FloatRange(0, 1), default=0.1,
                       readonly=False,
                       ),
-        'mode': Param('what to do after changing field',
+        'mode': Parameter('what to do after changing field',
                       default=1, datatype=EnumType(persistent=1, hold=0),
                       readonly=False,
                       ),
-        'heatswitch': Param('name of heat switch device',
+        'heatswitch': Parameter('name of heat switch device',
                             datatype=StringType(), export=False,
                             ),
     }
@@ -183,10 +183,10 @@ class CoilTemp(Readable):
     """a coil temperature
     """
     parameters = {
-        'value': Param('Coil temperatur',
+        'value': Parameter('Coil temperatur',
                        unit='K', datatype=FloatRange(), default=0,
                        ),
-        'sensor': Param("Sensor number or calibration id",
+        'sensor': Parameter("Sensor number or calibration id",
                         datatype=StringType(), readonly=True,
                         ),
     }
@@ -199,13 +199,13 @@ class SampleTemp(Drivable):
     """a sample temperature
     """
     parameters = {
-        'value': Param('Sample temperature',
+        'value': Parameter('Sample temperature',
                        unit='K', datatype=FloatRange(), default=10,
                        ),
-        'sensor': Param("Sensor number or calibration id",
+        'sensor': Parameter("Sensor number or calibration id",
                         datatype=StringType(), readonly=True,
                         ),
-        'ramp': Param('moving speed in K/min',
+        'ramp': Parameter('moving speed in K/min',
                       datatype=FloatRange(0, 100), unit='K/min', default=0.1,
                       readonly=False,
                       ),
@@ -246,16 +246,16 @@ class Label(Readable):
        modules.
     """
     parameters = {
-        'system': Param("Name of the magnet system",
+        'system': Parameter("Name of the magnet system",
                         datatype=StringType, export=False,
                         ),
-        'subdev_mf': Param("name of subdevice for magnet status",
+        'subdev_mf': Parameter("name of subdevice for magnet status",
                            datatype=StringType, export=False,
                            ),
-        'subdev_ts': Param("name of subdevice for sample temp",
+        'subdev_ts': Parameter("name of subdevice for sample temp",
                            datatype=StringType, export=False,
                            ),
-        'value': Param("final value of label string",
+        'value': Parameter("final value of label string",
                        datatype=StringType,
                        ),
     }
@@ -291,20 +291,20 @@ class DatatypesTest(Readable):
     """for demoing all datatypes
     """
     parameters = {
-        'enum':       Param('enum', datatype=EnumType(boo=None, faar=None, z=9),
+        'enum':       Parameter('enum', datatype=EnumType(boo=None, faar=None, z=9),
                             readonly=False, default=1),
-        'tupleof':    Param('tuple of int, float and str',
+        'tupleof':    Parameter('tuple of int, float and str',
                             datatype=TupleOf(IntRange(), FloatRange(),
                                              StringType()),
                             readonly=False, default=(1, 2.3, 'a')),
-        'arrayof':    Param('array: 2..3 times bool',
+        'arrayof':    Parameter('array: 2..3 times bool',
                             datatype=ArrayOf(BoolType(), 2, 3),
                             readonly=False, default=[1, 0, 1]),
-        'intrange':   Param('intrange', datatype=IntRange(2, 9),
+        'intrange':   Parameter('intrange', datatype=IntRange(2, 9),
                             readonly=False, default=4),
-        'floatrange': Param('floatrange', datatype=FloatRange(-1, 1),
+        'floatrange': Parameter('floatrange', datatype=FloatRange(-1, 1),
                             readonly=False, default=0, ),
-        'struct':     Param('struct(a=str, b=int, c=bool)',
+        'struct':     Parameter('struct(a=str, b=int, c=bool)',
                             datatype=StructOf(a=StringType(), b=IntRange(),
                                               c=BoolType()),
                            ),
@@ -313,6 +313,6 @@ class DatatypesTest(Readable):
 
 class ArrayTest(Readable):
     parameters = {
-        "x": Param('value', datatype=ArrayOf(FloatRange(), 100000, 100000),
+        "x": Parameter('value', datatype=ArrayOf(FloatRange(), 100000, 100000),
                         default = 100000 * [0]),
     }

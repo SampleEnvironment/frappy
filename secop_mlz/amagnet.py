@@ -30,7 +30,7 @@ import math
 from secop.lib.sequence import SequencerMixin, Step
 from secop.datatypes import StringType, TupleOf, FloatRange, ArrayOf, StructOf
 from secop.errors import DisabledError, ConfigError
-from secop.modules import Param, Drivable
+from secop.modules import Parameter, Drivable
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):
@@ -47,30 +47,30 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     """
 
     parameters = {
-        'subdev_currentsource': Param('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False),
-        'subdev_enable': Param('Switch to set for on/off', datatype=StringType(), readonly=True, export=False),
-        'subdev_polswitch': Param('Switch to set for polarity', datatype=StringType(), readonly=True, export=False),
-        'subdev_symmetry': Param('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False),
-        'userlimits': Param('User defined limits of device value',
+        'subdev_currentsource': Parameter('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False),
+        'subdev_enable': Parameter('Switch to set for on/off', datatype=StringType(), readonly=True, export=False),
+        'subdev_polswitch': Parameter('Switch to set for polarity', datatype=StringType(), readonly=True, export=False),
+        'subdev_symmetry': Parameter('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False),
+        'userlimits': Parameter('User defined limits of device value',
                             unit='main', datatype=TupleOf(FloatRange(), FloatRange()),
                             default=(float('-Inf'), float('+Inf')), readonly=False, poll=10),
-        'abslimits': Param('Absolute limits of device value',
+        'abslimits': Parameter('Absolute limits of device value',
                            unit='main', datatype=TupleOf(FloatRange(), FloatRange()),
                            default=(-0.5, 0.5), poll=True,
                            ),
-        'precision': Param('Precision of the device value (allowed deviation '
+        'precision': Parameter('Precision of the device value (allowed deviation '
                            'of stable values from target)',
                            unit='main', datatype=FloatRange(0.001), default=0.001, readonly=False,
                            ),
-        'ramp': Param('Target rate of field change per minute', readonly=False,
+        'ramp': Parameter('Target rate of field change per minute', readonly=False,
                       unit='main/min', datatype=FloatRange(), default=1.0),
-        'calibration': Param('Coefficients for calibration '
+        'calibration': Parameter('Coefficients for calibration '
                              'function: [c0, c1, c2, c3, c4] calculates '
                              'B(I) = c0*I + c1*erf(c2*I) + c3*atan(c4*I)'
                              ' in T', poll=1,
                              datatype=ArrayOf(FloatRange(), 5, 5),
                              default=(1.0, 0.0, 0.0, 0.0, 0.0)),
-        'calibrationtable': Param('Map of Coefficients for calibration per symmetry setting',
+        'calibrationtable': Parameter('Map of Coefficients for calibration per symmetry setting',
                                   datatype=StructOf(symmetric=ArrayOf(FloatRange(), 5, 5),
                                                     short=ArrayOf(
                                                         FloatRange(), 5, 5),

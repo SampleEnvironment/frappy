@@ -59,7 +59,7 @@ from secop.datatypes import DataType, EnumType, TupleOf, StringType, FloatRange,
 EVENT_ONLY_ON_CHANGED_VALUES = False
 
 
-class Param(object):
+class Parameter(object):
     """storage for Parameter settings + value + qualifiers
 
     if readonly is False, the value can be changed (by code, or remote)
@@ -85,7 +85,9 @@ class Param(object):
                  group='',
                  poll=False,
                  value=unset_value,
-                 timestamp=0):
+                 timestamp=0,
+                 optional=False,
+                 ctr=None):
         if not isinstance(datatype, DataType):
             if issubclass(datatype, DataType):
                 # goodie: make an instance from a class (forgotten ()???)
@@ -100,6 +102,7 @@ class Param(object):
         self.readonly = readonly
         self.export = export
         self.group = group
+        self.optional = optional
 
         # note: auto-converts True/False to 1/0 which yield the expected
         # behaviour...
@@ -114,7 +117,7 @@ class Param(object):
 
     def copy(self):
         # return a copy of ourselfs
-        return Param(**self.__dict__)
+        return Parameter(**self.__dict__)
 
     def for_export(self):
         # used for serialisation only
@@ -134,7 +137,7 @@ class Param(object):
 
 
 class Override(object):
-    """Stores the overrides to ba applied to a Param
+    """Stores the overrides to ba applied to a Parameter
 
     note: overrides are applied by the metaclass during class creating
     """
@@ -142,7 +145,7 @@ class Override(object):
         self.kwds = kwds
 
     def apply(self, paramobj):
-        if isinstance(paramobj, Param):
+        if isinstance(paramobj, Parameter):
             for k, v in self.kwds.items():
                 if hasattr(paramobj, k):
                     setattr(paramobj, k, v)
@@ -153,20 +156,22 @@ class Override(object):
                         (k, v, paramobj))
         else:
             raise ProgrammingError(
-                "Overrides can only be applied to Param's, %r is none!" %
+                "Overrides can only be applied to Parameter's, %r is none!" %
                 paramobj)
 
 
 class Command(object):
     """storage for Commands settings (description + call signature...)
     """
-    def __init__(self, description, arguments=None, result=None):
+    def __init__(self, description, arguments=None, result=None, optional=False):
         # descriptive text for humans
         self.description = description
         # list of datatypes for arguments
         self.arguments = arguments or []
         # datatype for result
         self.resulttype = result
+        # whether implementation is optional
+        self.optional = optional
 
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(
@@ -198,7 +203,7 @@ class ModuleMeta(type):
         if '__constructed__' in attrs:
             return newtype
 
-        # merge properties, Param and commands from all sub-classes
+        # merge properties, Parameter and commands from all sub-classes
         for entry in ['properties', 'parameters', 'commands']:
             newentry = {}
             for base in reversed(bases):
@@ -221,12 +226,12 @@ class ModuleMeta(type):
             if isinstance(v.datatype, EnumType) and not v.datatype._enum.name:
                 v.datatype._enum.name = k
 
-        # check validity of Param entries
+        # check validity of Parameter entries
         for pname, pobj in newtype.parameters.items():
             # XXX: allow dicts for overriding certain aspects only.
-            if not isinstance(pobj, Param):
-                raise ProgrammingError('%r: Params entry %r should be a '
-                                       'Param object!' % (name, pname))
+            if not isinstance(pobj, Parameter):
+                raise ProgrammingError('%r: Parameters entry %r should be a '
+                                       'Parameter object!' % (name, pname))
 
             # XXX: create getters for the units of params ??
 
@@ -409,7 +414,7 @@ class Module(object):
                     'not unterstood! (use one of %s)' %
                     (self.name, k, ', '.join(self.parameters)))
 
-        # complain if a Param entry has no default value and
+        # complain if a Parameter entry has no default value and
         # is not specified in cfgdict
         for k, v in self.parameters.items():
             if k not in cfgdict:
@@ -421,7 +426,7 @@ class Module(object):
                 # assume default value was given
                 cfgdict[k] = v.default
 
-            # replace CLASS level Param objects with INSTANCE level ones
+            # replace CLASS level Parameter objects with INSTANCE level ones
             # self.parameters[k] = self.parameters[k].copy() # already done above...
 
         # now 'apply' config:
@@ -468,14 +473,19 @@ class Readable(Module):
                   UNKNOWN = 900,
                  )
     parameters = {
-        'value': Param('current value of the Module', readonly=True, default=0.,
-                       datatype=FloatRange(), unit='', poll=True),
-        'pollinterval': Param('sleeptime between polls', default=5,
-                              readonly=False, datatype=FloatRange(0.1, 120), ),
-        'status': Param('current status of the Module',
-                        default=(Status.IDLE, ''),
-                        datatype=TupleOf(EnumType(Status), StringType()),
-                        readonly=True, poll=True),
+        'value':        Parameter('current value of the Module', readonly=True,
+                                  default=0., datatype=FloatRange(),
+                                  unit='', poll=True,
+                                 ),
+        'pollinterval': Parameter('sleeptime between polls', default=5,
+                                  readonly=False,
+                                  datatype=FloatRange(0.1, 120),
+                                 ),
+        'status':       Parameter('current status of the Module',
+                                  default=(Status.IDLE, ''),
+                                  datatype=TupleOf(EnumType(Status), StringType()),
+                                  readonly=True, poll=True,
+                                 ),
     }
 
     def init(self):
@@ -522,14 +532,10 @@ class Writable(Readable):
     providing a settable 'target' parameter to those of a Readable
     """
     parameters = {
-        'target': Param(
-            'target value of the Module',
-            default=0.,
-            readonly=False,
-            datatype=FloatRange(),
-        ),
+        'target': Parameter('target value of the Module',
+                            default=0., readonly=False, datatype=FloatRange(),
+                           ),
     }
-    # XXX: commands ???? auto deriving working well enough?
 
 
 class Drivable(Writable):

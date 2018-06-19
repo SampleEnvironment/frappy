@@ -57,7 +57,7 @@ class NoSuchModuleError(SECOPError):
     pass
 
 
-class NoSuchParamError(SECOPError):
+class NoSuchParameterError(SECOPError):
     pass
 
 
@@ -100,7 +100,7 @@ class DisabledError(SECOPError):
 
 EXCEPTIONS = dict(
     NoSuchModule=NoSuchModuleError,
-    NoSuchParam=NoSuchParamError,
+    NoSuchParameter=NoSuchParameterError,
     NoSuchCommand=NoSuchCommandError,
     CommandFailed=CommandFailedError,
     CommandRunning=CommandRunningError,

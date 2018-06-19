@@ -43,7 +43,7 @@ import threading
 
 from secop.protocol.messages import Message, EVENTREPLY, IDENTREQUEST
 from secop.protocol.errors import SECOPError, NoSuchModuleError, \
-    NoSuchCommandError, NoSuchParamError, BadValueError, ReadonlyError
+    NoSuchCommandError, NoSuchParameterError, BadValueError, ReadonlyError
 from secop.lib import formatExtendedStack, formatException
 
 try:
@@ -223,14 +223,14 @@ class Dispatcher(object):
         res = func(*arguments)
         return res, dict(t=currenttime())
 
-    def _setParamValue(self, modulename, pname, value):
+    def _setParameterValue(self, modulename, pname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError(module=modulename)
 
         pobj = moduleobj.parameters.get(pname, None)
         if pobj is None:
-            raise NoSuchParamError(module=modulename, parameter=pname)
+            raise NoSuchParameterError(module=modulename, parameter=pname)
         if pobj.readonly:
             raise ReadonlyError(module=modulename, parameter=pname)
 
@@ -244,14 +244,14 @@ class Dispatcher(object):
             return pobj.export_value(), dict(t=pobj.timestamp)
         return pobj.export_value(), {}
 
-    def _getParamValue(self, modulename, pname):
+    def _getParameterValue(self, modulename, pname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError(module=modulename)
 
         pobj = moduleobj.parameters.get(pname, None)
         if pobj is None:
-            raise NoSuchParamError(module=modulename, parameter=pname)
+            raise NoSuchParameterError(module=modulename, parameter=pname)
 
         readfunc = getattr(moduleobj, u'read_%s' % pname, None)
         if readfunc:
@@ -335,7 +335,7 @@ class Dispatcher(object):
         # XXX: trigger polling and force sending event
         if not msg.parameter:
             msg.parameter = u'value'
-        msg.set_result(*self._getParamValue(msg.module, msg.parameter))
+        msg.set_result(*self._getParameterValue(msg.module, msg.parameter))
 
         #if conn in self._active_connections:
         #    return None  # already send to myself
@@ -349,7 +349,7 @@ class Dispatcher(object):
         # just return the reply in that case
         if not msg.parameter:
             msg.parameter = u'target'
-        msg.set_result(*self._setParamValue(msg.module, msg.parameter, msg.data))
+        msg.set_result(*self._setParameterValue(msg.module, msg.parameter, msg.data))
 
         #if conn in self._active_connections:
         #    return None  # already send to myself
@@ -403,7 +403,7 @@ class Dispatcher(object):
                 # XXX: should we send the cached values instead? (pbj.value)
                 # also: ignore errors here.
                 try:
-                    res = self._getParamValue(modulename, pname)
+                    res = self._getParameterValue(modulename, pname)
                     if res[0] == Ellipsis:  # means we do not have a value at all so skip this
                         self.log.error(
                                 u'activate: got no value for %s:%s!' %
