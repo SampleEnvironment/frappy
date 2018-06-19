@@ -173,6 +173,10 @@ class PyTangoDevice(Module):
                              ),
     }
 
+    commands = {
+        'reset': Command('Tango reset command', arguments=[], result=None),
+    }
+
     tango_status_mapping = {
         PyTango.DevState.ON:     Drivable.Status.IDLE,
         PyTango.DevState.ALARM:  Drivable.Status.WARN,
@@ -644,6 +648,10 @@ class Motor(Actuator):
         'decel': Param('Deceleration',
                        datatype=FloatRange(), readonly=False, unit='main/s^2',
                        ),
+    }
+
+    commands = {
+        'reference': Command('Do a reference run', arguments=[], result=None),
     }
 
     def read_refpos(self, maxage=0):

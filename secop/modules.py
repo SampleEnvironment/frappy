@@ -29,8 +29,6 @@ from __future__ import print_function
 # from these base classes (how to do this?)
 
 import time
-import types
-import inspect
 
 try:
     from six import add_metaclass # for py2/3 compat
@@ -301,16 +299,9 @@ class ModuleMeta(type):
         setattr(newtype, 'commands', getattr(newtype, 'commands', {}))
         for attrname in attrs:
             if attrname.startswith('do_'):
-                if attrname[3:] in newtype.commands:
-                    continue
-                value = getattr(newtype, attrname)
-                if isinstance(value, types.MethodType):
-                    argspec = inspect.getargspec(value)
-                    if argspec[0] and argspec[0][0] == 'self':
-                        del argspec[0][0]
-                        newtype.commands[attrname[3:]] = Command(
-                            getattr(value, '__doc__'), argspec.args,
-                            None)  # XXX: how to find resulttype?
+                if attrname[3:] not in newtype.commands:
+                    raise ProgrammingError('%r: command %r has to be specified '
+                                           'explicitly!' % (name, attrname[3:]))
         attrs['__constructed__'] = True
         return newtype
 
@@ -549,6 +540,15 @@ class Drivable(Writable):
     """
 
     Status = Enum(Readable.Status, BUSY=300)
+
+    commands = {
+        'stop': Command(
+            'cease driving, go to IDLE state',
+            arguments=[],
+            result=None
+        ),
+    }
+
     overrides = {
         'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
     }
