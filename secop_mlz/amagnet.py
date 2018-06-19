@@ -28,7 +28,6 @@
 import math
 
 from secop.lib.sequence import SequencerMixin, Step
-from secop.protocol import status
 from secop.datatypes import StringType, TupleOf, FloatRange, ArrayOf, StructOf
 from secop.errors import DisabledError, ConfigError
 from secop.modules import Param, Drivable
@@ -217,11 +216,11 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     def read_hw_status(self, maxage=0):
         # called from SequencerMixin.read_status if no sequence is running
         if self._enable.value == 'Off':
-            return status.WARN, 'Disabled'
-        if self._enable.read_status(maxage)[0] != status.OK:
+            return self.Status.WARN, 'Disabled'
+        if self._enable.read_status(maxage)[0] != self.Status.OK:
             return self._enable.status
         if self._polswitch.value in ['0', 0]:
-            return status.OK, 'Shorted, ' + self._currentsource.status[1]
+            return self.Status.OK, 'Shorted, ' + self._currentsource.status[1]
         if self._symmetry.value in ['short', 0]:
             return self._currentsource.status[
                 0], 'Shorted, ' + self._currentsource.status[1]
@@ -282,7 +281,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
     def _recover(self, store):
         # check for interlock
-        if self._currentsource.read_status(0)[0] != status.ERROR:
+        if self._currentsource.read_status(0)[0] != self.Status.ERROR:
             return
         # recover from interlock
         ramp = self._currentsource.ramp
@@ -316,7 +315,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         self._currentsource.window = max(store.old_window, 10)
 
     def _set_polarity(self, store, target):
-        if self._polswitch.read_status(0)[0] == status.BUSY:
+        if self._polswitch.read_status(0)[0] == self.Status.BUSY:
             return True
         if int(self._polswitch.value) == int(target):
             return False  # done with this step

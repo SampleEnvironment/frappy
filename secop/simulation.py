@@ -26,7 +26,6 @@ from time import sleep
 
 from secop.modules import Module, Readable, Writable, Drivable, Param
 from secop.lib import mkthread
-from secop.protocol import status
 from secop.datatypes import FloatRange
 
 
@@ -109,7 +108,7 @@ class SimDrivable(SimBase, Drivable):
     def sim(self):
         while self._value == self.target:
             sleep(0.3)
-        self.status = status.BUSY, 'MOVING'
+        self.status = self.Status.BUSY, 'MOVING'
         speed = 0
         if 'ramp' in self.parameters:
             speed = self.ramp / 60.  # ramp is per minute!
@@ -127,4 +126,4 @@ class SimDrivable(SimBase, Drivable):
             else:
                 self._value = self.target
             sleep(0.3)
-        self.status = status.OK, ''
+        self.status = self.Status.OK, ''
