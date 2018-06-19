@@ -157,7 +157,7 @@ class Dispatcher(object):
             res = {}
             for paramname, param in list(self.get_module(modulename).parameters.items()):
                 if param.export:
-                    res[paramname] = param.as_dict()
+                    res[paramname] = param.for_export()
             self.log.debug(u'list params for module %s -> %r' %
                            (modulename, res))
             return res
@@ -170,7 +170,7 @@ class Dispatcher(object):
             # omit export=False params!
             res = {}
             for cmdname, cmdobj in list(self.get_module(modulename).commands.items()):
-                res[cmdname] = cmdobj.as_dict()
+                res[cmdname] = cmdobj.for_export()
             self.log.debug(u'list cmds for module %s -> %r' % (modulename, res))
             return res
         self.log.debug(u'-> module is not to be exported!')

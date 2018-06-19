@@ -116,7 +116,7 @@ class Param(object):
         # return a copy of ourselfs
         return Param(**self.__dict__)
 
-    def as_dict(self):
+    def for_export(self):
         # used for serialisation only
         res = dict(
             description=self.description,
@@ -172,7 +172,7 @@ class Command(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
-    def as_dict(self):
+    def for_export(self):
         # used for serialisation only
         return dict(
             description=self.description,
