@@ -33,6 +33,11 @@ try:
 except ImportError:
     import ConfigParser as configparser  # py2
 
+try:
+    from queue import Queue # py 3
+except ImportError:
+    from Queue import Queue # py 2
+
 from daemon import DaemonContext
 
 try:
@@ -202,11 +207,23 @@ class Server(object):
             self._dispatcher.register_module(devobj, devname, export)
             # also call init on the modules
             devobj.init()
-        # call a possibly empty postinit on each module after registering all
+        # call postinit on each module after registering all
         for _devname, devobj, _export in devs:
-            postinit = getattr(devobj, u'postinit', None)
-            if postinit:
-                postinit()
+            devobj.postinit()
+        starting_modules = set()
+        finished_modules = Queue()
+        for _devname, devobj, _export in devs:
+            starting_modules.add(devobj)
+            devobj.late_init(started_callback=finished_modules.put)
+        # remark: it is the module implementors responsibility to call started_callback
+        # within reasonable time (using timeouts). If we find later, that this is not
+        # enough, we might insert checking for a timeout here, and somehow set the remaining
+        # starting_modules to an error state.
+        while starting_modules:
+            finished = finished_modules.get()
+            self.log.info(u'%s has started' % finished.name)
+            # use discard instead of remove here, catching the case when started_callback is called twice
+            starting_modules.discard(finished)
 
     def _processInterfaceOptions(self, interfaceopts):
         # eval interfaces

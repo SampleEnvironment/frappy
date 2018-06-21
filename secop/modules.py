@@ -177,11 +177,19 @@ class Module(object):
     def init(self):
         # may be overriden in derived classes to init stuff
         self.log.debug('empty init()')
-        mkthread(self.late_init)
 
-    def late_init(self):
-        # this runs async somewhen after init
-        self.log.debug('late init()')
+    def postinit(self):
+        self.log.debug('empty postinit()')
+
+    def late_init(self, started_callback):
+        '''runs after postinit of all modules
+
+        started_callback to be called when thread spawned by late_init
+        or, if not implmemented, immediately
+        '''
+
+        self.log.debug('empty late init()')
+        started_callback(self)
 
 
 class Readable(Module):
@@ -217,26 +225,33 @@ class Readable(Module):
 
     def init(self):
         Module.init(self)
-        self._pollthread = mkthread(self.__pollThread)
 
-    def __pollThread(self):
+    def late_init(self, started_callback):
+        '''start polling thread'''
+        mkthread(self.__pollThread, started_callback)
+
+    def __pollThread(self, started_callback):
         try:
-            self.__pollThread_inner()
+            self.__pollThread_inner(started_callback)
         except Exception as e:
             self.log.exception(e)
+            self.status = (self.Status.ERROR, 'polling thread could not start')
+            started_callback(self)
             print(formatExtendedStack())
 
-    def __pollThread_inner(self):
+    def __pollThread_inner(self, started_callback):
         """super simple and super stupid per-module polling thread"""
         i = 0
+        fastpoll = self.poll(i)
+        started_callback(self)
         while True:
-            fastpoll = self.poll(i)
             i += 1
             try:
                 time.sleep(self.pollinterval * (0.1 if fastpoll else 1))
             except TypeError:
                 time.sleep(min(self.pollinterval)
                            if fastpoll else max(self.pollinterval))
+            fastpoll = self.poll(i)
 
     def poll(self, nr=0):
         # Just poll all parameters regularly where polling is enabled

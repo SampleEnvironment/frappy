@@ -390,7 +390,7 @@ class Dispatcher(object):
             self._active_connections.add(conn)
             modules = self._modules
 
-        # for initial update poll all values...
+        # send updates for all values. The first poll already happend before the server is active
         for modulename in modules:
             moduleobj = self._modules.get(modulename, None)
             if moduleobj is None:
@@ -399,22 +399,10 @@ class Dispatcher(object):
             for pname, pobj in moduleobj.parameters.items():
                 if not pobj.export:  # XXX: handle export_as cases!
                     continue
-                # WARNING: THIS READS ALL parameters FROM HW!
-                # XXX: should we send the cached values instead? (pbj.value)
-                # also: ignore errors here.
-                try:
-                    res = self._getParameterValue(modulename, pname)
-                    if res[0] == Ellipsis:  # means we do not have a value at all so skip this
-                        self.log.error(
-                                u'activate: got no value for %s:%s!' %
-                                (modulename, pname))
-                    #else:
-                        #rm = Message(EVENTREPLY, u'%s:%s' % (modulename, pname))
-                        #rm.set_result(*res)
-                        #self.broadcast_event(rm)
-                except SECOPError as e:
-                    self.log.error(u'decide what to do here! (ignore error and skip update)')
-                    self.log.exception(e)
+                # can not use announce_update here, as this will send to all clients
+                updmsg = Message(EVENTREPLY, module=moduleobj.name, parameter=pname)
+                updmsg.set_result(pobj.export_value(), dict(t=pobj.timestamp))
+                conn.queue_async_reply(updmsg)
         msg.mkreply()
         conn.queue_async_reply(msg)  # should be sent AFTER all the ^^initial updates
         return None
