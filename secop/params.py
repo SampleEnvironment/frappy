@@ -23,10 +23,9 @@
 
 from secop.lib import unset_value
 from secop.errors import ProgrammingError
-from secop.datatypes import DataType
+from secop.datatypes import DataType, CommandType
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
-
 
 class CountedObj(object):
     ctr = [0]
@@ -88,6 +87,8 @@ class Parameter(CountedObj):
         # internal caching: value and timestamp of last change...
         self.value = default
         self.timestamp = 0
+        if ctr is not None:
+            self.ctr = ctr
 
     def __repr__(self):
         return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
@@ -119,21 +120,30 @@ class Override(CountedObj):
 
     note: overrides are applied by the metaclass during class creating
     """
-    def __init__(self, **kwds):
+    def __init__(self, description="", **kwds):
         super(Override, self).__init__()
         self.kwds = kwds
-        self.kwds['ctr'] = self.ctr
+        # allow to override description without keyword
+        if description:
+            self.kwds['description'] = description
+        # for now, do not use the Override ctr
+        # self.kwds['ctr'] = self.ctr
+
+    def __repr__(self):
+        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
+            ['%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
 
     def apply(self, paramobj):
         if isinstance(paramobj, Parameter):
+            props = paramobj.__dict__.copy()
             for k, v in self.kwds.items():
-                if hasattr(paramobj, k):
-                    setattr(paramobj, k, v)
-                    return paramobj
+                if k in props:
+                    props[k] = v
                 else:
                     raise ProgrammingError(
                         "Can not apply Override(%s=%r) to %r: non-existing property!" %
-                        (k, v, paramobj))
+                        (k, v, props))
+            return Parameter(**props)
         else:
             raise ProgrammingError(
                 "Overrides can only be applied to Parameter's, %r is none!" %
@@ -143,16 +153,16 @@ class Override(CountedObj):
 class Command(CountedObj):
     """storage for Commands settings (description + call signature...)
     """
-    def __init__(self, description, arguments=None, result=None, optional=False):
+    def __init__(self, description, arguments=None, result=None, export=True, optional=False):
         super(Command, self).__init__()
         # descriptive text for humans
         self.description = description
         # list of datatypes for arguments
         self.arguments = arguments or []
-        # datatype for result
-        self.resulttype = result
+        self.datatype = CommandType(arguments, result)
         # whether implementation is optional
         self.optional = optional
+        self.export = export
 
     def __repr__(self):
         return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
@@ -160,8 +170,8 @@ class Command(CountedObj):
 
     def for_export(self):
         # used for serialisation only
+
         return dict(
             description=self.description,
-            arguments=[arg.export_datatype() for arg in self.arguments],
-            resulttype=self.resulttype.export_datatype() if self.resulttype else None,
+            datatype = self.datatype.export_datatype(),
         )

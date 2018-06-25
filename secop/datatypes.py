@@ -46,7 +46,7 @@ __all__ = [
     u'BoolType', u'EnumType',
     u'BLOBType', u'StringType',
     u'TupleOf', u'ArrayOf', u'StructOf',
-    u'Command',
+    u'CommandType',
 ]
 
 # base class for all DataTypes
@@ -516,17 +516,16 @@ class StructOf(DataType):
         return self.validate(dict(value))
 
 
-# idea to mix commands and params, not yet used....
-class Command(DataType):
+class CommandType(DataType):
     IS_COMMAND = True
 
     def __init__(self, argtypes=tuple(), resulttype=None):
         for arg in argtypes:
             if not isinstance(arg, DataType):
-                raise ValueError(u'Command: Argument types must be DataTypes!')
+                raise ValueError(u'CommandType: Argument types must be DataTypes!')
         if resulttype is not None:
             if not isinstance(resulttype, DataType):
-                raise ValueError(u'Command: result type must be DataTypes!')
+                raise ValueError(u'CommandType: result type must be DataTypes!')
         self.argtypes = argtypes
         self.resulttype = resulttype
 
@@ -542,8 +541,8 @@ class Command(DataType):
     def __repr__(self):
         argstr = u', '.join(repr(arg) for arg in self.argtypes)
         if self.resulttype is None:
-            return u'Command(%s)' % argstr
-        return u'Command(%s)->%s' % (argstr, repr(self.resulttype))
+            return u'CommandType(%s)' % argstr
+        return u'CommandType(%s)->%s' % (argstr, repr(self.resulttype))
 
     def validate(self, value):
         """return the validated arguments value or raise"""
@@ -606,7 +605,7 @@ DATATYPES = dict(
     enum=lambda kwds: EnumType('', **kwds),
     struct=lambda named_subtypes: StructOf(
         **dict((n, get_datatype(t)) for n, t in list(named_subtypes.items()))),
-    command=Command,
+    command=CommandType,
 )
 
 

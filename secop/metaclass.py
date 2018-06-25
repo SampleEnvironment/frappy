@@ -22,6 +22,7 @@
 """Define Metaclass for Modules/Features"""
 
 from __future__ import print_function
+from collections import OrderedDict
 
 try:
     # pylint: disable=unused-import
@@ -47,7 +48,7 @@ import time
 
 from secop.errors import ProgrammingError
 from secop.datatypes import EnumType
-from secop.params import Parameter
+from secop.params import Parameter, Override, Command
 
 EVENT_ONLY_ON_CHANGED_VALUES = True
 
@@ -68,36 +69,61 @@ class ModuleMeta(type):
         if '__constructed__' in attrs:
             return newtype
 
-        # merge properties, Parameter and commands from all sub-classes
-        for entry in ['properties', 'parameters', 'commands']:
-            newentry = {}
-            for base in reversed(bases):
-                if hasattr(base, entry):
-                    newentry.update(getattr(base, entry))
-            newentry.update(attrs.get(entry, {}))
-            setattr(newtype, entry, newentry)
-
-        # apply Overrides from all sub-classes
-        newparams = getattr(newtype, 'parameters')
+        # merge properties from all sub-classes
+        newentry = {}
         for base in reversed(bases):
-            overrides = getattr(base, 'overrides', {})
-            for n, o in overrides.items():
-                newparams[n] = o.apply(newparams[n].copy())
-        for n, o in attrs.get('overrides', {}).items():
-            newparams[n] = o.apply(newparams[n].copy())
+            newentry.update(getattr(base, "properties", {}))
+        newentry.update(attrs.get("properties", {}))
+        newtype.properties = newentry
+
+        # merge accessibles from all sub-classes, treat overrides
+        # for now, allow to use also the old syntax (parameters/commands dict)
+        accessibles_list = []
+        for base in reversed(bases):
+            if hasattr(base, "accessibles"):
+                accessibles_list.append(base.accessibles)
+        for entry in ['accessibles', 'parameters', 'commands', 'overrides']:
+            accessibles_list.append(attrs.get(entry, {}))
+        accessibles = {} # unordered dict of accessibles
+        newtype.parameters = {}
+        for accessibles_dict in accessibles_list:
+            for key, obj in accessibles_dict.items():
+                if isinstance(obj, Override):
+                    try:
+                        obj = obj.apply(accessibles[key])
+                        accessibles[key] = obj
+                        newtype.parameters[key] = obj
+                    except KeyError:
+                        raise ProgrammingError("module %s: %s does not exist"
+                                       % (name, key))
+                else:
+                    if key in accessibles:
+                        # for now, accept redefinitions:
+                        print("WARNING: module %s: %s should not be redefined"
+                              % (name, key))
+                        # raise ProgrammingError("module %s: %s must not be redefined"
+                        #               % (name, key))
+                    if isinstance(obj, Parameter):
+                        newtype.parameters[key] = obj
+                        accessibles[key] = obj
+                    elif isinstance(obj, Command):
+                        accessibles[key] = obj
+                    else:
+                        raise ProgrammingError('%r: accessibles entry %r should be a '
+                                               'Parameter or Command object!' % (name, key))
 
         # Correct naming of EnumTypes
-        for k, v in newparams.items():
+        for k, v in newtype.parameters.items():
             if isinstance(v.datatype, EnumType) and not v.datatype._enum.name:
                 v.datatype._enum.name = k
 
+        # newtype.accessibles will be used in 2 places only:
+        # 1) for inheritance (see above)
+        # 2) for the describing message
+        newtype.accessibles = OrderedDict(sorted(accessibles.items(), key=lambda item: item[1].ctr))
+
         # check validity of Parameter entries
         for pname, pobj in newtype.parameters.items():
-            # XXX: allow dicts for overriding certain aspects only.
-            if not isinstance(pobj, Parameter):
-                raise ProgrammingError('%r: Parameters entry %r should be a '
-                                       'Parameter object!' % (name, pname))
-
             # XXX: create getters for the units of params ??
 
             # wrap of reading/writing funcs
@@ -165,8 +191,7 @@ class ModuleMeta(type):
 
             setattr(newtype, pname, property(getter, setter))
 
-        # also collect/update information about Command's
-        setattr(newtype, 'commands', getattr(newtype, 'commands', {}))
+        # check information about Command's
         for attrname in attrs:
             if attrname.startswith('do_'):
                 if attrname[3:] not in newtype.commands:

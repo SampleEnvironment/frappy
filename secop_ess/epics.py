@@ -181,7 +181,7 @@ class EpicsDrivable(Drivable):
             return Drivable.Status.UNKNOWN, self._read_pv(self.status_pv)
         # status_pv is unset, derive status from equality of value + target
         if self.read_value() == self.read_target():
-            return (Drivable.Status.OK, '')
+            return (Drivable.Status.IDLE, '')
         return (Drivable.Status.BUSY, 'Moving')
 
 
@@ -221,7 +221,7 @@ class EpicsTempCtrl(EpicsDrivable):
         at_target = abs(self.read_value(maxage) - self.read_target(maxage)) \
             <= self.tolerance
         if at_target:
-            return (Drivable.Status.OK, 'at Target')
+            return (Drivable.Status.IDLE, 'at Target')
         return (Drivable.Status.BUSY, 'Moving')
 
     # TODO: add support for strings over epics pv

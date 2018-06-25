@@ -41,7 +41,7 @@ except ImportError:
 
 import mlzlog
 
-from secop.datatypes import get_datatype, EnumType
+from secop.datatypes import get_datatype, EnumType, CommandType
 from secop.lib import mkthread, formatException, formatExtendedStack
 from secop.lib.parsing import parse_time, format_time
 #from secop.protocol.encoding import ENCODERS
@@ -342,7 +342,7 @@ class Client(object):
         return self.describingModulesData[module]
 
     def _getDescribingParameterData(self, module, parameter):
-        return self._getDescribingModuleData(module)['parameters'][parameter]
+        return self._getDescribingModuleData(module)['accessibles'][parameter]
 
     def _decode_list_to_ordereddict(self, data):
         # takes a list of 2*N <key>, <value> entries and
@@ -371,7 +371,7 @@ class Client(object):
                 ['modules'], describing_data)
             for modname, module in list(describing_data['modules'].items()):
                 describing_data['modules'][modname] = self._decode_substruct(
-                    ['parameters', 'commands'], module)
+                    ['accessibles'], module)
 
             self.describing_data = describing_data
 #            import pprint
@@ -382,18 +382,15 @@ class Client(object):
 #            pprint.pprint(r(describing_data))
 
             for module, moduleData in self.describing_data['modules'].items():
-                for parameter, parameterData in moduleData['parameters'].items():
-                    datatype = get_datatype(parameterData['datatype'])
+                for aname, adata in moduleData['accessibles'].items():
+                    datatype = get_datatype(adata['datatype'])
                     # *sigh* special handling for 'some' parameters....
                     if isinstance(datatype, EnumType):
-                        datatype._enum.name = parameter
-                    if parameter == 'status':
-                        datatype.subtypes[0]._enum.name = 'status'
-                    self.describing_data['modules'][module]['parameters'] \
-                        [parameter]['datatype'] = datatype
-                for _cmdname, cmdData in moduleData['commands'].items():
-                    cmdData['arguments'] = list(map(get_datatype, cmdData['arguments']))
-                    cmdData['resulttype'] = get_datatype(cmdData['resulttype'])
+                        datatype._enum.name = aname
+                    if aname == 'status':
+                        datatype.subtypes[0]._enum.name = 'Status'
+                    self.describing_data['modules'][module]['accessibles'] \
+                        [aname]['datatype'] = datatype
         except Exception as _exc:
             print(formatException(verbose=True))
             raise
@@ -551,7 +548,9 @@ class Client(object):
         return list(self.describing_data['modules'].keys())
 
     def getParameters(self, module):
-        return list(self.describing_data['modules'][module]['parameters'].keys())
+        params = filter(lambda item: not isinstance(item[1]['datatype'], CommandType),
+                        self.describing_data['modules'][module]['accessibles'].items())
+        return list(param[0] for param in params)
 
     def getModuleProperties(self, module):
         return self.describing_data['modules'][module]['properties']
@@ -560,14 +559,16 @@ class Client(object):
         return self.getModuleProperties(module)['interface_class']
 
     def getCommands(self, module):
-        return self.describing_data['modules'][module]['commands']
+        cmds = filter(lambda item: isinstance(item[1]['datatype'], CommandType),
+                        self.describing_data['modules'][module]['accessibles'].items())
+        return OrderedDict(cmds)
 
     def execCommand(self, module, command, args):
         #  ignore reply message + reply specifier, only return data
         return self._communicate('do', '%s:%s' % (module, command), list(args) if args else None)[2]
 
     def getProperties(self, module, parameter):
-        return self.describing_data['modules'][module]['parameters'][parameter]
+        return self.describing_data['modules'][module]['accessibles'][parameter]
 
     def syncCommunicate(self, *msg):
         res = self._communicate(*msg)  # pylint: disable=E1120

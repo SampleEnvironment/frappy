@@ -150,28 +150,16 @@ class Dispatcher(object):
         # return a copy of our list
         return self._export[:]
 
-    def list_module_params(self, modulename):
-        self.log.debug(u'list_module_params(%r)' % modulename)
+    def export_accessibles(self, modulename):
+        self.log.debug(u'export_accessibles(%r)' % modulename)
         if modulename in self._export:
             # omit export=False params!
-            res = {}
-            for paramname, param in list(self.get_module(modulename).parameters.items()):
-                if param.export:
-                    res[paramname] = param.for_export()
-            self.log.debug(u'list params for module %s -> %r' %
+            res = []
+            for aname, aobj in self.get_module(modulename).accessibles.items():
+                if aobj.export:
+                    res.extend([aname, aobj.for_export()])
+            self.log.debug(u'list accessibles for module %s -> %r' %
                            (modulename, res))
-            return res
-        self.log.debug(u'-> module is not to be exported!')
-        return {}
-
-    def list_module_cmds(self, modulename):
-        self.log.debug(u'list_module_cmds(%r)' % modulename)
-        if modulename in self._export:
-            # omit export=False params!
-            res = {}
-            for cmdname, cmdobj in list(self.get_module(modulename).commands.items()):
-                res[cmdname] = cmdobj.for_export()
-            self.log.debug(u'list cmds for module %s -> %r' % (modulename, res))
             return res
         self.log.debug(u'-> module is not to be exported!')
         return {}
@@ -184,12 +172,7 @@ class Dispatcher(object):
         for modulename in self._export:
             module = self.get_module(modulename)
             # some of these need rework !
-            mod_desc = {u'parameters': [], u'commands': []}
-            for pname, param in list(self.list_module_params(
-                    modulename).items()):
-                mod_desc[u'parameters'].extend([pname, param])
-            for cname, cmd in list(self.list_module_cmds(modulename).items()):
-                mod_desc[u'commands'].extend([cname, cmd])
+            mod_desc = {u'accessibles': self.export_accessibles(modulename)}
             for propname, prop in list(module.properties.items()):
                 mod_desc[propname] = prop
             result[u'modules'].extend([modulename, mod_desc])
@@ -211,7 +194,7 @@ class Dispatcher(object):
         cmdspec = moduleobj.commands.get(command, None)
         if cmdspec is None:
             raise NoSuchCommandError(module=modulename, command=command)
-        if len(cmdspec.arguments) != len(arguments):
+        if len(cmdspec.datatype.argtypes) != len(arguments):
             raise BadValueError(
                 module=modulename,
                 command=command,

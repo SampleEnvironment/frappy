@@ -25,7 +25,7 @@ import random
 import threading
 
 from secop.lib.enum import Enum
-from secop.modules import Readable, Drivable, Parameter
+from secop.modules import Readable, Drivable, Parameter, Override
 from secop.datatypes import EnumType, FloatRange, IntRange, ArrayOf, StringType, TupleOf, StructOf, BoolType
 
 
@@ -33,10 +33,10 @@ class Switch(Drivable):
     """switch it on or off....
     """
     parameters = {
-        'value': Parameter('current state (on or off)',
+        'value': Override('current state (on or off)',
                        datatype=EnumType(on=1, off=0), default=0,
                        ),
-        'target': Parameter('wanted state (on or off)',
+        'target': Override('wanted state (on or off)',
                         datatype=EnumType(on=1, off=0), default=0,
                         readonly=False,
                         ),
@@ -95,10 +95,10 @@ class MagneticField(Drivable):
     """a liquid magnet
     """
     parameters = {
-        'value': Parameter('current field in T',
+        'value': Override('current field in T',
                        unit='T', datatype=FloatRange(-15, 15), default=0,
                        ),
-        'target': Parameter('target field in T',
+        'target': Override('target field in T',
                         unit='T', datatype=FloatRange(-15, 15), default=0,
                         readonly=False,
                         ),
@@ -183,7 +183,7 @@ class CoilTemp(Readable):
     """a coil temperature
     """
     parameters = {
-        'value': Parameter('Coil temperatur',
+        'value': Override('Coil temperatur',
                        unit='K', datatype=FloatRange(), default=0,
                        ),
         'sensor': Parameter("Sensor number or calibration id",
@@ -199,7 +199,7 @@ class SampleTemp(Drivable):
     """a sample temperature
     """
     parameters = {
-        'value': Parameter('Sample temperature',
+        'value': Override('Sample temperature',
                        unit='K', datatype=FloatRange(), default=10,
                        ),
         'sensor': Parameter("Sensor number or calibration id",
@@ -255,7 +255,7 @@ class Label(Readable):
         'subdev_ts': Parameter("name of subdevice for sample temp",
                            datatype=StringType, export=False,
                            ),
-        'value': Parameter("final value of label string",
+        'value': Override("final value of label string", default='',
                        datatype=StringType,
                        ),
     }

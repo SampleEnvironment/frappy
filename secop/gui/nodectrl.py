@@ -194,7 +194,7 @@ class ReadableWidget(QWidget):
 
         # XXX: avoid a nasty race condition, mainly biting on M$
         for i in range(15):
-            if 'status' in self._node.describing_data['modules'][module]['parameters']:
+            if 'status' in self._node.describing_data['modules'][module]['accessibles']:
                 break
             sleep(0.01*i)
 
@@ -246,7 +246,7 @@ class ReadableWidget(QWidget):
         # XXX: also connect update_status signal to LineEdit ??
 
     def update_status(self, status, qualifiers=None):
-        display_string = self._status_type.subtypes[0].entries.get(status[0])
+        display_string = self._status_type.subtypes[0]._enum[status[0]].name
         if status[1]:
             display_string += ':' + status[1]
         self.statusLineEdit.setText(display_string)
