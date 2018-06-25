@@ -54,13 +54,22 @@ from secop.errors import ConfigError
 class Server(object):
 
     def __init__(self, name, parent_logger=None):
+        cfg = getGeneralConfig()
+
+        # also handle absolut paths
+        if os.path.abspath(name) == name and os.path.exists(name) and \
+            name.endswith('.cfg'):
+            self._cfgfile = name
+            self._pidfile = os.path.join(cfg[u'piddir'],
+                                         name[:-4].replace(os.path.sep, '_') + u'.pid')
+            name = os.path.basename(name[:-4])
+        else:
+            self._cfgfile = os.path.join(cfg[u'confdir'], name + u'.cfg')
+            self._pidfile = os.path.join(cfg[u'piddir'], name + u'.pid')
+
         self._name = name
 
         self.log = parent_logger.getChild(name, True)
-
-        cfg = getGeneralConfig()
-        self._pidfile = os.path.join(cfg[u'piddir'], name + u'.pid')
-        self._cfgfile = os.path.join(cfg[u'confdir'], name + u'.cfg')
 
         self._dispatcher = None
         self._interface = None
