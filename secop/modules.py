@@ -231,13 +231,14 @@ class Readable(Module):
         mkthread(self.__pollThread, started_callback)
 
     def __pollThread(self, started_callback):
-        try:
-            self.__pollThread_inner(started_callback)
-        except Exception as e:
-            self.log.exception(e)
-            self.status = (self.Status.ERROR, 'polling thread could not start')
-            started_callback(self)
-            print(formatExtendedStack())
+        while True:
+            try:
+                self.__pollThread_inner(started_callback)
+            except Exception as e:
+                self.log.exception(e)
+                self.status = (self.Status.ERROR, 'polling thread could not start')
+                started_callback(self)
+                print(formatExtendedStack())
 
     def __pollThread_inner(self, started_callback):
         """super simple and super stupid per-module polling thread"""

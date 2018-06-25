@@ -379,8 +379,8 @@ class AnalogInput(PyTangoDevice, Readable):
     The AnalogInput handles all devices only delivering an analogue value.
     """
 
-    def late_init(self):
-        super(AnalogInput, self).late_init()
+    def late_init(self, started_callback):
+        super(AnalogInput, self).late_init(started_callback)
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -459,8 +459,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
         self._history = []  # will keep (timestamp, value) tuple
         self._timeout = None  # keeps the time at which we will timeout, or None
 
-    def late_init(self):
-        super(AnalogOutput, self).late_init()
+    def late_init(self, started_callback):
+        super(AnalogOutput, self).late_init(started_callback)
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -497,6 +497,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
         hist = self._history[:]
         window_start = currenttime() - self.window
         hist_in_window = [v for (t, v) in hist if t >= window_start]
+        if not hist_in_window:
+            return False  # no relevant history -> no knowledge
 
         max_in_hist = max(hist_in_window)
         min_in_hist = min(hist_in_window)
