@@ -128,7 +128,11 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
 
             # XXX: improve: use polling/select here?
             try:
-                data = data + mysocket.recv(MAX_MESSAGE_SIZE)
+                newdata = mysocket.recv(MAX_MESSAGE_SIZE)
+                if not newdata:
+                    # no timeout error, but no new data -> connection closed
+                    return
+                data = data + newdata
             except socket.timeout as e:
                 continue
             except socket.error as e:
