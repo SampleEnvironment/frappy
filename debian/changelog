@@ -1,3 +1,42 @@
+secop-core (0.6.2) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix equipment_id handling
+  * fix internal event handling
+  * rework polling
+  * rework EnumType to use better Enum's
+  * Allow units of parameters to reference the unit of the main value
+  * Add new 'pseudo' datatypes to simplifiy coding
+
+  [ Markus Zolliker ]
+  * - remove obsolete option static_only of Param.as_dict - remove obsolete import of format_time - fix commit message
+  * commands must be specified explicitely
+  * rename as_dict methods to for_export
+
+  [ Enrico Faulhaber ]
+  * fix leftover status imports
+  * rename Param -> Parameter
+  * accessibles: provide global counter
+  * add features
+
+  [ Markus Zolliker ]
+  * read parameters from hardware before starting up server
+
+  [ Enrico Faulhaber ]
+  * server: allow absolute pathnames for cfg files
+  * MLZ_ccr12: update config file
+
+  [ Markus Zolliker ]
+  * merge 'parameters' and 'commands' to 'accessibles'
+
+  [ Enrico Faulhaber ]
+  * secop/modules: make polling thread more robust
+  * interface/tcp: handle dead connection correctly
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Wed, 18 Jul 2018 12:06:57 +0200
+
 secop-core (0.6.1) unstable; urgency=low
 
   [ Enrico Faulhaber ]
