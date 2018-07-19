@@ -449,6 +449,9 @@ class AnalogOutput(PyTangoDevice, Drivable):
                          datatype=FloatRange(0, 900), group='stability',
                          ),
     }
+    commands = {
+        'stop': Command('Stops current movement.', arguments=[], result=None),
+    }
     _history = ()
     _timeout = None
     _moving = False
@@ -517,7 +520,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
                 return self.Status.UNSTABLE, 'timeout after waiting for stable value'
         if self._moving:
             return (self.Status.BUSY, 'moving')
-        return (self.Status.OK, 'stable')
+        return (self.Status.IDLE, 'stable')
 
     @property
     def absmin(self):
@@ -961,11 +964,11 @@ class StringIO(PyTangoDevice, Module):
                                arguments=[], result=StringType()),
         'writeLine':   Command('write sol + a whole line + eol',
                                arguments=[StringType()], result=None),
-        'availablechars':   Command('return number of chars in input buffer',
+        'availableChars':   Command('return number of chars in input buffer',
                                     arguments=[], result=IntRange(0)),
-        'availablelines':   Command('return number of lines in input buffer',
+        'availableLines':   Command('return number of lines in input buffer',
                                     arguments=[], result=IntRange(0)),
-        'multicommunicate': Command('perform a sequence of communications',
+        'multiCommunicate': Command('perform a sequence of communications',
                                     arguments=[ArrayOf(
                                         TupleOf(StringType(), IntRange()), 100)],
                                     result=ArrayOf(StringType(), 100)),
@@ -992,8 +995,8 @@ class StringIO(PyTangoDevice, Module):
     def do_multiCommunicate(self, value):
         return self._dev.MultiCommunicate(value)
 
-    def do_availablechars(self):
+    def do_availableChars(self):
         return self._dev.availableChars
 
-    def do_availablelines(self):
+    def do_availableLines(self):
         return self._dev.availableLines
