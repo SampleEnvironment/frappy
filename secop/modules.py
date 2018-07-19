@@ -28,9 +28,10 @@ from __future__ import print_function
 # all others MUST derive from those, the 'interface'-class is still derived
 # from these base classes (how to do this?)
 
+import sys
 import time
 
-from secop.lib import formatExtendedStack, mkthread, unset_value
+from secop.lib import formatExtendedStack, mkthread, unset_value, formatException
 from secop.lib.enum import Enum
 from secop.errors import ConfigError
 from secop.datatypes import EnumType, TupleOf, StringType, FloatRange, get_datatype
@@ -238,7 +239,8 @@ class Readable(Module):
                 self.log.exception(e)
                 self.status = (self.Status.ERROR, 'polling thread could not start')
                 started_callback(self)
-                print(formatExtendedStack())
+                print(formatException(0, sys.exc_info(), verbose=True))
+                time.sleep(10)
 
     def __pollThread_inner(self, started_callback):
         """super simple and super stupid per-module polling thread"""
