@@ -605,7 +605,7 @@ DATATYPES = dict(
     enum=lambda kwds: EnumType('', **kwds),
     struct=lambda named_subtypes: StructOf(
         **dict((n, get_datatype(t)) for n, t in list(named_subtypes.items()))),
-    command=CommandType,
+    command=lambda args, res: CommandType(map(get_datatype, args), res),
 )
 
 
