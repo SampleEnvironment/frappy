@@ -386,7 +386,7 @@ class AnalogInput(PyTangoDevice, Readable):
         # prefer configured unit if nothing is set on the Tango device, else
         # update
         if attrInfo.unit != 'No unit':
-            self.parameters['value'].unit = attrInfo.unit
+            self.accessibles['value'].unit = attrInfo.unit
 
     def read_value(self, maxage=0):
         return self._dev.value
@@ -469,7 +469,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         # prefer configured unit if nothing is set on the Tango device, else
         # update
         if attrInfo.unit != 'No unit':
-            self.parameters['value'].unit = attrInfo.unit
+            self.accessibles['value'].unit = attrInfo.unit
 
     def poll(self, nr=0):
         super(AnalogOutput, self).poll(nr)
@@ -805,7 +805,7 @@ class NamedDigitalInput(DigitalInput):
         super(NamedDigitalInput, self).init()
         try:
             # pylint: disable=eval-used
-            self.parameters['value'].datatype = EnumType('value', **eval(self.mapping))
+            self.accessibles['value'].datatype = EnumType('value', **eval(self.mapping))
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
@@ -829,7 +829,7 @@ class PartialDigitalInput(NamedDigitalInput):
     def init(self):
         super(PartialDigitalInput, self).init()
         self._mask = (1 << self.bitwidth) - 1
-        # self.parameters['value'].datatype = IntRange(0, self._mask)
+        # self.accessibles['value'].datatype = IntRange(0, self._mask)
 
     def read_value(self, maxage=0):
         raw_value = self._dev.value
@@ -872,9 +872,9 @@ class NamedDigitalOutput(DigitalOutput):
         super(NamedDigitalOutput, self).init()
         try:
             # pylint: disable=eval-used
-            self.parameters['value'].datatype = EnumType('value', **eval(self.mapping))
+            self.accessibles['value'].datatype = EnumType('value', **eval(self.mapping))
             # pylint: disable=eval-used
-            self.parameters['target'].datatype = EnumType('target', **eval(self.mapping))
+            self.accessibles['target'].datatype = EnumType('target', **eval(self.mapping))
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
@@ -899,8 +899,8 @@ class PartialDigitalOutput(NamedDigitalOutput):
     def init(self):
         super(PartialDigitalOutput, self).init()
         self._mask = (1 << self.bitwidth) - 1
-        # self.parameters['value'].datatype = IntRange(0, self._mask)
-        # self.parameters['target'].datatype = IntRange(0, self._mask)
+        # self.accessibles['value'].datatype = IntRange(0, self._mask)
+        # self.accessibles['target'].datatype = IntRange(0, self._mask)
 
     def read_value(self, maxage=0):
         raw_value = self._dev.value

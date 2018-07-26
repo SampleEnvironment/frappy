@@ -81,27 +81,17 @@ class Module(object):
         self.DISPATCHER = dispatcher
         self.log = logger
         self.name = modname
-        # make local copies of parameter objects
-        # they need to be individual per instance since we use them also
-        # to cache the current value + qualifiers...
-        params = {}
-        for k, v in list(self.parameters.items()):
-            entry = v.copy()
-            if '$' in entry.unit:
-                entry.unit = entry.unit.replace('$', self.parameters['value'].unit)
-            params[k] = entry
-        # do not re-use self.parameters as this is the same for all instances
-        self.parameters = params
 
-        # make local copies of properties
+        # handle module properties
+        # 1) make local copies of properties
+        # XXX: self.properties = self.properties.copy() ???
         props = {}
         for k, v in list(self.properties.items()):
             props[k] = v
         self.properties = props
 
-        # check and apply properties specified in cfgdict
-        # moduleproperties are to be specified as
-        # '.<propertyname>=<propertyvalue>'
+        # 2) check and apply properties specified in cfgdict
+        #    specified as '.<propertyname> = <propertyvalue>'
         for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if k[0] == '.':
                 if k[1:] in self.properties:
@@ -109,42 +99,61 @@ class Module(object):
                 else:
                     raise ConfigError('Module %r has no property %r' %
                                       (self.name, k[1:]))
-        # remove unset (default) module properties
+        # 3) remove unset (default) module properties
         for k, v in list(self.properties.items()):  # keep list() as dict may change during iter
             if v is None:
                 del self.properties[k]
 
-        # MAGIC: derive automatic properties
+        # 4) set automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
         self.properties['_implementation'] = myclassname
         self.properties['interface_class'] = [
             b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
 
-        # check and apply parameter_properties
-        # specified as '<paramname>.<propertyname> = <propertyvalue>'
+        # handle Features
+        # XXX: todo
+
+        # handle accessibles
+        # 1) make local copies of parameter objects
+        #    they need to be individual per instance since we use them also
+        #    to cache the current value + qualifiers...
+        accessibles = {}
+        for k, v in self.accessibles.items():
+            # make a copy of the Parameter/Command object
+            accessibles[k] = v.copy()
+        # do not re-use self.accessibles as this is the same for all instances
+        self.accessibles = accessibles
+
+        # 2) check and apply parameter_properties
+        #    specified as '<paramname>.<propertyname> = <propertyvalue>'
         for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if '.' in k[1:]:
                 paramname, propname = k.split('.', 1)
-                if paramname in self.parameters:
-                    paramobj = self.parameters[paramname]
+                paramobj = self.accessibles.get(paramname, None)
+                if paramobj:
                     if propname == 'datatype':
                         paramobj.datatype = get_datatype(cfgdict.pop(k))
                     elif hasattr(paramobj, propname):
                         setattr(paramobj, propname, cfgdict.pop(k))
+                    else:
+                        raise ConfigError('Module %s: Parameter %r has not property %r!' %
+                                          (self.name, paramname, propname))
 
-        # check config for problems
-        # only accept remaining config items specified in parameters
+        # 3) check config for problems:
+        #    only accept remaining config items specified in parameters
         for k, v in cfgdict.items():
-            if k not in self.parameters:
+            if k not in self.accessibles:
                 raise ConfigError(
                     'Module %s:config Parameter %r '
                     'not unterstood! (use one of %s)' %
-                    (self.name, k, ', '.join(self.parameters)))
+                    (self.name, k, ', '.join(n for n,o in self.accessibles if isinstance(o, Parameter))))
 
-        # complain if a Parameter entry has no default value and
-        # is not specified in cfgdict
-        for k, v in self.parameters.items():
+        # 4) complain if a Parameter entry has no default value and
+        #    is not specified in cfgdict
+        for k, v in self.accessibles.items():
+            if not isinstance(v, Parameter):
+                continue
             if k not in cfgdict:
                 if v.default is unset_value and k != 'value':
                     # unset_value is the one single value you can not specify....
@@ -154,16 +163,13 @@ class Module(object):
                 # assume default value was given
                 cfgdict[k] = v.default
 
-            # replace CLASS level Parameter objects with INSTANCE level ones
-            # self.parameters[k] = self.parameters[k].copy() # already done above...
-
-        # now 'apply' config:
-        # pass values through the datatypes and store as attributes
+        # 5) 'apply' config:
+        #    pass values through the datatypes and store as attributes
         for k, v in cfgdict.items():
             if k == 'value':
                 continue
             # apply datatype, complain if type does not fit
-            datatype = self.parameters[k].datatype
+            datatype = self.accessibles[k].datatype
             try:
                 v = datatype.validate(v)
             except (ValueError, TypeError):
@@ -174,6 +180,14 @@ class Module(object):
             # note: this will call write_* methods which will
             # write to the hardware, if possible!
             setattr(self, k, v)
+
+        # Adopt units AFTER applying the cfgdict
+        for k, v in self.accessibles.items():
+            if not isinstance(v, Parameter):
+                continue
+            if '$' in v.unit:
+                v.unit = v.unit.replace('$', self.accessibles['value'].unit)
+
 
     def init(self):
         # may be overriden in derived classes to init stuff
@@ -258,7 +272,9 @@ class Readable(Module):
 
     def poll(self, nr=0):
         # Just poll all parameters regularly where polling is enabled
-        for pname, pobj in self.parameters.items():
+        for pname, pobj in self.accessibles.items():
+            if not isinstance(pobj, Parameter):
+                continue
             if not pobj.poll:
                 continue
             if nr % abs(int(pobj.poll)) == 0:
@@ -309,7 +325,9 @@ class Drivable(Writable):
         # poll status first
         stat = self.read_status(0)
         fastpoll = stat[0] == self.Status.BUSY
-        for pname, pobj in self.parameters.items():
+        for pname, pobj in self.accessibles.items():
+            if not isinstance(pobj, Parameter):
+                continue
             if not pobj.poll:
                 continue
             if pname == 'status':

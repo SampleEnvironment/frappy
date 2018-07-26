@@ -74,7 +74,7 @@ class Switch(Drivable):
         return self.Status.BUSY, info
 
     def _update(self):
-        started = self.parameters['target'].timestamp
+        started = self.accessibles['target'].timestamp
         info = ''
         if self.target > self.value:
             info = 'waiting for ON'

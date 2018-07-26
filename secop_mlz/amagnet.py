@@ -173,7 +173,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     def read_abslimits(self, maxage=0):
         maxfield = self._current2field(self._currentsource.abslimits[1])
         # limit to configured value (if any)
-        maxfield = min(maxfield, max(self.parameters['abslimits'].default))
+        maxfield = min(maxfield, max(self.accessibles['abslimits'].default))
         return -maxfield, maxfield
 
     def read_ramp(self, maxage=0):

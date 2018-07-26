@@ -34,7 +34,6 @@ class CountedObj(object):
         cl[0] += 1
         self.ctr = cl[0]
 
-
 class Parameter(CountedObj):
     """storage for Parameter settings + value + qualifiers
 
@@ -96,7 +95,9 @@ class Parameter(CountedObj):
 
     def copy(self):
         # return a copy of ourselfs
-        return Parameter(**self.__dict__)
+        params = self.__dict__.copy()
+        params.pop('ctr')
+        return Parameter(**params)
 
     def for_export(self):
         # used for serialisation only
@@ -143,6 +144,7 @@ class Override(CountedObj):
                     raise ProgrammingError(
                         "Can not apply Override(%s=%r) to %r: non-existing property!" %
                         (k, v, props))
+            props['ctr'] = self.ctr
             return Parameter(**props)
         else:
             raise ProgrammingError(
@@ -153,16 +155,20 @@ class Override(CountedObj):
 class Command(CountedObj):
     """storage for Commands settings (description + call signature...)
     """
-    def __init__(self, description, arguments=None, result=None, export=True, optional=False):
+    def __init__(self, description, arguments=None, result=None, export=True, optional=False, datatype=None, ctr=None):
         super(Command, self).__init__()
         # descriptive text for humans
         self.description = description
         # list of datatypes for arguments
         self.arguments = arguments or []
         self.datatype = CommandType(arguments, result)
+        self.arguments = arguments
+        self.result = result
         # whether implementation is optional
         self.optional = optional
         self.export = export
+        if ctr is not None:
+            self.ctr = ctr
 
     def __repr__(self):
         return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
@@ -175,3 +181,9 @@ class Command(CountedObj):
             description=self.description,
             datatype = self.datatype.export_datatype(),
         )
+
+    def copy(self):
+        # return a copy of ourselfs
+        params = self.__dict__.copy()
+        params.pop('ctr')
+        return Command(**params)

@@ -39,19 +39,19 @@ class SimBase(object):
         if '.extra_params' in cfgdict:
             extra_params = cfgdict.pop('.extra_params')
             # make a copy of self.parameter
-            self.parameters = dict((k, v.copy()) for k, v in self.parameters.items())
+            self.accessibles = dict((k, v.copy()) for k, v in self.accessibles.items())
             for k in extra_params.split(','):
                 k = k.strip()
-                self.parameters[k] = Parameter('extra_param: %s' % k.strip(),
+                self.accessibles[k] = Parameter('extra_param: %s' % k.strip(),
                                        datatype=FloatRange(),
                                        default=0.0)
                 def reader(maxage=0, pname=k):
                     self.log.debug('simulated reading %s' % pname)
-                    return self.parameters[pname].value
+                    return self.accessibles[pname].value
                 setattr(self, 'read_' + k, reader)
                 def writer(newval, pname=k):
                     self.log.debug('simulated writing %r to %s' % (newval, pname))
-                    self.parameters[pname].value = newval
+                    self.accessibles[pname].value = newval
                     return newval
                 setattr(self, 'write_' + k, writer)
 
@@ -70,7 +70,7 @@ class SimBase(object):
         return True
 
     def read_value(self, maxage=0):
-        if 'jitter' in self.parameters:
+        if 'jitter' in self.accessibles:
             return self._value + self.jitter*(0.5-random.random())
         return self._value
 
@@ -85,14 +85,14 @@ class SimReadable(SimBase, Readable):
     def __init__(self, logger, cfgdict, devname, dispatcher):
         SimBase.__init__(self, cfgdict)
         Readable.__init__(self, logger, cfgdict, devname, dispatcher)
-        self._value = self.parameters['value'].default
+        self._value = self.accessibles['value'].default
 
 
 class SimWritable(SimBase, Writable):
     def __init__(self, logger, cfgdict, devname, dispatcher):
         SimBase.__init__(self, cfgdict)
         Writable.__init__(self, logger, cfgdict, devname, dispatcher)
-        self._value = self.parameters['value'].default
+        self._value = self.accessibles['value'].default
     def read_value(self, maxage=0):
         return self.target
     def write_target(self, value):
@@ -103,16 +103,16 @@ class SimDrivable(SimBase, Drivable):
     def __init__(self, logger, cfgdict, devname, dispatcher):
         SimBase.__init__(self, cfgdict)
         Drivable.__init__(self, logger, cfgdict, devname, dispatcher)
-        self._value = self.parameters['value'].default
+        self._value = self.accessibles['value'].default
 
     def sim(self):
         while self._value == self.target:
             sleep(0.3)
         self.status = self.Status.BUSY, 'MOVING'
         speed = 0
-        if 'ramp' in self.parameters:
+        if 'ramp' in self.accessibles:
             speed = self.ramp / 60.  # ramp is per minute!
-        elif 'speed' in self.parameters:
+        elif 'speed' in self.accessibles:
             speed = self.speed
         if speed == 0:
             self._value = self.target

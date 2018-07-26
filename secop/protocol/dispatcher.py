@@ -45,6 +45,7 @@ from secop.protocol.messages import Message, EVENTREPLY, IDENTREQUEST
 from secop.protocol.errors import SECOPError, NoSuchModuleError, \
     NoSuchCommandError, NoSuchParameterError, BadValueError, ReadonlyError
 from secop.lib import formatExtendedStack, formatException
+from secop.params import Parameter, Command
 
 try:
     unicode('a')
@@ -156,7 +157,7 @@ class Dispatcher(object):
             # omit export=False params!
             res = []
             for aname, aobj in self.get_module(modulename).accessibles.items():
-                if aobj.export:
+                if isinstance(aobj, Command) or aobj.export:
                     res.extend([aname, aobj.for_export()])
             self.log.debug(u'list accessibles for module %s -> %r' %
                            (modulename, res))
@@ -211,8 +212,8 @@ class Dispatcher(object):
         if moduleobj is None:
             raise NoSuchModuleError(module=modulename)
 
-        pobj = moduleobj.parameters.get(pname, None)
-        if pobj is None:
+        pobj = moduleobj.accessibles.get(pname, None)
+        if pobj is None or not isinstance(pobj, Parameter):
             raise NoSuchParameterError(module=modulename, parameter=pname)
         if pobj.readonly:
             raise ReadonlyError(module=modulename, parameter=pname)
@@ -232,8 +233,8 @@ class Dispatcher(object):
         if moduleobj is None:
             raise NoSuchModuleError(module=modulename)
 
-        pobj = moduleobj.parameters.get(pname, None)
-        if pobj is None:
+        pobj = moduleobj.accessibles.get(pname, None)
+        if pobj is None or not isinstance(pobj, Parameter):
             raise NoSuchParameterError(module=modulename, parameter=pname)
 
         readfunc = getattr(moduleobj, u'read_%s' % pname, None)
@@ -379,7 +380,9 @@ class Dispatcher(object):
             if moduleobj is None:
                 self.log.error(u'activate: can not lookup module %r, skipping it' % modulename)
                 continue
-            for pname, pobj in moduleobj.parameters.items():
+            for pname, pobj in moduleobj.accessibles.items():
+                if not isinstance(pobj, Parameter):
+                    continue
                 if not pobj.export:  # XXX: handle export_as cases!
                     continue
                 # can not use announce_update here, as this will send to all clients
