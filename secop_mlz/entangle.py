@@ -505,8 +505,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
 
         max_in_hist = max(hist_in_window)
         min_in_hist = min(hist_in_window)
-        stable = max_in_hist - min_in_hist <= 2*self.precision
-        at_target = min_in_hist <= self.target <= max_in_hist
+        stable = max_in_hist - min_in_hist <= self.precision
+        at_target = max_in_hist - self.precision <= self.target <= min_in_hist + self.precision
 
         return stable and at_target
 
