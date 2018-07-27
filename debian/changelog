@@ -1,3 +1,17 @@
+secop-core (0.6.3) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Makefile: include targets for making pkg's
+  * datatypes: fix converting command datatype
+  * improve debug output if polling loop crashes
+  * pylintrc: increase allowed module length
+  * MLZ: fix typo
+  * fix several regressions from switching to accessibles
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 27 Jul 2018 09:31:59 +0200
+
 secop-core (0.6.2) unstable; urgency=low
 
   [ Enrico Faulhaber ]
