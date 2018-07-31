@@ -129,7 +129,7 @@ class Cryostat(CryoBase):
             None),
     )
 
-    def init(self):
+    def init_module(self):
         self._stopflag = False
         self._thread = mkthread(self.thread)
 

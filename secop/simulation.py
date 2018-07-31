@@ -55,7 +55,7 @@ class SimBase(object):
                     return newval
                 setattr(self, 'write_' + k, writer)
 
-    def late_init(self):
+    def init_module(self):
         self._sim_thread = mkthread(self._sim)
 
     def _sim(self):

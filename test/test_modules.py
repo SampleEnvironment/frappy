@@ -28,6 +28,10 @@ sys.path.insert(0, sys.path[0] + '/..')
 # no fixtures needed
 import pytest
 
+try:
+    import Queue as queue
+except ImportError:
+    import queue as queue
 
 from secop.datatypes import BoolType, EnumType
 
@@ -47,7 +51,11 @@ def test_Communicator():
     ))()
 
     o = Communicator(logger, {}, 'o1', dispatcher)
-    o.init()
+    o.early_init()
+    o.init_module()
+    q = queue.Queue()
+    o.start_module(q.put)
+    q.get()
 
 def test_ModuleMeta():
     newclass = ModuleMeta.__new__(ModuleMeta, 'TestReadable', (Drivable, Writable, Readable, Module), {
@@ -100,5 +108,10 @@ def test_ModuleMeta():
             params_found.add(o)
             assert o.ctr not in ctr_found
             ctr_found.add(o.ctr)
-    o1.init()
-    o2.init()
+    o1.early_init()
+    o2.early_init()
+    o1.init_module()
+    o2.init_module()
+    q = queue.Queue()
+    o1.start_module(q.put)
+    o2.start_module(q.put)

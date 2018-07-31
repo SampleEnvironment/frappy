@@ -210,12 +210,12 @@ class PyTangoDevice(Module):
                         self._com_warn(tries, name, err, info)
                     sleep(self.comdelay)
 
-    def init(self):
+    def early_init(self):
         # Wrap PyTango client creation (so even for the ctor, logging and
         # exception mapping is enabled).
         self._createPyTangoDevice = self._applyGuardToFunc(
             self._createPyTangoDevice, 'constructor')
-        super(PyTangoDevice, self).init()
+        super(PyTangoDevice, self).early_init()
 
     @lazy_property
     def _dev(self):
@@ -379,8 +379,8 @@ class AnalogInput(PyTangoDevice, Readable):
     The AnalogInput handles all devices only delivering an analogue value.
     """
 
-    def late_init(self, started_callback):
-        super(AnalogInput, self).late_init(started_callback)
+    def start_module(self, started_callback):
+        super(AnalogInput, self).start_module(started_callback)
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -456,14 +456,14 @@ class AnalogOutput(PyTangoDevice, Drivable):
     _timeout = None
     _moving = False
 
-    def init(self):
-        super(AnalogOutput, self).init()
+    def init_module(self):
+        super(AnalogOutput, self).init_module()
         # init history
         self._history = []  # will keep (timestamp, value) tuple
         self._timeout = None  # keeps the time at which we will timeout, or None
 
-    def late_init(self, started_callback):
-        super(AnalogOutput, self).late_init(started_callback)
+    def start_module(self, started_callback):
+        super(AnalogOutput, self).start_module(started_callback)
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -801,8 +801,8 @@ class NamedDigitalInput(DigitalInput):
                          datatype=StringType(), export=False),  # XXX:!!!
     }
 
-    def init(self):
-        super(NamedDigitalInput, self).init()
+    def init_module(self):
+        super(NamedDigitalInput, self).init_module()
         try:
             # pylint: disable=eval-used
             self.accessibles['value'].datatype = EnumType('value', **eval(self.mapping))
@@ -826,8 +826,8 @@ class PartialDigitalInput(NamedDigitalInput):
                           datatype=IntRange(0), default=1),
     }
 
-    def init(self):
-        super(PartialDigitalInput, self).init()
+    def init_module(self):
+        super(PartialDigitalInput, self).init_module()
         self._mask = (1 << self.bitwidth) - 1
         # self.accessibles['value'].datatype = IntRange(0, self._mask)
 
@@ -868,8 +868,8 @@ class NamedDigitalOutput(DigitalOutput):
                          datatype=StringType(), export=False),
     }
 
-    def init(self):
-        super(NamedDigitalOutput, self).init()
+    def init_module(self):
+        super(NamedDigitalOutput, self).init_module()
         try:
             # pylint: disable=eval-used
             self.accessibles['value'].datatype = EnumType('value', **eval(self.mapping))
@@ -896,8 +896,8 @@ class PartialDigitalOutput(NamedDigitalOutput):
                           datatype=IntRange(0), default=1),
     }
 
-    def init(self):
-        super(PartialDigitalOutput, self).init()
+    def init_module(self):
+        super(PartialDigitalOutput, self).init_module()
         self._mask = (1 << self.bitwidth) - 1
         # self.accessibles['value'].datatype = IntRange(0, self._mask)
         # self.accessibles['target'].datatype = IntRange(0, self._mask)

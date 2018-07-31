@@ -189,21 +189,21 @@ class Module(object):
                 v.unit = v.unit.replace('$', self.accessibles['value'].unit)
 
 
-    def init(self):
+    def early_init(self):
         # may be overriden in derived classes to init stuff
-        self.log.debug('empty init()')
+        self.log.debug('empty early_init()')
 
-    def postinit(self):
-        self.log.debug('empty postinit()')
+    def init_module(self):
+        self.log.debug('empty init_module()')
 
-    def late_init(self, started_callback):
-        '''runs after postinit of all modules
+    def start_module(self, started_callback):
+        '''runs after init of all modules
 
         started_callback to be called when thread spawned by late_init
         or, if not implmemented, immediately
         '''
 
-        self.log.debug('empty late init()')
+        self.log.debug('empty start_module()')
         started_callback(self)
 
 
@@ -238,10 +238,7 @@ class Readable(Module):
                                  ),
     }
 
-    def init(self):
-        Module.init(self)
-
-    def late_init(self, started_callback):
+    def start_module(self, started_callback):
         '''start polling thread'''
         mkthread(self.__pollThread, started_callback)
 

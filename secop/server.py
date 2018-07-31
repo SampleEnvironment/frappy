@@ -214,16 +214,16 @@ class Server(object):
         for devname, devobj, export in devs:
             self.log.info(u'registering module %r' % devname)
             self._dispatcher.register_module(devobj, devname, export)
-            # also call init on the modules
-            devobj.init()
-        # call postinit on each module after registering all
+            # also call early_init on the modules
+            devobj.early_init()
+        # call init on each module after registering all
         for _devname, devobj, _export in devs:
-            devobj.postinit()
+            devobj.init_module()
         starting_modules = set()
         finished_modules = Queue()
         for _devname, devobj, _export in devs:
             starting_modules.add(devobj)
-            devobj.late_init(started_callback=finished_modules.put)
+            devobj.start_module(started_callback=finished_modules.put)
         # remark: it is the module implementors responsibility to call started_callback
         # within reasonable time (using timeouts). If we find later, that this is not
         # enough, we might insert checking for a timeout here, and somehow set the remaining
@@ -233,6 +233,7 @@ class Server(object):
             self.log.info(u'%s has started' % finished.name)
             # use discard instead of remove here, catching the case when started_callback is called twice
             starting_modules.discard(finished)
+            finished_modules.task_done()
 
     def _processInterfaceOptions(self, interfaceopts):
         # eval interfaces
