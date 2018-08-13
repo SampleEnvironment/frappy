@@ -22,7 +22,13 @@ RUN groupadd -g 1001 jenkins && \
     mkdir /home/jenkins && chown jenkins:jenkins /home/jenkins && \
     echo "jenkins:jenkins" | chpasswd
 USER jenkins
-RUN virtualenv /home/jenkins/secopvenv
+RUN virtualenv /home/jenkins/secopvenv && \
+    git clone https://forge.frm2.tum.de/review/sine2020/secop/playground /home/jenkins/playground && \
+    . /home/jenkins/secopvenv/bin/activate && \
+    pip install -U pip wheel setuptools && \
+    pip install -r /home/jenkins/playground/requirements-dev.txt -r /home/jenkins/playground/requirements.txt && \
+    rm -rf /home/jenkins/playground
+
 
 FROM base AS docs
 ENV  DEBIAN_FRONTEND=noninteractive
@@ -34,4 +40,3 @@ RUN apt-get update && \
      texlive-latex-recommended \
      texlive-base \
      texlive-binaries
-
