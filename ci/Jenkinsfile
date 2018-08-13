@@ -1,0 +1,112 @@
+properties([
+    buildDiscarder(logRotator(artifactDaysToKeepStr: '',
+                              artifactNumToKeepStr: '',
+                              daysToKeepStr: '',
+                              numToKeepStr: '50')),
+    parameters([
+         string(defaultValue: 'sine2020/secop/playground',
+                description: '', name: 'GERRIT_PROJECT'),
+         string(defaultValue: 'master',
+                description: '', name: 'GERRIT_BRANCH'),
+         string(defaultValue: 'refs/heads/master',
+                description: '', name: 'GERRIT_REFSPEC'),
+         choice(choices: '''\
+patchset-created
+ref-updated
+change-merged''',
+               description: '', name: 'GERRIT_EVENT'),
+         choice(choices: '''\
+patchset-created
+ref-updated
+change-merged''',
+                description: '', name: 'GERRIT_EVENT_TYPE')])
+])
+
+
+
+this.verifyresult = [:]
+
+def run_tests(pyver)
+{
+            writeFile file: 'setup.cfg', text: '''
+[tool:pytest]
+addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
+
+    def status = "OK"
+    verifyresult.put(pyver, 0)
+    try {
+        timeout(5) {
+                sh '''\
+#!/bin/bash
+. /home/jenkins/secopvenv/bin/activate
+pip install -r requirements-dev.txt
+pip install -r requirements.txt
+make test
+'''
+                verifyresult.put(pyver, 1)
+        }
+    } catch (all) {
+        currentBuild.result = 'FAILURE'
+        status = 'FAILURE'
+        verifyresult.put(pyver, -1)
+    }
+        gerritverificationpublisher([
+        verifyStatusValue: verifyresult[pyver],
+        verifyStatusCategory: 'test ',
+        verifyStatusName: 'pytest-'+pyver,
+        verifyStatusReporter: 'jenkins',
+        verifyStatusRerun: '!recheck'])
+
+    step([$class: 'JUnitResultArchiver', allowEmptyResults: true,
+          keepLongStdio: true, testResults: 'pytest.xml'])
+    if (status == 'FAILURE') {
+        throw new Exception('Failure in test with ' + pyver)
+    }
+}
+
+
+node("master") {
+    stage('clean workspace')
+    {
+        cleanWs()
+    }
+   stage('checkout') {
+        checkout poll: false,
+            scm: [$class: 'GitSCM',
+                   branches: [[name: '${GERRIT_BRANCH}']],
+                   doGenerateSubmoduleConfigurations: false,
+                   extensions: [
+                      [$class: 'CleanCheckout'],
+                      [$class: 'hudson.plugins.git.extensions.impl.BuildChooserSetting',
+                       buildChooser: [$class: "com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTriggerBuildChooser"]],
+                  ],
+                   submoduleCfg: [],
+                   userRemoteConfigs:
+                    [[
+                        refspec: GERRIT_REFSPEC,
+                        credentialsId: 'jenkins_ecdsa_x',
+                        url: 'ssh://jenkins@forge.frm2.tum.de:29418/${GERRIT_PROJECT}']]]
+        sh 'git show'
+   }
+    stage('(re-)generate image') {
+      try {
+        sh '''#!/bin/bash
+        git worktree add tmpmaster refs/changes/17/18617/8
+        cd tmpmaster
+        docker build --target base --tag jenkinsng.admin.frm2:5000/secop_base:latest \
+                     --tag secop_base:latest ci
+        cd ..
+        rm -rf tmpmaster
+        '''
+      } catch (all) {
+      }
+   }
+
+    stage('execute tests') {
+        img = docker.image('jenkinsng.admin.frm2:5000/secop_base:latest')
+        img.pull()
+        img.inside {
+            run_tests('python2')
+        }
+    }
+}
