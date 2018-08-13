@@ -18,6 +18,3 @@ To test images interactivly:
 The Jenkinsfile uses this Dockerfile (only approved checked-in versions from master)
 to build the images (a rebuild will only happen if the Dockerfile is changed as docker
  caches the images and build information) and  run the test suite inside the container.
-
-(Note: The initial version still has some bootstrapping glue, that will get
-changed in a followup).

@@ -89,22 +89,17 @@ node("master") {
         sh 'git show'
    }
     stage('(re-)generate image') {
-      try {
-        sh '''#!/bin/bash
-        git worktree add tmpmaster refs/changes/17/18617/8
+       sh '''#!/bin/bash
+        git worktree add tmpmaster origin/master
         cd tmpmaster
-        docker build --target base --tag jenkinsng.admin.frm2:5000/secop_base:latest \
-                     --tag secop_base:latest ci
+        docker build --target base --tag secop_base:latest ci
         cd ..
         rm -rf tmpmaster
         '''
-      } catch (all) {
-      }
    }
 
     stage('execute tests') {
-        img = docker.image('jenkinsng.admin.frm2:5000/secop_base:latest')
-        img.pull()
+        img = docker.image('secop_base:latest')
         img.inside {
             run_tests('python2')
         }
