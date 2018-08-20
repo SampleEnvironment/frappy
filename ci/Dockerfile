@@ -7,6 +7,7 @@ RUN apt-get update && \
           git \
           openssh-client \
           make \
+          locales \
           python \
           python-dev \
           python-virtualenv \
@@ -33,10 +34,13 @@ RUN virtualenv /home/jenkins/secopvenv && \
 FROM base AS docs
 ENV  DEBIAN_FRONTEND=noninteractive
 
+USER root
 RUN apt-get update && \
    apt-get install -y --no-install-suggests --no-install-recommends \
      texlive-latex-extra \
      texlive-latex-base \
      texlive-latex-recommended \
+     texlive-fonts-recommended \
      texlive-base \
-     texlive-binaries
+     texlive-binaries \
+     latexmk

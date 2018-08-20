@@ -64,6 +64,59 @@ make test
     }
 }
 
+def run_docs() {
+    stage('check links') {
+        sh '''
+	. /home/jenkins/secopvenv/bin/activate
+        make -C doc linkcheck
+        '''
+    }
+    stage('build html') {
+        sh '''
+	. /home/jenkins/secopvenv/bin/activate
+        make -C doc html
+        '''
+    }
+    stage('build singlehtml') {
+        sh '''
+	. /home/jenkins/secopvenv/bin/activate
+        make -C doc singlehtml
+        '''
+    }
+    stage('build latexpdf') {
+        sh '''
+	. /home/jenkins/secopvenv/bin/activate
+        make -C doc latexpdf
+        '''
+    }
+    stage('build man') {
+        sh '''
+	. /home/jenkins/secopvenv/bin/activate
+        make -C doc man
+        '''
+    }
+    stage('store html doc for build') {
+        publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'doc/_build/html', reportFiles: 'index.html', reportName: 'Built documentation', reportTitles: ''])
+        gerritverificationpublisher([
+        verifyStatusValue: 1,
+        verifyStatusCategory: 'test ',
+        verifyStatusName: 'doc',
+        verifyStatusReporter: 'jenkins',
+        verifyStatusRerun: '@recheck'
+    ])
+    }
+
+    stage('publish') {
+        if (GERRIT_EVENT_TYPE == 'change-merged')
+        {
+            sh '''
+            rsync -rlv doc/_build/* /share/ictrl/public/doc/secop
+            '''
+        }
+    }
+}
+
+
 
 node("master") {
     stage('clean workspace')
@@ -90,18 +143,26 @@ node("master") {
    }
     stage('(re-)generate image') {
        sh '''#!/bin/bash
-        git worktree add tmpmaster origin/master
+        git worktree add tmpmaster refs/changes/61/18661/8
         cd tmpmaster
         docker build --target base --tag secop_base:latest ci
+        docker build --target docs --tag secop_docs:latest ci
         cd ..
         rm -rf tmpmaster
         '''
    }
 
     stage('execute tests') {
+
+    parallel 'Test': {
         img = docker.image('secop_base:latest')
         img.inside {
             run_tests('python2')
-        }
+        }},
+             'Docs': {
+        img = docker.image('secop_docs:latest')
+        img.inside {
+            run_docs()
+        }}
     }
 }
