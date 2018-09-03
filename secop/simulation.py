@@ -98,6 +98,8 @@ class SimWritable(SimBase, Writable):
     def write_target(self, value):
         self.value = value
 
+    def _hw_wait(self):
+        pass
 
 class SimDrivable(SimBase, Drivable):
     def __init__(self, logger, cfgdict, devname, dispatcher):
@@ -126,4 +128,8 @@ class SimDrivable(SimBase, Drivable):
             else:
                 self._value = self.target
             sleep(0.3)
-        self.status = self.Status.OK, ''
+        self.status = self.Status.IDLE, ''
+
+    def _hw_wait(self):
+        while self.status[0] == self.Status.BUSY:
+            sleep(0.3)

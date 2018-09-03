@@ -71,7 +71,7 @@ class Has_PIDTable(HAS_PID):
 
 class HAS_Persistent(Feature):
     #extra_Status {
-    #    'decoupled' : Status.OK+1,  # to be discussed.
+    #    'decoupled' : Status.IDLE+1,  # to be discussed.
     #    'coupling' : Status.BUSY+1,  # to be discussed.
     #    'coupled' : Status.BUSY+2,  # to be discussed.
     #    'decoupling' : Status.BUSY+3,  # to be discussed.

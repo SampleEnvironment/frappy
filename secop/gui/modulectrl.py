@@ -78,7 +78,7 @@ def showCommandResultDialog(command, args, result, extras=''):
     m = QMessageBox()
     if not args:
         args = ''
-    m.setText('calling: %s(%s)\nyielded: %s\nqualifiers: %s' %
+    m.setText('calling: %s(%s)\nyielded: %r\nqualifiers: %s' %
               (command, args, result, extras))
     m.exec_()
 

@@ -31,6 +31,7 @@ except ImportError:
 
 from secop.lib import formatExtendedStack, formatException
 from secop.protocol.messages import HELPREPLY, Message, HelpMessage
+from secop.errors import SECoPError
 
 
 DEF_PORT = 10767
@@ -161,6 +162,9 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                     msgObj = Message(*msg)
                     msgObj.origin = origin.decode('latin-1')
                     msgObj = serverobj.dispatcher.handle_request(self, msgObj)
+                except SECoPError as err:
+                    msgObj.set_error(err.name, str(err), {'exception': formatException(),
+                                                          'traceback': formatExtendedStack()})
                 except Exception as err:
                     # create Error Obj instead
                     msgObj.set_error(u'Internal', str(err), {'exception': formatException(),
@@ -179,7 +183,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
         if data:
             self._queue.append(data)
         else:
-            self.log.error('should asynq_queue %s' % data)
+            self.log.error('should async_queue empty data!')
 
     def queue_reply(self, data):
         """called by dispatcher to queue (sync) replies"""
@@ -187,7 +191,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
         if data:
             self._queue.appendleft(data)
         else:
-            self.log.error('should queue %s' % data)
+            self.log.error('should queue empty data!')
 
     def finish(self):
         """called when handle() terminates, i.e. the socket closed"""
@@ -215,16 +219,8 @@ class TCPServer(socketserver.ThreadingTCPServer):
         if ':' in bindto:
             bindto, _port = bindto.rsplit(':')
             portnum = int(_port)
-        # tcp is a byte stream, so we need Framers (to get frames)
-        # and encoders (to en/decode messages from frames)
-        interfaceopts.pop('framing')  # HACK
-        interfaceopts.pop('encoding')  # HACK
 
-#        self.framingCLS = FRAMERS[interfaceopts.pop('framing', 'none')]
-#        self.encodingCLS = ENCODERS[interfaceopts.pop('encoding', 'pickle')]
         self.log.info("TCPServer binding to %s:%d" % (bindto, portnum))
-#        self.log.debug("TCPServer using framing=%s" % self.framingCLS.__name__)
-#        self.log.debug("TCPServer using encoding=%s" % self.encodingCLS.__name__)
         socketserver.ThreadingTCPServer.__init__(
             self, (bindto, portnum), TCPRequestHandler, bind_and_activate=True)
         self.log.info("TCPServer initiated")

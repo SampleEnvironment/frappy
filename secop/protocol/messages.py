@@ -29,7 +29,7 @@ from secop.protocol.errors import EXCEPTIONS
 
 IDENTREQUEST = u'*IDN?'  # literal
 # literal! first part is fixed!
-IDENTREPLY = u'SINE2020&ISSE,SECoP,V2018-02-13,rc2'
+IDENTREPLY = u'SINE2020&ISSE,SECoP,V2018-06-16,rc1'
 
 DESCRIPTIONREQUEST = u'describe'  # literal
 DESCRIPTIONREPLY = u'describing'  # +<id> +json

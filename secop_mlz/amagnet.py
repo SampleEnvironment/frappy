@@ -144,7 +144,10 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
     def read_calibration(self, maxage=0):
         try:
-            return self.calibrationtable[self._symmetry.value]
+            try:
+                return self.calibrationtable[self._symmetry.value]
+            except KeyError:
+                return self.calibrationtable[self._symmetry.value.name]
         except KeyError:
             minslope = min(entry[0]
                            for entry in self.calibrationtable.values())
@@ -217,10 +220,10 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         # called from SequencerMixin.read_status if no sequence is running
         if self._enable.value == 'Off':
             return self.Status.WARN, 'Disabled'
-        if self._enable.read_status(maxage)[0] != self.Status.OK:
+        if self._enable.read_status(maxage)[0] != self.Status.IDLE:
             return self._enable.status
         if self._polswitch.value in ['0', 0]:
-            return self.Status.OK, 'Shorted, ' + self._currentsource.status[1]
+            return self.Status.IDLE, 'Shorted, ' + self._currentsource.status[1]
         if self._symmetry.value in ['short', 0]:
             return self._currentsource.status[
                 0], 'Shorted, ' + self._currentsource.status[1]

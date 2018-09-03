@@ -192,7 +192,7 @@ class Dispatcher(object):
         if moduleobj is None:
             raise NoSuchModuleError(module=modulename)
 
-        cmdspec = moduleobj.commands.get(command, None)
+        cmdspec = moduleobj.accessibles.get(command, None)
         if cmdspec is None:
             raise NoSuchCommandError(module=modulename, command=command)
         if len(cmdspec.datatype.argtypes) != len(arguments):

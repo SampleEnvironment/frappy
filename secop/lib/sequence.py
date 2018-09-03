@@ -26,7 +26,6 @@
 from time import sleep
 
 from secop.lib import mkthread
-from secop.protocol import status
 from secop.errors import IsBusyError
 
 
@@ -128,18 +127,18 @@ class SequencerMixin(object):
 
     def read_status(self, maxage=0):
         if self.seq_is_alive():
-            return status.BUSY, u'moving: ' + self._seq_phase
+            return self.Status.BUSY, u'moving: ' + self._seq_phase
         elif self._seq_error:
             if self._seq_fault_on_error:
-                return status.ERROR, self._seq_error
-            return status.WARN, self._seq_error
+                return self.Status.ERROR, self._seq_error
+            return self.Status.WARN, self._seq_error
         elif self._seq_stopped:
             if self._seq_fault_on_stop:
-                return status.ERROR, self._seq_stopped
-            return status.WARN, self._seq_stopped
+                return self.Status.ERROR, self._seq_stopped
+            return self.Status.WARN, self._seq_stopped
         if hasattr(self, u'read_hw_status'):
             return self.read_hw_status(maxage)
-        return status.OK, u''
+        return self.Status.IDLE, u''
 
     def do_stop(self):
         if self.seq_is_alive():
