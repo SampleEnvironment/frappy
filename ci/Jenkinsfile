@@ -143,7 +143,7 @@ node("master") {
    }
     stage('(re-)generate image') {
        sh '''#!/bin/bash
-        git worktree add tmpmaster refs/heads/master
+        git worktree add tmpmaster origin/master
         cd tmpmaster
         docker build --target base --tag secop_base:latest ci
         docker build --target docs --tag secop_docs:latest ci
