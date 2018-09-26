@@ -10,6 +10,7 @@ RUN apt-get update && \
           locales \
           python \
           python-dev \
+          python-pytango \
           python-virtualenv \
           virtualenv
 
