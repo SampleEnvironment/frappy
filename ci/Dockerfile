@@ -15,9 +15,9 @@ RUN apt-get update && \
           virtualenv
 
 
-ENV LC_ALL=C.utf8
-ENV LANG=C.utf8
-ENV LANGUAGE=C.utf8
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+ENV LANGUAGE=C.UTF-8
 # Add user jenkins to the image
 RUN groupadd -g 1001 jenkins && \
     useradd -m -u 1001 -g 1001 -d /home/jenkins2 -s /bin/bash jenkins && \
