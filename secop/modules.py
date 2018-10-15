@@ -61,6 +61,7 @@ class Module(object):
     # note: so far all properties are STRINGS
     # note: only the properties defined here are allowed to be set in the cfg file
     properties = {
+        'export': True, # should be exported remotely?
         'group': None,  # some Modules may be grouped together
         'description': "Short description of this Module class and its functionality.",
 
