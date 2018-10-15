@@ -73,6 +73,7 @@ class Dispatcher(object):
         # active (i.e. broadcast-receiving) connections
         self._active_connections = set()
         # map eventname -> list of subscribed connections
+        # eventname is <modulename> or <modulename>:<parametername>
         self._subscriptions = {}
         self._lock = threading.RLock()
 
@@ -178,10 +179,9 @@ class Dispatcher(object):
                 mod_desc[propname] = prop
             result[u'modules'].extend([modulename, mod_desc])
         result[u'equipment_id'] = self.equipment_id
-        result[u'firmware'] = u'The SECoP playground'
-        result[u'version'] = u'2017.07'
+        result[u'firmware'] = u'FRAPPY - The Python Framework for SECoP'
+        result[u'version'] = u'2018.09'
         result.update(self.nodeopts)
-        # XXX: what else?
         return result
 
     def _execute_command(self, modulename, command, arguments=None):

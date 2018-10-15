@@ -61,7 +61,7 @@ class Server(object):
             name.endswith('.cfg'):
             self._cfgfile = name
             self._pidfile = os.path.join(cfg[u'piddir'],
-                                         name[:-4].replace(os.path.sep, '_') + u'.pid')
+                                         name[:-4].replace(os.path.sep, u'_') + u'.pid')
             name = os.path.basename(name[:-4])
         else:
             self._cfgfile = os.path.join(cfg[u'confdir'], name + u'.cfg')

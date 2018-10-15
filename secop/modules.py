@@ -180,7 +180,9 @@ class Module(object):
 #                                      (self.name, k, e))
             # note: this will call write_* methods which will
             # write to the hardware, if possible!
-            setattr(self, k, v)
+            if k != u'value':
+                setattr(self, k, v)
+            cfgdict.pop(k)
 
         # Adopt units AFTER applying the cfgdict
         for k, v in self.accessibles.items():

@@ -20,6 +20,13 @@
 # *****************************************************************************
 """testing devices"""
 
+try:
+    # py2
+    unicode
+except NameError:
+    # py3
+    unicode = str  # pylint: disable=redefined-builtin
+
 import random
 
 from secop.modules import Readable, Drivable, Communicator, Parameter
@@ -89,4 +96,4 @@ class Temp(Drivable):
 class Lower(Communicator):
     """Communicator returning a lowercase version of the request"""
     def do_communicate(self, request):
-        return str(request).lower()
+        return unicode(request).lower()
