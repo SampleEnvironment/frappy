@@ -126,6 +126,7 @@ class MagneticField(Drivable):
         return self.value
 
     def write_target(self, value):
+        self.status = self.Status.BUSY, 'setting target'
         # could tell HW
         return round(value, 2)
         # note: setting self.target to the new value is done after this....
