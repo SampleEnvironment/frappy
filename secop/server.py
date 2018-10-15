@@ -27,6 +27,7 @@ import os
 import ast
 import time
 import threading
+from collections import OrderedDict
 
 try:
     import configparser  # py3
@@ -46,13 +47,22 @@ except ImportError:
     import daemon.pidfile as pidlockfile
 
 from secop.lib import get_class, formatException, getGeneralConfig
-from secop.protocol.dispatcher import Dispatcher
-from secop.protocol.interface import INTERFACES
 from secop.errors import ConfigError
 
 
-class Server(object):
 
+class Server(object):
+    # list allowed section prefixes
+    # if mapped dict does not exist -> section need a 'class' option
+    # otherwise a 'type' option is evaluatet and the class from the mapping dict used
+    #
+    # IMPORTANT: keep he order! (node MUST be first, as the others are referencing it!)
+    CFGSECTIONS = [
+        # section_prefix, default type, mapping of selectable classes
+        ('node', None, {None: "protocol.dispatcher.Dispatcher"}),
+        ('module', None, None),
+        ('interface', "tcp", {"tcp": "protocol.interface.tcp.TCPServer"}),
+    ]
     def __init__(self, name, parent_logger=None):
         cfg = getGeneralConfig()
 
@@ -97,9 +107,9 @@ class Server(object):
 
         self.log.info(u'startup done, handling transport messages')
         self._threads = set()
-        for _if in self._interfaces:
-            self.log.debug(u'starting thread for interface %r' % _if)
-            t = threading.Thread(target=_if.serve_forever)
+        for ifname, ifobj in self.interfaces.items():
+            self.log.debug(u'starting thread for interface %r' % ifname)
+            t = threading.Thread(target=ifobj.serve_forever)
             t.daemon = True
             t.start()
             self._threads.add(t)
@@ -122,108 +132,76 @@ class Server(object):
             self.log.error(u'Couldn\'t read cfg file !')
             raise ConfigError(u'Couldn\'t read cfg file %r' % self._cfgfile)
 
-        self._interfaces = []
 
-        moduleopts = []
-        interfaceopts = []
-        equipment_id = None
-        nodeopts = []
-        for section in parser.sections():
-            if section.lower().startswith(u'module '):
-                # module section
-                # omit leading 'module ' string
-                devname = section[len(u'module '):]
-                devopts = dict(item for item in parser.items(section))
-                if u'class' not in devopts:
-                    self.log.error(u'Module %s needs a class option!')
-                    raise ConfigError(
-                        u'cfgfile %r: Module %s needs a class option!' %
-                        (self._cfgfile, devname))
-                # MAGIC: transform \n.\n into \n\n which are normally stripped
-                # by the ini parser
-                for k in devopts:
-                    v = devopts[k]
-                    while u'\n.\n' in v:
-                        v = v.replace(u'\n.\n', u'\n\n')
-                    devopts[k] = v
-                # try to import the class, raise if this fails
-                devopts[u'class'] = get_class(devopts[u'class'])
-                # all went well so far
-                moduleopts.append([devname, devopts])
-            if section.lower().startswith(u'interface '):
-                # interface section
-                # omit leading 'interface ' string
-                ifname = section[len(u'interface '):]
-                ifopts = dict(item for item in parser.items(section))
-                if u'interface' not in ifopts:
-                    self.log.error(u'Interface %s needs an interface option!')
-                    raise ConfigError(
-                        u'cfgfile %r: Interface %s needs an interface option!' %
-                        (self._cfgfile, ifname))
-                # all went well so far
-                interfaceopts.append([ifname, ifopts])
-            if section.lower().startswith(u'equipment ') or section.lower().startswith(u'node '):
-                if equipment_id is not None:
-                    raise ConfigError(u'cfgfile %r: only one [node <id>] section allowed, found another [%s]!' % (
-                        self._cfgfile, section))
-                # equipment/node settings
-                equipment_id = section.split(u' ', 1)[1].replace(u' ', u'_')
-                nodeopts = dict(item for item in parser.items(section))
-                nodeopts[u'equipment_id'] = equipment_id
-                nodeopts[u'id'] = equipment_id
-                # MAGIC: transform \n.\n into \n\n which are normally stripped
-                # by the ini parser
-                for k in nodeopts:
-                    v = nodeopts[k]
-                    while u'\n.\n' in v:
-                        v = v.replace(u'\n.\n', u'\n\n')
-                    nodeopts[k] = v
 
-        if equipment_id is None:
-            self.log.error(u'Need a [node <id>] section, none found!')
-            raise ConfigError(
-                u'cfgfile %r: need an [node <id>] option!' % (self._cfgfile))
+        for kind, devtype, classmapping in self.CFGSECTIONS:
+            kinds = u'%ss' % kind
+            objs = OrderedDict()
+            self.__dict__[kinds] = objs
+            for section in parser.sections():
+                prefix = u'%s ' % kind
+                if section.lower().startswith(prefix):
+                    name = section[len(prefix):]
+                    opts = dict(item for item in parser.items(section))
+                    if u'class' in opts:
+                        cls = opts.pop(u'class')
+                    else:
+                        if not classmapping:
+                            self.log.error(u'%s %s needs a class option!' % (kind.title(), name))
+                            raise ConfigError(u'cfgfile %r: %s %s needs a class option!' %
+                                              (self._cfgfile, kind.title(), name))
+                        type_ = opts.pop(u'type', devtype)
+                        cls = classmapping.get(type_, None)
+                        if not cls:
+                            self.log.error(u'%s %s needs a type option (select one of %s)!' %
+                                           (kind.title(), name, ', '.join(repr(r) for r in classmapping)))
+                            raise ConfigError(u'cfgfile %r: %s %s needs a type option (select one of %s)!' %
+                                      (self._cfgfile, kind.title(), name, ', '.join(repr(r) for r in classmapping)))
+                    # MAGIC: transform \n.\n into \n\n which are normally stripped
+                    # by the ini parser
+                    for k in opts:
+                        v = opts[k]
+                        while u'\n.\n' in v:
+                            v = v.replace(u'\n.\n', u'\n\n')
+                        try:
+                            opts[k] = ast.literal_eval(v)
+                        except Exception:
+                            pass
+                        opts[k] = v
 
-        self._dispatcher = self._buildObject(
-            u'Dispatcher', Dispatcher, nodeopts)
-        self._processInterfaceOptions(interfaceopts)
-        self._processModuleOptions(moduleopts)
+                    # try to import the class, raise if this fails
+                    self.log.debug(u'Creating %s %s ...' % (kind.title(), name))
+                    # cls.__init__ should pop all used args from options!
+                    logname = u'dispatcher' if kind == u'node' else u'%s_%s' % (kind, name.lower())
+                    obj = get_class(cls)(name, self.log.getChild(logname), opts, self)
+                    if opts:
+                        raise ConfigError(u'%s %s: class %s: don\'t know how to handle option(s): %s' %
+                                          (kind, name, cls, u', '.join(opts)))
 
-    def _processModuleOptions(self, moduleopts):
-        # check modules opts by creating them
-        devs = []
-        for devname, devopts in moduleopts:
-            devclass = devopts.pop(u'class')
-            # create module
-            self.log.debug(u'Creating Module %r' % devname)
-            export = devopts.pop(u'export', u'1')
-            export = export.lower() in (u'1', u'on', u'true', u'yes')
-            if u'default' in devopts:
-                devopts[u'value'] = devopts.pop(u'default')
-            # strip '"
-            for k, v in devopts.items():
-                try:
-                    devopts[k] = ast.literal_eval(v)
-                except Exception:
-                    pass
-            devobj = devclass(
-                self.log.getChild(devname), devopts, devname, self._dispatcher)
-            devs.append([devname, devobj, export])
+                    # all went well so far
+                    objs[name] = obj
 
-        # connect modules with dispatcher
-        for devname, devobj, export in devs:
-            self.log.info(u'registering module %r' % devname)
-            self._dispatcher.register_module(devobj, devname, export)
+            # following line is the reason for 'node' beeing the first entry in CFGSECTIONS
+            if len(self.nodes) != 1:
+                raise ConfigError(u'cfgfile %r: needs exactly one node section!' % self._cfgfile)
+            self.dispatcher = self.nodes.values()[0]
+
+        # all objs created, now start them up and interconnect
+        for modname, modobj in self.modules.items():
+            self.log.info(u'registering module %r' % modname)
+            self.dispatcher.register_module(modobj, modname, modobj.properties['export'])
             # also call early_init on the modules
-            devobj.early_init()
+            modobj.early_init()
+
         # call init on each module after registering all
-        for _devname, devobj, _export in devs:
-            devobj.init_module()
+        for modname, modobj in self.modules.items():
+            modobj.init_module()
+
         starting_modules = set()
         finished_modules = Queue()
-        for _devname, devobj, _export in devs:
-            starting_modules.add(devobj)
-            devobj.start_module(started_callback=finished_modules.put)
+        for modname, modobj in self.modules.items():
+            starting_modules.add(modobj)
+            modobj.start_module(started_callback=finished_modules.put)
         # remark: it is the module implementors responsibility to call started_callback
         # within reasonable time (using timeouts). If we find later, that this is not
         # enough, we might insert checking for a timeout here, and somehow set the remaining
@@ -234,22 +212,3 @@ class Server(object):
             # use discard instead of remove here, catching the case when started_callback is called twice
             starting_modules.discard(finished)
             finished_modules.task_done()
-
-    def _processInterfaceOptions(self, interfaceopts):
-        # eval interfaces
-        self._interfaces = []
-        for ifname, ifopts in interfaceopts:
-            ifclass = ifopts.pop(u'interface')
-            ifclass = INTERFACES[ifclass]
-            interface = self._buildObject(ifname, ifclass, ifopts,
-                                          self._dispatcher)
-            self._interfaces.append(interface)
-
-    def _buildObject(self, name, cls, options, *args):
-        self.log.debug(u'Creating %s ...' % name)
-        # cls.__init__ should pop all used args from options!
-        obj = cls(self.log.getChild(name.lower()), options, *args)
-        if options:
-            raise ConfigError(u'%s: don\'t know how to handle option(s): %s' %
-                              (cls.__name__, u', '.join(options)))
-        return obj

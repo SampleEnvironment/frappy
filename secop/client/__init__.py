@@ -37,8 +37,8 @@ except ImportError:
     import ConfigParser as configparser
 
 import mlzlog
-from secop.protocol.interface.tcp import decode_msg, get_msg, encode_msg_frame
-from secop.protocol.messages import EVENTREPLY, DESCRIPTIONREQUEST, Message
+from secop.protocol.interface import decode_msg, get_msg, encode_msg_frame
+from secop.protocol.messages import EVENTREPLY, DESCRIPTIONREQUEST
 
 
 class NameSpace(dict):
@@ -135,12 +135,13 @@ class TCPConnection(object):
                     break  # no more messages to process
                 if not origin:  # empty string
                     continue  # ???
-                msg = decode_msg(origin)
+                _ = decode_msg(origin)
                 # construct msgObj from msg
                 try:
-                    msgObj = Message(*msg)
-                    msgObj.origin = origin.decode('latin-1')
-                    self.handle(msgObj)
+                    #msgObj = Message(*msg)
+                    #msgObj.origin = origin.decode('latin-1')
+                    #self.handle(msgObj)
+                    pass
                 except Exception:
                     # ??? what to do here?
                     pass
@@ -188,7 +189,7 @@ class Client(object):
         # XXX: further notification-callbacks needed ???
 
     def populateNamespace(self, namespace):
-        self.connection.send(Message(DESCRIPTIONREQUEST))
+        #self.connection.send(Message(DESCRIPTIONREQUEST))
         #        reply = self.connection.read()
         #        self.log.info("found modules %r" % reply)
         # create proxies, populate cache....

@@ -41,11 +41,15 @@ from __future__ import print_function
 from time import time as currenttime
 import threading
 
-from secop.protocol.messages import Message, EVENTREPLY, IDENTREQUEST
-from secop.protocol.errors import SECOPError, NoSuchModuleError, \
-    NoSuchCommandError, NoSuchParameterError, BadValueError, ReadonlyError
-from secop.lib import formatExtendedStack, formatException
-from secop.params import Parameter, Command
+from secop.protocol.messages import EVENTREPLY, IDENTREQUEST, IDENTREPLY, \
+    ENABLEEVENTSREPLY, DESCRIPTIONREPLY, WRITEREPLY, COMMANDREPLY, \
+    DISABLEEVENTSREPLY, HEARTBEATREPLY
+
+from secop.protocol.errors import InternalError, NoSuchModuleError, \
+    NoSuchCommandError, NoSuchParameterError, BadValueError, ReadonlyError, \
+    ProtocolError
+
+from secop.params import Parameter
 
 try:
     unicode('a')
@@ -56,9 +60,9 @@ except NameError:
 
 class Dispatcher(object):
 
-    def __init__(self, logger, options):
+    def __init__(self, name, logger, options, srv):
         # to avoid errors, we want to eat all options here
-        self.equipment_id = options[u'equipment_id']
+        self.equipment_id = name
         self.nodeopts = {}
         for k in list(options):
             self.nodeopts[k] = options.pop(k)
@@ -84,13 +88,12 @@ class Dispatcher(object):
         if reallyall:
             listeners = self._connections
         else:
-            if getattr(msg, u'command', None) is None:
-                eventname = u'%s:%s' % (msg.module, msg.parameter
-                                       if msg.parameter else u'value')
-            else:
-                eventname = u'%s:%s()' % (msg.module, msg.command)
-            listeners = self._subscriptions.get(eventname, set()).copy()
-            listeners.update(self._subscriptions.get(msg.module, set()))
+            # all subscribers to module:param
+            listeners = self._subscriptions.get(msg[1], set()).copy()
+            # all subscribers to module
+            module = msg[1].split(':', 1)[0]
+            listeners.update(self._subscriptions.get(module, set()))
+            # all generic subscribers
             listeners.update(self._active_connections)
         for conn in listeners:
             conn.queue_async_reply(msg)
@@ -98,22 +101,26 @@ class Dispatcher(object):
     def announce_update(self, moduleobj, pname, pobj):
         """called by modules param setters to notify subscribers of new values
         """
-        msg = Message(EVENTREPLY, module=moduleobj.name, parameter=pname)
-        msg.set_result(pobj.export_value(), dict(t=pobj.timestamp))
+        msg = (EVENTREPLY, u'%s:%s' % (moduleobj.name, pname), [pobj.export_value(), dict(t=pobj.timestamp)])
         self.broadcast_event(msg)
 
-    def subscribe(self, conn, modulename, pname=u'value'):
+    def subscribe(self, conn, modulename, pname=None):
         eventname = modulename
         if pname:
             eventname = u'%s:%s' % (modulename, pname)
         self._subscriptions.setdefault(eventname, set()).add(conn)
 
-    def unsubscribe(self, conn, modulename, pname=u'value'):
-        eventname = modulename
+    def unsubscribe(self, conn, modulename, pname=None):
         if pname:
             eventname = u'%s:%s' % (modulename, pname)
+        else:
+            eventname = modulename
+            # also remove 'more specific' subscriptions
+            for k, v in self._subscriptions.items():
+                if k.startswith(u'%s:' % modulename):
+                    v.discard(conn)
         if eventname in self._subscriptions:
-            self._subscriptions.setdefault(eventname, set()).discard(conn)
+            self._subscriptions[eventname].discard(conn)
 
     def add_connection(self, conn):
         """registers new connection"""
@@ -125,6 +132,7 @@ class Dispatcher(object):
             self._connections.remove(conn)
         for _evt, conns in list(self._subscriptions.items()):
             conns.discard(conn)
+        self._active_connections.discard(conn)
 
     def register_module(self, moduleobj, modulename, export=True):
         self.log.debug(u'registering module %r as %s (export=%r)' %
@@ -138,15 +146,17 @@ class Dispatcher(object):
             return self._modules[modulename]
         elif modulename in list(self._modules.values()):
             return modulename
-        raise NoSuchModuleError(module=unicode(modulename))
+        raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
     def remove_module(self, modulename_or_obj):
-        moduleobj = self.get_module(modulename_or_obj) or modulename_or_obj
+        moduleobj = self.get_module(modulename_or_obj)
         modulename = moduleobj.name
         if modulename in self._export:
             self._export.remove(modulename)
         self._modules.pop(modulename)
-        # XXX: also clean _subscriptions
+        self._subscriptions.pop(modulename, None)
+        for k in [k for k in self._subscriptions if k.startswith(u'%s:' % modulename)]:
+            self._subscriptions.pop(k, None)
 
     def list_module_names(self):
         # return a copy of our list
@@ -158,7 +168,7 @@ class Dispatcher(object):
             # omit export=False params!
             res = []
             for aname, aobj in self.get_module(modulename).accessibles.items():
-                if isinstance(aobj, Command) or aobj.export:
+                if aobj.export:
                     res.extend([aname, aobj.for_export()])
             self.log.debug(u'list accessibles for module %s -> %r' %
                            (modulename, res))
@@ -190,33 +200,32 @@ class Dispatcher(object):
 
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError(module=modulename)
+            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
         cmdspec = moduleobj.accessibles.get(command, None)
         if cmdspec is None:
-            raise NoSuchCommandError(module=modulename, command=command)
-        if len(cmdspec.datatype.argtypes) != len(arguments):
-            raise BadValueError(
-                module=modulename,
-                command=command,
-                reason=u'Wrong number of arguments!')
+            raise NoSuchCommandError('Module has no such command!')
+        num_args_required = len(cmdspec.datatype.argtypes)
+        if num_args_required != len(arguments):
+            raise BadValueError(u'Wrong number of arguments (need %d, got %d)!' % (num_args_required, len(arguments)))
 
         # now call func and wrap result as value
         # note: exceptions are handled in handle_request, not here!
         func = getattr(moduleobj, u'do_' + command)
         res = func(*arguments)
+        # XXX: pipe through cmdspec.datatype.result ?
         return res, dict(t=currenttime())
 
     def _setParameterValue(self, modulename, pname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError(module=modulename)
+            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
         pobj = moduleobj.accessibles.get(pname, None)
         if pobj is None or not isinstance(pobj, Parameter):
-            raise NoSuchParameterError(module=modulename, parameter=pname)
+            raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
         if pobj.readonly:
-            raise ReadonlyError(module=modulename, parameter=pname)
+            raise ReadonlyError('This parameter can not be changed remotely.')
 
         writefunc = getattr(moduleobj, u'write_%s' % pname, None)
         # note: exceptions are handled in handle_request, not here!
@@ -231,11 +240,11 @@ class Dispatcher(object):
     def _getParameterValue(self, modulename, pname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError(module=modulename)
+            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
         pobj = moduleobj.accessibles.get(pname, None)
         if pobj is None or not isinstance(pobj, Parameter):
-            raise NoSuchParameterError(module=modulename, parameter=pname)
+            raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
 
         readfunc = getattr(moduleobj, u'read_%s' % pname, None)
         if readfunc:
@@ -253,155 +262,107 @@ class Dispatcher(object):
     def handle_request(self, conn, msg):
         """handles incoming request
 
-        will call 'queue.request(data)' on conn to send reply before returning
+        will call 'queue_async_request(data)' on conn or return reply
         """
-        self.log.debug(u'Dispatcher: handling msg: %r' % msg)
-        # if there was an error in the frontend, bounce the resulting
-        # error msgObj directly back to the client
-        if msg.errorclass:
-            return msg
+        self.log.debug(u'Dispatcher: handling msg: %s' % repr(msg))
 
         # play thread safe !
+        # XXX: ONLY ONE REQUEST (per dispatcher) AT A TIME
         with self._lock:
-            if msg.action == IDENTREQUEST:
-                self.log.debug(u'Looking for handle_ident')
-                handler = self.handle_ident
-            else:
-                self.log.debug(u'Looking for handle_%s' % msg.action)
-                handler = getattr(self, u'handle_%s' % msg.action, None)
+            action, specifier, data = msg
+            # special case for *IDN?
+            if action == IDENTREQUEST:
+                action, specifier, data = 'ident', None, None
+
+            self.log.debug(u'Looking for handle_%s' % action)
+            handler = getattr(self, u'handle_%s' % action, None)
+
             if handler:
-                try:
-                    reply = handler(conn, msg)
-                    if reply:
-                        conn.queue_reply(reply)
-                    return None
-                except SECOPError as err:
-                    self.log.exception(err)
-                    msg.set_error(err.name, unicode(err), {})#u'traceback': formatException(),
-                                                       #u'extended_stack':formatExtendedStack()})
-                    return msg
-                except (ValueError, TypeError) as err:
-                    self.log.exception(err)
-                    msg.set_error(u'BadValue', unicode(err), {u'traceback': formatException()})
-                    print(u'--------------------')
-                    print(formatExtendedStack())
-                    print(u'====================')
-                    return msg
-                except Exception as err:
-                    self.log.exception(err)
-                    msg.set_error(u'InternalError', unicode(err), {u'traceback': formatException()})
-                    print(u'--------------------')
-                    print(formatExtendedStack())
-                    print(u'====================')
-                    return msg
+                return handler(conn, specifier, data)
             else:
-                self.log.error(u'Can not handle msg %r' % msg)
-                msg.set_error(u'Protocol', u'unhandled msg', {})
-                return msg
+                raise InternalError('unhandled message!')
 
     # now the (defined) handlers for the different requests
-    def handle_help(self, conn, msg):
-        msg.mkreply()
-        return msg
+    def handle_help(self, conn, specifier, data):
+        self.log.error('should have been handled in the interface!')
 
-    def handle_ident(self, conn, msg):
-        msg.mkreply()
-        return msg
+    def handle_ident(self, conn, specifier, data):
+        return (IDENTREPLY, None, None)
 
-    def handle_describe(self, conn, msg):
-        # XXX:collect descriptive data
-        msg.setvalue(u'specifier', u'.')
-        msg.setvalue(u'data', self.get_descriptive_data())
-        msg.mkreply()
-        return msg
+    def handle_describe(self, conn, specifier, data):
+        return (DESCRIPTIONREPLY, '.', self.get_descriptive_data())
 
-    def handle_read(self, conn, msg):
-        # XXX: trigger polling and force sending event
-        if not msg.parameter:
-            msg.parameter = u'value'
-        msg.set_result(*self._getParameterValue(msg.module, msg.parameter))
+    def handle_read(self, conn, specifier, data):
+        if data:
+            raise ProtocolError('poll request don\'t take data!')
+        modulename, pname = specifier, u'value'
+        if ':' in specifier:
+            modulename, pname = specifier.split(':', 1)
+        # XXX: trigger polling and force sending event ???
+        return (EVENTREPLY, specifier, list(self._getParameterValue(modulename, pname)))
 
-        #if conn in self._active_connections:
-        #    return None  # already send to myself
-        #if conn in self._subscriptions.get(msg.module, set()):
-        #    return None  # already send to myself
-        msg.mkreply()
-        return msg  # send reply to inactive conns
+    def handle_change(self, conn, specifier, data):
+        modulename, pname = specifier, u'value'
+        if ':' in specifier:
+            modulename, pname = specifier.split(u':', 1)
+        return (WRITEREPLY, specifier, list(self._setParameterValue(modulename, pname, data)))
 
-    def handle_change(self, conn, msg):
-        # try to actually write  XXX: should this be done asyncron? we could
-        # just return the reply in that case
-        if not msg.parameter:
-            msg.parameter = u'target'
-        msg.set_result(*self._setParameterValue(msg.module, msg.parameter, msg.data))
-
-        #if conn in self._active_connections:
-        #    return None  # already send to myself
-        #if conn in self._subscriptions.get(msg.module, set()):
-        #    return None  # already send to myself
-        msg.mkreply()
-        return msg  # send reply to inactive conns
-
-    def handle_do(self, conn, msg):
+    def handle_do(self, conn, specifier, data):
         # XXX: should this be done asyncron? we could just return the reply in
         # that case
-        if not msg.args:
-            msg.args = []
-        # try to actually execute command
-        msg.set_result(*self._execute_command(msg.module, msg.command, msg.args))
+        modulename, cmd = specifier.split(u':', 1)
+        return (COMMANDREPLY, specifier, list(self._execute_command(modulename, cmd, data)))
 
-        #if conn in self._active_connections:
-        #    return None  # already send to myself
-        #if conn in self._subscriptions.get(msg.module, set()):
-        #    return None  # already send to myself
-        msg.mkreply()
-        return msg  # send reply to inactive conns
+    def handle_ping(self, conn, specifier, data):
+        if data:
+            raise ProtocolError('poll request don\'t take data!')
+        return (HEARTBEATREPLY, specifier, [None, {u't':currenttime()}])
 
-    def handle_ping(self, conn, msg):
-        msg.setvalue(u'data', {u't':currenttime()})
-        msg.mkreply()
-        return msg
-
-    def handle_activate(self, conn, msg):
-        if msg.module:
-            if msg.module not in self._modules:
-                raise NoSuchModuleError()
+    def handle_activate(self, conn, specifier, data):
+        if data:
+            raise ProtocolError('activate request don\'t take data!')
+        if specifier:
+            modulename, pname = specifier, None
+            if ':' in specifier:
+                modulename, pname = specifier.split(u':', 1)
+            if modulename not in self._export:
+                raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+            if pname and pname not in self.get_module(modulename).accessibles:
+                # what if we try to subscribe a command here ???
+                raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
             # activate only ONE module
-            self.subscribe(conn, msg.specifier, u'')
-            modules = [msg.specifier]
+            self.subscribe(conn, modulename, pname)
+            modules = [(modulename, pname)]
         else:
             # activate all modules
             self._active_connections.add(conn)
-            modules = self._modules
+            modules = [(m, None) for m in self._export]
 
-        # send updates for all values. The first poll already happend before the server is active
-        for modulename in modules:
+        # send updates for all subscribed values.
+        # note: The initial poll already happend before the server is active
+        for modulename, pname in modules:
             moduleobj = self._modules.get(modulename, None)
-            if moduleobj is None:
-                self.log.error(u'activate: can not lookup module %r, skipping it' % modulename)
+            if pname:
+                pobj = moduleobj.accessibles[pname]
+                updmsg = (EVENTREPLY, u'%s:%s' % (modulename, pname),
+                          [pobj.export_value(), dict(t=pobj.timestamp)])
+                conn.queue_async_reply(updmsg)
                 continue
-            for pname, pobj in moduleobj.accessibles.items():
+            for pname, pobj in moduleobj.accessibles.items():  # pylint: disable=redefined-outer-name
                 if not isinstance(pobj, Parameter):
                     continue
                 if not pobj.export:  # XXX: handle export_as cases!
                     continue
                 # can not use announce_update here, as this will send to all clients
-                updmsg = Message(EVENTREPLY, module=moduleobj.name, parameter=pname)
-                updmsg.set_result(pobj.export_value(), dict(t=pobj.timestamp))
+                updmsg = (EVENTREPLY, u'%s:%s' % (modulename, pname),
+                          [pobj.export_value(), dict(t=pobj.timestamp)])
                 conn.queue_async_reply(updmsg)
-        msg.mkreply()
-        conn.queue_async_reply(msg)  # should be sent AFTER all the ^^initial updates
-        return None
+        return (ENABLEEVENTSREPLY, specifier, None) if specifier else (ENABLEEVENTSREPLY, None, None)
 
-    def handle_deactivate(self, conn, msg):
-        if msg.specifier:
-            self.unsubscribe(conn, msg.specifier, u'')
+    def handle_deactivate(self, conn, specifier, data):
+        if specifier:
+            self.unsubscribe(conn, specifier)
         else:
             self._active_connections.discard(conn)
             # XXX: also check all entries in self._subscriptions?
-        msg.mkreply()
-        return msg
-
-    def handle_error(self, conn, msg):
-        # is already an error-reply (came from interface frontend) -> just send it back
-        return msg
+        return (DISABLEEVENTSREPLY, None, None)

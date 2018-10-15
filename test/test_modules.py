@@ -23,7 +23,8 @@
 from __future__ import print_function
 
 import sys
-sys.path.insert(0, sys.path[0] + '/..')
+from os import path
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 # no fixtures needed
 import pytest
@@ -50,7 +51,11 @@ def test_Communicator():
         announce_update = lambda self, m, pn, pv: print('%s:%s=%r' % (m.name, pn, pv)),
     ))()
 
-    o = Communicator(logger, {}, 'o1', dispatcher)
+    srv = type('ServerStub', (object,), dict(
+        dispatcher = dispatcher,
+    ))()
+
+    o = Communicator('communicator',logger, {}, srv)
     o.early_init()
     o.init_module()
     q = queue.Queue()
@@ -97,8 +102,12 @@ def test_ModuleMeta():
         announce_update = lambda self, m, pn, pv: print('%s:%s=%r' % (m.name, pn, pv)),
     ))()
 
-    o1 = newclass(logger, {}, 'o1', dispatcher)
-    o2 = newclass(logger, {}, 'o1', dispatcher)
+    srv = type('ServerStub', (object,), dict(
+        dispatcher = dispatcher,
+    ))()
+
+    o1 = newclass('o1', logger, {}, srv)
+    o2 = newclass('o2', logger, {}, srv)
     params_found= set()
     ctr_found = set()
     for obj in [o1, o2]:

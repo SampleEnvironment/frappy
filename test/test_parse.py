@@ -22,7 +22,8 @@
 """test data types."""
 
 import sys
-sys.path.insert(0, sys.path[0] + '/..')
+from os import path
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 from collections import OrderedDict
 

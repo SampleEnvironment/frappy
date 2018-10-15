@@ -22,9 +22,6 @@
 """Define SECoP Messages"""
 from __future__ import print_function
 
-import json
-from secop.protocol.errors import EXCEPTIONS
-
 # allowed actions:
 
 IDENTREQUEST = u'*IDN?'  # literal
@@ -73,120 +70,6 @@ REQUEST2REPLY = {
     HEARTBEATREQUEST:     HEARTBEATREPLY,
     HELPREQUEST:          HELPREPLY,
 }
-
-
-
-class Message(object):
-    """base class for messages"""
-    origin = u'<unknown source>'
-    action = u'<unknown message type>'
-    specifier = None
-    data = None
-
-    # cooked versions
-    module = None
-    parameter = None
-    command = None
-    args = None
-
-    # if set, these are used for generating the reply
-    qualifiers = None  # will be rectified to dict() in __init__
-    value = None  # also the result of a command
-
-    # if set, these are used for generating the error msg
-    errorclass = ''  # -> specifier
-    errordescription = ''  # -> data[1] (data[0] is origin)
-    errorinfo = {}  # -> data[2]
-
-    def __init__(self, action, specifier=None, data=None, **kwds):
-        self.qualifiers = {}
-        self.action = action
-        if data:
-            data = json.loads(data)
-        if specifier:
-            self.module = specifier
-            self.specifier = specifier
-            if ':' in specifier:
-                self.module, p = specifier.split(':',1)
-                if action in (COMMANDREQUEST, COMMANDREPLY):
-                    self.command = p
-                    # XXX: extract args?
-                    self.args = data
-                else:
-                    self.parameter = p
-                    if data is not None:
-                        self.data = data
-            elif data is not None:
-                self.data = data
-        # record extra values
-        self.__arguments = set()
-        for k, v in kwds.items():
-            self.setvalue(k, v)
-
-    def setvalue(self, key, value):
-        setattr(self, key, value)
-        self.__arguments.add(key)
-
-    def setqualifier(self, key, value):
-        self.qualifiers[key] = value
-
-    def __repr__(self):
-        return u'Message(%r' % self.action + \
-            u', '.join('%s=%s' % (k, repr(getattr(self, k)))
-                      for k in sorted(self.__arguments)) + u')'
-
-    def serialize(self):
-        """return <action>,<specifier>,<jsonyfied_data> triple"""
-        if self.errorclass:
-            for k in self.__arguments:
-                if k in (u'origin', u'errorclass', u'errorinfo', u'errordescription'):
-                    if k in self.errorinfo:
-                        del self.errorinfo[k]
-                    continue
-                self.errorinfo[k] = getattr(self, k)
-            data = [self.origin, self.errordescription, self.errorinfo]
-            print(repr(data))
-            return ERRORREPLY, self.errorclass, json.dumps(data)
-        elif self.value or self.qualifiers:
-            data = [self.value, self.qualifiers]
-        else:
-            data = self.data
-
-        try:
-            data = json.dumps(data) if data else u''
-        except TypeError:
-            print('Can not serialze: %s' % repr(data))
-            data = u'none'
-
-        if self.specifier:
-            specifier = self.specifier
-        else:
-            specifier = self.module
-            if self.parameter:
-                specifier = u'%s:%s' %(self.module, self.parameter)
-            if self.command:
-                specifier = u'%s:%s' %(self.module, self.command)
-        return self.action, specifier, data
-
-    def mkreply(self):
-        self.action = REQUEST2REPLY.get(self.action, self.action)
-
-    def set_error(self, errorclass, errordescription, errorinfo):
-        if errorclass not in EXCEPTIONS:
-            errordescription = '%s is not an official errorclass!\n%s' % (errorclass, errordescription)
-            errorclass = u'Internal'
-        # used to mark thes as an error message
-        # XXX: check errorclass for allowed values !
-        self.setvalue(u'errorclass', errorclass)  # a str
-        self.setvalue(u'errordescription', errordescription)   # a str
-        self.setvalue(u'errorinfo', errorinfo)  # a dict
-        self.action = ERRORREPLY
-
-    def set_result(self, value, qualifiers):
-        # used to mark thes as an result reply message
-        self.setvalue(u'value', value)
-        self.qualifiers.update(qualifiers)
-        self.__arguments.add(u'qualifier')
 
 
 

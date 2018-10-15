@@ -20,13 +20,16 @@
 #
 # *****************************************************************************
 """test base client."""
+from __future__ import print_function
+
+import sys
+from os import path
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+from collections import OrderedDict
 
 import pytest
 
-import sys
-sys.path.insert(0, sys.path[0] + '/..')
-
-from collections import OrderedDict
 from secop.client.baseclient import Client
 
 # define Test-only connection object
@@ -52,6 +55,7 @@ def clientobj(request):
     print ("  TEARDOWN ClientObj")
 
 
+# pylint: disable=redefined-outer-name
 def test_describing_data_decode(clientobj):
     assert OrderedDict(
         [('a', 1)]) == clientobj._decode_list_to_ordereddict(['a', 1])

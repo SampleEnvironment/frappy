@@ -77,11 +77,11 @@ class Module(object):
     # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
 
-    def __init__(self, logger, cfgdict, modname, dispatcher):
+    def __init__(self, name, logger, cfgdict, srv):
         # remember the dispatcher object (for the async callbacks)
-        self.DISPATCHER = dispatcher
+        self.DISPATCHER = srv.dispatcher
         self.log = logger
-        self.name = modname
+        self.name = name
 
         # handle module properties
         # 1) make local copies of properties
@@ -97,6 +97,8 @@ class Module(object):
             if k[0] == '.':
                 if k[1:] in self.properties:
                     self.properties[k[1:]] = cfgdict.pop(k)
+                elif k[1] == '_':
+                    self.properties[k[1:]] = cfgdict.pop(k)
                 else:
                     raise ConfigError('Module %r has no property %r' %
                                       (self.name, k[1:]))
@@ -109,8 +111,8 @@ class Module(object):
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
         self.properties['_implementation'] = myclassname
-        self.properties['interface_class'] = [
-            b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
+        self.properties['interface_class'] = [[
+            b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')][0]]
 
         # handle Features
         # XXX: todo
@@ -138,7 +140,7 @@ class Module(object):
                     elif hasattr(paramobj, propname):
                         setattr(paramobj, propname, cfgdict.pop(k))
                     else:
-                        raise ConfigError('Module %s: Parameter %r has not property %r!' %
+                        raise ConfigError('Module %s: Parameter %r has no property %r!' %
                                           (self.name, paramname, propname))
 
         # 3) check config for problems:
@@ -167,12 +169,11 @@ class Module(object):
         # 5) 'apply' config:
         #    pass values through the datatypes and store as attributes
         for k, v in cfgdict.items():
-            if k == 'value':
-                continue
             # apply datatype, complain if type does not fit
             datatype = self.accessibles[k].datatype
             try:
                 v = datatype.validate(v)
+                self.accessibles[k].default = v
             except (ValueError, TypeError):
                 self.log.exception(formatExtendedStack())
                 raise

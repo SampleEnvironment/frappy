@@ -28,7 +28,7 @@ try:
     text_type = unicode  # Py2
 except NameError:
     text_type = str  # Py3
-
+    unicode = str  # pylint: disable=redefined-builtin
 
 class EnumMember(object):
     """represents one member of an Enum

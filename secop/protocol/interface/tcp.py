@@ -30,61 +30,19 @@ except ImportError:
     import SocketServer as socketserver  # py2
 
 from secop.lib import formatExtendedStack, formatException
-from secop.protocol.messages import HELPREPLY, Message, HelpMessage
+from secop.protocol.messages import HELPREQUEST, HELPREPLY, HelpMessage
 from secop.errors import SECoPError
+from secop.protocol.interface import encode_msg_frame, get_msg, decode_msg
 
 
 DEF_PORT = 10767
-MAX_MESSAGE_SIZE = 1024
+MESSAGE_READ_SIZE = 1024
 
-EOL = b'\n'
+
 CR = b'\r'
 SPACE = b' '
 
 
-def encode_msg_frame(action, specifier=None, data=None):
-    """ encode a msg_tripel into an msg_frame, ready to be sent
-
-    action (and optional specifier) are unicode strings,
-    data may be an json-yfied python object"""
-    action = action.encode('utf-8')
-    if specifier is None:
-        # implicit: data is None
-        return b''.join((action, EOL))
-    specifier = specifier.encode('utf-8')
-    if data:
-        data = data.encode('utf-8')
-        return b''.join((action, SPACE, specifier, SPACE, data, EOL))
-    return b''.join((action, SPACE, specifier, EOL))
-
-
-def get_msg(_bytes):
-    """try to deframe the next msg in (binary) input
-    always return a tupel (msg, remaining_input)
-    msg may also be None
-    """
-    if EOL not in _bytes:
-        return None, _bytes
-    return _bytes.split(EOL, 1)
-
-
-def decode_msg(msg):
-    """decode the (binary) msg into a (unicode) msg_tripel"""
-    # check for leading/trailing CR and remove it
-    if msg and msg[0] == CR:
-        msg = msg[1:]
-    if msg and msg[-1] == CR:
-        msg = msg[:-1]
-
-    res = msg.split(b' ', 2)
-    action = res[0].decode('utf-8')
-    if len(res) == 1:
-        return action, None, None
-    specifier = res[1].decode('utf-8')
-    if len(res) == 2:
-        return action, specifier, None
-    data = res[2].decode('utf-8')
-    return action, specifier, data
 
 
 class TCPRequestHandler(socketserver.BaseRequestHandler):
@@ -118,10 +76,11 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 # put frame(s) into framer to get bytestring
                 # send bytestring
                 outmsg = self._queue.popleft()
-                #outmsg.mkreply()
-                outdata = encode_msg_frame(*outmsg.serialize())
-#                outframes = self.encoding.encode(outmsg)
-#                outdata = self.framing.encode(outframes)
+                if not outmsg:
+                    outmsg = ('error','InternalError', ['<unknown origin>', 'trying to send none-data', {}])
+                if len(outmsg) > 3:
+                    outmsg = ('error', 'InternalError', ['<unknown origin>', 'bad message format', {'msg':outmsg}])
+                outdata = encode_msg_frame(*outmsg)
                 try:
                     mysocket.sendall(outdata)
                 except Exception:
@@ -129,7 +88,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
 
             # XXX: improve: use polling/select here?
             try:
-                newdata = mysocket.recv(MAX_MESSAGE_SIZE)
+                newdata = mysocket.recv(MESSAGE_READ_SIZE)
                 if not newdata:
                     # no timeout error, but no new data -> connection closed
                     return
@@ -150,33 +109,39 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 origin, data = get_msg(data)
                 if origin is None:
                     break  # no more messages to process
-                if not origin:  # empty string -> send help message
+                origin = origin.strip()
+                if origin and origin[0] == CR:
+                    origin = origin[1:]
+                if origin and origin[-1] == CR:
+                    origin = origin[:-1]
+                if origin in (HELPREQUEST, ''):  # empty string -> send help message
                     for idx, line in enumerate(HelpMessage.splitlines()):
-                        msg = Message(HELPREPLY, specifier='%d' % idx)
-                        msg.data = line
-                        self.queue_async_reply(msg)
+                        self.queue_async_reply((HELPREPLY, '%d' % (idx+1), line))
                     continue
                 msg = decode_msg(origin)
-                # construct msgObj from msg
+                result = None
                 try:
-                    msgObj = Message(*msg)
-                    msgObj.origin = origin.decode('latin-1')
-                    msgObj = serverobj.dispatcher.handle_request(self, msgObj)
+                    result = serverobj.dispatcher.handle_request(self, msg)
+                    if (msg[0] == 'read') and result:
+                        # read should only trigger async_replies
+                        self.queue_async_reply(('error', 'InternalError', [origin,
+                                                'read should only trigger async data units']))
                 except SECoPError as err:
-                    msgObj.set_error(err.name, str(err), {'exception': formatException(),
-                                                          'traceback': formatExtendedStack()})
+                    result = ('error', err.name, [origin, str(err), {'exception': formatException(),
+                                                          'traceback': formatExtendedStack()}])
                 except Exception as err:
                     # create Error Obj instead
-                    msgObj.set_error(u'Internal', str(err), {'exception': formatException(),
-                                                          'traceback':formatExtendedStack()})
+                    result = ('error', 'InternalError', [origin, str(err), {'exception': formatException(),
+                                                          'traceback': formatExtendedStack()}])
                     print('--------------------')
                     print(formatException())
                     print('--------------------')
                     print(formatExtendedStack())
                     print('====================')
 
-                if msgObj:
-                    self.queue_reply(msgObj)
+                if not result:
+                    self.log.error('empty result upon msg %s' % repr(msg))
+                self.queue_async_reply(result)
 
     def queue_async_reply(self, data):
         """called by dispatcher for async data units"""
@@ -184,14 +149,6 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
             self._queue.append(data)
         else:
             self.log.error('should async_queue empty data!')
-
-    def queue_reply(self, data):
-        """called by dispatcher to queue (sync) replies"""
-        # sync replies go first!
-        if data:
-            self._queue.appendleft(data)
-        else:
-            self.log.error('should queue empty data!')
 
     def finish(self):
         """called when handle() terminates, i.e. the socket closed"""
@@ -211,16 +168,17 @@ class TCPServer(socketserver.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, logger, interfaceopts, dispatcher):
-        self.dispatcher = dispatcher
+    def __init__(self, name, logger, options, srv):
+        self.dispatcher =srv.dispatcher
+        self.name = name
         self.log = logger
-        bindto = interfaceopts.pop('bindto', 'localhost')
-        portnum = int(interfaceopts.pop('bindport', DEF_PORT))
+        bindto = options.pop('bindto', 'localhost')
+        portnum = int(options.pop('bindport', DEF_PORT))
         if ':' in bindto:
             bindto, _port = bindto.rsplit(':')
             portnum = int(_port)
 
-        self.log.info("TCPServer binding to %s:%d" % (bindto, portnum))
+        self.log.info("TCPServer %s binding to %s:%d" % (name, bindto, portnum))
         socketserver.ThreadingTCPServer.__init__(
             self, (bindto, portnum), TCPRequestHandler, bind_and_activate=True)
         self.log.info("TCPServer initiated")
