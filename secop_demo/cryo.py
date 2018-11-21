@@ -125,7 +125,7 @@ class Cryostat(CryoBase):
     commands = dict(
         stop=Command(
             "Stop ramping the setpoint\n\nby setting the current setpoint as new target",
-            [],
+            None,
             None),
     )
 

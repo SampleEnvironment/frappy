@@ -224,7 +224,8 @@ class Readable(Module):
                   WARN = 200,
                   UNSTABLE = 250,
                   ERROR = 400,
-                  UNKNOWN = 900,
+                  DISABLED = 500,
+                  UNKNOWN = 0,
                  )
     parameters = {
         'value':        Parameter('current value of the Module', readonly=True,
@@ -312,7 +313,7 @@ class Drivable(Writable):
     commands = {
         'stop': Command(
             'cease driving, go to IDLE state',
-            arguments=[],
+            argument=None,
             result=None
         ),
     }
@@ -360,7 +361,7 @@ class Communicator(Module):
 
     commands = {
         "communicate": Command("provides the simplest mean to communication",
-                            arguments=[StringType()],
+                            argument=StringType(),
                             result=StringType()
                            ),
     }

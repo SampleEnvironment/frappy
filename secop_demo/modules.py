@@ -314,6 +314,6 @@ class DatatypesTest(Readable):
 
 class ArrayTest(Readable):
     parameters = {
-        "x": Parameter('value', datatype=ArrayOf(FloatRange(), 100000, 100000),
+        "x": Parameter('value', datatype=ArrayOf(FloatRange(), 0, 100000),
                         default = 100000 * [0]),
     }

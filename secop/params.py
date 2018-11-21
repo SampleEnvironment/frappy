@@ -155,15 +155,14 @@ class Override(CountedObj):
 class Command(CountedObj):
     """storage for Commands settings (description + call signature...)
     """
-    def __init__(self, description, arguments=None, result=None, export=True, optional=False, datatype=None, ctr=None):
+    def __init__(self, description, argument=None, result=None, export=True, optional=False, datatype=None, ctr=None):
         super(Command, self).__init__()
         # descriptive text for humans
         self.description = description
-        # list of datatypes for arguments
-        self.arguments = arguments or []
-        self.datatype = CommandType(arguments, result)
-        self.arguments = arguments
+        # datatypes for argument/result
+        self.argument = argument
         self.result = result
+        self.datatype = CommandType(argument, result)
         # whether implementation is optional
         self.optional = optional
         self.export = export

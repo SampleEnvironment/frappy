@@ -24,25 +24,34 @@
 # pylint: disable=unused-import
 from __future__ import print_function
 
+import sys
+
 try:
+    # Do not abort on exceptions in signal handlers.
+    # pylint: disable=unnecessary-lambda
+    sys.excepthook = lambda *args: sys.__excepthook__(*args)
+
     from PyQt5 import uic
-    from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
-    from PyQt5.QtGui import QFont, QTextCursor, QFontMetrics
-    from PyQt5.QtWidgets import QLabel, QWidget, QDialog, QLineEdit, QCheckBox, QPushButton, \
-        QSizePolicy, QMainWindow, QMessageBox, QInputDialog, QTreeWidgetItem, QApplication, \
-        QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, \
-        QGridLayout, QScrollArea, QFrame
+    from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, \
+        QRectF
+    from PyQt5.QtGui import QFont, QTextCursor, QFontMetrics, QColor, QBrush, \
+        QPainter, QPolygonF, QPen
+    from PyQt5.QtWidgets import QLabel, QWidget, QDialog, QLineEdit, QCheckBox, \
+        QPushButton, QSizePolicy, QMainWindow, QMessageBox, QInputDialog, \
+        QTreeWidgetItem, QApplication, QGroupBox, QSpinBox, QDoubleSpinBox, \
+        QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, QGridLayout, \
+        QScrollArea, QFrame
 
     from xml.sax.saxutils import escape as toHtmlEscaped
 
 except ImportError:
     from PyQt4 import uic
-    from PyQt4.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
+    from PyQt4.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, QRectF
     from PyQt4.QtGui import QFont, QTextCursor, QFontMetrics, \
         QLabel, QWidget, QDialog, QLineEdit, QCheckBox, QPushButton, \
         QSizePolicy, QMainWindow, QMessageBox, QInputDialog, QTreeWidgetItem, QApplication, \
         QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, \
-        QGridLayout, QScrollArea, QFrame
+        QGridLayout, QScrollArea, QFrame, QColor, QBrush, QPainter, QPolygonF, QPen
 
     def toHtmlEscaped(s):
         return Qt.escape(s)

@@ -37,7 +37,7 @@ from secop.gui.qt import QWidget, QTextCursor, QFont, QFontMetrics, QLabel, \
     QMessageBox, pyqtSlot, toHtmlEscaped
 
 from secop.gui.util import loadUi
-from secop.protocol.errors import SECOPError
+from secop.errors import SECoPError
 from secop.datatypes import StringType, EnumType
 
 
@@ -80,7 +80,7 @@ class NodeCtrl(QWidget):
                 self._addLogEntry(reply, newline=True, pretty=False)
             else:
                 self._addLogEntry(reply, newline=True, pretty=True)
-        except SECOPError as e:
+        except SECoPError as e:
             self._addLogEntry(
                 'error %s %s' % (e.name, json.dumps(e.args)),
                 newline=True,
@@ -145,8 +145,8 @@ class NodeCtrl(QWidget):
             if 'interface_class' in modprops:
                 interfaces = modprops['interface_class']
             else:
-                interfaces = modprops['interfaces']
-            description = modprops['description']
+                interfaces = modprops.get('interfaces', '')
+            description = modprops.get('description', '!!! missing description !!!')
 
             # fallback: allow (now) invalid 'Driveable'
             unit = ''

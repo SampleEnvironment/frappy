@@ -21,6 +21,7 @@
 """provides tcp interface to the SECoP Server"""
 from __future__ import print_function
 
+import sys
 import socket
 import collections
 
@@ -29,7 +30,7 @@ try:
 except ImportError:
     import SocketServer as socketserver  # py2
 
-from secop.lib import formatExtendedStack, formatException
+from secop.lib import formatExtendedStack, formatException, formatExtendedTraceback
 from secop.protocol.messages import HELPREQUEST, HELPREPLY, HelpMessage
 from secop.errors import SECoPError
 from secop.protocol.interface import encode_msg_frame, get_msg, decode_msg
@@ -136,7 +137,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                     print('--------------------')
                     print(formatException())
                     print('--------------------')
-                    print(formatExtendedStack())
+                    print(formatExtendedTraceback(sys.exc_info()))
                     print('====================')
 
                 if not result:

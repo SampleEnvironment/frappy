@@ -35,10 +35,10 @@ from secop.params import Command, Parameter, Override
 
 
 def test_Command():
-    cmd = Command('do_something', [], None)
+    cmd = Command('do_something')
     assert cmd.description
     assert cmd.ctr
-    assert cmd.arguments == []
+    assert cmd.argument is None
     assert cmd.result is None
 
 

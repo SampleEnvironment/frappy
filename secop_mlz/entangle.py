@@ -39,7 +39,7 @@ from secop.lib import lazy_property
 #from secop.parse import Parser
 from secop.datatypes import IntRange, FloatRange, StringType, TupleOf, \
     ArrayOf, EnumType
-from secop.errors import ConfigError, ProgrammingError, CommunicationError, \
+from secop.errors import ConfigError, ProgrammingError, CommunicationFailedError, \
     HardwareError
 from secop.modules import Parameter, Command, Override, Module, Readable, Drivable
 
@@ -57,7 +57,7 @@ __all__ = [
 ]
 
 EXC_MAPPING = {
-    PyTango.CommunicationFailed: CommunicationError,
+    PyTango.CommunicationFailedError: CommunicationFailedError,
     PyTango.WrongNameSyntax: ConfigError,
     PyTango.DevFailed: HardwareError,
 }
@@ -65,7 +65,7 @@ EXC_MAPPING = {
 REASON_MAPPING = {
     'Entangle_ConfigurationError': ConfigError,
     'Entangle_WrongAPICall': ProgrammingError,
-    'Entangle_CommunicationFailure': CommunicationError,
+    'Entangle_CommunicationFailure': CommunicationFailedError,
     'Entangle_InvalidValue': ValueError,
     'Entangle_ProgrammingError': ProgrammingError,
     'Entangle_HardwareFailure': HardwareError,
@@ -174,7 +174,7 @@ class PyTangoDevice(Module):
     }
 
     commands = {
-        'reset': Command('Tango reset command', arguments=[], result=None),
+        'reset': Command('Tango reset command', argument=None, result=None),
     }
 
     tango_status_mapping = {
@@ -255,7 +255,7 @@ class PyTangoDevice(Module):
         try:
             device.State
         except AttributeError:
-            raise CommunicationError(
+            raise CommunicationFailedError(
                 self, 'connection to Tango server failed, '
                 'is the server running?')
         return self._applyGuardsToPyTangoDevice(device)
@@ -351,11 +351,11 @@ class PyTangoDevice(Module):
         """Process the exception raised either by communication or _com_return.
 
         Should raise a NICOS exception.  Default is to raise
-        CommunicationError.
+        CommunicationFailedError.
         """
         reason = self._tango_exc_reason(err)
         exclass = REASON_MAPPING.get(
-            reason, EXC_MAPPING.get(type(err), CommunicationError))
+            reason, EXC_MAPPING.get(type(err), CommunicationFailedError))
         fulldesc = self._tango_exc_desc(err)
         self.log.debug('PyTango error: %s', fulldesc)
         raise exclass(self, fulldesc)
@@ -405,7 +405,7 @@ class Sensor(AnalogInput):
 
     commands = {
         'setposition': Command('Set the position to the given value.',
-                               arguments=[FloatRange()], result=None,
+                               argument=FloatRange(), result=None,
                                ),
     }
 
@@ -450,7 +450,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
                          ),
     }
     commands = {
-        'stop': Command('Stops current movement.', arguments=[], result=None),
+        'stop': Command('Stops current movement.', argument=None, result=None),
     }
     _history = ()
     _timeout = None
@@ -615,7 +615,7 @@ class Actuator(AnalogOutput):
 
     commands = {
         'setposition': Command('Set the position to the given value.',
-                               arguments=[FloatRange()], result=None,
+                               argument=FloatRange(), result=None,
                                ),
     }
 
@@ -656,7 +656,7 @@ class Motor(Actuator):
     }
 
     commands = {
-        'reference': Command('Do a reference run', arguments=[], result=None),
+        'reference': Command('Do a reference run', argument=None, result=None),
     }
 
     def read_refpos(self, maxage=0):
@@ -952,25 +952,25 @@ class StringIO(PyTangoDevice, Module):
 
     commands = {
         'communicate': Command('Send a string and return the reply',
-                               arguments=[StringType()],
+                               argument=StringType(),
                                result=StringType()),
         'flush':       Command('Flush output buffer',
-                               arguments=[], result=None),
+                               argument=None, result=None),
         'read':        Command('read some characters from input buffer',
-                               arguments=[IntRange()], result=StringType()),
+                               argument=IntRange(0), result=StringType()),
         'write':       Command('write some chars to output',
-                               arguments=[StringType()], result=None),
+                               argument=StringType(), result=None),
         'readLine':    Command('Read sol - a whole line - eol',
-                               arguments=[], result=StringType()),
+                               argument=None, result=StringType()),
         'writeLine':   Command('write sol + a whole line + eol',
-                               arguments=[StringType()], result=None),
+                               argument=StringType(), result=None),
         'availableChars':   Command('return number of chars in input buffer',
-                                    arguments=[], result=IntRange(0)),
+                                    argument=None, result=IntRange(0)),
         'availableLines':   Command('return number of lines in input buffer',
-                                    arguments=[], result=IntRange(0)),
+                                    argument=None, result=IntRange(0)),
         'multiCommunicate': Command('perform a sequence of communications',
-                                    arguments=[ArrayOf(
-                                        TupleOf(StringType(), IntRange()), 100)],
+                                    argument=ArrayOf(
+                                        TupleOf(StringType(), IntRange()), 100),
                                     result=ArrayOf(StringType(), 100)),
     }
 

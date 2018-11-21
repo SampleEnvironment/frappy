@@ -57,30 +57,28 @@ def clientobj(request):
 
 # pylint: disable=redefined-outer-name
 def test_describing_data_decode(clientobj):
-    assert OrderedDict(
-        [('a', 1)]) == clientobj._decode_list_to_ordereddict(['a', 1])
-    assert {'modules': {}, 'properties': {}
+    assert {'modules': OrderedDict(), 'properties': {}
             } == clientobj._decode_substruct(['modules'], {})
     describing_data = {'equipment_id': 'eid',
-                       'modules': ['LN2', {'commands': [],
+                       'modules': [['LN2', {'commands': [],
                                            'interfaces': ['Readable', 'Module'],
-                                           'parameters': ['value', {'datatype': ['double'],
+                                           'parameters': [['value', {'datatype': ['double'],
                                                                     'description': 'current value',
                                                                     'readonly': True,
                                                                     }
-                                                          ]
+                                                          ]]
                                            }
-                                   ]
+                                   ]]
                        }
-    decoded_data = {'modules': {'LN2': {'commands': {},
-                                        'parameters': {'value': {'datatype': ['double'],
+    decoded_data = {'modules': OrderedDict([('LN2', {'commands': OrderedDict(),
+                                        'parameters': OrderedDict([('value', {'datatype': ['double'],
                                                                  'description': 'current value',
                                                                  'readonly': True,
                                                                  }
-                                                       },
+                                                                    )]),
                                         'properties': {'interfaces': ['Readable', 'Module']}
                                         }
-                                },
+                                             )]),
                     'properties': {'equipment_id': 'eid',
                                    }
                     }

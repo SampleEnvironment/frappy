@@ -134,7 +134,7 @@ class GenericCmdWidget(ParameterWidget):
         loadUi(self, 'cmdbuttons.ui')
 
         self.cmdLineEdit.setText('')
-        self.cmdLineEdit.setEnabled(self.datatype.argtypes is not None)
+        self.cmdLineEdit.setEnabled(self.datatype.argtype is not None)
         self.cmdLineEdit.returnPressed.connect(
             self.on_cmdPushButton_clicked)
 
@@ -164,7 +164,6 @@ def ParameterView(module,
                   parent=None):
     # depending on datatype returns an initialized widget fit for display and
     # interaction
-
     if datatype is not None:
         if datatype.IS_COMMAND:
             return GenericCmdWidget(

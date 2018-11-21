@@ -69,13 +69,13 @@ def test_ModuleMeta():
             'param2': Parameter('param2', datatype=BoolType(), default=True),
         },
         "commands": {
-            "cmd": Command('stuff',[BoolType()], BoolType())
+            "cmd": Command('stuff',BoolType(), BoolType())
         },
         "accessibles": {
             'a1': Parameter('a1', datatype=BoolType(), default=False),
             'a2': Parameter('a2', datatype=BoolType(), default=True),
             'value':Override(datatype=BoolType(), default = True),
-            'cmd2': Command('another stuff', [BoolType()], BoolType()),
+            'cmd2': Command('another stuff', BoolType(), BoolType()),
         },
         "do_cmd": lambda self, arg: not arg,
         "do_cmd2": lambda self, arg: not arg,

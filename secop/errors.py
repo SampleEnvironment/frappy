@@ -1,5 +1,6 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
+#
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation; either version 2 of the License, or (at your option) any later
@@ -18,79 +19,117 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-"""error class for our little framework"""
-
-# base class
-class SECoPServerError(Exception):
-    errorclass = 'InternalError'
+"""Define (internal) SECoP Errors"""
 
 
-# those errors should never be seen remotely!
-# just in case they are, these are flagged as InternalError
-class ConfigError(SECoPServerError):
-    pass
+class SECoPError(RuntimeError):
+
+    def __init__(self, *args, **kwds):
+        RuntimeError.__init__(self)
+        self.args = args
+        for k, v in list(kwds.items()):
+            setattr(self, k, v)
+
+    def __repr__(self):
+        args = ', '.join(map(repr, self.args))
+        kwds = ', '.join(['%s=%r' % i for i in list(self.__dict__.items())])
+        res = []
+        if args:
+            res.append(args)
+        if kwds:
+            res.append(kwds)
+        return '%s(%s)' % (self.name, ', '.join(res))
+
+    @property
+    def name(self):
+        return self.__class__.__name__[:-len('Error')]
 
 
-class ProgrammingError(SECoPServerError):
-    pass
+class SECoPServerError(SECoPError):
+    name = 'InternalError'
 
 
-class ParsingError(SECoPServerError):
-    pass
+class InternalError(SECoPError):
+    name = 'InternalError'
 
 
-# to be exported for remote operation
-class SECoPError(SECoPServerError):
-    pass
+class ProgrammingError(SECoPError):
+    name = 'InternalError'
+
+
+class ConfigError(SECoPError):
+    name = 'InternalError'
+
+
+class ProtocolError(SECoPError):
+    name = 'ProtocolError'
 
 
 class NoSuchModuleError(SECoPError):
-    errorclass = 'NoSuchModule'
+    name = 'NoSuchModule'
 
 
 class NoSuchParameterError(SECoPError):
-    errorclass = 'NoSuchParameter'
+    pass
 
 
 class NoSuchCommandError(SECoPError):
-    errorclass = 'NoSuchCommand'
-
-
-class CommandFailedError(SECoPError):
-    errorclass = 'CommandFailed'
-
-
-class CommandRunningError(SECoPError):
-    errorclass = 'CommandRunning'
+    pass
 
 
 class ReadOnlyError(SECoPError):
-    errorclass = 'ReadOnly'
+    pass
 
 
 class BadValueError(SECoPError):
-    errorclass = 'BadValue'
+    pass
 
 
-class CommunicationError(SECoPError):
-    errorclass = 'CommunicationFailed'
+class CommandFailedError(SECoPError):
+    pass
 
 
-class TimeoutError(SECoPError):
-    errorclass = 'CommunicationFailed'  # XXX: add to SECop messages
+class CommandRunningError(SECoPError):
+    pass
 
 
-class HardwareError(SECoPError):
-    errorclass = 'CommunicationFailed'  # XXX: Add to SECoP messages
+class CommunicationFailedError(SECoPError):
+    pass
 
 
 class IsBusyError(SECoPError):
-    errorclass = 'IsBusy'
+    pass
 
 
 class IsErrorError(SECoPError):
-    errorclass = 'IsError'
+    pass
 
 
 class DisabledError(SECoPError):
-    errorclass = 'Disabled'
+    pass
+
+
+class HardwareError(SECoPError):
+    pass
+
+
+
+EXCEPTIONS = dict(
+    NoSuchModule=NoSuchModuleError,
+    NoSuchParameter=NoSuchParameterError,
+    NoSuchCommand=NoSuchCommandError,
+    CommandFailed=CommandFailedError,
+    CommandRunning=CommandRunningError,
+    Readonly=ReadOnlyError,
+    BadValue=BadValueError,
+    CommunicationFailed=CommunicationFailedError,
+    HardwareError=HardwareError,
+    IsBusy=IsBusyError,
+    IsError=IsErrorError,
+    Disabled=DisabledError,
+    SyntaxError=ProtocolError,
+    InternalError=InternalError,
+# internal short versions (candidates for spec)
+    Protocol=ProtocolError,
+    Internal=InternalError,
+)

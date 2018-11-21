@@ -112,9 +112,9 @@ class HAS_Timeout(Feature):
 class HAS_Pause(Feature):
     # just a proposal, can't agree on it....
     accessibles = {
-        'pause': Command('pauses movement', arguments=[], result=None),
+        'pause': Command('pauses movement', argument=None, result=None),
         'go':    Command('continues movement or start a new one if target was change since the last pause',
-                         arguments=[], result=None),
+                         argument=None, result=None),
     }
 
 

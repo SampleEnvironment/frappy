@@ -43,30 +43,31 @@ from secop.gui.valuewidgets import get_widget
 
 
 class CommandDialog(QDialog):
-    def __init__(self, cmdname, arglist, parent=None):
+    def __init__(self, cmdname, argument, parent=None):
         super(CommandDialog, self).__init__(parent)
         loadUi(self, 'cmddialog.ui')
 
         self.setWindowTitle('Arguments for %s' % cmdname)
-        row = 0
+        #row = 0
 
         self._labels = []
         self.widgets = []
-        for row, dtype in enumerate(arglist):
-            l = QLabel(repr(dtype))
-            l.setWordWrap(True)
-            w = get_widget(dtype, readonly=False)
-            self.gridLayout.addWidget(l, row, 0)
-            self.gridLayout.addWidget(w, row, 1)
-            self._labels.append(l)
-            self.widgets.append(w)
+        # improve! recursive?
+        dtype = argument
+        l = QLabel(repr(dtype))
+        l.setWordWrap(True)
+        w = get_widget(dtype, readonly=False)
+        self.gridLayout.addWidget(l, 0, 0)
+        self.gridLayout.addWidget(w, 0, 1)
+        self._labels.append(l)
+        self.widgets.append(w)
 
-        self.gridLayout.setRowStretch(len(arglist), 1)
+        self.gridLayout.setRowStretch(1, 1)
         self.setModal(True)
         self.resize(self.sizeHint())
 
     def get_value(self):
-        return [w.get_value() for w in self.widgets]
+        return True, self.widgets[0].get_value()
 
     def exec_(self):
         if super(CommandDialog, self).exec_():
@@ -127,7 +128,7 @@ class CommandButton(QPushButton):
         super(CommandButton, self).__init__(parent)
 
         self._cmdname = cmdname
-        self._argintypes = cmdinfo['datatype'].argtypes   # list of datatypes
+        self._argintype = cmdinfo['datatype'].argtype   # single datatype
         self.resulttype = cmdinfo['datatype'].resulttype
         self._cb = cb  # callback function for exection
 
@@ -138,11 +139,11 @@ class CommandButton(QPushButton):
 
     def on_pushButton_pressed(self):
         self.setEnabled(False)
-        if self._argintypes:
-            dlg = CommandDialog(self._cmdname, self._argintypes)
+        if self._argintype:
+            dlg = CommandDialog(self._cmdname, self._argintype)
             args = dlg.exec_()
             if args:  # not 'Cancel' clicked
-                self._cb(self._cmdname, args)
+                self._cb(self._cmdname, args[1])
         else:
             # no need for arguments
             self._cb(self._cmdname, None)
@@ -172,8 +173,13 @@ class ModuleCtrl(QWidget):
     def _execCommand(self, command, args=None):
         if not args:
             args = tuple()
-        result, qualifiers = self._node.execCommand(
-            self._module, command, args)
+        try:
+            result, qualifiers = self._node.execCommand(
+                self._module, command, args)
+        except TypeError:
+            result = None
+            qualifiers = {}
+            # XXX: flag missing data report as error
         showCommandResultDialog(command, args, result, qualifiers)
 
     def _initModuleWidgets(self):
@@ -182,7 +188,7 @@ class ModuleCtrl(QWidget):
 
         # ignore groupings for commands (for now)
         commands = self._node.getCommands(self._module)
-        # keep a reference or the widgets are detroyed to soon.
+        # keep a reference or the widgets are destroyed to soon.
         self.cmdWidgets = cmdWidgets = {}
         # create and insert widgets into our QGridLayout
         for command in sorted(commands):
@@ -191,6 +197,7 @@ class ModuleCtrl(QWidget):
             cmdWidgets[command] = w
             self.commandGroupBox.layout().addWidget(w, 0, row)
             row += 1
+
         row = 0
         # collect grouping information
         paramsByGroup = {}  # groupname -> [paramnames]
@@ -198,8 +205,8 @@ class ModuleCtrl(QWidget):
         params = self._node.getParameters(self._module)
         for param in params:
             props = self._node.getProperties(self._module, param)
-            group = props.get('group', None)
-            if group is not None:
+            group = props.get('group', '')
+            if group:
                 allGroups.add(group)
                 paramsByGroup.setdefault(group, []).append(param)
             # enforce reading initial value if not already in cache
@@ -210,6 +217,7 @@ class ModuleCtrl(QWidget):
         self._groupWidgets = groupWidgets = {}
 
         # create and insert widgets into our QGridLayout
+        # iterate over a union of all groups and all params
         for param in sorted(allGroups.union(set(params))):
             labelstr = param + ':'
             if param in paramsByGroup:
@@ -226,7 +234,7 @@ class ModuleCtrl(QWidget):
                         'datatype', None)
                     # yes: create a widget for this as well
                     labelstr, buttons = self._makeEntry(
-                        param, initValues[param].value, datatype=datatype, nolabel=True, checkbox=checkbox, invert=True)
+                        group, initValues[param].value, datatype=datatype, nolabel=True, checkbox=checkbox, invert=True)
                     checkbox.setText(labelstr)
 
                     # add to Layout (yes: ignore the label!)
@@ -249,7 +257,7 @@ class ModuleCtrl(QWidget):
                         self._module, param_).get(
                         'datatype', None)
                     label, buttons = self._makeEntry(
-                        param_, initval, checkbox=checkbox, invert=False)
+                        param_, initval, datatype=datatype, checkbox=checkbox, invert=False)
 
                     # add to Layout
                     self.paramGroupBox.layout().addWidget(label, row, 0)
@@ -260,7 +268,7 @@ class ModuleCtrl(QWidget):
                 # param is a 'normal' param: create a widget if it has no group
                 # or is named after a group (otherwise its created above)
                 props = self._node.getProperties(self._module, param)
-                if props.get('group', param) == param:
+                if (props.get('group', '') or param) == param:
                     datatype = self._node.getProperties(
                         self._module, param).get(
                         'datatype', None)

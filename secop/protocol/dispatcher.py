@@ -45,9 +45,9 @@ from secop.protocol.messages import EVENTREPLY, IDENTREQUEST, IDENTREPLY, \
     ENABLEEVENTSREPLY, DESCRIPTIONREPLY, WRITEREPLY, COMMANDREPLY, \
     DISABLEEVENTSREPLY, HEARTBEATREPLY
 
-from secop.protocol.errors import InternalError, NoSuchModuleError, \
-    NoSuchCommandError, NoSuchParameterError, BadValueError, ReadonlyError, \
-    ProtocolError
+from secop.errors import NoSuchModuleError, NoSuchCommandError, \
+    NoSuchParameterError, BadValueError, ReadOnlyError, \
+    ProtocolError, SECoPServerError as InternalError
 
 from secop.params import Parameter
 
@@ -63,9 +63,9 @@ class Dispatcher(object):
     def __init__(self, name, logger, options, srv):
         # to avoid errors, we want to eat all options here
         self.equipment_id = name
-        self.nodeopts = {}
+        self.nodeprops = {}
         for k in list(options):
-            self.nodeopts[k] = options.pop(k)
+            self.nodeprops[k] = options.pop(k)
 
         self.log = logger
         # map ALL modulename -> moduleobj
@@ -169,7 +169,7 @@ class Dispatcher(object):
             res = []
             for aname, aobj in self.get_module(modulename).accessibles.items():
                 if aobj.export:
-                    res.extend([aname, aobj.for_export()])
+                    res.append([aname, aobj.for_export()])
             self.log.debug(u'list accessibles for module %s -> %r' %
                            (modulename, res))
             return res
@@ -183,21 +183,22 @@ class Dispatcher(object):
         result = {u'modules': []}
         for modulename in self._export:
             module = self.get_module(modulename)
+            if not module.properties.get('export', False):
+                continue
             # some of these need rework !
             mod_desc = {u'accessibles': self.export_accessibles(modulename)}
             for propname, prop in list(module.properties.items()):
+                if propname == 'export':
+                    continue
                 mod_desc[propname] = prop
-            result[u'modules'].extend([modulename, mod_desc])
+            result[u'modules'].append([modulename, mod_desc])
         result[u'equipment_id'] = self.equipment_id
         result[u'firmware'] = u'FRAPPY - The Python Framework for SECoP'
         result[u'version'] = u'2018.09'
-        result.update(self.nodeopts)
+        result.update(self.nodeprops)
         return result
 
-    def _execute_command(self, modulename, command, arguments=None):
-        if arguments is None:
-            arguments = []
-
+    def _execute_command(self, modulename, command, argument=None):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError('Module does not exist on this SEC-Node!')
@@ -205,14 +206,16 @@ class Dispatcher(object):
         cmdspec = moduleobj.accessibles.get(command, None)
         if cmdspec is None:
             raise NoSuchCommandError('Module has no such command!')
-        num_args_required = len(cmdspec.datatype.argtypes)
-        if num_args_required != len(arguments):
-            raise BadValueError(u'Wrong number of arguments (need %d, got %d)!' % (num_args_required, len(arguments)))
+        if argument is None and cmdspec.datatype.argtype is not None:
+            raise BadValueError(u'Command needs an argument!')
+
+        if argument is not None and cmdspec.datatype.argtype is None:
+            raise BadValueError(u'Command takes no argument!')
 
         # now call func and wrap result as value
         # note: exceptions are handled in handle_request, not here!
         func = getattr(moduleobj, u'do_' + command)
-        res = func(*arguments)
+        res = func(argument) if argument else func()
         # XXX: pipe through cmdspec.datatype.result ?
         return res, dict(t=currenttime())
 
@@ -225,7 +228,7 @@ class Dispatcher(object):
         if pobj is None or not isinstance(pobj, Parameter):
             raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
         if pobj.readonly:
-            raise ReadonlyError('This parameter can not be changed remotely.')
+            raise ReadOnlyError('This parameter can not be changed remotely.')
 
         writefunc = getattr(moduleobj, u'write_%s' % pname, None)
         # note: exceptions are handled in handle_request, not here!
@@ -272,7 +275,7 @@ class Dispatcher(object):
             action, specifier, data = msg
             # special case for *IDN?
             if action == IDENTREQUEST:
-                action, specifier, data = 'ident', None, None
+                action, specifier, data = '_ident', None, None
 
             self.log.debug(u'Looking for handle_%s' % action)
             handler = getattr(self, u'handle_%s' % action, None)
@@ -286,7 +289,7 @@ class Dispatcher(object):
     def handle_help(self, conn, specifier, data):
         self.log.error('should have been handled in the interface!')
 
-    def handle_ident(self, conn, specifier, data):
+    def handle__ident(self, conn, specifier, data):
         return (IDENTREPLY, None, None)
 
     def handle_describe(self, conn, specifier, data):

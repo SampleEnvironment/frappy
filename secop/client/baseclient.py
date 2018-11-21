@@ -47,7 +47,7 @@ from secop.lib.parsing import parse_time, format_time
 #from secop.protocol.encoding import ENCODERS
 #from secop.protocol.framing import FRAMERS
 #from secop.protocol.messages import *
-from secop.protocol.errors import EXCEPTIONS
+from secop.errors import EXCEPTIONS
 
 
 class TCPConnection(object):
@@ -344,25 +344,18 @@ class Client(object):
     def _getDescribingParameterData(self, module, parameter):
         return self._getDescribingModuleData(module)['accessibles'][parameter]
 
-    def _decode_list_to_ordereddict(self, data):
-        # takes a list of 2*N <key>, <value> entries and
-        # return an orderedDict from it
-        result = OrderedDict()
-        while len(data) > 1:
-            key = data.pop(0)
-            value = data.pop(0)
-            result[key] = value
-        return result
-
     def _decode_substruct(self, specialkeys=[], data={}):  # pylint: disable=W0102
         # take a dict and move all keys which are not in specialkeys
         # into a 'properties' subdict
         # specialkeys entries are converted from list to ordereddict
-        result = {}
-        for k in specialkeys:
-            result[k] = self._decode_list_to_ordereddict(data.pop(k, []))
-        result['properties'] = data
-        return result
+        try:
+            result = {}
+            for k in specialkeys:
+                result[k] = OrderedDict(data.pop(k, []))
+            result['properties'] = data
+            return result
+        except Exception as err:
+            raise RuntimeError('Error decoding substruct of descriptive data: %r\n%r' % (err, data))
 
     def _issueDescribe(self):
         _, _, describing_data = self._communicate('describe')

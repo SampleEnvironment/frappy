@@ -26,7 +26,7 @@ from __future__ import print_function
 
 IDENTREQUEST = u'*IDN?'  # literal
 # literal! first part is fixed!
-IDENTREPLY = u'SINE2020&ISSE,SECoP,V2018-06-16,rc1'
+IDENTREPLY = u'SINE2020&ISSE,SECoP,V2018-11-07,v1.0\\beta'
 
 DESCRIPTIONREQUEST = u'describe'  # literal
 DESCRIPTIONREPLY = u'describing'  # +<id> +json
@@ -41,10 +41,15 @@ COMMANDREQUEST = u'do'  # +module:command +json args (if needed)
 # +module:command +json args (if needed) # send after the command finished !
 COMMANDREPLY = u'done'
 
-# +module[:parameter] +json_value -> NO direct reply, calls POLL internally
+# +module[:parameter] +json_value
 WRITEREQUEST = u'change'
 # +module[:parameter] +json_value # send with the read back value
 WRITEREPLY = u'changed'
+
+# +module[:parameter] +json_value
+BUFFERREQUEST = u'buffer'
+# +module[:parameter] +json_value # send with the read back value
+BUFFERREPLY = u'buffered'
 
 # +module[:parameter] -> NO direct reply, calls POLL internally!
 POLLREQUEST = u'read'
@@ -66,6 +71,7 @@ REQUEST2REPLY = {
     DISABLEEVENTSREQUEST: DISABLEEVENTSREPLY,
     COMMANDREQUEST:       COMMANDREPLY,
     WRITEREQUEST:         WRITEREPLY,
+    BUFFERREQUEST:        BUFFERREPLY,
     POLLREQUEST:          EVENTREPLY,
     HEARTBEATREQUEST:     HEARTBEATREPLY,
     HELPREQUEST:          HELPREPLY,
