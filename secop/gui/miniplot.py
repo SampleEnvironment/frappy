@@ -22,12 +22,12 @@
 # *****************************************************************************
 
 
+from __future__ import division, print_function
+
 from os import path
 
-from secop.gui.qt import Qt, QColor, QWidget, QSize, \
-    QBrush, QPainter, QPolygonF, QPointF, QPen, QRectF
-
-
+from secop.gui.qt import (QBrush, QColor, QPainter, QPen, QPointF, QPolygonF,
+                          QRectF, QSize, Qt, QWidget)
 
 _magenta = QBrush(QColor('#A12F86'))
 _yellow = QBrush(QColor('yellow'))

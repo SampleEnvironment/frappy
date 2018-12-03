@@ -20,17 +20,20 @@
 #
 # *****************************************************************************
 """test base client."""
-from __future__ import print_function
+from __future__ import division, print_function
 
 import sys
-from os import path
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
-
 from collections import OrderedDict
+from os import path
 
 import pytest
 
 from secop.client.baseclient import Client
+
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+
+
 
 # define Test-only connection object
 

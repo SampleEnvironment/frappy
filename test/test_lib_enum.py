@@ -21,15 +21,20 @@
 # *****************************************************************************
 """test Enum type."""
 
+from __future__ import division, print_function
+
 import sys
 from os import path
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 # no fixtures needed
 import pytest
 
+from secop.lib.enum import Enum, EnumMember
 
-from secop.lib.enum import EnumMember, Enum
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+
+
 
 
 def test_EnumMember():

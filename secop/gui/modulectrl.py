@@ -22,7 +22,13 @@
 #
 # *****************************************************************************
 
-from __future__ import print_function
+from __future__ import division, print_function
+
+from secop.gui.params import ParameterView
+from secop.gui.qt import QCheckBox, QDialog, QLabel, QMessageBox, QPushButton, \
+    QSizePolicy, QWidget
+from secop.gui.util import loadUi
+from secop.gui.valuewidgets import get_widget
 
 try:
     # py2
@@ -31,15 +37,12 @@ except NameError:
     # py3
     unicode = str  # pylint: disable=redefined-builtin
 
-from secop.gui.util import loadUi
-from secop.gui.params import ParameterView
+
 
 #from secop.datatypes import ...
 
-from secop.gui.qt import QDialog, QLabel, QCheckBox, QWidget, QMessageBox, \
-    QPushButton, QSizePolicy
 
-from secop.gui.valuewidgets import get_widget
+
 
 
 class CommandDialog(QDialog):

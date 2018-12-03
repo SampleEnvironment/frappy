@@ -20,25 +20,28 @@
 #
 # *****************************************************************************
 """test data types."""
-from __future__ import print_function
+from __future__ import division, print_function
 
 import sys
 from os import path
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 # no fixtures needed
 import pytest
+
+from secop.datatypes import BoolType, EnumType
+from secop.metaclass import ModuleMeta
+from secop.modules import Communicator, Drivable, Module, Readable, Writable
+from secop.params import Command, Override, Parameter
+
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
 
 try:
     import Queue as queue
 except ImportError:
     import queue as queue
 
-from secop.datatypes import BoolType, EnumType
 
-from secop.metaclass import ModuleMeta
-from secop.params import Command, Parameter, Override
-from secop.modules import Module, Readable, Writable, Drivable, Communicator
 
 
 def test_Communicator():

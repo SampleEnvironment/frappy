@@ -21,6 +21,8 @@
 # *****************************************************************************
 """Pathes. how to find what and where..."""
 
+from __future__ import division, print_function
+
 import sys
 from os import path
 

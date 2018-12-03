@@ -36,7 +36,7 @@ text -> string
 
 further convertions are done by the validator of the datatype....
 """
-from __future__ import print_function
+from __future__ import division, print_function
 
 from collections import OrderedDict
 

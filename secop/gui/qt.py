@@ -22,7 +22,7 @@
 """Import needed stuff from PyQt4/PyQt5"""
 
 # pylint: disable=unused-import
-from __future__ import print_function
+from __future__ import division, print_function
 
 import sys
 

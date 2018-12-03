@@ -21,22 +21,26 @@
 # *****************************************************************************
 """Define Baseclasses for real Modules implemented in the server"""
 
-from __future__ import print_function
+from __future__ import division, print_function
+
+import sys
+import time
+
+from secop.datatypes import (EnumType, FloatRange, StringType, TupleOf,
+                             get_datatype)
+from secop.errors import ConfigError
+from secop.lib import (formatException, formatExtendedStack, mkthread,
+                       unset_value)
+from secop.lib.enum import Enum
+from secop.metaclass import ModuleMeta, add_metaclass
+from secop.params import Command, Override, Parameter
 
 # XXX: connect with 'protocol'-Modules.
 # Idea: every Module defined herein is also a 'protocol'-Module,
 # all others MUST derive from those, the 'interface'-class is still derived
 # from these base classes (how to do this?)
 
-import sys
-import time
 
-from secop.lib import formatExtendedStack, mkthread, unset_value, formatException
-from secop.lib.enum import Enum
-from secop.errors import ConfigError
-from secop.datatypes import EnumType, TupleOf, StringType, FloatRange, get_datatype
-from secop.metaclass import add_metaclass, ModuleMeta
-from secop.params import Command, Parameter, Override
 
 
 @add_metaclass(ModuleMeta)

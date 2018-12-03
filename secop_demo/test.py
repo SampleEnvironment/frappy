@@ -20,6 +20,8 @@
 # *****************************************************************************
 """testing devices"""
 
+from __future__ import division, print_function
+
 try:
     # py2
     unicode
@@ -29,8 +31,8 @@ except NameError:
 
 import random
 
-from secop.modules import Readable, Drivable, Communicator, Parameter
 from secop.datatypes import FloatRange, StringType
+from secop.modules import Communicator, Drivable, Parameter, Readable
 
 
 class LN2(Readable):

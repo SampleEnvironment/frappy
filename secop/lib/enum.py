@@ -22,6 +22,8 @@
 # *****************************************************************************
 """Enum class"""
 
+from __future__ import division, print_function
+
 __ALL__ = ['Enum']
 
 try:

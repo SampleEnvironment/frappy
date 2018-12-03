@@ -23,10 +23,12 @@
 
 """Utilities for modules that require sequenced actions on value change."""
 
+from __future__ import division, print_function
+
 from time import sleep
 
-from secop.lib import mkthread
 from secop.errors import IsBusyError
+from secop.lib import mkthread
 
 
 class Namespace(object):

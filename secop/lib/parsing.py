@@ -21,9 +21,11 @@
 # *****************************************************************************
 """Define parsing helpers"""
 
+from __future__ import division, print_function
+
 import re
 import time
-from datetime import tzinfo, timedelta, datetime
+from datetime import datetime, timedelta, tzinfo
 
 # format_time and parse_time could be simplified with external dateutil lib
 # http://stackoverflow.com/a/15228038

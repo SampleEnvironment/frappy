@@ -20,13 +20,16 @@
 # *****************************************************************************
 """testing devices"""
 
-import time
+from __future__ import division, print_function
+
 import random
 import threading
+import time
 
+from secop.datatypes import (ArrayOf, BoolType, EnumType, FloatRange, IntRange,
+                             StringType, StructOf, TupleOf)
 from secop.lib.enum import Enum
-from secop.modules import Readable, Drivable, Parameter, Override
-from secop.datatypes import EnumType, FloatRange, IntRange, ArrayOf, StringType, TupleOf, StructOf, BoolType
+from secop.modules import Drivable, Override, Parameter, Readable
 
 
 class Switch(Drivable):

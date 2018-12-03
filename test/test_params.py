@@ -21,17 +21,22 @@
 # *****************************************************************************
 """test data types."""
 
+from __future__ import division, print_function
+
 import sys
 from os import path
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 # no fixtures needed
 import pytest
 
-
 from secop.datatypes import BoolType
+from secop.params import Command, Override, Parameter
 
-from secop.params import Command, Parameter, Override
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+
+
+
 
 
 def test_Command():

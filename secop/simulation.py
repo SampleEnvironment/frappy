@@ -21,12 +21,14 @@
 # *****************************************************************************
 """Define Simulation classes"""
 
+from __future__ import division, print_function
+
 import random
 from time import sleep
 
-from secop.modules import Module, Readable, Writable, Drivable, Parameter
-from secop.lib import mkthread
 from secop.datatypes import FloatRange
+from secop.lib import mkthread
+from secop.modules import Drivable, Module, Parameter, Readable, Writable
 
 
 class SimBase(object):

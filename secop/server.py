@@ -21,13 +21,18 @@
 #
 # *****************************************************************************
 """Define helpers"""
-from __future__ import print_function
+from __future__ import division, print_function
 
-import os
 import ast
-import time
+import os
 import threading
+import time
 from collections import OrderedDict
+
+from daemon import DaemonContext
+
+from secop.errors import ConfigError
+from secop.lib import formatException, get_class, getGeneralConfig
 
 try:
     import configparser  # py3
@@ -39,15 +44,12 @@ try:
 except ImportError:
     from Queue import Queue # py 2
 
-from daemon import DaemonContext
 
 try:
     import daemon.pidlockfile as pidlockfile
 except ImportError:
     import daemon.pidfile as pidlockfile
 
-from secop.lib import get_class, formatException, getGeneralConfig
-from secop.errors import ConfigError
 
 
 

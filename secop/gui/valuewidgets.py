@@ -21,17 +21,14 @@
 #
 # *****************************************************************************
 
-from __future__ import print_function
+from __future__ import division, print_function
 
-from secop.datatypes import FloatRange, IntRange, StringType, BLOBType, \
-    EnumType, BoolType, TupleOf, StructOf, ArrayOf
-
-from secop.gui.qt import QDialog, QLabel, QLineEdit,\
-    QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, \
-    QVBoxLayout, QGridLayout,  QFrame
-
+from secop.datatypes import (ArrayOf, BLOBType, BoolType, EnumType, FloatRange,
+                             IntRange, StringType, StructOf, TupleOf)
+from secop.gui.qt import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox,
+                          QFrame, QGridLayout, QGroupBox, QLabel, QLineEdit,
+                          QSpinBox, QVBoxLayout)
 from secop.gui.util import loadUi
-
 
 # XXX: implement live validators !!!!
 

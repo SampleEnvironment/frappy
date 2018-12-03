@@ -21,7 +21,17 @@
 #
 # *****************************************************************************
 
-from __future__ import print_function, division
+from __future__ import division, print_function
+
+import json
+import pprint
+from time import sleep
+
+from secop.datatypes import EnumType, StringType
+from secop.errors import SECoPError
+from secop.gui.qt import (QFont, QFontMetrics, QLabel, QMessageBox,
+                          QTextCursor, QWidget, pyqtSlot, toHtmlEscaped)
+from secop.gui.util import loadUi
 
 try:
     # py2
@@ -29,16 +39,8 @@ try:
 except NameError:
     unicode = str  # pylint: disable=redefined-builtin
 
-import pprint
-import json
-from time import sleep
 
-from secop.gui.qt import QWidget, QTextCursor, QFont, QFontMetrics, QLabel, \
-    QMessageBox, pyqtSlot, toHtmlEscaped
 
-from secop.gui.util import loadUi
-from secop.errors import SECoPError
-from secop.datatypes import StringType, EnumType
 
 
 class NodeCtrl(QWidget):

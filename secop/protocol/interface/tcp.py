@@ -19,21 +19,23 @@
 #
 # *****************************************************************************
 """provides tcp interface to the SECoP Server"""
-from __future__ import print_function
+from __future__ import division, print_function
 
-import sys
-import socket
 import collections
+import socket
+import sys
+
+from secop.errors import SECoPError
+from secop.lib import (formatException, formatExtendedStack,
+                       formatExtendedTraceback)
+from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
+from secop.protocol.messages import HELPREPLY, HELPREQUEST, HelpMessage
 
 try:
     import socketserver  # py3
 except ImportError:
     import SocketServer as socketserver  # py2
 
-from secop.lib import formatExtendedStack, formatException, formatExtendedTraceback
-from secop.protocol.messages import HELPREQUEST, HELPREPLY, HelpMessage
-from secop.errors import SECoPError
-from secop.protocol.interface import encode_msg_frame, get_msg, decode_msg
 
 
 DEF_PORT = 10767

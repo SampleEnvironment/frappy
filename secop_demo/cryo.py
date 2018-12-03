@@ -20,13 +20,15 @@
 # *****************************************************************************
 """playing implementation of a (simple) simulated cryostat"""
 
-from math import atan
-import time
-import random
+from __future__ import division, print_function
 
-from secop.modules import Drivable, Command, Parameter
-from secop.datatypes import FloatRange, EnumType, TupleOf
+import random
+import time
+from math import atan
+
+from secop.datatypes import EnumType, FloatRange, TupleOf
 from secop.lib import clamp, mkthread
+from secop.modules import Command, Drivable, Parameter
 
 
 class CryoBase(Drivable):

@@ -27,21 +27,23 @@
 Here we support devices which fulfill the official
 MLZ TANGO interface for the respective device classes.
 """
-from __future__ import division
+from __future__ import division, print_function
 
 import re
-from time import sleep, time as currenttime
 import threading
+from time import time as currenttime
+from time import sleep
 
 import PyTango
 
-from secop.lib import lazy_property
 #from secop.parse import Parser
-from secop.datatypes import IntRange, FloatRange, StringType, TupleOf, \
-    ArrayOf, EnumType
-from secop.errors import ConfigError, ProgrammingError, CommunicationFailedError, \
-    HardwareError
-from secop.modules import Parameter, Command, Override, Module, Readable, Drivable
+from secop.datatypes import (ArrayOf, EnumType, FloatRange, IntRange,
+                             StringType, TupleOf)
+from secop.errors import (CommunicationFailedError, ConfigError, HardwareError,
+                          ProgrammingError)
+from secop.lib import lazy_property
+from secop.modules import (Command, Drivable, Module, Override, Parameter,
+                           Readable)
 
 #####
 

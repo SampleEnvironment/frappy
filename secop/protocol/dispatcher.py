@@ -36,20 +36,19 @@ Interface to the modules:
  - remove_module(modulename_or_obj): removes the module (during shutdown)
 
 """
-from __future__ import print_function
+from __future__ import division, print_function
 
-from time import time as currenttime
 import threading
+from time import time as currenttime
 
-from secop.protocol.messages import EVENTREPLY, IDENTREQUEST, IDENTREPLY, \
-    ENABLEEVENTSREPLY, DESCRIPTIONREPLY, WRITEREPLY, COMMANDREPLY, \
-    DISABLEEVENTSREPLY, HEARTBEATREPLY
-
-from secop.errors import NoSuchModuleError, NoSuchCommandError, \
-    NoSuchParameterError, BadValueError, ReadOnlyError, \
-    ProtocolError, SECoPServerError as InternalError
-
+from secop.errors import SECoPServerError as InternalError
+from secop.errors import (BadValueError, NoSuchCommandError, NoSuchModuleError,
+                          NoSuchParameterError, ProtocolError, ReadOnlyError)
 from secop.params import Parameter
+from secop.protocol.messages import (COMMANDREPLY, DESCRIPTIONREPLY,
+                                     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY,
+                                     EVENTREPLY, HEARTBEATREPLY, IDENTREPLY,
+                                     IDENTREQUEST, WRITEREPLY)
 
 try:
     unicode('a')

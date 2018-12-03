@@ -21,15 +21,20 @@
 # *****************************************************************************
 """test data types."""
 
-import sys
-from os import path
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+from __future__ import division, print_function
 
+import sys
 from collections import OrderedDict
+from os import path
 
 import pytest
 
 from secop.parse import Parser
+
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+
+
 
 # pylint: disable=redefined-outer-name
 @pytest.fixture(scope="module")

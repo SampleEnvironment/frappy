@@ -25,12 +25,14 @@
 
 # partially borrowed from nicos
 
+from __future__ import division, print_function
+
 import math
 
+from secop.datatypes import ArrayOf, FloatRange, StringType, StructOf, TupleOf
+from secop.errors import ConfigError, DisabledError
 from secop.lib.sequence import SequencerMixin, Step
-from secop.datatypes import StringType, TupleOf, FloatRange, ArrayOf, StructOf
-from secop.errors import DisabledError, ConfigError
-from secop.modules import Parameter, Drivable
+from secop.modules import Drivable, Parameter
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):

@@ -21,8 +21,14 @@
 # *****************************************************************************
 """Define Metaclass for Modules/Features"""
 
-from __future__ import print_function
+from __future__ import division, print_function
+
+import time
 from collections import OrderedDict
+
+from secop.datatypes import EnumType
+from secop.errors import ProgrammingError
+from secop.params import Command, Override, Parameter
 
 try:
     # pylint: disable=unused-import
@@ -44,11 +50,7 @@ except ImportError:
             return metaclass(cls.__name__, cls.__bases__, orig_vars)
         return wrapper
 
-import time
 
-from secop.errors import ProgrammingError
-from secop.datatypes import EnumType
-from secop.params import Parameter, Override, Command
 
 EVENT_ONLY_ON_CHANGED_VALUES = True
 

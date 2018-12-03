@@ -21,19 +21,17 @@
 #
 # *****************************************************************************
 
-from __future__ import print_function
+from __future__ import division, print_function
 
 import sys
 
-from secop.gui.qt import QMainWindow, QInputDialog, QTreeWidgetItem, QMessageBox, \
-    pyqtSlot, QObject, pyqtSignal
-
-from secop.gui.util import loadUi
-from secop.gui.nodectrl import NodeCtrl
-from secop.gui.modulectrl import ModuleCtrl
-from secop.gui.paramview import ParameterView
 from secop.client.baseclient import Client as SECNode
-
+from secop.gui.modulectrl import ModuleCtrl
+from secop.gui.nodectrl import NodeCtrl
+from secop.gui.paramview import ParameterView
+from secop.gui.qt import (QInputDialog, QMainWindow, QMessageBox, QObject,
+                          QTreeWidgetItem, pyqtSignal, pyqtSlot)
+from secop.gui.util import loadUi
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
 ITEM_TYPE_GROUP = QTreeWidgetItem.UserType + 2

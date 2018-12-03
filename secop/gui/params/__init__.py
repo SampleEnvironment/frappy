@@ -33,12 +33,13 @@ from secop.gui.qt import QWidget, QLabel, QPushButton as QButton, QLineEdit, \
     QMessageBox, QCheckBox, QSizePolicy, Qt, pyqtSignal, pyqtSlot
 
 from secop.gui.util import loadUi
-from secop.datatypes import EnumType
+from secop.datatypes import EnumType, FloatRange, IntRange
 from secop.lib import formatExtendedStack
 
 
 class ParameterWidget(QWidget):
     setRequested = pyqtSignal(str, str, object)  # module, parameter, target
+    plotRequested = pyqtSignal(str, str)  # module, parameter
     cmdRequested = pyqtSignal(str, str, list)  # module, command, args
 
     def __init__(self,

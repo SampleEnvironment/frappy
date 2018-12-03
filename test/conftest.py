@@ -1,4 +1,6 @@
 # content of conftest.py
+from __future__ import division, print_function
+
 import pytest
 
 
@@ -15,5 +17,6 @@ def constants():
 
 
 @pytest.fixture(scope="session")
+# pylint: disable=redefined-builtin
 def globals():
     return dict()

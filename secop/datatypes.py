@@ -21,7 +21,13 @@
 # *****************************************************************************
 """Define validated data types."""
 
-from __future__ import print_function
+from __future__ import division, print_function
+
+from base64 import b64decode, b64encode
+
+from secop.errors import ProgrammingError, ProtocolError
+from secop.lib.enum import Enum
+from secop.parse import Parser
 
 try:
     # py2
@@ -30,11 +36,7 @@ except NameError:
     # py3
     unicode = str  # pylint: disable=redefined-builtin
 
-from base64 import b64encode, b64decode
 
-from secop.lib.enum import Enum
-from secop.errors import ProgrammingError, ProtocolError
-from secop.parse import Parser
 
 
 Parser = Parser()

@@ -21,9 +21,11 @@
 # *****************************************************************************
 """Define classes for Parameters/Commands and Overriding them"""
 
-from secop.lib import unset_value
+from __future__ import division, print_function
+
+from secop.datatypes import CommandType, DataType
 from secop.errors import ProgrammingError
-from secop.datatypes import DataType, CommandType
+from secop.lib import unset_value
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
 

@@ -21,10 +21,12 @@
 #
 # *****************************************************************************
 
+from __future__ import division, print_function
+
 import os
 from os import path
+
 import markdown
-import codecs
 
 BASE_PATH = path.abspath(path.join(path.dirname(__file__), '..'))
 DOC_SRC = path.join(BASE_PATH, 'doc')
@@ -55,7 +57,7 @@ for dirpath, dirnames, filenames in os.walk(DOC_SRC):
         # treat .md files special
         final_sub_name = path.splitext(sub_name)[0] + '.html'
         final_name = path.join(DOC_DST, final_sub_name)
-        print "Converting", sub_name, "to", final_sub_name
+        print("Converting %s to %s" %(sub_name, final_sub_name))
         # transform one file
         conv.reset()
         conv.convertFile(input=full_name,

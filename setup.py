@@ -22,12 +22,14 @@
 #
 # *****************************************************************************
 
-from setuptools import setup, find_packages
-from os import path, listdir
+from __future__ import division, print_function
+
 from glob import glob
+from os import listdir, path
+
+from setuptools import find_packages, setup
 
 import secop.version
-
 
 scripts = glob(path.join('bin', 'secop-*'))
 

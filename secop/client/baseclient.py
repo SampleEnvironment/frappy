@@ -21,16 +21,25 @@
 # *****************************************************************************
 """Define Client side proxies"""
 
-from __future__ import print_function
+from __future__ import division, print_function
 
 import json
 import socket
-from select import select
 import threading
-from collections import OrderedDict
-
 import time
+from collections import OrderedDict
+from select import select
+
+import mlzlog
 import serial
+
+from secop.datatypes import CommandType, EnumType, get_datatype
+#from secop.protocol.encoding import ENCODERS
+#from secop.protocol.framing import FRAMERS
+#from secop.protocol.messages import *
+from secop.errors import EXCEPTIONS
+from secop.lib import formatException, formatExtendedStack, mkthread
+from secop.lib.parsing import format_time, parse_time
 
 try:
     # py3
@@ -39,15 +48,7 @@ except ImportError:
     # py2
     import Queue as queue
 
-import mlzlog
 
-from secop.datatypes import get_datatype, EnumType, CommandType
-from secop.lib import mkthread, formatException, formatExtendedStack
-from secop.lib.parsing import parse_time, format_time
-#from secop.protocol.encoding import ENCODERS
-#from secop.protocol.framing import FRAMERS
-#from secop.protocol.messages import *
-from secop.errors import EXCEPTIONS
 
 
 class TCPConnection(object):

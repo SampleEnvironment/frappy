@@ -21,17 +21,22 @@
 # *****************************************************************************
 """test data types."""
 
+from __future__ import division, print_function
+
 import sys
 from os import path
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 # no fixtures needed
 import pytest
 
+from secop.datatypes import (ArrayOf, BLOBType, BoolType, DataType, EnumType,
+                             FloatRange, IntRange, ProgrammingError,
+                             StringType, StructOf, TupleOf, get_datatype)
 
-from secop.datatypes import DataType, FloatRange, IntRange, \
-    EnumType, BLOBType, StringType, BoolType, ArrayOf, TupleOf, StructOf, \
-    get_datatype, ProgrammingError
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+
+
 
 
 def test_DataType():
