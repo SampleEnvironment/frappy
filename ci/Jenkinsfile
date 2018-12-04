@@ -41,6 +41,7 @@ addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
 . /home/jenkins/secopvenv/bin/activate
 pip install -r requirements-dev.txt
 pip install -r requirements.txt
+python setup.py develop
 make test
 '''
                 verifyresult.put(pyver, 1)
@@ -65,33 +66,42 @@ make test
 }
 
 def run_docs() {
+    stage('prepare' {
+        sh '''
+        . /home/jenkins/secopvenv/bin/activate
+        pip install -r requirements-dev.txt
+        pip install -r requirements.txt
+        python setup.py develop
+        '''
+    }
     stage('check links') {
         sh '''
-	. /home/jenkins/secopvenv/bin/activate
+        . /home/jenkins/secopvenv/bin/activate
+
         make -C doc linkcheck
         '''
     }
     stage('build html') {
         sh '''
-	. /home/jenkins/secopvenv/bin/activate
+        . /home/jenkins/secopvenv/bin/activate
         make -C doc html
         '''
     }
     stage('build singlehtml') {
         sh '''
-	. /home/jenkins/secopvenv/bin/activate
+        . /home/jenkins/secopvenv/bin/activate
         make -C doc singlehtml
         '''
     }
     stage('build latexpdf') {
         sh '''
-	. /home/jenkins/secopvenv/bin/activate
+        . /home/jenkins/secopvenv/bin/activate
         make -C doc latexpdf
         '''
     }
     stage('build man') {
         sh '''
-	. /home/jenkins/secopvenv/bin/activate
+        . /home/jenkins/secopvenv/bin/activate
         make -C doc man
         '''
     }
