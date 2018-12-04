@@ -37,8 +37,6 @@ except NameError:
     unicode = str  # pylint: disable=redefined-builtin
 
 
-
-
 Parser = Parser()
 
 # Only export these classes for 'from secop.datatypes import *'
@@ -101,7 +99,7 @@ class FloatRange(DataType):
     def validate(self, value):
         try:
             value = float(value)
-        except:
+        except Exception:
             raise ValueError(u'Can not validate %r to float' % value)
         if self.min is not None and value < self.min:
             raise ValueError(u'%r should not be less then %s' %
@@ -159,7 +157,7 @@ class IntRange(DataType):
                 raise ValueError(u'%r should be an int between %d and %d' %
                                  (value, self.min or 0, self.max))
             return value
-        except:
+        except Exception:
             raise ValueError(u'Can not validate %r to int' % value)
 
     def __repr__(self):
@@ -215,18 +213,19 @@ class EnumType(DataType):
 class BLOBType(DataType):
     minsize = None
     maxsize = None
+
     def __init__(self, minsize=0, maxsize=None):
         # if only one argument is given, use exactly that many bytes
         # if nothing is given, default to 255
         if maxsize is None:
             maxsize = minsize or 255
-            minsize = maxsize
-        minsize = int(minsize)
-        maxsize = int(maxsize)
-        self.minsize, self.maxsize = min(minsize, maxsize), max(minsize, maxsize)
+        self.minsize = int(minsize)
+        self.maxsize = int(maxsize)
         if self.minsize < 0:
             raise ValueError(u'sizes must be bigger than or equal to 0!')
-        self.as_json = [u'blob', minsize, maxsize]
+        elif self.minsize > self.maxsize:
+            raise ValueError(u'maxsize must be bigger than or equal to minsize!')
+        self.as_json = [u'blob', self.minsize, self.maxsize]
 
     def __repr__(self):
         return u'BLOB(%s, %s)' % (unicode(self.minsize), unicode(self.maxsize))
@@ -267,13 +266,13 @@ class StringType(DataType):
     def __init__(self, minsize=0, maxsize=None):
         if maxsize is None:
             maxsize = minsize or 255
-            minsize = 0
-        minsize = int(minsize)
-        maxsize = int(maxsize)
-        self.minsize, self.maxsize = min(minsize, maxsize), max(minsize, maxsize)
+        self.minsize = int(minsize)
+        self.maxsize = int(maxsize)
         if self.minsize < 0:
             raise ValueError(u'sizes must be bigger than or equal to 0!')
-        self.as_json = [u'string', minsize, maxsize]
+        elif self.minsize > self.maxsize:
+            raise ValueError(u'maxsize must be bigger than or equal to minsize!')
+        self.as_json = [u'string', self.minsize, self.maxsize]
 
     def __repr__(self):
         return u'StringType(%s, %s)' % (unicode(self.minsize), unicode(self.maxsize))
@@ -346,28 +345,27 @@ class ArrayOf(DataType):
     minsize = None
     maxsize = None
     subtype = None
+
     def __init__(self, subtype, minsize=0, maxsize=None):
         # one argument -> exactly that size
         # argument default to 10
         if maxsize is None:
             maxsize = minsize or 10
-            minsize = maxsize
         if not isinstance(subtype, DataType):
             raise ValueError(
                 u'ArrayOf only works with a DataType as first argument!')
         self.subtype = subtype
 
-        minsize = int(minsize)
-        maxsize = int(maxsize)
-        minsize, maxsize = min(minsize, maxsize), max(minsize, maxsize)
-        if minsize < 0:
+        self.minsize = int(minsize)
+        self.maxsize = int(maxsize)
+        if self.minsize < 0:
             raise ValueError(u'sizes must be > 0')
-        if maxsize < 1:
+        elif self.maxsize < 1:
             raise ValueError(u'Maximum size must be >= 1!')
+        elif self.minsize > self.maxsize:
+            raise ValueError(u'maxsize must be bigger than or equal to minsize!')
         # if only one arg is given, it is maxsize!
-        self.as_json = [u'array', minsize, maxsize, subtype.as_json]
-        self.minsize = minsize
-        self.maxsize = maxsize
+        self.as_json = [u'array', self.minsize, self.maxsize, subtype.as_json]
 
     def __repr__(self):
         return u'ArrayOf(%s, %s, %s)' % (

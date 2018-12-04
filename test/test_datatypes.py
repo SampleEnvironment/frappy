@@ -127,7 +127,7 @@ def test_EnumType():
 def test_BLOBType():
     # test constructor catching illegal arguments
     dt = BLOBType()
-    assert dt.as_json == ['blob', 255, 255]
+    assert dt.as_json == ['blob', 0, 255]
     dt = BLOBType(10)
     assert dt.as_json == ['blob', 10, 10]
 
@@ -154,7 +154,7 @@ def test_StringType():
     # test constructor catching illegal arguments
     dt = StringType()
     dt = StringType(12)
-    assert dt.as_json == ['string', 0, 12]
+    assert dt.as_json == ['string', 12, 12]
 
     dt = StringType(4, 11)
     assert dt.as_json == ['string', 4, 11]
@@ -249,7 +249,7 @@ def test_StructOf():
     with pytest.raises(ProgrammingError):
         StructOf(IntRange=1)
 
-    dt = StructOf(a_string=StringType(55), an_int=IntRange(0, 999))
+    dt = StructOf(a_string=StringType(0, 55), an_int=IntRange(0, 999))
     assert dt.as_json == [u'struct', {u'a_string': [u'string', 0, 55],
                                      u'an_int': [u'int', 0, 999],
                                      }]
@@ -310,8 +310,10 @@ def test_get_datatype():
         get_datatype(['enum', [1, 2, 3]])
 
     assert isinstance(get_datatype(['blob', 1]), BLOBType)
-    assert isinstance(get_datatype(['blob', 10, 1]), BLOBType)
+    assert isinstance(get_datatype(['blob', 1, 10]), BLOBType)
 
+    with pytest.raises(ValueError):
+        get_datatype(['blob', 10, 1])
     with pytest.raises(ValueError):
         get_datatype(['blob', 10, -10])
     with pytest.raises(ValueError):
@@ -319,8 +321,10 @@ def test_get_datatype():
 
     get_datatype(['string'])
     assert isinstance(get_datatype(['string', 1]), StringType)
-    assert isinstance(get_datatype(['string', 10, 1]), StringType)
+    assert isinstance(get_datatype(['string', 1, 10]), StringType)
 
+    with pytest.raises(ValueError):
+        get_datatype(['string', 10, 1])
     with pytest.raises(ValueError):
         get_datatype(['string', 10, -10])
     with pytest.raises(ValueError):
@@ -337,6 +341,8 @@ def test_get_datatype():
 
     with pytest.raises(ValueError):
         get_datatype(['array', ['blob', 1], -10])
+    with pytest.raises(ValueError):
+        get_datatype(['array', ['blob', 1], 10, 1])
     with pytest.raises(ValueError):
         get_datatype(['array', ['blob', 1], 10, -10])
 
