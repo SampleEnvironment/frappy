@@ -23,13 +23,8 @@
 
 from __future__ import division, print_function
 
-import sys
-from os import path
-
 # no fixtures needed
 import pytest
-
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 from secop.datatypes import BoolType
 from secop.params import Command, Override, Parameter

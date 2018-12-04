@@ -23,13 +23,9 @@
 
 from __future__ import division, print_function
 
-import sys
 from collections import OrderedDict
-from os import path
 
 import pytest
-
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 from secop.parse import Parser
 
