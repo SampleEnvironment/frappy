@@ -168,8 +168,7 @@ class Server(object):
                         try:
                             opts[k] = ast.literal_eval(v)
                         except Exception:
-                            pass
-                        opts[k] = v
+                            opts[k] = v
 
                     # try to import the class, raise if this fails
                     self.log.debug(u'Creating %s %s ...' % (kind.title(), name))

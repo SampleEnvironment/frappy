@@ -78,22 +78,22 @@ class SimBase(object):
 
 
 class SimModule(SimBase, Module):
-    def __init__(self, logger, cfgdict, devname, dispatcher):
+    def __init__(self, devname, logger, cfgdict, dispatcher):
         SimBase.__init__(self, cfgdict)
-        Module.__init__(self, logger, cfgdict, devname, dispatcher)
+        Module.__init__(self, devname, logger, cfgdict, dispatcher)
 
 
 class SimReadable(SimBase, Readable):
-    def __init__(self, logger, cfgdict, devname, dispatcher):
+    def __init__(self, devname, logger, cfgdict, dispatcher):
         SimBase.__init__(self, cfgdict)
-        Readable.__init__(self, logger, cfgdict, devname, dispatcher)
+        Readable.__init__(self, devname, logger, cfgdict, dispatcher)
         self._value = self.accessibles['value'].default
 
 
 class SimWritable(SimBase, Writable):
-    def __init__(self, logger, cfgdict, devname, dispatcher):
+    def __init__(self, devname, logger, cfgdict, dispatcher):
         SimBase.__init__(self, cfgdict)
-        Writable.__init__(self, logger, cfgdict, devname, dispatcher)
+        Writable.__init__(self, devname, logger, cfgdict, dispatcher)
         self._value = self.accessibles['value'].default
     def read_value(self, maxage=0):
         return self.target
@@ -104,9 +104,9 @@ class SimWritable(SimBase, Writable):
         pass
 
 class SimDrivable(SimBase, Drivable):
-    def __init__(self, logger, cfgdict, devname, dispatcher):
+    def __init__(self, devname, logger, cfgdict, dispatcher):
         SimBase.__init__(self, cfgdict)
-        Drivable.__init__(self, logger, cfgdict, devname, dispatcher)
+        Drivable.__init__(self, devname, logger, cfgdict, dispatcher)
         self._value = self.accessibles['value'].default
 
     def sim(self):
