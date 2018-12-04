@@ -29,11 +29,9 @@ from os import path
 
 import pytest
 
-from secop.parse import Parser
-
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-
+from secop.parse import Parser
 
 
 # pylint: disable=redefined-outer-name

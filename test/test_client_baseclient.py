@@ -28,9 +28,10 @@ from os import path
 
 import pytest
 
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
 from secop.client.baseclient import Client
 
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 
 

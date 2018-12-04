@@ -29,14 +29,10 @@ from os import path
 # no fixtures needed
 import pytest
 
-from secop.datatypes import BoolType
-from secop.params import Command, Override, Parameter
-
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-
-
-
+from secop.datatypes import BoolType
+from secop.params import Command, Override, Parameter
 
 
 def test_Command():

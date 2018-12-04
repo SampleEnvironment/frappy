@@ -28,13 +28,12 @@ from os import path
 # no fixtures needed
 import pytest
 
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
 from secop.datatypes import BoolType, EnumType
 from secop.metaclass import ModuleMeta
 from secop.modules import Communicator, Drivable, Module, Readable, Writable
 from secop.params import Command, Override, Parameter
-
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
-
 
 try:
     import Queue as queue

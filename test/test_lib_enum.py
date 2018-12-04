@@ -29,12 +29,9 @@ from os import path
 # no fixtures needed
 import pytest
 
-from secop.lib.enum import Enum, EnumMember
-
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-
-
+from secop.lib.enum import Enum, EnumMember
 
 
 def test_EnumMember():
