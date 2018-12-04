@@ -1,4 +1,5 @@
-.PHONY: release release-patch release-minor release-major demo
+.PHONY: release release-patch release-minor release-major
+.PHONY: all doc clean test test-verbose test-coverage demo lint build install
 
 all: clean doc
 
@@ -38,10 +39,6 @@ doc:
 
 lint:
 	pylint -j $(shell nproc) -f colorized -r n --rcfile=.pylintrc secop secop_* test
-
-.PHONY: doc clean test test-verbose test-coverage demo lint
-
-all: # no build necessary
 
 release-patch:
 	MODE="patch" $(MAKE) release
