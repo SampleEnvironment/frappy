@@ -24,6 +24,13 @@ RUN groupadd -g 1001 jenkins && \
     mkdir /home/jenkins && chown jenkins:jenkins /home/jenkins && \
     echo "jenkins:jenkins" | chpasswd
 USER jenkins
+RUN virtualenv /home/jenkins/tools2 && \
+    git clone https://forge.frm2.tum.de/review/frm2/taco/tools /home/jenkins/tools2src && \
+    . /home/jenkins/tools2/bin/activate && \
+    pip install -U pip wheel setuptools && \
+    pip install /home/jenkins/tools2src/ && \
+    rm -rf /home/jenkins/tools2src
+
 RUN virtualenv /home/jenkins/secopvenv && \
     git clone https://forge.frm2.tum.de/review/sine2020/secop/playground /home/jenkins/playground && \
     . /home/jenkins/secopvenv/bin/activate && \
