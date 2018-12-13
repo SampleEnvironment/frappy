@@ -28,8 +28,12 @@ from math import atan
 
 from secop.datatypes import EnumType, FloatRange, TupleOf
 from secop.lib import clamp, mkthread
-from secop.modules import Drivable, Parameter, Override
+from secop.modules import Drivable, Parameter, Command, Override
 
+# test custom property (value.test can be changed in config file)
+Parameter.add_property('test')
+# in the rare case of namespace conflicts, the external name could be completely different
+Command.add_property(special='_peculiar')
 
 class CryoBase(Drivable):
     pass
@@ -42,6 +46,7 @@ class Cryostat(CryoBase):
     - cooling power
     - thermal transfer between regulation and samplen
     """
+
     parameters = dict(
         jitter=Parameter("amount of random noise on readout values",
                      datatype=FloatRange(0, 1), unit="K",
@@ -81,6 +86,7 @@ class Cryostat(CryoBase):
                      ),
         value=Override("regulation temperature",
                     datatype=FloatRange(0), default=0, unit="K",
+                    test='TEST',
                     ),
         pid=Parameter("regulation coefficients",
                   datatype=TupleOf(FloatRange(0), FloatRange(0, 100),
@@ -126,7 +132,8 @@ class Cryostat(CryoBase):
     )
     commands = dict(
         stop=Override(
-            "Stop ramping the setpoint\n\nby setting the current setpoint as new target"),
+            "Stop ramping the setpoint\n\nby setting the current setpoint as new target",
+            special='content of special property'),
     )
 
     def init_module(self):

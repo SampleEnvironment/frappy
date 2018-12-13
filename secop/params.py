@@ -36,7 +36,44 @@ class CountedObj(object):
         cl[0] += 1
         self.ctr = cl[0]
 
-class Parameter(CountedObj):
+class Accessible(CountedObj):
+    '''abstract base class for Parameter and Command'''
+
+    def __repr__(self):
+        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
+            ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
+
+    def copy(self):
+        # return a copy of ourselfs
+        props = self.__dict__.copy()
+        props.pop('ctr')
+        return type(self)(**props)
+
+    def exported_properties(self):
+        res = dict(datatype=self.datatype.export_datatype())
+        for key, value in self.__dict__.items():
+            if key in self.valid_properties:
+                res[self.valid_properties[key]] = value
+        return res
+
+    @classmethod
+    def add_property(cls, *args, **kwds):
+        '''add custom properties
+
+        args: custom properties, exported with leading underscore
+        kwds: special cases, where exported name differs from internal
+
+        intention: to be called in secop_<facility>/__init__.py for
+        facility specific properties
+        '''
+        for name in args:
+            kwds[name] = '_' + name
+        for name, external in kwds.items():
+            if name in cls.valid_properties and name != cls.valid_properties[name]:
+                raise ProgrammingError('can not overrride property name %s' % name)
+            cls.valid_properties[name] = external
+
+class Parameter(Accessible):
     """storage for Parameter settings + value + qualifiers
 
     if readonly is False, the value can be changed (by code, or remote)
@@ -52,6 +89,12 @@ class Parameter(CountedObj):
 
     note: Drivable (and derived classes) poll with 10 fold frequency if module is busy....
     """
+
+    # unit and datatype are not listed (handled separately)
+    valid_properties = dict()
+    for prop in ('description', 'readonly', 'group', 'visibility', 'fmtstr', 'precision'):
+        valid_properties[prop] = prop
+
     def __init__(self,
                  description,
                  datatype=None,
@@ -59,12 +102,12 @@ class Parameter(CountedObj):
                  unit='',
                  readonly=True,
                  export=True,
-                 group='',
                  poll=False,
-                 value=unset_value,
-                 timestamp=0,
+                 value=None, # swallow
+                 timestamp=None, # swallow
                  optional=False,
-                 ctr=None):
+                 ctr=None,
+                 **kwds):
         super(Parameter, self).__init__()
         if not isinstance(datatype, DataType):
             if issubclass(datatype, DataType):
@@ -79,39 +122,26 @@ class Parameter(CountedObj):
         self.unit = unit
         self.readonly = readonly
         self.export = export
-        self.group = group
         self.optional = optional
 
         # note: auto-converts True/False to 1/0 which yield the expected
         # behaviour...
         self.poll = int(poll)
+        for key in kwds:
+            if key not in self.valid_properties:
+                raise ProgrammingError('%s is not a valid parameter property' % key)
+        self.__dict__.update(kwds)
         # internal caching: value and timestamp of last change...
         self.value = default
         self.timestamp = 0
         if ctr is not None:
             self.ctr = ctr
 
-    def __repr__(self):
-        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
-            ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
-
-    def copy(self):
-        # return a copy of ourselfs
-        params = self.__dict__.copy()
-        params.pop('ctr')
-        return Parameter(**params)
-
     def for_export(self):
         # used for serialisation only
-        res = dict(
-            description=self.description,
-            readonly=self.readonly,
-            datatype=self.datatype.export_datatype(),
-        )
+        res = self.exported_properties()
         if self.unit:
             res['unit'] = self.unit
-        if self.group:
-            res['group'] = self.group
         return res
 
     def export_value(self):
@@ -119,7 +149,7 @@ class Parameter(CountedObj):
 
 
 class Override(CountedObj):
-    """Stores the overrides to ba applied to a Parameter
+    """Stores the overrides to be applied to a Parameter
 
     note: overrides are applied by the metaclass during class creating
     """
@@ -137,27 +167,38 @@ class Override(CountedObj):
             ['%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
 
     def apply(self, obj):
-        if isinstance(obj, CountedObj):
+        if isinstance(obj, Accessible):
             props = obj.__dict__.copy()
-            for k, v in self.kwds.items():
-                if k in props:
-                    props[k] = v
-                else:
-                    raise ProgrammingError(
-                        "Can not apply Override(%s=%r) to %r: non-existing property!" %
-                        (k, v, props))
+            for key in self.kwds:
+                if key not in props and key not in type(obj).valid_properties:
+                    raise ProgrammingError( "%s is not a valid %s property" %
+                                           (key, type(obj).__name__))
+            props.update(self.kwds)
             props['ctr'] = self.ctr
             return type(obj)(**props)
         else:
             raise ProgrammingError(
-                "Overrides can only be applied to Parameter's, %r is none!" %
+                "Overrides can only be applied to Accessibles, %r is none!" %
                 obj)
 
 
-class Command(CountedObj):
+class Command(Accessible):
     """storage for Commands settings (description + call signature...)
     """
-    def __init__(self, description, argument=None, result=None, export=True, optional=False, datatype=None, ctr=None):
+    # datatype is not listed (handled separately)
+    valid_properties = dict()
+    for prop in ('description', 'group', 'visibility'):
+        valid_properties[prop] = prop
+
+    def __init__(self,
+                 description,
+                 argument=None,
+                 result=None,
+                 export=True,
+                 optional=False,
+                 datatype=None, # swallow datatype argument on copy
+                 ctr=None,
+                 **kwds):
         super(Command, self).__init__()
         # descriptive text for humans
         self.description = description
@@ -168,23 +209,13 @@ class Command(CountedObj):
         # whether implementation is optional
         self.optional = optional
         self.export = export
+        for key in kwds:
+            if key not in self.valid_properties:
+                raise ProgrammingError('%s is not a valid command property' % key)
+        self.__dict__.update(kwds)
         if ctr is not None:
             self.ctr = ctr
 
-    def __repr__(self):
-        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
-            ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
-
     def for_export(self):
         # used for serialisation only
-
-        return dict(
-            description=self.description,
-            datatype = self.datatype.export_datatype(),
-        )
-
-    def copy(self):
-        # return a copy of ourselfs
-        params = self.__dict__.copy()
-        params.pop('ctr')
-        return Command(**params)
+        return self.exported_properties()
