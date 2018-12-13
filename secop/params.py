@@ -136,9 +136,9 @@ class Override(CountedObj):
         return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
 
-    def apply(self, paramobj):
-        if isinstance(paramobj, Parameter):
-            props = paramobj.__dict__.copy()
+    def apply(self, obj):
+        if isinstance(obj, CountedObj):
+            props = obj.__dict__.copy()
             for k, v in self.kwds.items():
                 if k in props:
                     props[k] = v
@@ -147,11 +147,11 @@ class Override(CountedObj):
                         "Can not apply Override(%s=%r) to %r: non-existing property!" %
                         (k, v, props))
             props['ctr'] = self.ctr
-            return Parameter(**props)
+            return type(obj)(**props)
         else:
             raise ProgrammingError(
                 "Overrides can only be applied to Parameter's, %r is none!" %
-                paramobj)
+                obj)
 
 
 class Command(CountedObj):

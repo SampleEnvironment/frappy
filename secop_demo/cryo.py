@@ -28,7 +28,7 @@ from math import atan
 
 from secop.datatypes import EnumType, FloatRange, TupleOf
 from secop.lib import clamp, mkthread
-from secop.modules import Command, Drivable, Parameter
+from secop.modules import Drivable, Parameter, Override
 
 
 class CryoBase(Drivable):
@@ -75,11 +75,11 @@ class Cryostat(CryoBase):
                           datatype=FloatRange(0), default=0, unit="W",
                           group='heater_settings',
                           ),
-        target=Parameter("target temperature",
+        target=Override("target temperature",
                      datatype=FloatRange(0), default=0, unit="K",
                      readonly=False,
                      ),
-        value=Parameter("regulation temperature",
+        value=Override("regulation temperature",
                     datatype=FloatRange(0), default=0, unit="K",
                     ),
         pid=Parameter("regulation coefficients",
@@ -105,7 +105,7 @@ class Cryostat(CryoBase):
                    default='ramp',
                    readonly=False,
                    ),
-        pollinterval=Parameter("polling interval",
+        pollinterval=Override("polling interval",
                            datatype=FloatRange(0), default=5,
                            ),
         tolerance=Parameter("temperature range for stability checking",
@@ -125,10 +125,8 @@ class Cryostat(CryoBase):
                       ),
     )
     commands = dict(
-        stop=Command(
-            "Stop ramping the setpoint\n\nby setting the current setpoint as new target",
-            None,
-            None),
+        stop=Override(
+            "Stop ramping the setpoint\n\nby setting the current setpoint as new target"),
     )
 
     def init_module(self):
