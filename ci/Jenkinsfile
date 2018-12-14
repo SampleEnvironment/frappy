@@ -250,7 +250,7 @@ node("master") {
             if (GERRIT_EVENT_TYPE == 'change-merged')
             {
                 sh '''
-                rsync -rlv doc/_build/* /share/ictrl/public/doc/secop
+                rsync -rlv doc/_build/* /ictrlsrv/share/public/doc/secop
                 '''
             }
         }}
