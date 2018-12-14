@@ -62,12 +62,13 @@ fi
     } // credentials
 
     echo "pylint result: $res"
-
+    this.verifyresult.put('pylint'+pyver, 1)
     if ( res != 0 ) {
         currentBuild.result='FAILURE'
         this.verifyresult.put('pylint'+ pyver, -1)
         status = 'FAILURE'
     }
+
     gerritverificationpublisher([
         verifyStatusValue: this.verifyresult['pylint'+pyver],
         verifyStatusCategory: 'pylint ',
