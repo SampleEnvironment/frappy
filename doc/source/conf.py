@@ -98,6 +98,12 @@ todo_include_todos = True
 import sphinx_rtd_theme
 html_theme = 'sphinx_rtd_theme'
 
+# If not None, a 'Last updated on:' timestamp is inserted at every page
+# bottom, using the given strftime format.
+# The empty string is equivalent to '%b %d, %Y'.
+#
+html_last_updated_fmt = '%Y-%m-%d %H:%M'
+
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
