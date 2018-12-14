@@ -190,14 +190,6 @@ def run_docs() {
     ])
     }
 
-    stage('publish') {
-        if (GERRIT_EVENT_TYPE == 'change-merged')
-        {
-            sh '''
-            rsync -rlv doc/_build/* /share/ictrl/public/doc/secop
-            '''
-        }
-    }
 }
 
 
@@ -252,6 +244,14 @@ node("master") {
         img = docker.image('secop_docs:latest')
         img.inside {
             run_docs()
+        }
+        stage('publish') {
+            if (GERRIT_EVENT_TYPE == 'change-merged')
+            {
+                sh '''
+                rsync -rlv doc/_build/* /share/ictrl/public/doc/secop
+                '''
+            }
         }}
     }
 }
