@@ -28,19 +28,17 @@ import time
 
 from secop.datatypes import (EnumType, FloatRange, StringType, TupleOf,
                              get_datatype)
-from secop.errors import ConfigError
+from secop.errors import ConfigError, ProgrammingError
 from secop.lib import (formatException, formatExtendedStack, mkthread,
                        unset_value)
 from secop.lib.enum import Enum
 from secop.metaclass import ModuleMeta, add_metaclass
-from secop.params import Command, Override, Parameter
+from secop.params import Command, Override, Parameter, PREDEFINED_ACCESSIBLES
 
 # XXX: connect with 'protocol'-Modules.
 # Idea: every Module defined herein is also a 'protocol'-Module,
 # all others MUST derive from those, the 'interface'-class is still derived
 # from these base classes (how to do this?)
-
-
 
 
 @add_metaclass(ModuleMeta)
@@ -74,6 +72,7 @@ class Module(object):
         'visibility': None,  # XXX: ????
         # what else?
     }
+
     # properties, parameter and commands are auto-merged upon subclassing
     parameters = {}
     commands = {}
@@ -126,11 +125,27 @@ class Module(object):
         #    they need to be individual per instance since we use them also
         #    to cache the current value + qualifiers...
         accessibles = {}
-        for k, v in self.accessibles.items():
+        # conversion from exported names to internal attribute names
+        accessiblename2attr = {}
+        for aname, aobj in self.accessibles.items():
             # make a copy of the Parameter/Command object
-            accessibles[k] = v.copy()
+            aobj = aobj.copy()
+            if aobj.export:
+                if aobj.export is True:
+                    predefined_obj = PREDEFINED_ACCESSIBLES.get(aname, None)
+                    if predefined_obj:
+                        if isinstance(aobj, predefined_obj):
+                            aobj.export = aname
+                        else:
+                            raise ProgrammingError("can not use '%s' as name of a %s" %
+                                  (aname, aobj.__class__.__name__))
+                    else: # create custom parameter
+                        aobj.export = '_' + aname
+                accessiblename2attr[aobj.export] = aname
+            accessibles[aname] = aobj
         # do not re-use self.accessibles as this is the same for all instances
         self.accessibles = accessibles
+        self.accessiblename2attr = accessiblename2attr
 
         # 2) check and apply parameter_properties
         #    specified as '<paramname>.<propertyname> = <propertyvalue>'

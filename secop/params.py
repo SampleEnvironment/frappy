@@ -29,12 +29,14 @@ from secop.lib import unset_value
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
 
+
 class CountedObj(object):
     ctr = [0]
     def __init__(self):
         cl = self.__class__.ctr
         cl[0] += 1
         self.ctr = cl[0]
+
 
 class Accessible(CountedObj):
     '''abstract base class for Parameter and Command'''
@@ -72,6 +74,7 @@ class Accessible(CountedObj):
             if name in cls.valid_properties and name != cls.valid_properties[name]:
                 raise ProgrammingError('can not overrride property name %s' % name)
             cls.valid_properties[name] = external
+
 
 class Parameter(Accessible):
     """storage for Parameter settings + value + qualifiers
@@ -219,3 +222,23 @@ class Command(Accessible):
     def for_export(self):
         # used for serialisation only
         return self.exported_properties()
+
+# list of predefined accessibles with their type
+PREDEFINED_ACCESSIBLES = dict(
+    value = Parameter,
+    status = Parameter,
+    target = Parameter,
+    pollinterval = Parameter,
+    ramp = Parameter,
+    user_ramp = Parameter,
+    setpoint = Parameter,
+    time_to_target = Parameter,
+    unit = Parameter, # reserved name
+    loglevel = Parameter, # reserved name
+    mode = Parameter, # reserved name
+    stop = Command,
+    reset = Command,
+    go = Command,
+    abort = Command,
+    shutdown = Command,
+)

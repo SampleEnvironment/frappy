@@ -100,23 +100,19 @@ class Dispatcher(object):
     def announce_update(self, moduleobj, pname, pobj):
         """called by modules param setters to notify subscribers of new values
         """
-        msg = (EVENTREPLY, u'%s:%s' % (moduleobj.name, pname), [pobj.export_value(), dict(t=pobj.timestamp)])
+        # argument pname is no longer used here - should we remove it?
+        msg = (EVENTREPLY, u'%s:%s' % (moduleobj.name, pobj.export),
+               [pobj.export_value(), dict(t=pobj.timestamp)])
         self.broadcast_event(msg)
 
-    def subscribe(self, conn, modulename, pname=None):
-        eventname = modulename
-        if pname:
-            eventname = u'%s:%s' % (modulename, pname)
+    def subscribe(self, conn, eventname):
         self._subscriptions.setdefault(eventname, set()).add(conn)
 
-    def unsubscribe(self, conn, modulename, pname=None):
-        if pname:
-            eventname = u'%s:%s' % (modulename, pname)
-        else:
-            eventname = modulename
+    def unsubscribe(self, conn, eventname):
+        if not ':' in eventname:
             # also remove 'more specific' subscriptions
             for k, v in self._subscriptions.items():
-                if k.startswith(u'%s:' % modulename):
+                if k.startswith(u'%s:' % eventname):
                     v.discard(conn)
         if eventname in self._subscriptions:
             self._subscriptions[eventname].discard(conn)
@@ -166,9 +162,9 @@ class Dispatcher(object):
         if modulename in self._export:
             # omit export=False params!
             res = []
-            for aname, aobj in self.get_module(modulename).accessibles.items():
+            for aobj in self.get_module(modulename).accessibles.values():
                 if aobj.export:
-                    res.append([aname, aobj.for_export()])
+                    res.append([aobj.export, aobj.for_export()])
             self.log.debug(u'list accessibles for module %s -> %r' %
                            (modulename, res))
             return res
@@ -218,11 +214,12 @@ class Dispatcher(object):
         # XXX: pipe through cmdspec.datatype.result ?
         return res, dict(t=currenttime())
 
-    def _setParameterValue(self, modulename, pname, value):
+    def _setParameterValue(self, modulename, exportedname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
+        pname = moduleobj.accessiblename2attr.get(exportedname, None)
         pobj = moduleobj.accessibles.get(pname, None)
         if pobj is None or not isinstance(pobj, Parameter):
             raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
@@ -239,11 +236,12 @@ class Dispatcher(object):
             return pobj.export_value(), dict(t=pobj.timestamp)
         return pobj.export_value(), {}
 
-    def _getParameterValue(self, modulename, pname):
+    def _getParameterValue(self, modulename, exportedname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
+        pname = moduleobj.accessiblename2attr.get(exportedname, None)
         pobj = moduleobj.accessibles.get(pname, None)
         if pobj is None or not isinstance(pobj, Parameter):
             raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
@@ -324,16 +322,18 @@ class Dispatcher(object):
         if data:
             raise ProtocolError('activate request don\'t take data!')
         if specifier:
-            modulename, pname = specifier, None
+            modulename, exportedname = specifier, None
             if ':' in specifier:
-                modulename, pname = specifier.split(u':', 1)
+                modulename, exportedname = specifier.split(u':', 1)
             if modulename not in self._export:
                 raise NoSuchModuleError('Module does not exist on this SEC-Node!')
-            if pname and pname not in self.get_module(modulename).accessibles:
+            moduleobj = self.get_module(modulename)
+            pname = moduleobj.accessiblename2attr.get(exportedname, True)
+            if pname and pname not in moduleobj.accessibles:
                 # what if we try to subscribe a command here ???
                 raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
-            # activate only ONE module
-            self.subscribe(conn, modulename, pname)
+            # activate only ONE item (module or module:parameter)
+            self.subscribe(conn, specifier)
             modules = [(modulename, pname)]
         else:
             # activate all modules
@@ -346,17 +346,17 @@ class Dispatcher(object):
             moduleobj = self._modules.get(modulename, None)
             if pname:
                 pobj = moduleobj.accessibles[pname]
-                updmsg = (EVENTREPLY, u'%s:%s' % (modulename, pname),
+                updmsg = (EVENTREPLY, u'%s:%s' % (modulename, pobj.export),
                           [pobj.export_value(), dict(t=pobj.timestamp)])
                 conn.queue_async_reply(updmsg)
                 continue
-            for pname, pobj in moduleobj.accessibles.items():  # pylint: disable=redefined-outer-name
+            for pobj in moduleobj.accessibles.values():
                 if not isinstance(pobj, Parameter):
                     continue
-                if not pobj.export:  # XXX: handle export_as cases!
+                if not pobj.export:
                     continue
                 # can not use announce_update here, as this will send to all clients
-                updmsg = (EVENTREPLY, u'%s:%s' % (modulename, pname),
+                updmsg = (EVENTREPLY, u'%s:%s' % (modulename, pobj.export),
                           [pobj.export_value(), dict(t=pobj.timestamp)])
                 conn.queue_async_reply(updmsg)
         return (ENABLEEVENTSREPLY, specifier, None) if specifier else (ENABLEEVENTSREPLY, None, None)
