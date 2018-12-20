@@ -1,3 +1,68 @@
+secop-core (0.6.4) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * [MLZ:entangle] fix windowtimeout
+  * [server.py] rename initialisation steps for better clarity
+  * minor fixes
+
+  [ Björn Pedersen ]
+  * Add dockerized ci infrastructure
+  * Remove bootstrapping code from Jenkinsfile
+  * Add venv initialisation
+  * Add docs test/build
+  * Remove jenkins bootstrapping code
+  * Fix git reference for docker env
+  * CI: Add pytango  dependency
+  * Use correct locale
+
+  [ Enrico Faulhaber ]
+  * by default export all modules
+  * fix sequencing in secop_demo.modules.MagnetiField
+  * various unicode fixes
+  * remove Message objects + rewrite server startup
+  * big rework to comply to current spec
+  * fix isort
+  * fix tests
+
+  [ Georg Brandl ]
+  * move path manipulation into single module
+
+  [ Enrico Faulhaber ]
+  * fix Makefile
+  * reorder PHONY in Makefile
+
+  [ Björn Pedersen ]
+  * Improve build process
+
+  [ Georg Brandl ]
+  * fix changed Jenkinsfile
+  * datatypes: require min, max ordering for size limits
+
+  [ Enrico Faulhaber ]
+  * fix simulation
+
+  [ Markus Zolliker ]
+  * allow Override also for Commands
+
+  [ Björn Pedersen ]
+  * docker image: add mlz tools
+  * Include pylint into Jenkinsfile
+  * Add stage around pylint run
+  * Run publish outside of docker container
+  * Correctly publish pylint results
+  * Adjust path for docs
+
+  [ Markus Zolliker ]
+  * additional parameter properties
+  * added 'export_as' for parameters and commands
+
+  [ Björn Pedersen ]
+  * doc: Add a last-updated timestamp to html
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 20 Dec 2018 16:44:03 +0100
+
 secop-core (0.6.3) unstable; urgency=low
 
   [ Enrico Faulhaber ]
