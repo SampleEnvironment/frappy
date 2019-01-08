@@ -48,7 +48,6 @@ class Accessible(CountedObj):
     def copy(self):
         # return a copy of ourselfs
         props = self.__dict__.copy()
-        props.pop('ctr')
         return type(self)(**props)
 
     def exported_properties(self):
@@ -155,10 +154,12 @@ class Override(CountedObj):
     """Stores the overrides to be applied to a Parameter
 
     note: overrides are applied by the metaclass during class creating
+    reorder= True: use position of Override instead of inherited for the order
     """
-    def __init__(self, description="", **kwds):
+    def __init__(self, description="", reorder=False, **kwds):
         super(Override, self).__init__()
         self.kwds = kwds
+        self.reorder = reorder
         # allow to override description without keyword
         if description:
             self.kwds['description'] = description
@@ -177,7 +178,8 @@ class Override(CountedObj):
                     raise ProgrammingError( "%s is not a valid %s property" %
                                            (key, type(obj).__name__))
             props.update(self.kwds)
-            props['ctr'] = self.ctr
+            if self.reorder:
+                props['ctr'] = self.ctr
             return type(obj)(**props)
         else:
             raise ProgrammingError(

@@ -214,10 +214,10 @@ class Module(object):
 
     def early_init(self):
         # may be overriden in derived classes to init stuff
-        self.log.debug('empty early_init()')
+        self.log.debug('empty %s.early_init()' % self.__class__.__name__)
 
     def init_module(self):
-        self.log.debug('empty init_module()')
+        self.log.debug('empty %s.init_module()' % self.__class__.__name__)
 
     def start_module(self, started_callback):
         '''runs after init of all modules
@@ -226,7 +226,7 @@ class Module(object):
         or, if not implmemented, immediately
         '''
 
-        self.log.debug('empty start_module()')
+        self.log.debug('empty %s.start_module()' % self.__class__.__name__)
         started_callback(self)
 
 

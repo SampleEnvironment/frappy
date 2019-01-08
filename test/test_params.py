@@ -49,10 +49,19 @@ def test_Parameter():
 
 def test_Override():
     p = Parameter('description1', datatype=BoolType, default=False)
-    o = Override(default=True)
+    o = Override(default=True, reorder=True)
     assert o.ctr != p.ctr
     q = o.apply(p)
     assert q.ctr == o.ctr  # override shall be useable to influence the order, hence copy the ctr value
     assert q.ctr != p.ctr
     assert o.ctr != p.ctr
     assert q != p
+
+    p2 = Parameter('description2', datatype=BoolType, default=False)
+    o2 = Override(default=True)
+    assert o2.ctr != p2.ctr
+    q2 = o2.apply(p2)
+    assert q2.ctr != o2.ctr
+    assert q2.ctr == p2.ctr
+    assert o2.ctr != p2.ctr
+    assert q2 != p2
