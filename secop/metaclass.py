@@ -170,7 +170,9 @@ class ModuleMeta(type):
                     value = pobj.datatype.validate(value)
                     if wfunc:
                         self.log.debug('calling %r(%r)' % (wfunc, value))
-                        value = wfunc(self, value) or value
+                        returned_value = wfunc(self, value)
+                        if returned_value is not None:
+                            value = returned_value
                     # XXX: use setattr or direct manipulation
                     # of self.accessibles[pname]?
                     setattr(self, pname, value)
