@@ -179,7 +179,7 @@ class StructWidget(QGroupBox):
 class ArrayWidget(QGroupBox):
     def __init__(self, datatype, readonly=False, parent=None):
         super(ArrayWidget, self).__init__(parent)
-        self.datatype = datatype.subtype
+        self.datatype = datatype.members
 
         self.layout = QVBoxLayout()
         self.subwidgets = []

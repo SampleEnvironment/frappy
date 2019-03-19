@@ -33,25 +33,32 @@ try:
 
     from PyQt5 import uic
     from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, \
-        QRectF
+        QRectF, QPoint
     from PyQt5.QtGui import QFont, QTextCursor, QFontMetrics, QColor, QBrush, \
-        QPainter, QPolygonF, QPen
+        QPainter, QPolygonF, QPen, QIcon, QStandardItemModel, QStandardItem
     from PyQt5.QtWidgets import QLabel, QWidget, QDialog, QLineEdit, QCheckBox, \
         QPushButton, QSizePolicy, QMainWindow, QMessageBox, QInputDialog, \
         QTreeWidgetItem, QApplication, QGroupBox, QSpinBox, QDoubleSpinBox, \
         QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, QGridLayout, \
-        QScrollArea, QFrame
+        QScrollArea, QFrame, QTreeWidget, QFileDialog, QTabBar, QAction, QMenu,\
+        QDialogButtonBox, QTextEdit, QAbstractItemView, QSpacerItem, QTreeView
 
     from xml.sax.saxutils import escape as toHtmlEscaped
 
+    import secop.gui.icon_rc_qt5
+
 except ImportError:
     from PyQt4 import uic
-    from PyQt4.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, QRectF
+    from PyQt4.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, QRectF, QPoint
     from PyQt4.QtGui import QFont, QTextCursor, QFontMetrics, \
-        QLabel, QWidget, QDialog, QLineEdit, QCheckBox, QPushButton, \
+        QLabel, QWidget, QDialog, QLineEdit, QCheckBox, QPushButton, QTextEdit,\
         QSizePolicy, QMainWindow, QMessageBox, QInputDialog, QTreeWidgetItem, QApplication, \
         QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, \
-        QGridLayout, QScrollArea, QFrame, QColor, QBrush, QPainter, QPolygonF, QPen
+        QGridLayout, QScrollArea, QFrame, QColor, QBrush, QPainter, QPolygonF, QPen, QIcon, \
+        QTreeWidget, QFileDialog, QTabBar, QAction, QMenu, QDialogButtonBox, QAbstractItemView, \
+        QSpacerItem, QTreeView, QStandardItemModel, QStandardItem
+
+    import secop.gui.icon_rc_qt4
 
     def toHtmlEscaped(s):
         return Qt.escape(s)

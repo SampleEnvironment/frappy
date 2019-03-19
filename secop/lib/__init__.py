@@ -41,10 +41,12 @@ CONFIG = {
     u'piddir': os.path.join(repodir, u'pid'),
     u'logdir': os.path.join(repodir, u'log'),
     u'confdir': os.path.join(repodir, u'etc'),
+    u'basedir': repodir,
 } if os.path.exists(os.path.join(repodir, u'.git')) else {
     u'piddir': u'/var/run/secop',
     u'logdir': u'/var/log',
     u'confdir': u'/etc/secop',
+    u'basedir': repodir,
 }
 
 
