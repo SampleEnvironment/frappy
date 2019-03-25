@@ -92,7 +92,11 @@ class FloatRange(DataType):
         self.max = None if maxval is None else float(maxval)
         # note: as we may compare to Inf all comparisons would be false
         if (self.min or float(u'-inf')) <= (self.max or float(u'+inf')):
-            self.as_json = [u'double', minval, maxval]
+            self.as_json = [u'double', dict()]
+            if self.min:
+                self.as_json[1]['min'] = self.min
+            if self.max:
+                self.as_json[1]['max'] = self.max
         else:
             raise ValueError(u'Max must be larger then min!')
 
@@ -117,9 +121,8 @@ class FloatRange(DataType):
     def __repr__(self):
         if self.max is not None:
             return u'FloatRange(%r, %r)' % (
-                float(u'-inf') if self.min is None else self.min, self.max)
-        if self.min is not None:
-            return u'FloatRange(%r)' % self.min
+                float(u'-inf') if self.min is None else self.min,
+                float(u'inf') if self.max is None else self.max)
         return u'FloatRange()'
 
     def export_value(self, value):
@@ -138,14 +141,14 @@ class FloatRange(DataType):
 class IntRange(DataType):
     """Restricted int type"""
 
-    def __init__(self, minval=-16777216, maxval=16777216):
-        self.min = int(minval)
-        self.max = int(maxval)
+    def __init__(self, minval=None, maxval=None):
+        self.min = -16777216 if minval is None else int(minval)
+        self.max = 16777216 if maxval is None else int(maxval)
         if self.min > self.max:
             raise ValueError(u'Max must be larger then min!')
         if None in (self.min, self.max):
             raise ValueError(u'Limits can not be None!')
-        self.as_json = [u'int', self.min, self.max]
+        self.as_json = [u'int', {'min':self.min, 'max':self.max}]
 
     def validate(self, value):
         try:
@@ -163,8 +166,6 @@ class IntRange(DataType):
     def __repr__(self):
         if self.max is not None:
             return u'IntRange(%d, %d)' % (self.min, self.max)
-        if self.min is not None:
-            return u'IntRange(%d)' % self.min
         return u'IntRange()'
 
     def export_value(self, value):
@@ -182,11 +183,15 @@ class IntRange(DataType):
 
 class EnumType(DataType):
     def __init__(self, enum_or_name='', **kwds):
+        if 'members' in kwds:
+            kwds = dict(kwds)
+            kwds.update(kwds['members'])
+            kwds.pop('members')
         self._enum = Enum(enum_or_name, **kwds)
 
     @property
     def as_json(self):
-        return [u'enum'] + [dict((m.name, m.value) for m in self._enum.members)]
+        return [u'enum'] + [{"members":dict((m.name, m.value) for m in self._enum.members)}]
 
     def __repr__(self):
         return u"EnumType(%r, %s)" % (self._enum.name, ', '.join(u'%s=%d' %(m.name, m.value) for m in self._enum.members))
@@ -225,7 +230,7 @@ class BLOBType(DataType):
             raise ValueError(u'sizes must be bigger than or equal to 0!')
         elif self.minsize > self.maxsize:
             raise ValueError(u'maxsize must be bigger than or equal to minsize!')
-        self.as_json = [u'blob', self.minsize, self.maxsize]
+        self.as_json = [u'blob', dict(min=minsize, max=maxsize)]
 
     def __repr__(self):
         return u'BLOB(%s, %s)' % (unicode(self.minsize), unicode(self.maxsize))
@@ -272,7 +277,7 @@ class StringType(DataType):
             raise ValueError(u'sizes must be bigger than or equal to 0!')
         elif self.minsize > self.maxsize:
             raise ValueError(u'maxsize must be bigger than or equal to minsize!')
-        self.as_json = [u'string', self.minsize, self.maxsize]
+        self.as_json = [u'string', dict(min=minsize, max=maxsize)]
 
     def __repr__(self):
         return u'StringType(%s, %s)' % (unicode(self.minsize), unicode(self.maxsize))
@@ -311,7 +316,9 @@ class StringType(DataType):
 
 
 class BoolType(DataType):
-    as_json = [u'bool']
+
+    def __init__(self):
+        self.as_json = [u'bool', dict()]
 
     def __repr__(self):
         return u'BoolType()'
@@ -346,15 +353,15 @@ class ArrayOf(DataType):
     maxsize = None
     subtype = None
 
-    def __init__(self, subtype, minsize=0, maxsize=None):
+    def __init__(self, members, minsize=0, maxsize=None):
         # one argument -> exactly that size
         # argument default to 10
         if maxsize is None:
             maxsize = minsize or 10
-        if not isinstance(subtype, DataType):
+        if not isinstance(members, DataType):
             raise ValueError(
                 u'ArrayOf only works with a DataType as first argument!')
-        self.subtype = subtype
+        self.subtype = members
 
         self.minsize = int(minsize)
         self.maxsize = int(maxsize)
@@ -365,7 +372,7 @@ class ArrayOf(DataType):
         elif self.minsize > self.maxsize:
             raise ValueError(u'maxsize must be bigger than or equal to minsize!')
         # if only one arg is given, it is maxsize!
-        self.as_json = [u'array', self.minsize, self.maxsize, subtype.as_json]
+        self.as_json = [u'array', dict(min=minsize, max=maxsize, members=members.as_json)]
 
     def __repr__(self):
         return u'ArrayOf(%s, %s, %s)' % (
@@ -412,7 +419,7 @@ class TupleOf(DataType):
                 raise ValueError(
                     u'TupleOf only works with DataType objs as arguments!')
         self.subtypes = subtypes
-        self.as_json = [u'tuple'] + [subtype.as_json for subtype in subtypes]
+        self.as_json = [u'tuple', dict(members=[subtype.as_json for subtype in subtypes])]
 
     def __repr__(self):
         return u'TupleOf(%s)' % u', '.join([repr(st) for st in self.subtypes])
@@ -448,19 +455,27 @@ class TupleOf(DataType):
 
 class StructOf(DataType):
 
-    def __init__(self, **named_subtypes):
-        if not named_subtypes:
+    def __init__(self, optional=None, **members):
+        self.named_subtypes = members
+        if not members:
             raise ValueError(u'Empty structs are not allowed!')
-        for name, subtype in list(named_subtypes.items()):
+        self.optional = list(optional or [])
+        for name, subtype in list(members.items()):
             if not isinstance(subtype, DataType):
                 raise ProgrammingError(
                     u'StructOf only works with named DataType objs as keyworded arguments!')
             if not isinstance(name, (unicode, str)):
                 raise ProgrammingError(
                     u'StructOf only works with named DataType objs as keyworded arguments!')
-        self.named_subtypes = named_subtypes
-        self.as_json = [u'struct', dict((n, s.as_json)
-                                       for n, s in list(named_subtypes.items()))]
+        for name in self.optional:
+            if name not in members:
+                raise ProgrammingError(
+                    u'Only members of StructOf may be declared as optional!')
+        self.as_json = [u'struct', dict(members=dict((n, s.as_json)
+                                       for n, s in list(members.items())))]
+        if optional:
+            self.as_json[1]['optional'] = self.optional
+
 
     def __repr__(self):
         return u'StructOf(%s)' % u', '.join(
@@ -509,21 +524,21 @@ class CommandType(DataType):
     argtype = None
     resulttype = None
 
-    def __init__(self, argtype=None, resulttype=None):
-        if argtype is not None:
-            if not isinstance(argtype, DataType):
+    def __init__(self, argument=None, result=None):
+        if argument is not None:
+            if not isinstance(argument, DataType):
                 raise ValueError(u'CommandType: Argument type must be a DataType!')
-        if resulttype is not None:
-            if not isinstance(resulttype, DataType):
+        if result is not None:
+            if not isinstance(result, DataType):
                 raise ValueError(u'CommandType: Result type must be a DataType!')
-        self.argtype = argtype
-        self.resulttype = resulttype
+        self.argtype = argument
+        self.resulttype = result
 
-        if argtype:
-            argtype = argtype.as_json
-        if resulttype:
-            resulttype = resulttype.as_json
-        self.as_json = [u'command', argtype, resulttype]
+        if argument:
+            argument = argument.as_json
+        if result:
+            result = result.as_json
+        self.as_json = [u'command', dict(argument=argument, result=result)]
 
     def __repr__(self):
         argstr = repr(self.argtype) if self.argtype else ''
@@ -548,7 +563,7 @@ class CommandType(DataType):
         return self.validate(value)
 
 
-# Goodie: Convenience Datatypes
+# Goodie: Convenience Datatypes for Programming
 class LimitsType(StructOf):
     def __init__(self, _min=None, _max=None):
         StructOf.__init__(self, min=FloatRange(_min,_max), max=FloatRange(_min, _max))
@@ -572,19 +587,19 @@ class Status(TupleOf):
         return TupleOf.__getattr__(self, key)
 
 
-# XXX: derive from above classes automagically!
+# argumentnames to lambda from spec!
 DATATYPES = dict(
     bool    =BoolType,
-    int     =IntRange,
-    double  =FloatRange,
-    blob    =BLOBType,
-    string  =StringType,
-    array   =lambda _min, _max, subtype: ArrayOf(get_datatype(subtype), _min, _max),
-    tuple   =lambda *subtypes: TupleOf(*map(get_datatype, subtypes)),
-    enum    =lambda kwds: EnumType('', **kwds),
-    struct  =lambda named_subtypes: StructOf(
-        **dict((n, get_datatype(t)) for n, t in list(named_subtypes.items()))),
-    command = lambda arg, res: CommandType(get_datatype(arg), get_datatype(res)),
+    int     =lambda min, max: IntRange(minval=min,maxval=max),
+    double  =lambda min=None, max=None: FloatRange(minval=min, maxval=max),
+    blob    =lambda min=0, max=None: BLOBType(minsize=min, maxsize=max),
+    string  =lambda min=0, max=None: StringType(minsize=min, maxsize=max),
+    array   =lambda min, max, members: ArrayOf(get_datatype(members), minsize=min, maxsize=max),
+    tuple   =lambda members=[]: TupleOf(*map(get_datatype, members)),
+    enum    =lambda members={}: EnumType('', members=members),
+    struct  =lambda members: StructOf(
+        **dict((n, get_datatype(t)) for n, t in list(members.items()))),
+    command = lambda argument, result: CommandType(get_datatype(argument), get_datatype(result)),
 )
 
 
@@ -599,15 +614,12 @@ def get_datatype(json):
     if not isinstance(json, list):
         raise ValueError(
             u'Can not interpret datatype %r, it should be a list!' % json)
-    if len(json) < 1:
-        raise ValueError(u'can not validate %r' % json)
-    base = json[0]
-    args = []
-    if len(json) > 1:
-        args = json[1:]
+    if len(json) != 2:
+        raise ValueError(u'Can not interpret datatype %r, it should be a list of 2 elements!' % json)
+    base, args = json
     if base in DATATYPES:
         try:
-            return DATATYPES[base](*args)
+            return DATATYPES[base](**args)
         except (TypeError, AttributeError):
             raise ValueError(u'Invalid datatype descriptor in %r' % json)
-    raise ValueError(u'can not convert %r to datatype' % json)
+    raise ValueError(u'can not convert %r to datatype: unknown descriptor!' % json)

@@ -44,7 +44,7 @@ def test_DataType():
 
 def test_FloatRange():
     dt = FloatRange(-3.14, 3.14)
-    assert dt.as_json == ['double', -3.14, 3.14]
+    assert dt.as_json == ['double', {'min':-3.14, 'max':3.14}]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -62,12 +62,12 @@ def test_FloatRange():
         FloatRange('x', 'Y')
 
     dt = FloatRange()
-    assert dt.as_json == ['double', None, None]
+    assert dt.as_json == ['double', {}]
 
 
 def test_IntRange():
     dt = IntRange(-3, 3)
-    assert dt.as_json == ['int', -3, 3]
+    assert dt.as_json == ['int', {'min':-3, 'max':3}]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -84,7 +84,7 @@ def test_IntRange():
 
     dt = IntRange()
     assert dt.as_json[0] == 'int'
-    assert dt.as_json[1] < 0 < dt.as_json[2]
+    assert dt.as_json[1]['min'] < 0 < dt.as_json[1]['max']
 
 
 def test_EnumType():
@@ -95,7 +95,7 @@ def test_EnumType():
         EnumType(['b', 0])
 
     dt = EnumType('dt', a=3, c=7, stuff=1)
-    assert dt.as_json == ['enum', dict(a=3, c=7, stuff=1)]
+    assert dt.as_json == ['enum', dict(members=dict(a=3, c=7, stuff=1))]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -127,12 +127,12 @@ def test_EnumType():
 def test_BLOBType():
     # test constructor catching illegal arguments
     dt = BLOBType()
-    assert dt.as_json == ['blob', 0, 255]
+    assert dt.as_json == ['blob', {'min':0, 'max':255}]
     dt = BLOBType(10)
-    assert dt.as_json == ['blob', 10, 10]
+    assert dt.as_json == ['blob', {'min':10, 'max':10}]
 
     dt = BLOBType(3, 10)
-    assert dt.as_json == ['blob', 3, 10]
+    assert dt.as_json == ['blob', {'min':3, 'max':10}]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -154,10 +154,10 @@ def test_StringType():
     # test constructor catching illegal arguments
     dt = StringType()
     dt = StringType(12)
-    assert dt.as_json == ['string', 12, 12]
+    assert dt.as_json == ['string', {'min':12, 'max':12}]
 
     dt = StringType(4, 11)
-    assert dt.as_json == ['string', 4, 11]
+    assert dt.as_json == ['string', {'min':4, 'max':11}]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -180,7 +180,7 @@ def test_StringType():
 def test_BoolType():
     # test constructor catching illegal arguments
     dt = BoolType()
-    assert dt.as_json == ['bool']
+    assert dt.as_json == ['bool', {}]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -208,10 +208,10 @@ def test_ArrayOf():
     with pytest.raises(ValueError):
         ArrayOf(-3, IntRange(-10,10))
     dt = ArrayOf(IntRange(-10, 10), 5)
-    assert dt.as_json == ['array', 5, 5, ['int', -10, 10]]
+    assert dt.as_json == ['array', {'min':5, 'max':5, 'members':['int', {'min':-10, 'max':10}]}]
 
     dt = ArrayOf(IntRange(-10, 10), 1, 3)
-    assert dt.as_json == ['array', 1, 3, ['int', -10, 10]]
+    assert dt.as_json == ['array', {'min':1, 'max':3, 'members':['int', {'min':-10, 'max':10}]}]
     with pytest.raises(ValueError):
         dt.validate(9)
     with pytest.raises(ValueError):
@@ -229,7 +229,7 @@ def test_TupleOf():
         TupleOf(2)
 
     dt = TupleOf(IntRange(-10, 10), BoolType())
-    assert dt.as_json == ['tuple', ['int', -10, 10], ['bool']]
+    assert dt.as_json == ['tuple', {'members':[['int', {'min':-10, 'max':10}], ['bool', {}]]}]
 
     with pytest.raises(ValueError):
         dt.validate(9)
@@ -244,14 +244,15 @@ def test_TupleOf():
 
 def test_StructOf():
     # test constructor catching illegal arguments
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         StructOf(IntRange)  # pylint: disable=E1121
     with pytest.raises(ProgrammingError):
         StructOf(IntRange=1)
 
-    dt = StructOf(a_string=StringType(0, 55), an_int=IntRange(0, 999))
-    assert dt.as_json == [u'struct', {u'a_string': [u'string', 0, 55],
-                                     u'an_int': [u'int', 0, 999],
+    dt = StructOf(a_string=StringType(0, 55), an_int=IntRange(0, 999), optional=['an_int'])
+    assert dt.as_json == [u'struct', {'members':{u'a_string': [u'string', {'min':0, 'max':55}],
+                                     u'an_int': [u'int', {'min':0, 'max':999}],},
+                                      'optional':['an_int'],
                                      }]
 
     with pytest.raises(ValueError):
@@ -277,56 +278,69 @@ def test_get_datatype():
     with pytest.raises(ValueError):
         get_datatype(['undefined'])
 
-    assert isinstance(get_datatype(['bool']), BoolType)
+    assert isinstance(get_datatype(['bool', {}]), BoolType)
+    with pytest.raises(ValueError):
+        get_datatype(['bool'])
     with pytest.raises(ValueError):
         get_datatype(['bool', 3])
 
-    assert isinstance(get_datatype(['int']), IntRange)
-    assert isinstance(get_datatype(['int', -10]), IntRange)
-    assert isinstance(get_datatype(['int', -10, 10]), IntRange)
+    with pytest.raises(ValueError):
+        get_datatype(['int', {'min':-10}])
+    with pytest.raises(ValueError):
+        get_datatype(['int', {'max':10}])
+    assert isinstance(get_datatype(['int', {'min':-10, 'max':10}]), IntRange)
 
     with pytest.raises(ValueError):
-        get_datatype(['int', 10, -10])
+        get_datatype(['int', {'min':10, 'max':-10}])
     with pytest.raises(ValueError):
-        get_datatype(['int', 1, 2, 3])
+        get_datatype(['int'])
+    with pytest.raises(ValueError):
+        get_datatype(['int', {}])
+    with pytest.raises(ValueError):
+        get_datatype(['int', 1, 2])
 
-    assert isinstance(get_datatype(['double']), FloatRange)
-    assert isinstance(get_datatype(['double', -2.718]), FloatRange)
-    assert isinstance(get_datatype(['double', None, 3.14]), FloatRange)
-    assert isinstance(get_datatype(['double', -9.9, 11.1]), FloatRange)
+    assert isinstance(get_datatype(['double', {}]), FloatRange)
+    assert isinstance(get_datatype(['double', {'min':-2.718}]), FloatRange)
+    assert isinstance(get_datatype(['double', {'max':3.14}]), FloatRange)
+    assert isinstance(get_datatype(['double', {'min':-9.9, 'max':11.1}]), FloatRange)
 
     with pytest.raises(ValueError):
-        get_datatype(['double', 10, -10])
+        get_datatype(['double'])
     with pytest.raises(ValueError):
-        get_datatype(['double', 1, 2, 3])
+        get_datatype(['double', {'min':10, 'max':-10}])
+    with pytest.raises(ValueError):
+        get_datatype(['double', 1, 2])
 
     with pytest.raises(ValueError):
         get_datatype(['enum'])
-    assert isinstance(get_datatype(['enum', dict(a=-2)]), EnumType)
+    with pytest.raises(ValueError):
+        get_datatype(['enum', dict(a=-2)])
+    assert isinstance(get_datatype(['enum', {'members':dict(a=-2)}]), EnumType)
 
     with pytest.raises(ValueError):
         get_datatype(['enum', 10, -10])
     with pytest.raises(ValueError):
         get_datatype(['enum', [1, 2, 3]])
 
-    assert isinstance(get_datatype(['blob', 1]), BLOBType)
-    assert isinstance(get_datatype(['blob', 1, 10]), BLOBType)
+    assert isinstance(get_datatype(['blob', {'max':1}]), BLOBType)
+    assert isinstance(get_datatype(['blob', {'min':1, 'max':10}]), BLOBType)
 
     with pytest.raises(ValueError):
-        get_datatype(['blob', 10, 1])
+        get_datatype(['blob', {'min':10, 'max':1}])
     with pytest.raises(ValueError):
-        get_datatype(['blob', 10, -10])
+        get_datatype(['blob', {'min':10, 'max':-10}])
     with pytest.raises(ValueError):
         get_datatype(['blob', 10, -10, 1])
 
-    get_datatype(['string'])
-    assert isinstance(get_datatype(['string', 1]), StringType)
-    assert isinstance(get_datatype(['string', 1, 10]), StringType)
+    with pytest.raises(ValueError):
+        get_datatype(['string'])
+    assert isinstance(get_datatype(['string', {'min':1}]), StringType)
+    assert isinstance(get_datatype(['string', {'min':1, 'max':10}]), StringType)
 
     with pytest.raises(ValueError):
-        get_datatype(['string', 10, 1])
+        get_datatype(['string', {'min':10, 'max':1}])
     with pytest.raises(ValueError):
-        get_datatype(['string', 10, -10])
+        get_datatype(['string', {'min':10, 'max':-10}])
     with pytest.raises(ValueError):
         get_datatype(['string', 10, -10, 1])
 
@@ -336,17 +350,15 @@ def test_get_datatype():
         get_datatype(['array', 1])
     with pytest.raises(ValueError):
         get_datatype(['array', [1], 2, 3])
-    assert isinstance(get_datatype(['array', 1, 1, ['blob', 1]]), ArrayOf)
-    assert isinstance(get_datatype(['array', 1, 1, ['blob', 1]]).subtype, BLOBType)
+    assert isinstance(get_datatype(['array', {'min':1, 'max':1, 'members':['blob', {'max':1}]}]), ArrayOf)
+    assert isinstance(get_datatype(['array', {'min':1, 'max':1, 'members':['blob', {'max':1}]}]).subtype, BLOBType)
 
     with pytest.raises(ValueError):
-        get_datatype(['array', ['blob', 1], -10])
+        get_datatype(['array', {'members':['blob', {'max':1}], 'min':-10}])
     with pytest.raises(ValueError):
-        get_datatype(['array', ['blob', 1], 10, 1])
+        get_datatype(['array', {'members':['blob', {'max':1}], 'min':10, 'max':1}])
     with pytest.raises(ValueError):
         get_datatype(['array', ['blob', 1], 10, -10])
-
-    assert isinstance(get_datatype(['array', 1, 10, ['blob', 1]]), ArrayOf)
 
     with pytest.raises(ValueError):
         get_datatype(['tuple'])
@@ -354,15 +366,15 @@ def test_get_datatype():
         get_datatype(['tuple', 1])
     with pytest.raises(ValueError):
         get_datatype(['tuple', [1], 2, 3])
-    assert isinstance(get_datatype(['tuple', ['blob', 1]]), TupleOf)
-    assert isinstance(get_datatype(['tuple', ['blob', 1]]).subtypes[0], BLOBType)
+    assert isinstance(get_datatype(['tuple', {'members':[['blob', {'max':1}]]}]), TupleOf)
+    assert isinstance(get_datatype(['tuple', {'members':[['blob', {'max':1}]]}]).subtypes[0], BLOBType)
 
     with pytest.raises(ValueError):
-        get_datatype(['tuple', ['blob', 1], -10])
+        get_datatype(['tuple', {}])
     with pytest.raises(ValueError):
-        get_datatype(['tuple', ['blob', 1], 10, -10])
+        get_datatype(['tuple', 10, -10])
 
-    assert isinstance(get_datatype(['tuple', ['blob', 1], ['int']]), TupleOf)
+    assert isinstance(get_datatype(['tuple', {'members':[['blob', {'max':1}], ['bool',{}]]}]), TupleOf)
 
     with pytest.raises(ValueError):
         get_datatype(['struct'])
@@ -370,13 +382,10 @@ def test_get_datatype():
         get_datatype(['struct', 1])
     with pytest.raises(ValueError):
         get_datatype(['struct', [1], 2, 3])
-    assert isinstance(get_datatype(['struct', {'blob': ['blob', 1]}]), StructOf)
-    assert isinstance(get_datatype(['struct', {'blob': ['blob', 1]}]).named_subtypes['blob'], BLOBType)
+    assert isinstance(get_datatype(['struct', {'members':{'name': ['blob', {'max':1}]}}]), StructOf)
+    assert isinstance(get_datatype(['struct', {'members':{'name': ['blob', {'max':1}]}}]).named_subtypes['name'], BLOBType)
 
     with pytest.raises(ValueError):
-        get_datatype(['struct', ['blob', 1], -10])
+        get_datatype(['struct', {}])
     with pytest.raises(ValueError):
-        get_datatype(['struct', ['blob', 1], 10, -10])
-
-    assert isinstance(get_datatype(
-        ['struct', {'blob': ['blob', 1], 'int':['int']}]), StructOf)
+        get_datatype(['struct', {'members':[1,2,3]}])
