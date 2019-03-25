@@ -40,6 +40,11 @@ doc:
 lint:
 	pylint -j $(shell nproc) -f colorized -r n --rcfile=.pylintrc secop secop_* test
 
+isort:
+	@find test -name '*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py
+	@find secop -name '*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py
+	@find . -wholename './secop_*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py
+
 release-patch:
 	MODE="patch" $(MAKE) release
 
