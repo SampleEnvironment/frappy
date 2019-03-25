@@ -117,6 +117,10 @@ class MagneticField(Drivable):
                             datatype=StringType(), export=False,
                             ),
     }
+    Status = Enum(Drivable.Status, PERSIST=101, PREPARE=301, RAMP=302, FINISH=303)
+    overrides = {
+        'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
+    }
 
     def init_module(self):
         self._state = Enum('state', idle=1, switch_on=2, switch_off=3, ramp=4).idle
@@ -137,8 +141,15 @@ class MagneticField(Drivable):
 
     def read_status(self, maxage=0):
         if self._state == self._state.enum.idle:
-            return (self.Status.IDLE, '')
-        return (self.Status.BUSY, self._state.name)
+            return (self.Status.PERSIST, 'at field') if self.value else \
+                   (self.Status.IDLE, 'zero field')
+        elif self._state == self._state.enum.switch_on:
+            return (self.Status.PREPARE, self._state.name)
+        elif self._state == self._state.enum.switch_off:
+            return (self.Status.FINISH, self._state.name)
+        elif self._state == self._state.enum.ramp:
+            return (self.Status.RAMP, self._state.name)
+        return (self.Status.ERROR, self._state.name)
 
     def _thread(self):
         loopdelay = 1
