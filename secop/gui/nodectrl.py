@@ -29,8 +29,8 @@ from time import sleep
 
 from secop.datatypes import EnumType, StringType
 from secop.errors import SECoPError
-from secop.gui.qt import (QFont, QFontMetrics, QLabel, QMessageBox,
-                          QTextCursor, QWidget, pyqtSlot, toHtmlEscaped)
+from secop.gui.qt import QFont, QFontMetrics, QLabel, \
+    QMessageBox, QTextCursor, QWidget, pyqtSlot, toHtmlEscaped
 from secop.gui.util import loadUi
 
 try:

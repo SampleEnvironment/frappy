@@ -25,8 +25,8 @@
 from __future__ import division, print_function
 
 from secop.gui.params import ParameterView
-from secop.gui.qt import QCheckBox, QDialog, QLabel, QMessageBox, QPushButton, \
-    QSizePolicy, QWidget
+from secop.gui.qt import QCheckBox, QDialog, QLabel, \
+    QMessageBox, QPushButton, QSizePolicy, QWidget
 from secop.gui.util import loadUi
 from secop.gui.valuewidgets import get_widget
 

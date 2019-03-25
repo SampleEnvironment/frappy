@@ -42,13 +42,12 @@ import threading
 from time import time as currenttime
 
 from secop.errors import SECoPServerError as InternalError
-from secop.errors import (BadValueError, NoSuchCommandError, NoSuchModuleError,
-                          NoSuchParameterError, ProtocolError, ReadOnlyError)
+from secop.errors import BadValueError, NoSuchCommandError, \
+    NoSuchModuleError, NoSuchParameterError, ProtocolError, ReadOnlyError
 from secop.params import Parameter
-from secop.protocol.messages import (COMMANDREPLY, DESCRIPTIONREPLY,
-                                     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY,
-                                     EVENTREPLY, HEARTBEATREPLY, IDENTREPLY,
-                                     IDENTREQUEST, WRITEREPLY)
+from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
+    DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, EVENTREPLY, \
+    HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, WRITEREPLY
 
 try:
     unicode('a')

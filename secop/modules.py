@@ -26,11 +26,11 @@ from __future__ import division, print_function
 import sys
 import time
 
-from secop.datatypes import (EnumType, FloatRange, StringType, TupleOf,
-                             get_datatype)
+from secop.datatypes import EnumType, FloatRange, StringType, TupleOf, \
+    get_datatype
 from secop.errors import ConfigError, ProgrammingError
-from secop.lib import (formatException, formatExtendedStack, mkthread,
-                       unset_value)
+from secop.lib import formatException, formatExtendedStack, mkthread, \
+    unset_value
 from secop.lib.enum import Enum
 from secop.metaclass import ModuleMeta, add_metaclass
 from secop.params import Command, Override, Parameter, PREDEFINED_ACCESSIBLES

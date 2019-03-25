@@ -22,6 +22,11 @@
 
 from __future__ import division, print_function
 
+import random
+
+from secop.datatypes import FloatRange, StringType
+from secop.modules import Communicator, Drivable, Parameter, Readable
+
 try:
     # py2
     unicode
@@ -29,10 +34,7 @@ except NameError:
     # py3
     unicode = str  # pylint: disable=redefined-builtin
 
-import random
 
-from secop.datatypes import FloatRange, StringType
-from secop.modules import Communicator, Drivable, Parameter, Readable
 
 
 class LN2(Readable):

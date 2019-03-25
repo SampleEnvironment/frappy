@@ -28,10 +28,6 @@ import pytest
 
 from secop.client.baseclient import Client
 
-
-
-
-
 # define Test-only connection object
 
 

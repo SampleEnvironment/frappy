@@ -26,19 +26,21 @@
 from __future__ import print_function
 
 import code
-from os import path
 import socket
 import threading
 from collections import deque
+from os import path
+
+import mlzlog
+
+from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
+from secop.protocol.messages import DESCRIPTIONREQUEST, EVENTREPLY
 
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
 
-import mlzlog
-from secop.protocol.interface import decode_msg, get_msg, encode_msg_frame
-from secop.protocol.messages import EVENTREPLY, DESCRIPTIONREQUEST
 
 
 class NameSpace(dict):

@@ -26,8 +26,8 @@ import socket
 import sys
 
 from secop.errors import SECoPError
-from secop.lib import (formatException, formatExtendedStack,
-                       formatExtendedTraceback)
+from secop.lib import formatException, \
+    formatExtendedStack, formatExtendedTraceback
 from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
 from secop.protocol.messages import HELPREPLY, HELPREQUEST, HelpMessage
 

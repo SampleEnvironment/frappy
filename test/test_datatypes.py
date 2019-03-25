@@ -26,9 +26,9 @@ from __future__ import division, print_function
 # no fixtures needed
 import pytest
 
-from secop.datatypes import (ArrayOf, BLOBType, BoolType, DataType, EnumType,
-                             FloatRange, IntRange, ProgrammingError,
-                             StringType, StructOf, TupleOf, get_datatype)
+from secop.datatypes import ArrayOf, BLOBType, BoolType, \
+    DataType, EnumType, FloatRange, IntRange, ProgrammingError, \
+    StringType, StructOf, TupleOf, get_datatype
 
 
 def test_DataType():

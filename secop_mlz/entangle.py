@@ -34,16 +34,19 @@ import threading
 from time import time as currenttime
 from time import sleep
 
-import PyTango
+try:
+    import PyTango
+except ImportError:
+    pass
 
 #from secop.parse import Parser
-from secop.datatypes import (ArrayOf, EnumType, FloatRange, IntRange,
-                             StringType, TupleOf)
-from secop.errors import (CommunicationFailedError, ConfigError, HardwareError,
-                          ProgrammingError)
+from secop.datatypes import ArrayOf, EnumType, \
+    FloatRange, IntRange, StringType, TupleOf
+from secop.errors import CommunicationFailedError, \
+    ConfigError, HardwareError, ProgrammingError
 from secop.lib import lazy_property
-from secop.modules import (Command, Drivable, Module, Override, Parameter,
-                           Readable)
+from secop.modules import Command, Drivable, \
+    Module, Override, Parameter, Readable
 
 #####
 

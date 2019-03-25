@@ -21,20 +21,19 @@
 # *****************************************************************************
 """Define helpers"""
 
-import os
-import re
-import sys
 import errno
-import signal
-import socket
 import fnmatch
 import linecache
+import os
+import re
+import signal
+import socket
+import subprocess
+import sys
 import threading
 import traceback
-import subprocess
 import unicodedata
 from os import path
-
 
 repodir = path.abspath(path.join(path.dirname(__file__), u'..', u'..'))
 
