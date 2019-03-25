@@ -181,6 +181,52 @@ class IntRange(DataType):
         return self.validate(value)
 
 
+class ScaledInteger(DataType):
+    """Scaled integer int type
+
+    note: limits are for the scaled value (i.e. the internal value)
+          the scale is only used for calculating to/from transport serialisation"""
+
+    def __init__(self, scale, minval=-16777216, maxval=16777216):
+        self.min = int(minval)
+        self.max = int(maxval)
+        self.scale = float(scale)
+        if self.min > self.max:
+            raise ValueError(u'Max must be larger then min!')
+        if not self.scale > 0:
+            raise ValueError(u'Scale MUST be positive!')
+        self.as_json = [u'scaled', dict(min=int(round(minval/scale)), max=int(round(maxval/scale)), scale=scale)]
+
+    def validate(self, value):
+        try:
+            value = int(value)
+            if value < self.min:
+                raise ValueError(u'%r should be an int between %d and %d' %
+                                 (value, self.min, self.max))
+            if value > self.max:
+                raise ValueError(u'%r should be an int between %d and %d' %
+                                 (value, self.min, self.max))
+            return value
+        except Exception:
+            raise ValueError(u'Can not validate %r to int' % value)
+
+    def __repr__(self):
+        return u'ScaledInteger(%f, %d, %d)' % (self.scale, self.min, self.max)
+
+    def export_value(self, value):
+        """returns a python object fit for serialisation"""
+        # XXX: rounds toward even !!! (i.e. 12.5 -> 12, 13.5 -> 14)
+        return round(value / self.scale)
+
+    def import_value(self, value):
+        """returns a python object from serialisation"""
+        return self.scale * int(value)
+
+    def from_string(self, text):
+        value = int(text)
+        return self.validate(value)
+
+
 class EnumType(DataType):
     def __init__(self, enum_or_name='', **kwds):
         if 'members' in kwds:
@@ -591,6 +637,7 @@ class Status(TupleOf):
 DATATYPES = dict(
     bool    =BoolType,
     int     =lambda min, max: IntRange(minval=min,maxval=max),
+    scaled  =lambda scale, min, max: ScaledInteger(scale=scale,minval=min*scale,maxval=max*scale),
     double  =lambda min=None, max=None: FloatRange(minval=min, maxval=max),
     blob    =lambda min=0, max=None: BLOBType(minsize=min, maxsize=max),
     string  =lambda min=0, max=None: StringType(minsize=min, maxsize=max),

@@ -28,7 +28,7 @@ import pytest
 
 from secop.datatypes import ArrayOf, BLOBType, BoolType, \
     DataType, EnumType, FloatRange, IntRange, ProgrammingError, \
-    StringType, StructOf, TupleOf, get_datatype
+    StringType, StructOf, TupleOf, get_datatype, ScaledInteger
 
 
 def test_DataType():
@@ -85,6 +85,33 @@ def test_IntRange():
     dt = IntRange()
     assert dt.as_json[0] == 'int'
     assert dt.as_json[1]['min'] < 0 < dt.as_json[1]['max']
+
+
+def test_ScaledInteger():
+    dt = ScaledInteger(0.01, -3, 3)
+    # serialisation of datatype contains limits on the 'integer' value
+    assert dt.as_json == ['scaled', {'scale':0.01, 'min':-300, 'max':300}]
+
+    with pytest.raises(ValueError):
+        dt.validate(9)
+    with pytest.raises(ValueError):
+        dt.validate(-9)
+    with pytest.raises(ValueError):
+        dt.validate('XX')
+    with pytest.raises(ValueError):
+        dt.validate([19, 'X'])
+    dt.validate(1)
+    dt.validate(0)
+    with pytest.raises(ValueError):
+        ScaledInteger('xc', 'Yx')
+    with pytest.raises(ValueError):
+        ScaledInteger(scale=0, minval=1, maxval=2)
+    with pytest.raises(ValueError):
+        ScaledInteger(scale=-10, minval=1, maxval=2)
+
+    assert dt.export_value(0.0001) == int(0)
+    assert dt.export_value(2.71819) == int(272)
+    assert dt.import_value(272) == 2.72
 
 
 def test_EnumType():
@@ -310,6 +337,25 @@ def test_get_datatype():
         get_datatype(['double', {'min':10, 'max':-10}])
     with pytest.raises(ValueError):
         get_datatype(['double', 1, 2])
+
+    with pytest.raises(ValueError):
+        get_datatype(['scaled', {'scale':0.01,'min':-2.718}])
+    with pytest.raises(ValueError):
+        get_datatype(['scaled', {'scale':0.02,'max':3.14}])
+    assert isinstance(get_datatype(['scaled', {'scale':0.03,'min':-99, 'max':111}]), ScaledInteger)
+
+    dt = ScaledInteger(scale=0.03, minval=0, maxval=9.9)
+    assert dt.as_json == ['scaled', {'max':330, 'min':0, 'scale':0.03}]
+    assert get_datatype(dt.as_json).as_json == dt.as_json
+
+    with pytest.raises(ValueError):
+        get_datatype(['scaled'])    # dict missing
+    with pytest.raises(ValueError):
+        get_datatype(['scaled', {'min':-10, 'max':10}])  # no scale
+    with pytest.raises(ValueError):
+        get_datatype(['scaled', {'min':10, 'max':-10}])  # limits reversed
+    with pytest.raises(ValueError):
+        get_datatype(['scaled', {}, 1, 2])  # trailing data
 
     with pytest.raises(ValueError):
         get_datatype(['enum'])
