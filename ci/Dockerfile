@@ -31,7 +31,7 @@ RUN virtualenv /home/jenkins/tools2 && \
     pip install /home/jenkins/tools2src/ && \
     rm -rf /home/jenkins/tools2src
 
-RUN virtualenv /home/jenkins/secopvenv && \
+RUN virtualenv --system-site-packages /home/jenkins/secopvenv && \
     git clone https://forge.frm2.tum.de/review/sine2020/secop/playground /home/jenkins/playground && \
     . /home/jenkins/secopvenv/bin/activate && \
     pip install -U pip wheel setuptools && \
