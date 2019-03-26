@@ -84,7 +84,7 @@ fi
                           artifacts: 'pylint-*.txt'])
     recordIssues([enabledForFailure: true,
                   ignoreQualityGate: true,
-                  tools: [pyLint(id: 'pylint'+$pyver, name: "Pylint $pyver", pattern: "pylint-${pyver}.txt")],
+                  tools: [pyLint(id: 'pylint'+pyver, name: "Pylint $pyver", pattern: "pylint-${pyver}.txt")],
                   unhealthy: 2,
                   healthy: 1,
                   failedTotalAll: 1])
