@@ -55,10 +55,15 @@ fi
 """
     withCredentials([string(credentialsId: 'GERRITHTTP',
                      variable: 'GERRITHTTP')]) {
-        sh '''\
+        sh """\
         #!/bin/bash
+	if [ -f pylint_results.txt ] ; then
           /home/jenkins/tools2/bin/pylint2gerrit
-        '''
+          mv pylint_results.txt pylint-${pyver}.txt
+        else
+          touch pylint-${pyver}.txt
+        fi
+        """
     } // credentials
 
     echo "pylint result: $res"
@@ -76,10 +81,10 @@ fi
         verifyStatusReporter: 'jenkins',
         verifyStatusRerun: '!recheck'])
     archiveArtifacts([allowEmptyArchive: true,
-                          artifacts: 'pylint_*.txt'])
+                          artifacts: 'pylint-*.txt'])
     recordIssues([enabledForFailure: true,
                   ignoreQualityGate: true,
-                  tools: [pyLint(id: idtag, name: "Pylint $info", pattern: 'pylint_*.txt')],
+                  tools: [pyLint(id: 'pylint'+$pyver, name: "Pylint $pyver", pattern: "pylint-${pyver}.txt")],
                   unhealthy: 2,
                   healthy: 1,
                   failedTotalAll: 1])
