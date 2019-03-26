@@ -75,18 +75,16 @@ fi
         verifyStatusName: 'pylint-'+pyver,
         verifyStatusReporter: 'jenkins',
         verifyStatusRerun: '!recheck'])
-    warnings([ canComputeNew: false,
-                canRunOnFailed: true,
-                defaultEncoding: '',
-                excludePattern: '',
-                healthy: '',
-                includePattern: '',
-                messagesPattern: '',
-                parserConfigurations: [[parserName: 'PyLint', pattern: 'pylint_*.txt']],
-                unHealthy: '',
-                failedTotalAll: '0',
-                unstableTotalAll: '1'
-                ])
+    archiveArtifacts([allowEmptyArchive: true,
+                          artifacts: 'pylint_*.txt'])
+    recordIssues([enabledForFailure: true,
+                  ignoreQualityGate: true,
+                  tools: [pyLint(id: idtag, name: "Pylint $info", pattern: 'pylint_*.txt')],
+                  unhealthy: 2,
+                  healthy: 1,
+                  failedTotalAll: 1])
+
+
     if (status == 'FAILURE') {
         throw new Exception('Failure in pylint with ' + pyver)
     }
