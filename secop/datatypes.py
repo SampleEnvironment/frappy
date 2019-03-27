@@ -59,6 +59,8 @@ DEFAULT_MAX_INT = 16777216
 class DataType(object):
     as_json = [u'undefined']
     IS_COMMAND = False
+    unit = u''
+    fmtstr = u'%r'
 
     def validate(self, value):
         """check if given value (a python obj) is valid for this datatype
@@ -87,12 +89,18 @@ class DataType(object):
         """
         return value
 
+    def format_value(self, value, unit=None):
+        """format a value of this type into a unicode string
+
+        This is intended for 'nice' formatting for humans and is NOT
+        the opposite of :meth:`from_string`
+        if unit is given, use it, else use the unit of the datatype (if any)"""
+        raise NotImplementedError
+
 
 class FloatRange(DataType):
     """Restricted float type"""
 
-    unit = u''
-    fmtstr = u'%f'
     def __init__(self, minval=None, maxval=None, unit=u'', fmtstr=u'',
                        absolute_precision=None, relative_precision=None,):
         # store hints
@@ -170,13 +178,17 @@ class FloatRange(DataType):
         value = float(text)
         return self.validate(value)
 
+    def format_value(self, value, unit=None):
+        if unit is None:
+            unit = self.unit
+        if unit:
+            return u' '.join([self.fmtstr % value, unit])
+        return self.fmtstr % value
 
 
 class IntRange(DataType):
     """Restricted int type"""
 
-    unit = u''
-    fmtstr = u'%f'
     def __init__(self, minval=None, maxval=None, fmtstr=u'%d', unit=u''):
         self.hints = {}
         self.fmtstr = unicode(fmtstr)
@@ -232,6 +244,13 @@ class IntRange(DataType):
         value = int(text)
         return self.validate(value)
 
+    def format_value(self, value, unit=None):
+        if unit is None:
+            unit = self.unit
+        if unit:
+            return u' '.join([self.fmtstr % value, unit])
+        return self.fmtstr % value
+
 
 class ScaledInteger(DataType):
     """Scaled integer int type
@@ -239,8 +258,6 @@ class ScaledInteger(DataType):
     note: limits are for the scaled value (i.e. the internal value)
           the scale is only used for calculating to/from transport serialisation"""
 
-    unit = u''
-    fmtstr = u'%f'
     def __init__(self, scale, minval=None, maxval=None, unit=u'', fmtstr=u'',
                        absolute_precision=None, relative_precision=None,):
         self.scale = float(scale)
@@ -314,8 +331,15 @@ class ScaledInteger(DataType):
         return self.scale * int(value)
 
     def from_string(self, text):
-        value = int(text)
+        value = float(text)
         return self.validate(value)
+
+    def format_value(self, value, unit=None):
+        if unit is None:
+            unit = self.unit
+        if unit:
+            return u' '.join([self.fmtstr % value, unit])
+        return self.fmtstr % value
 
 
 class EnumType(DataType):
@@ -351,6 +375,9 @@ class EnumType(DataType):
 
     def from_string(self, text):
         return self.validate(text)
+
+    def format_value(self, value, unit=None):
+        return u'%s<%s>' % (self._enum[value].name, self._enum[value].value)
 
 
 class BLOBType(DataType):
@@ -398,6 +425,9 @@ class BLOBType(DataType):
         value = text
         # XXX:
         return self.validate(value)
+
+    def format_value(self, value, unit=None):
+        return repr(value)
 
 
 class StringType(DataType):
@@ -448,6 +478,9 @@ class StringType(DataType):
         value = unicode(text)
         return self.validate(value)
 
+    def format_value(self, value, unit=None):
+        return repr(value)
+
 
 # Bool is a special enum
 class BoolType(DataType):
@@ -478,6 +511,10 @@ class BoolType(DataType):
         value = text
         return self.validate(value)
 
+
+    def format_value(self, value, unit=None):
+        return repr(bool(value))
+
 #
 # nested types
 #
@@ -486,9 +523,9 @@ class BoolType(DataType):
 class ArrayOf(DataType):
     minsize = None
     maxsize = None
-    subtype = None
+    members = None
 
-    def __init__(self, members, minsize=0, maxsize=None):
+    def __init__(self, members, minsize=0, maxsize=None, unit=u''):
         if not isinstance(members, DataType):
             raise ValueError(
                 u'ArrayOf only works with a DataType as first argument!')
@@ -496,7 +533,8 @@ class ArrayOf(DataType):
         # argument default to 10
         if maxsize is None:
             maxsize = minsize or 10
-        self.subtype = members
+        self.members = members
+        self.unit = unit
 
         self.minsize = int(minsize)
         self.maxsize = int(maxsize)
@@ -507,11 +545,16 @@ class ArrayOf(DataType):
         elif self.minsize > self.maxsize:
             raise ValueError(u'maxsize must be bigger than or equal to minsize!')
         # if only one arg is given, it is maxsize!
-        self.as_json = [u'array', dict(min=minsize, max=maxsize, members=members.as_json)]
+        if self.unit:
+            self.as_json = [u'array', dict(min=minsize, max=maxsize,
+                                           members=members.as_json, unit=self.unit)]
+        else:
+            self.as_json = [u'array', dict(min=minsize, max=maxsize,
+                                           members=members.as_json)]
 
     def __repr__(self):
         return u'ArrayOf(%s, %s, %s)' % (
-            repr(self.subtype), self.minsize or u'unspecified', self.maxsize or u'unspecified')
+            repr(self.members), self.minsize, self.maxsize)
 
     def validate(self, value):
         """validate a external representation to an internal one"""
@@ -525,17 +568,17 @@ class ArrayOf(DataType):
                 raise ValueError(
                     u'Array too big, holds at most %d elements!' % self.minsize)
             # apply subtype valiation to all elements and return as list
-            return [self.subtype.validate(elem) for elem in value]
+            return [self.members.validate(elem) for elem in value]
         raise ValueError(
             u'Can not convert %s to ArrayOf DataType!' % repr(value))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return [self.subtype.export_value(elem) for elem in value]
+        return [self.members.export_value(elem) for elem in value]
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        return [self.subtype.import_value(elem) for elem in value]
+        return [self.members.import_value(elem) for elem in value]
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
@@ -543,43 +586,51 @@ class ArrayOf(DataType):
             raise ProtocolError(u'trailing garbage: %r' % rem)
         return self.validate(value)
 
+    def format_value(self, value, unit=None):
+        if unit is None:
+            unit = self.unit or self.members.unit
+        res = u'[%s]' % (', '.join([self.members.format_value(elem, u'') for elem in value]))
+        if unit:
+            return ' '.join([res, unit])
+        return res
+
 
 class TupleOf(DataType):
 
-    def __init__(self, *subtypes):
-        if not subtypes:
+    def __init__(self, *members):
+        if not members:
             raise ValueError(u'Empty tuples are not allowed!')
-        for subtype in subtypes:
+        for subtype in members:
             if not isinstance(subtype, DataType):
                 raise ValueError(
                     u'TupleOf only works with DataType objs as arguments!')
-        self.subtypes = subtypes
-        self.as_json = [u'tuple', dict(members=[subtype.as_json for subtype in subtypes])]
+        self.members = members
+        self.as_json = [u'tuple', dict(members=[subtype.as_json for subtype in members])]
 
     def __repr__(self):
-        return u'TupleOf(%s)' % u', '.join([repr(st) for st in self.subtypes])
+        return u'TupleOf(%s)' % u', '.join([repr(st) for st in self.members])
 
     def validate(self, value):
         """return the validated value or raise"""
         # keep the ordering!
         try:
-            if len(value) != len(self.subtypes):
+            if len(value) != len(self.members):
                 raise ValueError(
                     u'Illegal number of Arguments! Need %d arguments.' %
-                        (len(self.subtypes)))
+                        (len(self.members)))
             # validate elements and return as list
             return [sub.validate(elem)
-                    for sub, elem in zip(self.subtypes, value)]
+                    for sub, elem in zip(self.members, value)]
         except Exception as exc:
             raise ValueError(u'Can not validate:', unicode(exc))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return [sub.export_value(elem) for sub, elem in zip(self.subtypes, value)]
+        return [sub.export_value(elem) for sub, elem in zip(self.members, value)]
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        return [sub.import_value(elem) for sub, elem in zip(self.subtypes, value)]
+        return [sub.import_value(elem) for sub, elem in zip(self.members, value)]
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
@@ -587,11 +638,15 @@ class TupleOf(DataType):
             raise ProtocolError(u'trailing garbage: %r' % rem)
         return self.validate(value)
 
+    def format_value(self, value, unit=None):
+        return u'(%s)' % (', '.join([sub.format_value(elem)
+                                     for sub, elem in zip(self.members, value)]))
+
 
 class StructOf(DataType):
 
     def __init__(self, optional=None, **members):
-        self.named_subtypes = members
+        self.members = members
         if not members:
             raise ValueError(u'Empty structs are not allowed!')
         self.optional = list(optional or [])
@@ -614,37 +669,38 @@ class StructOf(DataType):
 
     def __repr__(self):
         return u'StructOf(%s)' % u', '.join(
-            [u'%s=%s' % (n, repr(st)) for n, st in list(self.named_subtypes.items())])
+            [u'%s=%s' % (n, repr(st)) for n, st in list(self.members.items())])
 
     def validate(self, value):
         """return the validated value or raise"""
         try:
-            if len(list(value.keys())) != len(list(self.named_subtypes.keys())):
+            # XXX: handle optional elements !!!
+            if len(list(value.keys())) != len(list(self.members.keys())):
                 raise ValueError(
                     u'Illegal number of Arguments! Need %d arguments.' %
-                        len(list(self.named_subtypes.keys())))
+                        len(list(self.members.keys())))
             # validate elements and return as dict
-            return dict((unicode(k), self.named_subtypes[k].validate(v))
+            return dict((unicode(k), self.members[k].validate(v))
                         for k, v in list(value.items()))
         except Exception as exc:
             raise ValueError(u'Can not validate %s: %s' % (repr(value), unicode(exc)))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        if len(list(value.keys())) != len(list(self.named_subtypes.keys())):
+        if len(list(value.keys())) != len(list(self.members.keys())):
             raise ValueError(
                 u'Illegal number of Arguments! Need %d arguments.' % len(
-                    list(self.namd_subtypes.keys())))
-        return dict((unicode(k), self.named_subtypes[k].export_value(v))
+                    list(self.members.keys())))
+        return dict((unicode(k), self.members[k].export_value(v))
                     for k, v in list(value.items()))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        if len(list(value.keys())) != len(list(self.named_subtypes.keys())):
+        if len(list(value.keys())) != len(list(self.members.keys())):
             raise ValueError(
                 u'Illegal number of Arguments! Need %d arguments.' % len(
-                    list(self.namd_subtypes.keys())))
-        return dict((unicode(k), self.named_subtypes[k].import_value(v))
+                    list(self.members.keys())))
+        return dict((unicode(k), self.members[k].import_value(v))
                     for k, v in list(value.items()))
 
     def from_string(self, text):
@@ -652,6 +708,9 @@ class StructOf(DataType):
         if rem:
             raise ProtocolError(u'trailing garbage: %r' % rem)
         return self.validate(dict(value))
+
+    def format_value(self, value, unit=None):
+        return u'{%s}' % (', '.join(['%s=%s' % (k, self.members[k].format_value(v)) for k, v in sorted(value.items())]))
 
 
 class CommandType(DataType):
@@ -696,6 +755,10 @@ class CommandType(DataType):
         if rem:
             raise ProtocolError(u'trailing garbage: %r' % rem)
         return self.validate(value)
+
+    def format_value(self, value, unit=None):
+        # actually I have no idea what to do here!
+        raise NotImplementedError
 
 
 # Goodie: Convenience Datatypes for Programming
