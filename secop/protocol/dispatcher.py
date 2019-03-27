@@ -331,13 +331,16 @@ class Dispatcher(object):
             if modulename not in self._export:
                 raise NoSuchModuleError('Module does not exist on this SEC-Node!')
             moduleobj = self.get_module(modulename)
-            pname = moduleobj.accessiblename2attr.get(exportedname, True)
-            if pname and pname not in moduleobj.accessibles:
-                # what if we try to subscribe a command here ???
-                raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
+            if exportedname is not None:
+                pname = moduleobj.accessiblename2attr.get(exportedname, True)
+                if pname and pname not in moduleobj.accessibles:
+                    # what if we try to subscribe a command here ???
+                    raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
+                modules = [(modulename, pname)]
+            else:
+                modules = [(modulename, None)]
             # activate only ONE item (module or module:parameter)
             self.subscribe(conn, specifier)
-            modules = [(modulename, pname)]
         else:
             # activate all modules
             self._active_connections.add(conn)
