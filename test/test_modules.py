@@ -23,7 +23,7 @@
 from __future__ import division, print_function
 
 # no fixtures needed
-import pytest
+#import pytest
 
 from secop.datatypes import BoolType, EnumType, FloatRange
 from secop.metaclass import ModuleMeta
@@ -138,10 +138,6 @@ def test_ModuleMeta():
             assert acs is not None
         else: # do not check object or mixin
             acs = {}
-        with pytest.raises(AttributeError):
-            assert baseclass.commands
-        with pytest.raises(AttributeError):
-            assert baseclass.parameters
         for n, o in acs.items():
             # check that class accessibles are not reused as instance accessibles
             assert o not in params_found

@@ -74,7 +74,7 @@ class Module(object):
     }
 
     # properties, parameter and commands are auto-merged upon subclassing
-    parameters = {}
+    accessibles = {}
     commands = {}
 
     # reference to the dispatcher (used for sending async updates)
@@ -246,7 +246,7 @@ class Readable(Module):
                   DISABLED = 500,
                   UNKNOWN = 0,
                  )
-    parameters = {
+    accessibles = {
         'value':        Parameter('current value of the Module', readonly=True,
                                   default=0., datatype=FloatRange(),
                                   unit='', poll=True,
@@ -313,7 +313,7 @@ class Writable(Readable):
 
     providing a settable 'target' parameter to those of a Readable
     """
-    parameters = {
+    accessibles = {
         'target': Parameter('target value of the Module',
                             default=0., readonly=False, datatype=FloatRange(),
                            ),

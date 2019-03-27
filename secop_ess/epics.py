@@ -59,7 +59,7 @@ except ImportError:
 class EpicsReadable(Readable):
     """EpicsDrivable handles a Drivable interfacing to EPICS v4"""
     # Commmon parameter for all EPICS devices
-    parameters = {
+    accessibles = {
         'value': Parameter('EPICS generic value',
                        datatype=FloatRange(),
                        default=300.0,),
@@ -119,7 +119,7 @@ class EpicsReadable(Readable):
 class EpicsDrivable(Drivable):
     """EpicsDrivable handles a Drivable interfacing to EPICS v4"""
     # Commmon parameter for all EPICS devices
-    parameters = {
+    accessibles = {
         'target': Parameter('EPICS generic target', datatype=FloatRange(),
                         default=300.0, readonly=False),
         'value': Parameter('EPICS generic value', datatype=FloatRange(),
@@ -192,7 +192,7 @@ class EpicsDrivable(Drivable):
 
 class EpicsTempCtrl(EpicsDrivable):
 
-    parameters = {
+    accessibles = {
         # TODO: restrict possible values with oneof datatype
         'heaterrange': Parameter('Heater range', datatype=StringType(),
                              default='Off', readonly=False,),

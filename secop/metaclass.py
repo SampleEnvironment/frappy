@@ -206,5 +206,10 @@ class ModuleMeta(type):
                 if attrname[3:] not in newtype.accessibles:
                     raise ProgrammingError('%r: command %r has to be specified '
                                            'explicitly!' % (name, attrname[3:]))
+
+        # provide properties to 'filter' out the parameters/commands
+        newtype.parameters = dict((k,v) for k,v in newtype.accessibles.items() if isinstance(v, Parameter))
+        newtype.commands = dict((k,v) for k,v in newtype.accessibles.items() if isinstance(v, Command))
+
         attrs['__constructed__'] = True
         return newtype

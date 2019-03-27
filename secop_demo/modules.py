@@ -35,7 +35,7 @@ from secop.modules import Drivable, Override, Parameter, Readable
 class Switch(Drivable):
     """switch it on or off....
     """
-    parameters = {
+    accessibles = {
         'value': Override('current state (on or off)',
                        datatype=EnumType(on=1, off=0), default=0,
                        ),
@@ -77,7 +77,7 @@ class Switch(Drivable):
         return self.Status.BUSY, info
 
     def _update(self):
-        started = self.accessibles['target'].timestamp
+        started = self.parameters['target'].timestamp
         info = ''
         if self.target > self.value:
             info = 'waiting for ON'
@@ -97,7 +97,7 @@ class Switch(Drivable):
 class MagneticField(Drivable):
     """a liquid magnet
     """
-    parameters = {
+    accessibles = {
         'value': Override('current field in T',
                        unit='T', datatype=FloatRange(-15, 15), default=0,
                        ),
@@ -117,7 +117,7 @@ class MagneticField(Drivable):
                             datatype=StringType(), export=False,
                             ),
     }
-    Status = Enum(Drivable.Status, PERSIST=101, PREPARE=301, RAMP=302, FINISH=303)
+    Status = Enum(Drivable.Status, PERSIST=101, PREPARE=301, RAMPING=302, FINISH=303)
     overrides = {
         'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
     }
@@ -148,7 +148,7 @@ class MagneticField(Drivable):
         elif self._state == self._state.enum.switch_off:
             return (self.Status.FINISH, self._state.name)
         elif self._state == self._state.enum.ramp:
-            return (self.Status.RAMP, self._state.name)
+            return (self.Status.RAMPING, self._state.name)
         return (self.Status.ERROR, self._state.name)
 
     def _thread(self):
@@ -197,7 +197,7 @@ class MagneticField(Drivable):
 class CoilTemp(Readable):
     """a coil temperature
     """
-    parameters = {
+    accessibles = {
         'value': Override('Coil temperatur',
                        unit='K', datatype=FloatRange(), default=0,
                        ),
@@ -213,7 +213,7 @@ class CoilTemp(Readable):
 class SampleTemp(Drivable):
     """a sample temperature
     """
-    parameters = {
+    accessibles = {
         'value': Override('Sample temperature',
                        unit='K', datatype=FloatRange(), default=10,
                        ),
@@ -260,7 +260,7 @@ class Label(Readable):
        of several subdevices. used for demoing connections between
        modules.
     """
-    parameters = {
+    accessibles = {
         'system': Parameter("Name of the magnet system",
                         datatype=StringType, export=False,
                         ),
@@ -305,7 +305,7 @@ class Label(Readable):
 class DatatypesTest(Readable):
     """for demoing all datatypes
     """
-    parameters = {
+    accessibles = {
         'enum':       Parameter('enum', datatype=EnumType(boo=None, faar=None, z=9),
                             readonly=False, default=1),
         'tupleof':    Parameter('tuple of int, float and str',
@@ -327,7 +327,7 @@ class DatatypesTest(Readable):
 
 
 class ArrayTest(Readable):
-    parameters = {
+    accessibles = {
         "x": Parameter('value', datatype=ArrayOf(FloatRange(), 0, 100000),
                         default = 100000 * [0]),
     }
