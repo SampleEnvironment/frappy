@@ -122,7 +122,7 @@ class TupleWidget(QFrame):
     def __init__(self, datatype, readonly=False, parent=None):
         super(TupleWidget, self).__init__(parent)
 
-        self.datatypes = datatype.subtypes
+        self.datatypes = datatype.members
 
         self.layout = QVBoxLayout()
         self.subwidgets = []
@@ -151,8 +151,8 @@ class StructWidget(QGroupBox):
         self.subwidgets = {}
         self.datatypes = []
         self._labels = []
-        for idx, name in enumerate(sorted(datatype.named_subtypes)):
-            dt = datatype.named_subtypes[name]
+        for idx, name in enumerate(sorted(datatype.members)):
+            dt = datatype.members[name]
             w = get_widget(dt, readonly=readonly, parent=self)
             l = QLabel(name)
             self.layout.addWidget(l, idx, 0)

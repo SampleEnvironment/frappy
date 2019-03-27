@@ -248,7 +248,7 @@ class ReadableWidget(QWidget):
         # XXX: also connect update_status signal to LineEdit ??
 
     def update_status(self, status, qualifiers=None):
-        display_string = self._status_type.subtypes[0]._enum[status[0]].name
+        display_string = self._status_type.members[0]._enum[status[0]].name
         if status[1]:
             display_string += ':' + status[1]
         self.statusLineEdit.setText(display_string)

@@ -382,7 +382,7 @@ class Client(object):
                     if isinstance(datatype, EnumType):
                         datatype._enum.name = aname
                     if aname == 'status':
-                        datatype.subtypes[0]._enum.name = 'Status'
+                        datatype.members[0]._enum.name = 'Status'
                     self.describing_data['modules'][module]['accessibles'] \
                         [aname]['datatype'] = datatype
         except Exception as _exc:
