@@ -42,15 +42,15 @@ import threading
 from time import time as currenttime
 
 from secop.errors import SECoPServerError as InternalError
-from secop.errors import BadValueError, NoSuchCommandError, \
-    NoSuchModuleError, NoSuchParameterError, ProtocolError, ReadOnlyError
+from secop.errors import BadValueError, NoSuchCommandError, NoSuchModuleError, \
+    NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPError
 from secop.params import Parameter
 from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
-    DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, EVENTREPLY, \
-    HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, WRITEREPLY
+    DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
+    HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY
 
 try:
-    unicode('a')
+    unicode
 except NameError:
     # no unicode on py3
     unicode = str  # pylint: disable=redefined-builtin
@@ -104,6 +104,19 @@ class Dispatcher(object):
                [pobj.export_value(), dict(t=pobj.timestamp)])
         self.broadcast_event(msg)
 
+    def announce_update_error(self, moduleobj, pname, pobj, err):
+        """called by modules param setters/getters to notify subscribers
+
+        of problems
+        """
+        # argument pname is no longer used here - should we remove it?
+        if not isinstance(err, SECoPError):
+            err = InternalError(err)
+        msg = (ERRORPREFIX + EVENTREPLY, u'%s:%s' % (moduleobj.name, pobj.export),
+               # error-report !
+               [err.name, repr(err), dict(t=currenttime())])
+        self.broadcast_event(msg)
+
     def subscribe(self, conn, eventname):
         self._subscriptions.setdefault(eventname, set()).add(conn)
 
@@ -140,7 +153,7 @@ class Dispatcher(object):
             return self._modules[modulename]
         elif modulename in list(self._modules.values()):
             return modulename
-        raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+        raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
 
     def remove_module(self, modulename_or_obj):
         moduleobj = self.get_module(modulename_or_obj)
@@ -188,18 +201,18 @@ class Dispatcher(object):
             result[u'modules'].append([modulename, mod_desc])
         result[u'equipment_id'] = self.equipment_id
         result[u'firmware'] = u'FRAPPY - The Python Framework for SECoP'
-        result[u'version'] = u'2018.09'
+        result[u'version'] = u'2019.03'
         result.update(self.nodeprops)
         return result
 
     def _execute_command(self, modulename, command, argument=None):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
 
         cmdspec = moduleobj.accessibles.get(command, None)
         if cmdspec is None:
-            raise NoSuchCommandError('Module has no such command!')
+            raise NoSuchCommandError(u'Module has no such command!')
         if argument is None and cmdspec.datatype.argtype is not None:
             raise BadValueError(u'Command needs an argument!')
 
@@ -216,16 +229,16 @@ class Dispatcher(object):
     def _setParameterValue(self, modulename, exportedname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
 
         pname = moduleobj.accessiblename2attr.get(exportedname, None)
         pobj = moduleobj.accessibles.get(pname, None)
         if pobj is None or not isinstance(pobj, Parameter):
-            raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
+            raise NoSuchParameterError(u'Module has no such parameter on this SEC-Node!')
         if pobj.constant is not None:
-            raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
+            raise ReadOnlyError(u'This parameter is constant and can not be accessed remotely.')
         if pobj.readonly:
-            raise ReadOnlyError('This parameter can not be changed remotely.')
+            raise ReadOnlyError(u'This parameter can not be changed remotely.')
 
         writefunc = getattr(moduleobj, u'write_%s' % pname, None)
         # note: exceptions are handled in handle_request, not here!
@@ -240,14 +253,14 @@ class Dispatcher(object):
     def _getParameterValue(self, modulename, exportedname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
 
         pname = moduleobj.accessiblename2attr.get(exportedname, None)
         pobj = moduleobj.accessibles.get(pname, None)
         if pobj is None or not isinstance(pobj, Parameter):
-            raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
+            raise NoSuchParameterError(u'Module has no such parameter on this SEC-Node!')
         if pobj.constant is not None:
-            raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
+            raise ReadOnlyError(u'This parameter is constant and can not be accessed remotely.')
 
         readfunc = getattr(moduleobj, u'read_%s' % pname, None)
         if readfunc:
@@ -297,12 +310,12 @@ class Dispatcher(object):
 
     def handle_read(self, conn, specifier, data):
         if data:
-            raise ProtocolError('poll request don\'t take data!')
+            raise ProtocolError('read requests don\'t take data!')
         modulename, pname = specifier, u'value'
         if ':' in specifier:
             modulename, pname = specifier.split(':', 1)
         # XXX: trigger polling and force sending event ???
-        return (EVENTREPLY, specifier, list(self._getParameterValue(modulename, pname)))
+        return (READREPLY, specifier, list(self._getParameterValue(modulename, pname)))
 
     def handle_change(self, conn, specifier, data):
         modulename, pname = specifier, u'value'
@@ -318,12 +331,12 @@ class Dispatcher(object):
 
     def handle_ping(self, conn, specifier, data):
         if data:
-            raise ProtocolError('poll request don\'t take data!')
+            raise ProtocolError('ping requests don\'t take data!')
         return (HEARTBEATREPLY, specifier, [None, {u't':currenttime()}])
 
     def handle_activate(self, conn, specifier, data):
         if data:
-            raise ProtocolError('activate request don\'t take data!')
+            raise ProtocolError('activate requests don\'t take data!')
         if specifier:
             modulename, exportedname = specifier, None
             if ':' in specifier:
@@ -368,6 +381,8 @@ class Dispatcher(object):
         return (ENABLEEVENTSREPLY, specifier, None) if specifier else (ENABLEEVENTSREPLY, None, None)
 
     def handle_deactivate(self, conn, specifier, data):
+        if data:
+            raise ProtocolError('deactivate requests don\'t take data!')
         if specifier:
             self.unsubscribe(conn, specifier)
         else:

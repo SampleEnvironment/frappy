@@ -121,9 +121,10 @@ class ModuleMeta(type):
             if isinstance(v.datatype, EnumType) and not v.datatype._enum.name:
                 v.datatype._enum.name = k
 
-        # newtype.accessibles will be used in 2 places only:
+        # newtype.accessibles will be used in 3 places only:
         # 1) for inheritance (see above)
         # 2) for the describing message
+        # 3) by code needing to access the Parameter/Command object (i.e. checking datatypes)
         newtype.accessibles = OrderedDict(sorted(accessibles.items(), key=lambda item: item[1].ctr))
 
         # check validity of Parameter entries
@@ -143,7 +144,12 @@ class ModuleMeta(type):
             def wrapped_rfunc(self, maxage=0, pname=pname, rfunc=rfunc):
                 if rfunc:
                     self.log.debug("rfunc(%s): call %r" % (pname, rfunc))
-                    value = rfunc(self, maxage)
+                    try:
+                        value = rfunc(self, maxage)
+                    except Exception as e:
+                        pobj = self.accessibles[pname]
+                        self.DISPATCHER.announce_update_error(self, pname, pobj, e)
+                        raise e
                 else:
                     # return cached value
                     self.log.debug("rfunc(%s): return cached value" % pname)
@@ -170,7 +176,11 @@ class ModuleMeta(type):
                     value = pobj.datatype.validate(value)
                     if wfunc:
                         self.log.debug('calling %r(%r)' % (wfunc, value))
-                        returned_value = wfunc(self, value)
+                        try:
+                            returned_value = wfunc(self, value)
+                        except Exception as e:
+                            self.DISPATCHER.announce_update_error(self, pname, pobj, e)
+                            raise e
                         if returned_value is not None:
                             value = returned_value
                     # XXX: use setattr or direct manipulation

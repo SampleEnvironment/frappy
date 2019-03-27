@@ -28,7 +28,7 @@ from math import atan
 
 from secop.datatypes import EnumType, FloatRange, TupleOf
 from secop.lib import clamp, mkthread
-from secop.modules import Drivable, Parameter, Command, Override
+from secop.modules import Command, Drivable, Override, Parameter
 
 # test custom property (value.test can be changed in config file)
 Parameter.add_property('test')

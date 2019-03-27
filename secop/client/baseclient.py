@@ -34,12 +34,14 @@ import mlzlog
 import serial
 
 from secop.datatypes import CommandType, EnumType, get_datatype
-#from secop.protocol.encoding import ENCODERS
-#from secop.protocol.framing import FRAMERS
-#from secop.protocol.messages import *
 from secop.errors import EXCEPTIONS
 from secop.lib import formatException, formatExtendedStack, mkthread
 from secop.lib.parsing import format_time, parse_time
+from secop.protocol.messages import BUFFERREQUEST, COMMANDREQUEST, \
+    DESCRIPTIONREPLY, DESCRIPTIONREQUEST, DISABLEEVENTSREQUEST, \
+    ENABLEEVENTSREQUEST, ERRORPREFIX, EVENTREPLY, \
+    HEARTBEATREQUEST, HELPREQUEST, IDENTREQUEST, READREPLY, \
+    READREQUEST, REQUEST2REPLY, WRITEREPLY, WRITEREQUEST
 
 try:
     # py3
@@ -76,8 +78,8 @@ class TCPConnection(object):
         try:
             data = u''
             while True:
+                newdata = b''
                 try:
-                    newdata = b''
                     dlist = [self._io.fileno()]
                     rlist, wlist, xlist = select(dlist, dlist, dlist, 1)
                     if dlist[0] in rlist + wlist:
@@ -114,7 +116,7 @@ class TCPConnection(object):
             try:
                 return self._readbuffer.get(block=True, timeout=1)
             except queue.Empty:
-                continue
+                pass
             if not block:
                 i -= 1
 
@@ -244,7 +246,7 @@ class Client(object):
                 self.secop_id = line
                 continue
             msgtype, spec, data = self.decode_message(line)
-            if msgtype in ('event', 'update', 'changed'):
+            if msgtype in (EVENTREPLY, READREPLY, WRITEREPLY):
                 # handle async stuff
                 self._handle_event(spec, data)
             # handle sync stuff
@@ -252,23 +254,23 @@ class Client(object):
 
     def _handle_sync_reply(self, msgtype, spec, data):
         # handle sync stuff
-        if msgtype == "error":
+        if msgtype.startswith(ERRORPREFIX):
             # find originating msgtype and map to expected_reply_type
             # errormessages carry to offending request as the first
             # result in the resultist
-            _msgtype, _spec, _data = self.decode_message(data[0])
-            _reply = self._get_reply_from_request(_msgtype)
+            request = msgtype[len(ERRORPREFIX):]
+            reply = REQUEST2REPLY.get(request, request)
 
-            entry = self.expected_replies.get((_reply, _spec), None)
+            entry = self.expected_replies.get((reply, spec), None)
             if entry:
                 self.log.error("request %r resulted in Error %r" %
-                               (data[0], spec))
-                entry.extend([True, EXCEPTIONS[spec](*data)])
+                               ("%s %s" % (request, spec), (data[0], data[1])))
+                entry.extend([True, EXCEPTIONS[data[0]](*data[1:])])
                 entry[0].set()
                 return
-            self.log.error("got an unexpected error %s %r" % (spec, data[0]))
+            self.log.error("got an unexpected %s %r" % (msgtype,data[0:1]))
             return
-        if msgtype == "describing":
+        if msgtype == DESCRIPTIONREPLY:
             entry = self.expected_replies.get((msgtype, ''), None)
         else:
             entry = self.expected_replies.get((msgtype, spec), None)
@@ -291,7 +293,7 @@ class Client(object):
         return req
 
     def decode_message(self, msg):
-        """return a decoded message tripel"""
+        """return a decoded message triple"""
         msg = msg.strip()
         if ' ' not in msg:
             return msg, '', None
@@ -359,7 +361,7 @@ class Client(object):
             raise RuntimeError('Error decoding substruct of descriptive data: %r\n%r' % (err, data))
 
     def _issueDescribe(self):
-        _, _, describing_data = self._communicate('describe')
+        _, _, describing_data = self._communicate(DESCRIPTIONREQUEST)
         try:
             describing_data = self._decode_substruct(
                 ['modules'], describing_data)
@@ -368,12 +370,6 @@ class Client(object):
                     ['accessibles'], module)
 
             self.describing_data = describing_data
-#            import pprint
-#            def r(stuff):
-#             if isinstance(stuff, dict):
-#              return dict((k,r(v)) for k,v in stuff.items())
-#             return stuff
-#            pprint.pprint(r(describing_data))
 
             for module, moduleData in self.describing_data['modules'].items():
                 for aname, adata in moduleData['accessibles'].items():
@@ -403,21 +399,6 @@ class Client(object):
     def register_shutdown_callback(self, func, arg):
         self.connection.callbacks.append((func, arg))
 
-    def _get_reply_from_request(self, requesttype):
-        # maps each (sync) request to the corresponding reply
-        # XXX: should go to the encoder! and be imported here
-        REPLYMAP = {  # pylint: disable=C0103
-            "describe": "describing",
-            "do": "done",
-            "change": "changed",
-            "activate": "active",
-            "deactivate": "inactive",
-            "read": "update",
-            #"*IDN?": "SECoP,",  # XXX: !!!
-            "ping": "pong",
-        }
-        return REPLYMAP.get(requesttype, requesttype)
-
     def communicate(self, msgtype, spec='', data=None):
         # only return the data portion....
         return self._communicate(msgtype, spec, data)[2]
@@ -426,15 +407,17 @@ class Client(object):
         self.log.debug('communicate: %r %r %r' % (msgtype, spec, data))
         if self.stopflag:
             raise RuntimeError('alreading stopping!')
-        if msgtype == "*IDN?":
+        if msgtype == IDENTREQUEST:
             return self.secop_id
 
         # sanitize input
         msgtype = str(msgtype)
         spec = str(spec)
 
-        if msgtype not in ('*IDN?', 'describe', 'activate', 'deactivate', 'do',
-                           'change', 'read', 'ping', 'help'):
+        if msgtype not in (DESCRIPTIONREQUEST, ENABLEEVENTSREQUEST,
+                           DISABLEEVENTSREQUEST, COMMANDREQUEST,
+                           WRITEREQUEST, BUFFERREQUEST,
+                           READREQUEST, HEARTBEATREQUEST, HELPREQUEST):
             raise EXCEPTIONS['Protocol'](args=[
                 self.encode_message(msgtype, spec, data),
                 dict(
@@ -443,13 +426,13 @@ class Client(object):
             ])
 
         # handle syntactic sugar
-        if msgtype == 'change' and ':' not in spec:
+        if msgtype == WRITEREQUEST and ':' not in spec:
             spec = spec + ':target'
-        if msgtype == 'read' and ':' not in spec:
+        if msgtype == READREQUEST and ':' not in spec:
             spec = spec + ':value'
 
         # check if such a request is already out
-        rply = self._get_reply_from_request(msgtype)
+        rply = REQUEST2REPLY[msgtype]
         if (rply, spec) in self.expected_replies:
             raise RuntimeError(
                 "can not have more than one requests of the same type at the same time!"
@@ -487,7 +470,7 @@ class Client(object):
 
     def quit(self):
         # after calling this the client is dysfunctional!
-        self.communicate('deactivate')
+        self.communicate(DISABLEEVENTSREQUEST)
         self.stopflag = True
         if self._thread and self._thread.is_alive():
             self.thread.join(self._thread)
@@ -495,10 +478,10 @@ class Client(object):
     def startup(self, _async=False):
         self._issueDescribe()
         # always fill our cache
-        self.communicate('activate')
+        self.communicate(ENABLEEVENTSREQUEST)
         # deactivate updates if not wanted
         if not _async:
-            self.communicate('deactivate')
+            self.communicate(DISABLEEVENTSREQUEST)
 
     def queryCache(self, module, parameter=None):
         result = self._cache.get(module, {})
@@ -509,7 +492,7 @@ class Client(object):
         return result
 
     def getParameter(self, module, parameter):
-        return self.communicate('read', '%s:%s' % (module, parameter))
+        return self.communicate(READREQUEST, '%s:%s' % (module, parameter))
 
     def setParameter(self, module, parameter, value):
         datatype = self._getDescribingParameterData(module,
@@ -517,7 +500,7 @@ class Client(object):
 
         value = datatype.from_string(value)
         value = datatype.export_value(value)
-        self.communicate('change', '%s:%s' % (module, parameter), value)
+        self.communicate(WRITEREQUEST, '%s:%s' % (module, parameter), value)
 
     @property
     def describingData(self):
@@ -559,7 +542,7 @@ class Client(object):
 
     def execCommand(self, module, command, args):
         #  ignore reply message + reply specifier, only return data
-        return self._communicate('do', '%s:%s' % (module, command), list(args) if args else None)[2]
+        return self._communicate(COMMANDREQUEST, '%s:%s' % (module, command), list(args) if args else None)[2]
 
     def getProperties(self, module, parameter):
         return self.describing_data['modules'][module]['accessibles'][parameter]
@@ -574,4 +557,4 @@ class Client(object):
 
     def ping(self, pingctr=[0]):  # pylint: disable=W0102
         pingctr[0] = pingctr[0] + 1
-        self.communicate("ping", pingctr[0])
+        self.communicate(HEARTBEATREQUEST, pingctr[0])

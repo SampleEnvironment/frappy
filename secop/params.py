@@ -27,8 +27,6 @@ from secop.datatypes import CommandType, DataType
 from secop.errors import ProgrammingError
 from secop.lib import unset_value
 
-EVENT_ONLY_ON_CHANGED_VALUES = False
-
 
 class CountedObj(object):
     ctr = [0]
@@ -193,6 +191,9 @@ class Override(CountedObj):
         if isinstance(obj, Accessible):
             props = obj.__dict__.copy()
             for key in self.kwds:
+                if key == 'unit':
+                    # XXX: HACK!
+                    continue
                 if key not in props and key not in type(obj).valid_properties:
                     raise ProgrammingError( "%s is not a valid %s property" %
                                            (key, type(obj).__name__))

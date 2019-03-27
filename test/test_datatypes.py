@@ -28,7 +28,7 @@ import pytest
 
 from secop.datatypes import ArrayOf, BLOBType, BoolType, \
     DataType, EnumType, FloatRange, IntRange, ProgrammingError, \
-    StringType, StructOf, TupleOf, get_datatype, ScaledInteger
+    ScaledInteger, StringType, StructOf, TupleOf, get_datatype
 
 
 def test_DataType():

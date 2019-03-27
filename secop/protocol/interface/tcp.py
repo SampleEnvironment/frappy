@@ -29,7 +29,8 @@ from secop.errors import SECoPError
 from secop.lib import formatException, \
     formatExtendedStack, formatExtendedTraceback
 from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
-from secop.protocol.messages import HELPREPLY, HELPREQUEST, HelpMessage
+from secop.protocol.messages import ERRORPREFIX, \
+    HELPREPLY, HELPREQUEST, HelpMessage
 
 try:
     import socketserver  # py3
@@ -113,29 +114,23 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 if origin is None:
                     break  # no more messages to process
                 origin = origin.strip()
-                if origin and origin[0] == CR:
-                    origin = origin[1:]
-                if origin and origin[-1] == CR:
-                    origin = origin[:-1]
                 if origin in (HELPREQUEST, ''):  # empty string -> send help message
                     for idx, line in enumerate(HelpMessage.splitlines()):
                         self.queue_async_reply((HELPREPLY, '%d' % (idx+1), line))
                     continue
-                msg = decode_msg(origin)
                 result = None
                 try:
+                    msg = decode_msg(origin)
                     result = serverobj.dispatcher.handle_request(self, msg)
-                    if (msg[0] == 'read') and result:
-                        # read should only trigger async_replies
-                        self.queue_async_reply(('error', 'InternalError', [origin,
-                                                'read should only trigger async data units']))
                 except SECoPError as err:
-                    result = ('error', err.name, [origin, str(err), {'exception': formatException(),
-                                                          'traceback': formatExtendedStack()}])
+                    result = (ERRORPREFIX + msg[0], msg[1], [err.name, str(err),
+                                                             {'exception': formatException(),
+                                                              'traceback': formatExtendedStack()}])
                 except Exception as err:
                     # create Error Obj instead
-                    result = ('error', 'InternalError', [origin, str(err), {'exception': formatException(),
-                                                          'traceback': formatExtendedStack()}])
+                    result = (ERRORPREFIX + msg[0], msg[1], ['InternalError', str(err),
+                                                             {'exception': formatException(),
+                                                              'traceback': formatExtendedStack()}])
                     print('--------------------')
                     print(formatException())
                     print('--------------------')

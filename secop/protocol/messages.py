@@ -26,7 +26,7 @@ from __future__ import division, print_function
 
 IDENTREQUEST = u'*IDN?'  # literal
 # literal! first part is fixed!
-IDENTREPLY = u'SINE2020&ISSE,SECoP,V2018-11-07,v1.0\\beta'
+IDENTREPLY = u'SINE2020&ISSE,SECoP,V2019-03-20,v1.0 RC1'
 
 DESCRIPTIONREQUEST = u'describe'  # literal
 DESCRIPTIONREPLY = u'describing'  # +<id> +json
@@ -52,13 +52,15 @@ BUFFERREQUEST = u'buffer'
 BUFFERREPLY = u'buffered'
 
 # +module[:parameter] -> NO direct reply, calls POLL internally!
-POLLREQUEST = u'read'
+READREQUEST = u'read'
+READREPLY = u'reply'  # See Issue 54
+
 EVENTREPLY = u'update'  # +module[:parameter] +json_value (value, qualifiers_as_dict)
 
 HEARTBEATREQUEST = u'ping'  # +nonce_without_space
 HEARTBEATREPLY = u'pong'  # +nonce_without_space
 
-ERRORREPLY = u'error'  # +errorclass +json_extended_info
+ERRORPREFIX = u'error_'  # + specifier + json_extended_info(error_report)
 
 HELPREQUEST = u'help'  # literal
 HELPREPLY = u'helping'  # +line number +json_text
@@ -72,7 +74,7 @@ REQUEST2REPLY = {
     COMMANDREQUEST:       COMMANDREPLY,
     WRITEREQUEST:         WRITEREPLY,
     BUFFERREQUEST:        BUFFERREPLY,
-    POLLREQUEST:          EVENTREPLY,
+    READREQUEST:          READREPLY,
     HEARTBEATREQUEST:     HEARTBEATREPLY,
     HELPREQUEST:          HELPREPLY,
 }
@@ -88,6 +90,6 @@ HelpMessage = u"""Try one of the following:
             '%s <nonce>' to request a heartbeat response
             '%s' to activate async updates
             '%s' to deactivate updates
-            """ % (IDENTREQUEST, DESCRIPTIONREQUEST, POLLREQUEST,
+            """ % (IDENTREQUEST, DESCRIPTIONREQUEST, READREQUEST,
                    WRITEREQUEST, COMMANDREQUEST, HEARTBEATREQUEST,
                    ENABLEEVENTSREQUEST, DISABLEEVENTSREQUEST)
