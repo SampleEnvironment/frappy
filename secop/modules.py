@@ -204,7 +204,7 @@ class Module(object):
                 setattr(self, k, v)
             cfgdict.pop(k)
 
-        # Adopt units AFTER applying the cfgdict
+        # Modify units AFTER applying the cfgdict
         for k, v in self.accessibles.items():
             if not isinstance(v, Parameter):
                 continue

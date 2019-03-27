@@ -41,7 +41,7 @@ def test_Command():
 
 def test_Parameter():
     p1 = Parameter('description1', datatype=BoolType, default=False)
-    p2 = Parameter('description2', datatype=BoolType, default=True)
+    p2 = Parameter('description2', datatype=BoolType, constant=True)
     assert p1 != p2
     assert p1.ctr != p2.ctr
     with pytest.raises(ValueError):

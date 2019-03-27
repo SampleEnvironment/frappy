@@ -222,6 +222,8 @@ class Dispatcher(object):
         pobj = moduleobj.accessibles.get(pname, None)
         if pobj is None or not isinstance(pobj, Parameter):
             raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
+        if pobj.constant is not None:
+            raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
         if pobj.readonly:
             raise ReadOnlyError('This parameter can not be changed remotely.')
 
@@ -244,6 +246,8 @@ class Dispatcher(object):
         pobj = moduleobj.accessibles.get(pname, None)
         if pobj is None or not isinstance(pobj, Parameter):
             raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
+        if pobj.constant is not None:
+            raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
 
         readfunc = getattr(moduleobj, u'read_%s' % pname, None)
         if readfunc:

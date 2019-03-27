@@ -94,17 +94,18 @@ class Parameter(Accessible):
 
     # unit and datatype are not listed (handled separately)
     valid_properties = dict()
-    for prop in ('description', 'readonly', 'group', 'visibility', 'fmtstr', 'precision'):
+    for prop in ('description', 'readonly', 'group', 'visibility', 'constant'):
         valid_properties[prop] = prop
 
     def __init__(self,
                  description,
                  datatype=None,
                  default=unset_value,
-                 unit='',
                  readonly=True,
                  export=True,
                  poll=False,
+                 unit=u'',
+                 constant=None,
                  value=None, # swallow
                  timestamp=None, # swallow
                  optional=False,
@@ -121,10 +122,10 @@ class Parameter(Accessible):
         self.description = description
         self.datatype = datatype
         self.default = default
-        self.unit = unit
-        self.readonly = readonly
+        self.readonly = readonly if constant is None else True
         self.export = export
         self.optional = optional
+        self.constant = constant
 
         # note: auto-converts True/False to 1/0 which yield the expected
         # behaviour...
@@ -132,6 +133,14 @@ class Parameter(Accessible):
         for key in kwds:
             if key not in self.valid_properties:
                 raise ProgrammingError('%s is not a valid parameter property' % key)
+        if constant is not None:
+            # The value of the `constant` property should be the
+            # serialised version of the constant, or unset
+            constant = self.datatype.validate(constant)
+            self.constant = self.datatype.export_value(constant)
+        # helper. unit should be set on the datatype, not on the parameter!
+        if unit:
+            self.datatype.unit = unit
         self.__dict__.update(kwds)
         # internal caching: value and timestamp of last change...
         self.value = default
@@ -148,6 +157,16 @@ class Parameter(Accessible):
 
     def export_value(self):
         return self.datatype.export_value(self.value)
+
+    def _get_unit_(self):
+        return self.datatype.unit
+
+    def _set_unit_(self, unit):
+        self.datatype.unit = unit
+
+    unit = property(_get_unit_, _set_unit_)
+    del _get_unit_
+    del _set_unit_
 
 
 class Override(CountedObj):
@@ -177,7 +196,13 @@ class Override(CountedObj):
                 if key not in props and key not in type(obj).valid_properties:
                     raise ProgrammingError( "%s is not a valid %s property" %
                                            (key, type(obj).__name__))
+            if isinstance(obj, Parameter):
+                if u'constant' in self.kwds:
+                    constant = obj.datatype.validate(self.kwds.pop(u'constant'))
+                    self.kwds[u'constant'] = obj.datatype.export_value(constant)
+                    self.kwds[u'readonly'] = True
             props.update(self.kwds)
+
             if self.reorder:
                 props['ctr'] = self.ctr
             return type(obj)(**props)
