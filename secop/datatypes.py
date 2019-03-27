@@ -106,7 +106,7 @@ class FloatRange(DataType):
         # store hints
         self.hints = {}
         self.unit = unicode(unit)
-        self.fmtstr = unicode(fmtstr or u'%f')
+        self.fmtstr = unicode(fmtstr or u'%g')
         self.abs_prec = float(absolute_precision or 0.0)
         self.rel_prec = float(relative_precision or 1.2e-7)
 
@@ -267,7 +267,7 @@ class ScaledInteger(DataType):
         # store hints
         self.hints = {}
         self.unit = unicode(unit)
-        self.fmtstr = unicode(fmtstr or u'%f')
+        self.fmtstr = unicode(fmtstr or u'%g')
         self.abs_prec = float(absolute_precision or self.scale)
         self.rel_prec = float(relative_precision or 0)
 
