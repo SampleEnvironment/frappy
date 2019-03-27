@@ -34,12 +34,8 @@ import threading
 from time import time as currenttime
 from time import sleep
 
-try:
-    import PyTango
-except ImportError:
-    pass
+import PyTango
 
-#from secop.parse import Parser
 from secop.datatypes import ArrayOf, EnumType, \
     FloatRange, IntRange, StringType, TupleOf
 from secop.errors import CommunicationFailedError, \
@@ -62,7 +58,7 @@ __all__ = [
 ]
 
 EXC_MAPPING = {
-    PyTango.CommunicationFailedError: CommunicationFailedError,
+    PyTango.CommunicationFailed: CommunicationFailedError,
     PyTango.WrongNameSyntax: ConfigError,
     PyTango.DevFailed: HardwareError,
 }
@@ -77,7 +73,7 @@ REASON_MAPPING = {
 }
 
 # Tango DevFailed reasons that should not cause a retry
-FATAL_REASONS = set((
+FATAL_REASONS = {
     'Entangle_ConfigurationError',
     'Entangle_UnrecognizedHardware',
     'Entangle_WrongAPICall',
@@ -90,7 +86,7 @@ FATAL_REASONS = set((
     'API_TangoHostNotSet',
     'API_ServerNotRunning',
     'API_DeviceNotExported',
-))
+}
 
 
 def describe_dev_error(exc):
