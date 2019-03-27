@@ -49,6 +49,10 @@ __all__ = [
     u'CommandType',
 ]
 
+# *DEFAULT* limits for IntRange/ScaledIntegers transport serialisation
+DEFAULT_MIN_INT = -16777216
+DEFAULT_MAX_INT = 16777216
+
 # base class for all DataTypes
 
 
@@ -87,18 +91,46 @@ class DataType(object):
 class FloatRange(DataType):
     """Restricted float type"""
 
-    def __init__(self, minval=None, maxval=None):
-        self.min = None if minval is None else float(minval)
-        self.max = None if maxval is None else float(maxval)
-        # note: as we may compare to Inf all comparisons would be false
-        if (self.min or float(u'-inf')) <= (self.max or float(u'+inf')):
-            self.as_json = [u'double', dict()]
-            if self.min:
-                self.as_json[1]['min'] = self.min
-            if self.max:
-                self.as_json[1]['max'] = self.max
-        else:
+    unit = u''
+    fmtstr = u'%f'
+    def __init__(self, minval=None, maxval=None, unit=u'', fmtstr=u'',
+                       absolute_precision=None, relative_precision=None,):
+        # store hints
+        self.hints = {}
+        self.unit = unicode(unit)
+        self.fmtstr = unicode(fmtstr or u'%f')
+        self.abs_prec = float(absolute_precision or 0.0)
+        self.rel_prec = float(relative_precision or 1.2e-7)
+
+        # store values for the validator
+        self.min = float(u'-inf') if minval is None else float(minval)
+        self.max = float(u'+inf') if maxval is None else float(maxval)
+
+        # check values
+        if self.min > self.max:
             raise ValueError(u'Max must be larger then min!')
+        if '%' not in self.fmtstr:
+            raise ValueError(u'Invalid fmtstr!')
+        if self.abs_prec < 0:
+            raise ValueError(u'absolute_precision MUST be >=0')
+        if self.rel_prec < 0:
+            raise ValueError(u'relative_precision MUST be >=0')
+
+        info = {}
+        if self.min != float(u'-inf'):
+            info[u'min'] = self.min
+        if self.max != float(u'inf'):
+            info[u'max'] = self.max
+        if unit:
+            self.hints[u'unit'] = self.unit
+        if fmtstr:
+            self.hints[u'fmtstr'] = self.fmtstr
+        if absolute_precision is not None:
+            self.hints[u'absolute_precision'] = self.abs_prec
+        if relative_precision is not None:
+            self.hints[u'relative_precision'] = self.rel_prec
+        info.update(self.hints)
+        self.as_json = [u'double', info]
 
     def validate(self, value):
         try:
@@ -119,11 +151,12 @@ class FloatRange(DataType):
                          (value, self.min, self.max))
 
     def __repr__(self):
-        if self.max is not None:
-            return u'FloatRange(%r, %r)' % (
-                float(u'-inf') if self.min is None else self.min,
-                float(u'inf') if self.max is None else self.max)
-        return u'FloatRange()'
+        items = [] if self.max or self.min is None else \
+                [u'-inf' if self.min == float(u'-inf') else self.fmtstr % self.min,
+                 u'inf' if self.max == float(u'inf') else self.fmtstr % self.max]
+        for k,v in self.hints.items():
+            items.append(u'%s=%r' % (k,v))
+        return u'FloatRange(%s)' % (', '.join(items))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -138,25 +171,43 @@ class FloatRange(DataType):
         return self.validate(value)
 
 
+
 class IntRange(DataType):
     """Restricted int type"""
 
-    def __init__(self, minval=None, maxval=None):
-        self.min = -16777216 if minval is None else int(minval)
-        self.max = 16777216 if maxval is None else int(maxval)
+    unit = u''
+    fmtstr = u'%f'
+    def __init__(self, minval=None, maxval=None, fmtstr=u'%d', unit=u''):
+        self.hints = {}
+        self.fmtstr = unicode(fmtstr)
+        self.unit = unicode(unit)
+        self.min = DEFAULT_MIN_INT if minval is None else int(minval)
+        self.max = DEFAULT_MAX_INT if maxval is None else int(maxval)
+
+        # check values
         if self.min > self.max:
             raise ValueError(u'Max must be larger then min!')
-        if None in (self.min, self.max):
-            raise ValueError(u'Limits can not be None!')
-        self.as_json = [u'int', {'min':self.min, 'max':self.max}]
+        if '%' not in self.fmtstr:
+            raise ValueError(u'Invalid fmtstr!')
+
+        info = {}
+        self.hints = {}
+        info[u'min'] = self.min
+        info[u'max'] = self.max
+        if unit:
+            self.hints[u'unit'] = self.unit
+        if fmtstr != u'%d':
+            self.hints[u'fmtstr'] = self.fmtstr
+        info.update(self.hints)
+        self.as_json = [u'int', info]
 
     def validate(self, value):
         try:
             value = int(value)
-            if self.min is not None and value < self.min:
+            if value < self.min:
                 raise ValueError(u'%r should be an int between %d and %d' %
                                  (value, self.min, self.max or 0))
-            if self.max is not None and value > self.max:
+            if value > self.max:
                 raise ValueError(u'%r should be an int between %d and %d' %
                                  (value, self.min or 0, self.max))
             return value
@@ -164,9 +215,10 @@ class IntRange(DataType):
             raise ValueError(u'Can not validate %r to int' % value)
 
     def __repr__(self):
-        if self.max is not None:
-            return u'IntRange(%d, %d)' % (self.min, self.max)
-        return u'IntRange()'
+        items = [u"%d, %d" % (self.min, self.max)]
+        for k, v in self.hints.items():
+            items.append(u'%s=%r' % (k, v))
+        return u'IntRange(%s)' % (u', '.join(items))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -187,36 +239,75 @@ class ScaledInteger(DataType):
     note: limits are for the scaled value (i.e. the internal value)
           the scale is only used for calculating to/from transport serialisation"""
 
-    def __init__(self, scale, minval=-16777216, maxval=16777216):
-        self.min = int(minval)
-        self.max = int(maxval)
+    unit = u''
+    fmtstr = u'%f'
+    def __init__(self, scale, minval=None, maxval=None, unit=u'', fmtstr=u'',
+                       absolute_precision=None, relative_precision=None,):
         self.scale = float(scale)
-        if self.min > self.max:
-            raise ValueError(u'Max must be larger then min!')
         if not self.scale > 0:
             raise ValueError(u'Scale MUST be positive!')
-        self.as_json = [u'scaled', dict(min=int(round(minval/scale)), max=int(round(maxval/scale)), scale=scale)]
+
+        # store hints
+        self.hints = {}
+        self.unit = unicode(unit)
+        self.fmtstr = unicode(fmtstr or u'%f')
+        self.abs_prec = float(absolute_precision or self.scale)
+        self.rel_prec = float(relative_precision or 0)
+
+        self.min = DEFAULT_MIN_INT * self.scale if minval is None else float(minval)
+        self.max = DEFAULT_MAX_INT * self.scale if maxval is None else float(maxval)
+
+        # check values
+        if self.min > self.max:
+            raise ValueError(u'Max must be larger then min!')
+        if '%' not in self.fmtstr:
+            raise ValueError(u'Invalid fmtstr!')
+        if self.abs_prec < 0:
+            raise ValueError(u'absolute_precision MUST be >=0')
+        if self.rel_prec < 0:
+            raise ValueError(u'relative_precision MUST be >=0')
+
+        info = {}
+        self.hints = {}
+        info[u'min'] = int(self.min // self.scale)
+        info[u'max'] = int((self.max + self.scale * 0.5) // self.scale)
+        info[u'scale'] = self.scale
+        if unit:
+            self.hints[u'unit'] = self.unit
+        if fmtstr:
+            self.hints[u'fmtstr'] = self.fmtstr
+        if absolute_precision is not None:
+            self.hints[u'absolute_precision'] = self.abs_prec
+        if relative_precision is not None:
+            self.hints[u'relative_precision'] = self.rel_prec
+        info.update(self.hints)
+        self.as_json = [u'scaled', info]
 
     def validate(self, value):
         try:
-            value = int(value)
-            if value < self.min:
-                raise ValueError(u'%r should be an int between %d and %d' %
-                                 (value, self.min, self.max))
-            if value > self.max:
-                raise ValueError(u'%r should be an int between %d and %d' %
-                                 (value, self.min, self.max))
-            return value
+            value = float(value)
         except Exception:
-            raise ValueError(u'Can not validate %r to int' % value)
+            raise ValueError(u'Can not validate %r to float' % value)
+        if value < self.min:
+            raise ValueError(u'%r should be a float between %d and %d' %
+                             (value, self.min, self.max))
+        if value > self.max:
+            raise ValueError(u'%r should be a float between %d and %d' %
+                             (value, self.min, self.max))
+        intval = int((value + self.scale * 0.5) // self.scale)
+        value = float(intval * self.scale)
+        return value  # return 'actual' value (which is more discrete than a float)
 
     def __repr__(self):
-        return u'ScaledInteger(%f, %d, %d)' % (self.scale, self.min, self.max)
+        items = [self.fmtstr % self.scale, self.fmtstr % self.min, self.fmtstr % self.max]
+        for k,v in self.hints.items():
+            items.append(u'%s=%r' % (k,v))
+        return u'ScaledInteger(%s)' % (', '.join(items))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        # XXX: rounds toward even !!! (i.e. 12.5 -> 12, 13.5 -> 14)
-        return round(value / self.scale)
+        # note: round behaves different in Py2 vs. Py3, so use floor division
+        return int((value + self.scale * 0.5) // self.scale)
 
     def import_value(self, value):
         """returns a python object from serialisation"""
@@ -228,16 +319,17 @@ class ScaledInteger(DataType):
 
 
 class EnumType(DataType):
+
     def __init__(self, enum_or_name='', **kwds):
-        if 'members' in kwds:
+        if u'members' in kwds:
             kwds = dict(kwds)
-            kwds.update(kwds['members'])
-            kwds.pop('members')
+            kwds.update(kwds[u'members'])
+            kwds.pop(u'members')
         self._enum = Enum(enum_or_name, **kwds)
 
     @property
     def as_json(self):
-        return [u'enum'] + [{"members":dict((m.name, m.value) for m in self._enum.members)}]
+        return [u'enum'] + [{u"members":dict((m.name, m.value) for m in self._enum.members)}]
 
     def __repr__(self):
         return u"EnumType(%r, %s)" % (self._enum.name, ', '.join(u'%s=%d' %(m.name, m.value) for m in self._enum.members))
@@ -279,7 +371,7 @@ class BLOBType(DataType):
         self.as_json = [u'blob', dict(min=minsize, max=maxsize)]
 
     def __repr__(self):
-        return u'BLOB(%s, %s)' % (unicode(self.minsize), unicode(self.maxsize))
+        return u'BLOB(%d, %d)' % (self.minsize, self.maxsize)
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
@@ -289,10 +381,9 @@ class BLOBType(DataType):
         if size < self.minsize:
             raise ValueError(
                 u'%r must be at least %d bytes long!' % (value, self.minsize))
-        if self.maxsize is not None:
-            if size > self.maxsize:
-                raise ValueError(
-                    u'%r must be at most %d bytes long!' % (value, self.maxsize))
+        if size > self.maxsize:
+            raise ValueError(
+                u'%r must be at most %d bytes long!' % (value, self.maxsize))
         return value
 
     def export_value(self, value):
@@ -326,7 +417,7 @@ class StringType(DataType):
         self.as_json = [u'string', dict(min=minsize, max=maxsize)]
 
     def __repr__(self):
-        return u'StringType(%s, %s)' % (unicode(self.minsize), unicode(self.maxsize))
+        return u'StringType(%d, %d)' % (self.minsize, self.maxsize)
 
     def validate(self, value):
         """return the validated (internal) value or raise"""
@@ -336,10 +427,9 @@ class StringType(DataType):
         if size < self.minsize:
             raise ValueError(
                 u'%r must be at least %d bytes long!' % (value, self.minsize))
-        if self.maxsize is not None:
-            if size > self.maxsize:
-                raise ValueError(
-                    u'%r must be at most %d bytes long!' % (value, self.maxsize))
+        if size > self.maxsize:
+            raise ValueError(
+                u'%r must be at most %d bytes long!' % (value, self.maxsize))
         if u'\0' in value:
             raise ValueError(
                 u'Strings are not allowed to embed a \\0! Use a Blob instead!')
@@ -358,13 +448,12 @@ class StringType(DataType):
         value = unicode(text)
         return self.validate(value)
 
+
 # Bool is a special enum
-
-
 class BoolType(DataType):
 
     def __init__(self):
-        self.as_json = [u'bool', dict()]
+        self.as_json = [u'bool', {}]
 
     def __repr__(self):
         return u'BoolType()'
@@ -400,13 +489,13 @@ class ArrayOf(DataType):
     subtype = None
 
     def __init__(self, members, minsize=0, maxsize=None):
+        if not isinstance(members, DataType):
+            raise ValueError(
+                u'ArrayOf only works with a DataType as first argument!')
         # one argument -> exactly that size
         # argument default to 10
         if maxsize is None:
             maxsize = minsize or 10
-        if not isinstance(members, DataType):
-            raise ValueError(
-                u'ArrayOf only works with a DataType as first argument!')
         self.subtype = members
 
         self.minsize = int(minsize)
@@ -636,9 +725,9 @@ class Status(TupleOf):
 # argumentnames to lambda from spec!
 DATATYPES = dict(
     bool    =BoolType,
-    int     =lambda min, max: IntRange(minval=min,maxval=max),
-    scaled  =lambda scale, min, max: ScaledInteger(scale=scale,minval=min*scale,maxval=max*scale),
-    double  =lambda min=None, max=None: FloatRange(minval=min, maxval=max),
+    int     =lambda min, max, **kwds: IntRange(minval=min, maxval=max, **kwds),
+    scaled  =lambda scale, min, max, **kwds: ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **kwds),
+    double  =lambda min=None, max=None, **kwds: FloatRange(minval=min, maxval=max, **kwds),
     blob    =lambda min=0, max=None: BLOBType(minsize=min, maxsize=max),
     string  =lambda min=0, max=None: StringType(minsize=min, maxsize=max),
     array   =lambda min, max, members: ArrayOf(get_datatype(members), minsize=min, maxsize=max),
