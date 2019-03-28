@@ -70,6 +70,9 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
         # notify dispatcher of us
         serverobj.dispatcher.add_connection(self)
 
+        # copy relevant settings from Interface
+        detailed_errors = serverobj.detailed_errors
+
         mysocket.settimeout(.3)
         #        mysocket.setblocking(False)
         # start serving
@@ -139,6 +142,9 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
 
                 if not result:
                     self.log.error('empty result upon msg %s' % repr(msg))
+                if result[0].startswith(ERRORPREFIX) and not detailed_errors:
+                    # strip extra information
+                    result[2][2].clear()
                 self.queue_async_reply(result)
 
     def queue_async_reply(self, data):
@@ -167,11 +173,12 @@ class TCPServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
     def __init__(self, name, logger, options, srv):
-        self.dispatcher =srv.dispatcher
+        self.dispatcher = srv.dispatcher
         self.name = name
         self.log = logger
         bindto = options.pop('bindto', 'localhost')
         portnum = int(options.pop('bindport', DEF_PORT))
+        self.detailed_errors = options.pop('detailed_errors', False)
         if ':' in bindto:
             bindto, _port = bindto.rsplit(':')
             portnum = int(_port)
