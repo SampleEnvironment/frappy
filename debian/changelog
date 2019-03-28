@@ -1,3 +1,39 @@
+secop-core (0.7.0) unstable; urgency=low
+
+  [ Markus Zolliker ]
+  * treat return value of write_<par> correctly
+  * Override does not change the order of inherited accessibles.
+
+  [ Björn Pedersen ]
+  * Switch to warnings-ng plugin
+  * Use system site packages to get pytango
+  * Ensure pylint results file exists and has version
+  * Fix typo
+
+  [ Enrico Faulhaber ]
+  * add default role to doc conf.py
+  * include isort target in Makefile
+  * isort result
+  * secop_demo/modules: use distinct state codes for the phases
+  * datatypes: adapt Syntax to latest decisions
+  * Implement ScaledInteger type
+  * datatypes: implement hints (unit, fmtstr, *_precision)
+  * datatypes: implement format_value() method
+  * fixup: rename *subtype* in client code as well
+  * params: move unit into datatypes, support for constant property
+  * datatypes: Change default fmtstr to %g
+  * Dispatcher: fix activate <module>
+  * all: rename parameters to accessibles in module classes
+  * secop_mlz: remove dangerous try except ImportError + fix typo
+  * demo: fix test/Temp `target` declaration
+  * rework message syntax to conform to latest decisions
+  * interface/tcp: default to no extra error-info
+  * interface/tcp: rework exception handling
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 28 Mar 2019 13:46:08 +0100
+
 secop-core (0.6.4) unstable; urgency=low
 
   [ Enrico Faulhaber ]
