@@ -124,13 +124,8 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 result = None
                 try:
                     msg = decode_msg(origin)
-                    result = serverobj.dispatcher.handle_request(self, msg)
-                except SECoPError as err:
-                    result = (ERRORPREFIX + msg[0], msg[1], [err.name, str(err),
-                                                             {'exception': formatException(),
-                                                              'traceback': formatExtendedStack()}])
                 except Exception as err:
-                    # create Error Obj instead
+                    msg = origin.split(' ',3)
                     result = (ERRORPREFIX + msg[0], msg[1], ['InternalError', str(err),
                                                              {'exception': formatException(),
                                                               'traceback': formatExtendedStack()}])
@@ -139,6 +134,27 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                     print('--------------------')
                     print(formatExtendedTraceback(sys.exc_info()))
                     print('====================')
+                else:
+                    try:
+                        result = serverobj.dispatcher.handle_request(self, msg)
+                    except SECoPError as err:
+                        result = (ERRORPREFIX + msg[0], msg[1], [err.name, str(err),
+                                                                 {'exception': formatException(),
+                                                                  'traceback': formatExtendedStack()}])
+                    except ValueError as err:
+                        result = (ERRORPREFIX + msg[0], msg[1], [u"BadValue", str(err),
+                                                                 {'exception': formatException(),
+                                                                  'traceback': formatExtendedStack()}])
+                    except Exception as err:
+                        # create Error Obj instead
+                        result = (ERRORPREFIX + msg[0], msg[1], ['InternalError', str(err),
+                                                                 {'exception': formatException(),
+                                                                  'traceback': formatExtendedStack()}])
+                        print('--------------------')
+                        print(formatException())
+                        print('--------------------')
+                        print(formatExtendedTraceback(sys.exc_info()))
+                        print('====================')
 
                 if not result:
                     self.log.error('empty result upon msg %s' % repr(msg))
