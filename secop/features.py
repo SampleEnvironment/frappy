@@ -42,7 +42,7 @@ class HAS_PID(Feature):
     # note: (i would still but them in the same group, though)
     # note: if extra elements are implemented in the pid struct they MUST BE
     #       properly described in the description of the pid Parameter
-    accessibles = {
+    parameters = {
         'use_pid' : Parameter('use the pid mode', datatype=EnumType(openloop=0, pid_control=1), ),
         'p' :       Parameter('proportional part of the regulation', datatype=FloatRange(0), ),
         'i' :       Parameter('(optional) integral part', datatype=FloatRange(0), optional=True),
@@ -60,7 +60,7 @@ class HAS_PID(Feature):
 
 
 class Has_PIDTable(HAS_PID):
-    accessibles = {
+    parameters = {
         'use_pidtable' : Parameter('use the zoning mode', datatype=EnumType(fixed_pid=0, zone_mode=1)),
         'pidtable' : Parameter('Table of pid-values vs. target temperature', datatype=ArrayOf(TupleOf(FloatRange(0),
                                StructOf(p=FloatRange(0),
@@ -78,7 +78,7 @@ class HAS_Persistent(Feature):
     #    'coupled' : Status.BUSY+2,  # to be discussed.
     #    'decoupling' : Status.BUSY+3,  # to be discussed.
     #}
-    accessibles = {
+    parameters = {
         'persistent_mode': Parameter('Use persistent mode',
                                      datatype=EnumType(off=0,on=1),
                                      default=0, readonly=False),
@@ -95,7 +95,7 @@ class HAS_Tolerance(Feature):
     # detects IDLE status by checking if the value lies in a given window:
     # tolerance is the maximum allowed deviation from target, value must lie in this interval
     # for at least ´timewindow´ seconds.
-    accessibles = {
+    parameters = {
         'tolerance':  Parameter('Half height of the Window',
                                  datatype=FloatRange(0), default=1, unit='$'),
         'timewindow': Parameter('Length of the timewindow to check',
@@ -105,7 +105,7 @@ class HAS_Tolerance(Feature):
 
 
 class HAS_Timeout(Feature):
-    accessibles = {
+    parameters = {
         'timeout': Parameter('timeout for movement',
                              datatype=FloatRange(0), default=0, unit='s'),
     }
@@ -113,7 +113,7 @@ class HAS_Timeout(Feature):
 
 class HAS_Pause(Feature):
     # just a proposal, can't agree on it....
-    accessibles = {
+    parameters = {
         'pause': Command('pauses movement', argument=None, result=None),
         'go':    Command('continues movement or start a new one if target was change since the last pause',
                          argument=None, result=None),
@@ -121,7 +121,7 @@ class HAS_Pause(Feature):
 
 
 class HAS_Ramp(Feature):
-    accessibles = {
+    parameters = {
         'ramp':     Parameter('speed of movement', unit='$/min',
                               datatype=FloatRange(0)),
         'use_ramp': Parameter('use the ramping of the setpoint, or jump',
@@ -134,14 +134,14 @@ class HAS_Ramp(Feature):
 
 
 class HAS_Speed(Feature):
-    accessibles = {
+    parameters = {
         'speed' : Parameter('(maximum) speed of movement (of the main value)',
                             unit='$/s', datatype=FloatRange(0)),
     }
 
 
 class HAS_Accel(HAS_Speed):
-    accessibles = {
+    parameters = {
         'accel' : Parameter('acceleration of movement', unit='$/s^2',
                             datatype=FloatRange(0)),
         'decel' : Parameter('deceleration of movement', unit='$/s^2',
@@ -150,7 +150,7 @@ class HAS_Accel(HAS_Speed):
 
 
 class HAS_MotorCurrents(Feature):
-    accessibles = {
+    parameters = {
         'movecurrent' : Parameter('Current while moving',
                                   datatype=FloatRange(0)),
         'idlecurrent' : Parameter('Current while idle',
@@ -160,7 +160,7 @@ class HAS_MotorCurrents(Feature):
 
 class HAS_Curve(Feature):
     # proposed, not yet agreed upon!
-    accessibles = {
+    parameters = {
         'curve' : Parameter('Calibration curve', datatype=StringType(80), default='<unset>'),
        # XXX: tbd. (how to upload/download/select a curve?)
     }

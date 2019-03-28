@@ -65,14 +65,12 @@ def test_ModuleMeta():
             'pollinterval': Override(reorder=True),
             'param1' : Parameter('param1', datatype=BoolType(), default=False),
             'param2': Parameter('param2', datatype=BoolType(), default=True),
+            "cmd": Command('stuff', BoolType(), BoolType())
         },
         "commands": {
-            "cmd": Command('stuff',BoolType(), BoolType())
-        },
-        "accessibles": {
             'a1': Parameter('a1', datatype=BoolType(), default=False),
             'a2': Parameter('a2', datatype=BoolType(), default=True),
-            'value':Override(datatype=BoolType(), default = True),
+            'value': Override(datatype=BoolType(), default=True),
             'cmd2': Command('another stuff', BoolType(), BoolType()),
         },
         "do_cmd": lambda self, arg: not arg,
@@ -89,7 +87,7 @@ def test_ModuleMeta():
                  'param1', 'param2', 'cmd', 'a1', 'a2', 'cmd2']
 
     newclass2 = ModuleMeta.__new__(ModuleMeta, 'UpperClass', (newclass1,), {
-        "accessibles": {
+        "parameters": {
             'cmd2': Override('another stuff'),
             'a1': Override(datatype=FloatRange(), reorder=True),
             'b2': Parameter('a2', datatype=BoolType(), default=True),

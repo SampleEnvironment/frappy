@@ -88,7 +88,7 @@ class ModuleMeta(type):
         for base in reversed(bases):
             if hasattr(base, "accessibles"):
                 accessibles_list.append(base.accessibles)
-        for accessibles in [attrs.get('accessibles', {}), parameters, commands, overrides]:
+        for accessibles in [parameters, commands, overrides]:
             accessibles_list.append(accessibles)
         accessibles = {} # unordered dict of accessibles, will be sorted later
         for accessibles_dict in accessibles_list:
@@ -121,10 +121,9 @@ class ModuleMeta(type):
             if isinstance(v.datatype, EnumType) and not v.datatype._enum.name:
                 v.datatype._enum.name = k
 
-        # newtype.accessibles will be used in 3 places only:
+        # newtype.accessibles will be used in 2 places only:
         # 1) for inheritance (see above)
         # 2) for the describing message
-        # 3) by code needing to access the Parameter/Command object (i.e. checking datatypes)
         newtype.accessibles = OrderedDict(sorted(accessibles.items(), key=lambda item: item[1].ctr))
 
         # check validity of Parameter entries

@@ -48,7 +48,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     the symmetry setting selects which.
     """
 
-    accessibles = {
+    parameters = {
         'subdev_currentsource': Parameter('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False),
         'subdev_enable': Parameter('Switch to set for on/off', datatype=StringType(), readonly=True, export=False),
         'subdev_polswitch': Parameter('Switch to set for polarity', datatype=StringType(), readonly=True, export=False),

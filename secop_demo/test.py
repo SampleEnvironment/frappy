@@ -54,7 +54,7 @@ class Heater(Drivable):
     class name indicates it to be some heating element,
     but the implementation may do anything
     """
-    accessibles = {
+    parameters = {
         'maxheaterpower': Parameter('maximum allowed heater power',
                                 datatype=FloatRange(0, 100), unit='W',
                                 ),
@@ -73,7 +73,7 @@ class Temp(Drivable):
     class name indicates it to be some temperature controller,
     but the implementation may do anything
     """
-    accessibles = {
+    parameters = {
         'sensor': Parameter(
             "Sensor number or calibration id",
             datatype=StringType(

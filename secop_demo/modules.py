@@ -35,7 +35,7 @@ from secop.modules import Drivable, Override, Parameter, Readable
 class Switch(Drivable):
     """switch it on or off....
     """
-    accessibles = {
+    parameters = {
         'value': Override('current state (on or off)',
                        datatype=EnumType(on=1, off=0), default=0,
                        ),
@@ -97,7 +97,7 @@ class Switch(Drivable):
 class MagneticField(Drivable):
     """a liquid magnet
     """
-    accessibles = {
+    parameters = {
         'value': Override('current field in T',
                        unit='T', datatype=FloatRange(-15, 15), default=0,
                        ),
@@ -197,7 +197,7 @@ class MagneticField(Drivable):
 class CoilTemp(Readable):
     """a coil temperature
     """
-    accessibles = {
+    parameters = {
         'value': Override('Coil temperatur',
                        unit='K', datatype=FloatRange(), default=0,
                        ),
@@ -213,7 +213,7 @@ class CoilTemp(Readable):
 class SampleTemp(Drivable):
     """a sample temperature
     """
-    accessibles = {
+    parameters = {
         'value': Override('Sample temperature',
                        unit='K', datatype=FloatRange(), default=10,
                        ),
@@ -260,7 +260,7 @@ class Label(Readable):
        of several subdevices. used for demoing connections between
        modules.
     """
-    accessibles = {
+    parameters = {
         'system': Parameter("Name of the magnet system",
                         datatype=StringType, export=False,
                         ),
@@ -305,7 +305,7 @@ class Label(Readable):
 class DatatypesTest(Readable):
     """for demoing all datatypes
     """
-    accessibles = {
+    parameters = {
         'enum':       Parameter('enum', datatype=EnumType(boo=None, faar=None, z=9),
                             readonly=False, default=1),
         'tupleof':    Parameter('tuple of int, float and str',
@@ -327,7 +327,7 @@ class DatatypesTest(Readable):
 
 
 class ArrayTest(Readable):
-    accessibles = {
+    parameters = {
         "x": Parameter('value', datatype=ArrayOf(FloatRange(), 0, 100000),
                         default = 100000 * [0]),
     }

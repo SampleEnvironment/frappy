@@ -159,7 +159,7 @@ class PyTangoDevice(Module):
     execution and attribute operations with logging and exception mapping.
     """
 
-    accessibles = {
+    parameters = {
         'comtries': Parameter('Maximum retries for communication',
                           datatype=IntRange(1, 100), default=3, readonly=False,
                           group='communication'),
@@ -426,7 +426,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
     controllers, ...
     """
 
-    accessibles = {
+    parameters = {
         'userlimits': Parameter('User defined limits of device value',
                             datatype=TupleOf(FloatRange(), FloatRange()),
                             default=(float('-Inf'), float('+Inf')),
@@ -604,7 +604,7 @@ class Actuator(AnalogOutput):
     """
     # for secop: support the speed and ramp parameters
 
-    accessibles = {
+    parameters = {
         'speed': Parameter('The speed of changing the value',
                        unit='main/s', readonly=False, datatype=FloatRange(0),
                        ),
@@ -644,7 +644,7 @@ class Motor(Actuator):
     It has the ability to move a real object from one place to another place.
     """
 
-    accessibles = {
+    parameters = {
         'refpos': Parameter('Reference position',
                         datatype=FloatRange(), unit='main',
                         ),
@@ -684,7 +684,7 @@ class TemperatureController(Actuator):
     """A temperature control loop device.
     """
 
-    accessibles = {
+    parameters = {
         'p': Parameter('Proportional control Parameter', datatype=FloatRange(),
                    readonly=False, group='pid',
                    ),
@@ -759,7 +759,7 @@ class PowerSupply(Actuator):
     """A power supply (voltage and current) device.
     """
 
-    accessibles = {
+    parameters = {
         'ramp': Parameter('Current/voltage ramp', unit='main/min',
                       datatype=FloatRange(), readonly=False, poll=30,),
         'voltage': Parameter('Actual voltage', unit='V',
@@ -797,7 +797,7 @@ class NamedDigitalInput(DigitalInput):
     """A DigitalInput with numeric values mapped to names.
     """
 
-    accessibles = {
+    parameters = {
         'mapping': Parameter('A dictionary mapping state names to integers',
                          datatype=StringType(), export=False),  # XXX:!!!
     }
@@ -820,7 +820,7 @@ class PartialDigitalInput(NamedDigitalInput):
     bit width accessed.
     """
 
-    accessibles = {
+    parameters = {
         'startbit': Parameter('Number of the first bit',
                           datatype=IntRange(0), default=0),
         'bitwidth': Parameter('Number of bits',
@@ -864,7 +864,7 @@ class NamedDigitalOutput(DigitalOutput):
     """A DigitalOutput with numeric values mapped to names.
     """
 
-    accessibles = {
+    parameters = {
         'mapping': Parameter('A dictionary mapping state names to integers',
                          datatype=StringType(), export=False),
     }
@@ -890,7 +890,7 @@ class PartialDigitalOutput(NamedDigitalOutput):
     bit width accessed.
     """
 
-    accessibles = {
+    parameters = {
         'startbit': Parameter('Number of the first bit',
                           datatype=IntRange(0), default=0),
         'bitwidth': Parameter('Number of bits',
@@ -921,7 +921,7 @@ class StringIO(PyTangoDevice, Module):
     receives strings.
     """
 
-    accessibles = {
+    parameters = {
         'bustimeout': Parameter('Communication timeout',
                             datatype=FloatRange(), readonly=False,
                             unit='s', group='communication'),
