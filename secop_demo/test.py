@@ -25,7 +25,7 @@ from __future__ import division, print_function
 import random
 
 from secop.datatypes import FloatRange, StringType
-from secop.modules import Communicator, Drivable, Parameter, Readable
+from secop.modules import Communicator, Drivable, Parameter, Readable, Override
 
 try:
     # py2
@@ -81,7 +81,7 @@ class Temp(Drivable):
                 16),
             readonly=True,
         ),
-        'target': Parameter(
+        'target': Override(
             "Target temperature",
             default=300.0,
             datatype=FloatRange(0),
