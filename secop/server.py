@@ -40,12 +40,6 @@ except ImportError:
     import ConfigParser as configparser  # py2
 
 try:
-    from queue import Queue # py 3
-except ImportError:
-    from Queue import Queue # py 2
-
-
-try:
     import daemon.pidlockfile as pidlockfile
 except ImportError:
     import daemon.pidfile as pidlockfile
@@ -198,18 +192,14 @@ class Server(object):
         for modname, modobj in self.modules.items():
             modobj.init_module()
 
-        starting_modules = set()
-        finished_modules = Queue()
+        start_events = []
         for modname, modobj in self.modules.items():
-            starting_modules.add(modobj)
-            modobj.start_module(started_callback=finished_modules.put)
-        # remark: it is the module implementors responsibility to call started_callback
-        # within reasonable time (using timeouts). If we find later, that this is not
-        # enough, we might insert checking for a timeout here, and somehow set the remaining
-        # starting_modules to an error state.
-        while starting_modules:
-            finished = finished_modules.get()
-            self.log.info(u'%s has started' % finished.name)
-            # use discard instead of remove here, catching the case when started_callback is called twice
-            starting_modules.discard(finished)
-            finished_modules.task_done()
+            event = threading.Event()
+            # start_module must return either a timeout value or None (default 30 sec)
+            timeout = modobj.start_module(started_callback=event.set) or 30
+            start_events.append((time.time() + timeout, modname, event))
+        self.log.info(u'waiting for modules being started')
+        for deadline, modname, event in sorted(start_events):
+            if not event.wait(timeout=max(0, deadline - time.time())):
+                self.log.info('WARNING: timeout when starting module %s' % modname)
+        self.log.info(u'all modules started')

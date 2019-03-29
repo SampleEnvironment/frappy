@@ -223,11 +223,12 @@ class Module(object):
         '''runs after init of all modules
 
         started_callback to be called when thread spawned by late_init
-        or, if not implmemented, immediately
+        or, if not implemented, immediately
+        might return a timeout value, if different from default
         '''
 
         self.log.debug('empty %s.start_module()' % self.__class__.__name__)
-        started_callback(self)
+        started_callback()
 
 
 class Readable(Module):
@@ -273,7 +274,7 @@ class Readable(Module):
             except Exception as e:
                 self.log.exception(e)
                 self.status = (self.Status.ERROR, 'polling thread could not start')
-                started_callback(self)
+                started_callback()
                 print(formatException(0, sys.exc_info(), verbose=True))
                 time.sleep(10)
 
@@ -281,7 +282,7 @@ class Readable(Module):
         """super simple and super stupid per-module polling thread"""
         i = 0
         fastpoll = self.poll(i)
-        started_callback(self)
+        started_callback()
         while True:
             i += 1
             try:

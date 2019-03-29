@@ -25,16 +25,11 @@ from __future__ import division, print_function
 # no fixtures needed
 #import pytest
 
+import threading
 from secop.datatypes import BoolType, EnumType, FloatRange
 from secop.metaclass import ModuleMeta
 from secop.modules import Communicator, Drivable, Module
 from secop.params import Command, Override, Parameter
-
-try:
-    import Queue as queue
-except ImportError:
-    import queue as queue
-
 
 
 
@@ -55,9 +50,9 @@ def test_Communicator():
     o = Communicator('communicator',logger, {}, srv)
     o.early_init()
     o.init_module()
-    q = queue.Queue()
-    o.start_module(q.put)
-    q.get()
+    event = threading.Event()
+    o.start_module(event.set)
+    assert event.is_set() # event should be set immediately
 
 def test_ModuleMeta():
     newclass1 = ModuleMeta.__new__(ModuleMeta, 'TestDrivable', (Drivable,), {
@@ -68,6 +63,8 @@ def test_ModuleMeta():
             "cmd": Command('stuff', BoolType(), BoolType())
         },
         "commands": {
+            # intermixing parameters with commands is not recommended,
+            # but acceptable for influencing the order
             'a1': Parameter('a1', datatype=BoolType(), default=False),
             'a2': Parameter('a2', datatype=BoolType(), default=True),
             'value': Override(datatype=BoolType(), default=True),
@@ -99,6 +96,7 @@ def test_ModuleMeta():
     logger = type('LoggerStub', (object,), dict(
         debug = lambda self, *a: print(*a),
         info = lambda self, *a: print(*a),
+        exception = lambda self, *a: print(*a),
     ))()
 
     dispatcher = type('DispatcherStub', (object,), dict(
@@ -144,6 +142,17 @@ def test_ModuleMeta():
         o.early_init()
     for o in objects:
         o.init_module()
-    q = queue.Queue()
+
     for o in objects:
-        o.start_module(q.put)
+        event = threading.Event()
+        event2 = threading.Event()
+        def started_callback(event=event, event2=event2):
+            if event.is_set():
+                event2.set()
+            else:
+                event.set()
+            raise Exception("end test") # this will kill the polling thread on the second call
+
+        o.start_module(started_callback)
+        assert event2.wait(timeout=1)
+        assert event.is_set()
