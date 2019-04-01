@@ -216,14 +216,14 @@ class Module(object):
         # defined even for non drivable (used for dynamic polling)
         return False
 
-    def early_init(self):
+    def earlyInit(self):
         # may be overriden in derived classes to init stuff
-        self.log.debug('empty %s.early_init()' % self.__class__.__name__)
+        self.log.debug('empty %s.earlyInit()' % self.__class__.__name__)
 
-    def init_module(self):
-        self.log.debug('empty %s.init_module()' % self.__class__.__name__)
+    def initModule(self):
+        self.log.debug('empty %s.initModule()' % self.__class__.__name__)
 
-    def start_module(self, started_callback):
+    def startModule(self, started_callback):
         '''runs after init of all modules
 
         started_callback to be called when thread spawned by late_init
@@ -231,7 +231,7 @@ class Module(object):
         might return a timeout value, if different from default
         '''
 
-        self.log.debug('empty %s.start_module()' % self.__class__.__name__)
+        self.log.debug('empty %s.startModule()' % self.__class__.__name__)
         started_callback()
 
 
@@ -267,7 +267,7 @@ class Readable(Module):
                                  ),
     }
 
-    def start_module(self, started_callback):
+    def startModule(self, started_callback):
         '''start polling thread'''
         mkthread(self.__pollThread, started_callback)
 
@@ -285,7 +285,7 @@ class Readable(Module):
     def __pollThread_inner(self, started_callback):
         """super simple and super stupid per-module polling thread"""
         i = 0
-        fastpoll = self.poll(i)
+        fastpoll = self.pollParams(i)
         started_callback()
         while True:
             i += 1
@@ -294,21 +294,19 @@ class Readable(Module):
             except TypeError:
                 time.sleep(min(self.pollinterval)
                            if fastpoll else max(self.pollinterval))
-            fastpoll = self.poll(i)
+            fastpoll = self.pollParams(i)
 
-    def poll(self, nr=0):
+    def pollParams(self, nr=0):
         # Just poll all parameters regularly where polling is enabled
-        for pname, pobj in self.accessibles.items():
-            if not isinstance(pobj, Parameter):
-                continue
+        for pname, pobj in self.parameters.items():
             if not pobj.poll:
                 continue
             if nr % abs(int(pobj.poll)) == 0:
-                # poll every 'pobj.poll' iteration
+                # pollParams every 'pobj.pollParams' iteration
                 rfunc = getattr(self, 'read_' + pname, None)
                 if rfunc:
                     try:
-                        rfunc()
+                        rfunc()  # pylint: disable = not-callable
                     except Exception:  # really all!
                         pass
 
@@ -351,13 +349,11 @@ class Drivable(Writable):
         return 300 <= self.status[0] < 400
 
     # improved polling: may poll faster if module is BUSY
-    def poll(self, nr=0):
+    def pollParams(self, nr=0):
         # poll status first
-        stat = self.read_status(0)
-        fastpoll = stat[0] == self.Status.BUSY
-        for pname, pobj in self.accessibles.items():
-            if not isinstance(pobj, Parameter):
-                continue
+        self.read_status(0)
+        fastpoll = self.isBusy()
+        for pname, pobj in self.parameters.items():
             if not pobj.poll:
                 continue
             if pname == 'status':
@@ -370,7 +366,7 @@ class Drivable(Writable):
                 rfunc = getattr(self, 'read_' + pname, None)
                 if rfunc:
                     try:
-                        rfunc()
+                        rfunc()  # pylint: disable = not-callable
                     except Exception:  # really all!
                         pass
         return fastpoll

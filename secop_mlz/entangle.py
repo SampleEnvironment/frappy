@@ -211,12 +211,12 @@ class PyTangoDevice(Module):
                         self._com_warn(tries, name, err, info)
                     sleep(self.comdelay)
 
-    def early_init(self):
+    def earlyInit(self):
         # Wrap PyTango client creation (so even for the ctor, logging and
         # exception mapping is enabled).
         self._createPyTangoDevice = self._applyGuardToFunc(
             self._createPyTangoDevice, 'constructor')
-        super(PyTangoDevice, self).early_init()
+        super(PyTangoDevice, self).earlyInit()
 
     @lazy_property
     def _dev(self):
@@ -380,8 +380,8 @@ class AnalogInput(PyTangoDevice, Readable):
     The AnalogInput handles all devices only delivering an analogue value.
     """
 
-    def start_module(self, started_callback):
-        super(AnalogInput, self).start_module(started_callback)
+    def startModule(self, started_callback):
+        super(AnalogInput, self).startModule(started_callback)
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -457,14 +457,14 @@ class AnalogOutput(PyTangoDevice, Drivable):
     _timeout = None
     _moving = False
 
-    def init_module(self):
-        super(AnalogOutput, self).init_module()
+    def initModule(self):
+        super(AnalogOutput, self).initModule()
         # init history
         self._history = []  # will keep (timestamp, value) tuple
         self._timeout = None  # keeps the time at which we will timeout, or None
 
-    def start_module(self, started_callback):
-        super(AnalogOutput, self).start_module(started_callback)
+    def startModule(self, started_callback):
+        super(AnalogOutput, self).startModule(started_callback)
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -472,8 +472,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
         if attrInfo.unit != 'No unit':
             self.accessibles['value'].unit = attrInfo.unit
 
-    def poll(self, nr=0):
-        super(AnalogOutput, self).poll(nr)
+    def pollParams(self, nr=0):
+        super(AnalogOutput, self).pollParams(nr)
         while len(self._history) > 2:
             # if history would be too short, break
             if self._history[-1][0] - self._history[1][0] <= self.window:
@@ -802,8 +802,8 @@ class NamedDigitalInput(DigitalInput):
                          datatype=StringType(), export=False),  # XXX:!!!
     }
 
-    def init_module(self):
-        super(NamedDigitalInput, self).init_module()
+    def initModule(self):
+        super(NamedDigitalInput, self).initModule()
         try:
             # pylint: disable=eval-used
             self.accessibles['value'].datatype = EnumType('value', **eval(self.mapping))
@@ -827,8 +827,8 @@ class PartialDigitalInput(NamedDigitalInput):
                           datatype=IntRange(0), default=1),
     }
 
-    def init_module(self):
-        super(PartialDigitalInput, self).init_module()
+    def initModule(self):
+        super(PartialDigitalInput, self).initModule()
         self._mask = (1 << self.bitwidth) - 1
         # self.accessibles['value'].datatype = IntRange(0, self._mask)
 
@@ -869,8 +869,8 @@ class NamedDigitalOutput(DigitalOutput):
                          datatype=StringType(), export=False),
     }
 
-    def init_module(self):
-        super(NamedDigitalOutput, self).init_module()
+    def initModule(self):
+        super(NamedDigitalOutput, self).initModule()
         try:
             # pylint: disable=eval-used
             self.accessibles['value'].datatype = EnumType('value', **eval(self.mapping))
@@ -897,8 +897,8 @@ class PartialDigitalOutput(NamedDigitalOutput):
                           datatype=IntRange(0), default=1),
     }
 
-    def init_module(self):
-        super(PartialDigitalOutput, self).init_module()
+    def initModule(self):
+        super(PartialDigitalOutput, self).initModule()
         self._mask = (1 << self.bitwidth) - 1
         # self.accessibles['value'].datatype = IntRange(0, self._mask)
         # self.accessibles['target'].datatype = IntRange(0, self._mask)

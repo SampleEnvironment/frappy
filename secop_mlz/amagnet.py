@@ -134,8 +134,8 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         raise ConfigError(self,
                                  '_current2field polynome not monotonic!')
 
-    def init_module(self):
-        super(GarfieldMagnet, self).init_module()
+    def initModule(self):
+        super(GarfieldMagnet, self).initModule()
         self._enable = self.DISPATCHER.get_module(self.subdev_enable)
         self._symmetry = self.DISPATCHER.get_module(self.subdev_symmetry)
         self._polswitch = self.DISPATCHER.get_module(self.subdev_polswitch)

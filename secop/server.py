@@ -185,18 +185,18 @@ class Server(object):
         for modname, modobj in self.modules.items():
             self.log.info(u'registering module %r' % modname)
             self.dispatcher.register_module(modobj, modname, modobj.properties['export'])
-            # also call early_init on the modules
-            modobj.early_init()
+            # also call earlyInit on the modules
+            modobj.earlyInit()
 
         # call init on each module after registering all
         for modname, modobj in self.modules.items():
-            modobj.init_module()
+            modobj.initModule()
 
         start_events = []
         for modname, modobj in self.modules.items():
             event = threading.Event()
-            # start_module must return either a timeout value or None (default 30 sec)
-            timeout = modobj.start_module(started_callback=event.set) or 30
+            # startModule must return either a timeout value or None (default 30 sec)
+            timeout = modobj.startModule(started_callback=event.set) or 30
             start_events.append((time.time() + timeout, modname, event))
         self.log.info(u'waiting for modules being started')
         for deadline, modname, event in sorted(start_events):

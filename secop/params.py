@@ -83,7 +83,7 @@ class Parameter(Accessible):
 
     poll can be:
     - False  (never poll this parameter)
-    - True   (poll this ever pollinterval)
+    - True   (poll this every pollinterval)
     - positive int  (poll every N(th) pollinterval)
     - negative int  (normally poll every N(th) pollinterval, if module is busy, poll every pollinterval)
 

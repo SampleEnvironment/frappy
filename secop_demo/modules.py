@@ -122,7 +122,7 @@ class MagneticField(Drivable):
         'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
     }
 
-    def init_module(self):
+    def initModule(self):
         self._state = Enum('state', idle=1, switch_on=2, switch_off=3, ramp=4).idle
         self._heatswitch = self.DISPATCHER.get_module(self.heatswitch)
         _thread = threading.Thread(target=self._thread)
@@ -226,7 +226,7 @@ class SampleTemp(Drivable):
                       ),
     }
 
-    def init_module(self):
+    def initModule(self):
         _thread = threading.Thread(target=self._thread)
         _thread.daemon = True
         _thread.start()

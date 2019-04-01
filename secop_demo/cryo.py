@@ -136,7 +136,7 @@ class Cryostat(CryoBase):
             special='content of special property'),
     )
 
-    def init_module(self):
+    def initModule(self):
         self._stopflag = False
         self._thread = mkthread(self.thread)
 

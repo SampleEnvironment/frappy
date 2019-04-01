@@ -16,7 +16,7 @@ Open questions
   -> needs Datatype for a function
 * datatype for funcion: is argin a list anyway, or just one (structured) argument?
   (so far we use a list and argout is a single datatype (which may be stuctured))
-* polling: vendor specific or do we propose a common way to handle it? 
+* polling: vendor specific or do we propose a common way to handle it?
   (playground uses a per-device pollinterval. params may be polled less often)
 * interface classes !!! (maybe with feature mixins like WindowTimeout?)
 * hardware access: unify? how?
@@ -92,7 +92,7 @@ Documentation
  * transfer build docu into wiki via automated jobfile
 
 
- 
+
 
 Transfer of blobs via json
 --------------------------

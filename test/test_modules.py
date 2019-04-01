@@ -48,10 +48,10 @@ def test_Communicator():
     ))()
 
     o = Communicator('communicator',logger, {}, srv)
-    o.early_init()
-    o.init_module()
+    o.earlyInit()
+    o.initModule()
     event = threading.Event()
-    o.start_module(event.set)
+    o.startModule(event.set)
     assert event.is_set() # event should be set immediately
 
 def test_ModuleMeta():
@@ -139,9 +139,9 @@ def test_ModuleMeta():
             assert o not in params_found
 
     for o in objects:
-        o.early_init()
+        o.earlyInit()
     for o in objects:
-        o.init_module()
+        o.initModule()
 
     for o in objects:
         event = threading.Event()
@@ -153,6 +153,6 @@ def test_ModuleMeta():
                 event.set()
             raise Exception("end test") # this will kill the polling thread on the second call
 
-        o.start_module(started_callback)
+        o.startModule(started_callback)
         assert event2.wait(timeout=1)
         assert event.is_set()
