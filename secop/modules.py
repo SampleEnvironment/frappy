@@ -211,6 +211,10 @@ class Module(object):
             if '$' in v.unit:
                 v.unit = v.unit.replace('$', self.accessibles['value'].unit)
 
+    def isBusy(self):
+        '''helper function for treating substates of BUSY correctly'''
+        # defined even for non drivable (used for dynamic polling)
+        return False
 
     def early_init(self):
         # may be overriden in derived classes to init stuff
@@ -341,6 +345,10 @@ class Drivable(Writable):
     overrides = {
         'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
     }
+
+    def isBusy(self):
+        '''helper function for treating substates of BUSY correctly'''
+        return 300 <= self.status[0] < 400
 
     # improved polling: may poll faster if module is BUSY
     def poll(self, nr=0):
