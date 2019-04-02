@@ -25,6 +25,7 @@ from __future__ import division, print_function
 
 import sys
 import time
+from collections import OrderedDict
 
 from secop.datatypes import EnumType, FloatRange, \
     StringType, TupleOf, get_datatype
@@ -124,7 +125,7 @@ class Module(object):
         # 1) make local copies of parameter objects
         #    they need to be individual per instance since we use them also
         #    to cache the current value + qualifiers...
-        accessibles = {}
+        accessibles = OrderedDict()
         # conversion from exported names to internal attribute names
         accessiblename2attr = {}
         for aname, aobj in self.accessibles.items():
@@ -146,6 +147,9 @@ class Module(object):
         # do not re-use self.accessibles as this is the same for all instances
         self.accessibles = accessibles
         self.accessiblename2attr = accessiblename2attr
+        # provide properties to 'filter' out the parameters/commands
+        self.parameters = dict((k,v) for k,v in accessibles.items() if isinstance(v, Parameter))
+        self.commands = dict((k,v) for k,v in accessibles.items() if isinstance(v, Command))
 
         # 2) check and apply parameter_properties
         #    specified as '<paramname>.<propertyname> = <propertyvalue>'
@@ -153,6 +157,7 @@ class Module(object):
             if '.' in k[1:]:
                 paramname, propname = k.split('.', 1)
                 paramobj = self.accessibles.get(paramname, None)
+                # paramobj might also be a command (not sure if this is needed)
                 if paramobj:
                     if propname == 'datatype':
                         paramobj.datatype = get_datatype(cfgdict.pop(k))
@@ -165,17 +170,15 @@ class Module(object):
         # 3) check config for problems:
         #    only accept remaining config items specified in parameters
         for k, v in cfgdict.items():
-            if k not in self.accessibles:
+            if k not in self.parameters:
                 raise ConfigError(
                     'Module %s:config Parameter %r '
-                    'not unterstood! (use one of %s)' %
-                    (self.name, k, ', '.join(n for n,o in self.accessibles if isinstance(o, Parameter))))
+                    'not understood! (use one of %s)' %
+                    (self.name, k, ', '.join(self.parameters.keys())))
 
         # 4) complain if a Parameter entry has no default value and
         #    is not specified in cfgdict
-        for k, v in self.accessibles.items():
-            if not isinstance(v, Parameter):
-                continue
+        for k, v in self.parameters.items():
             if k not in cfgdict:
                 if v.default is unset_value and k != 'value':
                     # unset_value is the one single value you can not specify....
@@ -189,10 +192,10 @@ class Module(object):
         #    pass values through the datatypes and store as attributes
         for k, v in cfgdict.items():
             # apply datatype, complain if type does not fit
-            datatype = self.accessibles[k].datatype
+            datatype = self.parameters[k].datatype
             try:
                 v = datatype.validate(v)
-                self.accessibles[k].default = v
+                self.parameters[k].default = v
             except (ValueError, TypeError):
                 self.log.exception(formatExtendedStack())
                 raise
@@ -205,11 +208,9 @@ class Module(object):
             cfgdict.pop(k)
 
         # Modify units AFTER applying the cfgdict
-        for k, v in self.accessibles.items():
-            if not isinstance(v, Parameter):
-                continue
+        for k, v in self.parameters.items():
             if '$' in v.unit:
-                v.unit = v.unit.replace('$', self.accessibles['value'].unit)
+                v.unit = v.unit.replace('$', self.parameters['value'].unit)
 
     def isBusy(self):
         '''helper function for treating substates of BUSY correctly'''
