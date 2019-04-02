@@ -95,13 +95,8 @@ def test_IntRange():
     dt = IntRange()
     assert dt.as_json[0] == u'int'
     assert dt.as_json[1][u'min'] < 0 < dt.as_json[1][u'max']
-
-    dt = IntRange(unit=u'X', fmtstr=u'%r')
-    assert dt.as_json == [u'int', {u'fmtstr': u'%r', u'max': 16777216,
-                                   u'min': -16777216, u'unit': u'X'}]
-    assert dt.format_value(42) == u'42 X'
-    assert dt.format_value(42, u'') == u'42'
-    assert dt.format_value(42, u'Z') == u'42 Z'
+    assert dt.as_json == [u'int', {u'max': 16777216, u'min': -16777216}]
+    assert dt.format_value(42) == u'42'
 
 
 def test_ScaledInteger():
@@ -277,11 +272,11 @@ def test_ArrayOf():
                                      u'members':[u'int', {u'min':-10,
                                                           u'max':10}]}]
 
-    dt = ArrayOf(IntRange(-10, 10, unit=u'Z'), 1, 3)
+    dt = ArrayOf(FloatRange(-10, 10, unit=u'Z'), 1, 3)
     assert dt.as_json == [u'array', {u'min':1, u'max':3,
-                                     u'members':[u'int', {u'min':-10,
-                                                          u'max':10,
-                                                          u'unit':u'Z'}]}]
+                                     u'members':[u'double', {u'min':-10,
+                                                             u'max':10,
+                                                             u'unit':u'Z'}]}]
     with pytest.raises(ValueError):
         dt.validate(9)
     with pytest.raises(ValueError):
@@ -302,10 +297,9 @@ def test_TupleOf():
     with pytest.raises(ValueError):
         TupleOf(2)
 
-    dt = TupleOf(IntRange(-10, 10, unit=u'X'), BoolType())
+    dt = TupleOf(IntRange(-10, 10), BoolType())
     assert dt.as_json == [u'tuple', {u'members':[[u'int', {u'min':-10,
-                                                           u'max':10,
-                                                           u'unit':u'X'}],
+                                                           u'max':10}],
                                                  [u'bool', {}]]}]
 
     with pytest.raises(ValueError):
@@ -318,7 +312,7 @@ def test_TupleOf():
     assert dt.export_value([1, True]) == [1, True]
     assert dt.import_value([1, True]) == [1, True]
 
-    assert dt.format_value([3,0]) == u"(3 X, False)"
+    assert dt.format_value([3,0]) == u"(3, False)"
 
 
 def test_StructOf():
@@ -328,13 +322,12 @@ def test_StructOf():
     with pytest.raises(ProgrammingError):
         StructOf(IntRange=1)
 
-    dt = StructOf(a_string=StringType(0, 55), an_int=IntRange(0, 999, unit=u'Y'),
+    dt = StructOf(a_string=StringType(0, 55), an_int=IntRange(0, 999),
                   optional=[u'an_int'])
     assert dt.as_json == [u'struct', {u'members':{u'a_string':
                                          [u'string', {u'min':0, u'max':55}],
                                       u'an_int':
-                                         [u'int', {u'min':0, u'max':999,
-                                                   u'unit':u'Y'}],},
+                                         [u'int', {u'min':0, u'max':999}],},
                                       u'optional':[u'an_int'],
                                      }]
 
@@ -352,7 +345,7 @@ def test_StructOf():
     assert dt.import_value({u'an_int': 13, u'a_string': u'WFEC'}) == {
         u'a_string': u'WFEC', u'an_int': 13}
 
-    assert dt.format_value({u'an_int':2, u'a_string':u'Z'}) == u"{a_string=u'Z', an_int=2 Y}"
+    assert dt.format_value({u'an_int':2, u'a_string':u'Z'}) == u"{a_string=u'Z', an_int=2}"
 
 
 def test_get_datatype():

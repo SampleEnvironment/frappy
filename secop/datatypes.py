@@ -97,48 +97,40 @@ class DataType(object):
         if unit is given, use it, else use the unit of the datatype (if any)"""
         raise NotImplementedError
 
+    def setprop(self, key, value, default, func=lambda x:x):
+        """set a datatype property and store the default"""
+        self._defaults[key] = default
+        if value is None:
+            value = default
+        setattr(self, key, func(value))
 
 class FloatRange(DataType):
     """Restricted float type"""
 
-    def __init__(self, minval=None, maxval=None, unit=u'', fmtstr=u'',
+    def __init__(self, minval=None, maxval=None, unit=None, fmtstr=None,
                        absolute_precision=None, relative_precision=None,):
-        # store hints
-        self.hints = {}
-        self.unit = unicode(unit)
-        self.fmtstr = unicode(fmtstr or u'%g')
-        self.abs_prec = float(absolute_precision or 0.0)
-        self.rel_prec = float(relative_precision or 1.2e-7)
-
-        # store values for the validator
-        self.min = float(u'-inf') if minval is None else float(minval)
-        self.max = float(u'+inf') if maxval is None else float(maxval)
+        self._defaults = {}
+        self.setprop('min', minval, float(u'-inf'), float)
+        self.setprop('max', maxval, float(u'+inf'), float)
+        self.setprop('unit', unit, u'', unicode)
+        self.setprop('fmtstr', fmtstr, u'%g', unicode)
+        self.setprop('absolute_precision', absolute_precision, 0.0, float)
+        self.setprop('relative_precision', relative_precision, 1.2e-7, float)
 
         # check values
         if self.min > self.max:
             raise ValueError(u'Max must be larger then min!')
         if '%' not in self.fmtstr:
             raise ValueError(u'Invalid fmtstr!')
-        if self.abs_prec < 0:
+        if self.absolute_precision < 0:
             raise ValueError(u'absolute_precision MUST be >=0')
-        if self.rel_prec < 0:
+        if self.relative_precision < 0:
             raise ValueError(u'relative_precision MUST be >=0')
 
-        info = {}
-        if self.min != float(u'-inf'):
-            info[u'min'] = self.min
-        if self.max != float(u'inf'):
-            info[u'max'] = self.max
-        if unit:
-            self.hints[u'unit'] = self.unit
-        if fmtstr:
-            self.hints[u'fmtstr'] = self.fmtstr
-        if absolute_precision is not None:
-            self.hints[u'absolute_precision'] = self.abs_prec
-        if relative_precision is not None:
-            self.hints[u'relative_precision'] = self.rel_prec
-        info.update(self.hints)
-        self.as_json = [u'double', info]
+    @property
+    def as_json(self):
+        return [u'double', {k: getattr(self, k) for k, v in self._defaults.items()
+                            if v != getattr(self, k)}]
 
     def validate(self, value):
         try:
@@ -159,11 +151,7 @@ class FloatRange(DataType):
                          (value, self.min, self.max))
 
     def __repr__(self):
-        items = [] if self.max or self.min is None else \
-                [u'-inf' if self.min == float(u'-inf') else self.fmtstr % self.min,
-                 u'inf' if self.max == float(u'inf') else self.fmtstr % self.max]
-        for k,v in self.hints.items():
-            items.append(u'%s=%r' % (k,v))
+        items = [u'%s=%r' % (k,v) for k,v in self.as_json[1].items()]
         return u'FloatRange(%s)' % (', '.join(items))
 
     def export_value(self, value):
@@ -189,29 +177,17 @@ class FloatRange(DataType):
 class IntRange(DataType):
     """Restricted int type"""
 
-    def __init__(self, minval=None, maxval=None, fmtstr=u'%d', unit=u''):
-        self.hints = {}
-        self.fmtstr = unicode(fmtstr)
-        self.unit = unicode(unit)
+    def __init__(self, minval=None, maxval=None):
         self.min = DEFAULT_MIN_INT if minval is None else int(minval)
         self.max = DEFAULT_MAX_INT if maxval is None else int(maxval)
 
         # check values
         if self.min > self.max:
             raise ValueError(u'Max must be larger then min!')
-        if '%' not in self.fmtstr:
-            raise ValueError(u'Invalid fmtstr!')
 
-        info = {}
-        self.hints = {}
-        info[u'min'] = self.min
-        info[u'max'] = self.max
-        if unit:
-            self.hints[u'unit'] = self.unit
-        if fmtstr != u'%d':
-            self.hints[u'fmtstr'] = self.fmtstr
-        info.update(self.hints)
-        self.as_json = [u'int', info]
+    @property
+    def as_json(self):
+        return [u'int', {"min": self.min, "max": self.max}]
 
     def validate(self, value):
         try:
@@ -227,10 +203,7 @@ class IntRange(DataType):
             raise ValueError(u'Can not validate %r to int' % value)
 
     def __repr__(self):
-        items = [u"%d, %d" % (self.min, self.max)]
-        for k, v in self.hints.items():
-            items.append(u'%s=%r' % (k, v))
-        return u'IntRange(%s)' % (u', '.join(items))
+        return u'IntRange(%d, %d)' % (self.min, self.max)
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -245,11 +218,7 @@ class IntRange(DataType):
         return self.validate(value)
 
     def format_value(self, value, unit=None):
-        if unit is None:
-            unit = self.unit
-        if unit:
-            return u' '.join([self.fmtstr % value, unit])
-        return self.fmtstr % value
+        return u'%d' % value
 
 
 class ScaledInteger(DataType):
@@ -258,18 +227,16 @@ class ScaledInteger(DataType):
     note: limits are for the scaled value (i.e. the internal value)
           the scale is only used for calculating to/from transport serialisation"""
 
-    def __init__(self, scale, minval=None, maxval=None, unit=u'', fmtstr=u'',
+    def __init__(self, scale, minval=None, maxval=None, unit=None, fmtstr=None,
                        absolute_precision=None, relative_precision=None,):
+        self._defaults = {}
         self.scale = float(scale)
         if not self.scale > 0:
             raise ValueError(u'Scale MUST be positive!')
-
-        # store hints
-        self.hints = {}
-        self.unit = unicode(unit)
-        self.fmtstr = unicode(fmtstr or u'%g')
-        self.abs_prec = float(absolute_precision or self.scale)
-        self.rel_prec = float(relative_precision or 0)
+        self.setprop('unit', unit, u'', unicode)
+        self.setprop('fmtstr', fmtstr, u'%g', unicode)
+        self.setprop('absolute_precision', absolute_precision, self.scale, float)
+        self.setprop('relative_precision', relative_precision, 1.2e-7, float)
 
         self.min = DEFAULT_MIN_INT * self.scale if minval is None else float(minval)
         self.max = DEFAULT_MAX_INT * self.scale if maxval is None else float(maxval)
@@ -279,26 +246,19 @@ class ScaledInteger(DataType):
             raise ValueError(u'Max must be larger then min!')
         if '%' not in self.fmtstr:
             raise ValueError(u'Invalid fmtstr!')
-        if self.abs_prec < 0:
+        if self.absolute_precision < 0:
             raise ValueError(u'absolute_precision MUST be >=0')
-        if self.rel_prec < 0:
+        if self.relative_precision < 0:
             raise ValueError(u'relative_precision MUST be >=0')
 
-        info = {}
-        self.hints = {}
-        info[u'min'] = int(self.min // self.scale)
-        info[u'max'] = int((self.max + self.scale * 0.5) // self.scale)
-        info[u'scale'] = self.scale
-        if unit:
-            self.hints[u'unit'] = self.unit
-        if fmtstr:
-            self.hints[u'fmtstr'] = self.fmtstr
-        if absolute_precision is not None:
-            self.hints[u'absolute_precision'] = self.abs_prec
-        if relative_precision is not None:
-            self.hints[u'relative_precision'] = self.rel_prec
-        info.update(self.hints)
-        self.as_json = [u'scaled', info]
+    @property
+    def as_json(self):
+        info = {k: getattr(self, k) for k, v in self._defaults.items()
+                if v != getattr(self, k)}
+        info['scale'] = self.scale
+        info['min'] = int((self.min + self.scale * 0.5) // self.scale)
+        info['max'] = int((self.max + self.scale * 0.5) // self.scale)
+        return [u'scaled', info]
 
     def validate(self, value):
         try:
@@ -316,8 +276,10 @@ class ScaledInteger(DataType):
         return value  # return 'actual' value (which is more discrete than a float)
 
     def __repr__(self):
-        items = [self.fmtstr % self.scale, self.fmtstr % self.min, self.fmtstr % self.max]
-        for k,v in self.hints.items():
+        hints = self.as_json[1]
+        hints.pop('scale')
+        items = [self.scale]
+        for k,v in hints.items():
             items.append(u'%s=%r' % (k,v))
         return u'ScaledInteger(%s)' % (', '.join(items))
 
