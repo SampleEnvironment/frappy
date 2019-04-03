@@ -56,6 +56,7 @@ def test_FloatRange():
         dt.validate([19, u'X'])
     dt.validate(1)
     dt.validate(0)
+    dt.validate(13.14 - 10)  # raises an error, if resolution is not handled correctly
     assert dt.export_value(-2.718) == -2.718
     assert dt.import_value(-2.718) == -2.718
     with pytest.raises(ValueError):
@@ -64,11 +65,11 @@ def test_FloatRange():
     dt = FloatRange()
     assert dt.as_json == [u'double', {}]
 
-    dt = FloatRange(unit=u'X', fmtstr=u'%r', absolute_precision=1,
-                    relative_precision=0.1)
+    dt = FloatRange(unit=u'X', fmtstr=u'%r', absolute_resolution=1,
+                    relative_resolution=0.1)
     assert dt.as_json == [u'double', {u'unit':u'X', u'fmtstr':u'%r',
-                                      u'absolute_precision':1,
-                                      u'relative_precision':0.1}]
+                                      u'absolute_resolution':1,
+                                      u'relative_resolution':0.1}]
     assert dt.validate(4) == 4
     assert dt.format_value(3.14) == u'3.14 X'
     assert dt.format_value(3.14, u'') == u'3.14'
@@ -126,15 +127,18 @@ def test_ScaledInteger():
     assert dt.import_value(272) == 2.72
 
     dt = ScaledInteger(0.003, 0, 1, unit=u'X', fmtstr=u'%r',
-                       absolute_precision=1, relative_precision=0.1)
+                       absolute_resolution=0.001, relative_resolution=1e-5)
     assert dt.as_json == [u'scaled', {u'scale':0.003,u'min':0,u'max':333,
                                       u'unit':u'X', u'fmtstr':u'%r',
-                                      u'absolute_precision':1,
-                                      u'relative_precision':0.1}]
+                                      u'absolute_resolution':0.001,
+                                      u'relative_resolution':1e-5}]
     assert dt.validate(0.4) == 0.399
     assert dt.format_value(0.4) == u'0.4 X'
     assert dt.format_value(0.4, u'') == u'0.4'
     assert dt.format_value(0.4, u'Z') == u'0.4 Z'
+    assert dt.validate(1.0029) == 0.999
+    with pytest.raises(ValueError):
+        dt.validate(1.004)
 
 
 def test_EnumType():

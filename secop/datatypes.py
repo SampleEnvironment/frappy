@@ -108,24 +108,24 @@ class FloatRange(DataType):
     """Restricted float type"""
 
     def __init__(self, minval=None, maxval=None, unit=None, fmtstr=None,
-                       absolute_precision=None, relative_precision=None,):
+                       absolute_resolution=None, relative_resolution=None,):
         self._defaults = {}
         self.setprop('min', minval, float(u'-inf'), float)
         self.setprop('max', maxval, float(u'+inf'), float)
         self.setprop('unit', unit, u'', unicode)
         self.setprop('fmtstr', fmtstr, u'%g', unicode)
-        self.setprop('absolute_precision', absolute_precision, 0.0, float)
-        self.setprop('relative_precision', relative_precision, 1.2e-7, float)
+        self.setprop('absolute_resolution', absolute_resolution, 0.0, float)
+        self.setprop('relative_resolution', relative_resolution, 1.2e-7, float)
 
         # check values
         if self.min > self.max:
-            raise ValueError(u'Max must be larger then min!')
+            raise ValueError(u'max must be larger then min!')
         if '%' not in self.fmtstr:
             raise ValueError(u'Invalid fmtstr!')
-        if self.absolute_precision < 0:
-            raise ValueError(u'absolute_precision MUST be >=0')
-        if self.relative_precision < 0:
-            raise ValueError(u'relative_precision MUST be >=0')
+        if self.absolute_resolution < 0:
+            raise ValueError(u'absolute_resolution MUST be >=0')
+        if self.relative_resolution < 0:
+            raise ValueError(u'relative_resolution MUST be >=0')
 
     @property
     def as_json(self):
@@ -137,17 +137,10 @@ class FloatRange(DataType):
             value = float(value)
         except Exception:
             raise ValueError(u'Can not validate %r to float' % value)
-        if self.min is not None and value < self.min:
-            raise ValueError(u'%r should not be less then %s' %
-                             (value, self.min))
-        if self.max is not None and value > self.max:
-            raise ValueError(u'%r should not be greater than %s' %
-                             (value, self.max))
-        if None in (self.min, self.max):
-            return value
-        if self.min <= value <= self.max:
-            return value
-        raise ValueError(u'%r should be an float between %.3f and %.3f' %
+        prec = max(abs(value * self.relative_resolution), self.absolute_resolution)
+        if self.min - prec <= value <= self.max + prec:
+            return min(max(value, self.min), self.max)
+        raise ValueError(u'%g should be a float between %g and %g' %
                          (value, self.min, self.max))
 
     def __repr__(self):
@@ -228,15 +221,15 @@ class ScaledInteger(DataType):
           the scale is only used for calculating to/from transport serialisation"""
 
     def __init__(self, scale, minval=None, maxval=None, unit=None, fmtstr=None,
-                       absolute_precision=None, relative_precision=None,):
+                       absolute_resolution=None, relative_resolution=None,):
         self._defaults = {}
         self.scale = float(scale)
         if not self.scale > 0:
             raise ValueError(u'Scale MUST be positive!')
         self.setprop('unit', unit, u'', unicode)
         self.setprop('fmtstr', fmtstr, u'%g', unicode)
-        self.setprop('absolute_precision', absolute_precision, self.scale, float)
-        self.setprop('relative_precision', relative_precision, 1.2e-7, float)
+        self.setprop('absolute_resolution', absolute_resolution, self.scale, float)
+        self.setprop('relative_resolution', relative_resolution, 1.2e-7, float)
 
         self.min = DEFAULT_MIN_INT * self.scale if minval is None else float(minval)
         self.max = DEFAULT_MAX_INT * self.scale if maxval is None else float(maxval)
@@ -246,10 +239,10 @@ class ScaledInteger(DataType):
             raise ValueError(u'Max must be larger then min!')
         if '%' not in self.fmtstr:
             raise ValueError(u'Invalid fmtstr!')
-        if self.absolute_precision < 0:
-            raise ValueError(u'absolute_precision MUST be >=0')
-        if self.relative_precision < 0:
-            raise ValueError(u'relative_precision MUST be >=0')
+        if self.absolute_resolution < 0:
+            raise ValueError(u'absolute_resolution MUST be >=0')
+        if self.relative_resolution < 0:
+            raise ValueError(u'relative_resolution MUST be >=0')
 
     @property
     def as_json(self):
@@ -265,11 +258,12 @@ class ScaledInteger(DataType):
             value = float(value)
         except Exception:
             raise ValueError(u'Can not validate %r to float' % value)
-        if value < self.min:
-            raise ValueError(u'%r should be a float between %d and %d' %
-                             (value, self.min, self.max))
-        if value > self.max:
-            raise ValueError(u'%r should be a float between %d and %d' %
+        prec = max(self.scale, abs(value * self.relative_resolution),
+                   self.absolute_resolution)
+        if self.min - prec <= value <= self.max + prec:
+            value = min(max(value, self.min), self.max)
+        else:
+            raise ValueError(u'%g should be a float between %g and %g' %
                              (value, self.min, self.max))
         intval = int((value + self.scale * 0.5) // self.scale)
         value = float(intval * self.scale)
