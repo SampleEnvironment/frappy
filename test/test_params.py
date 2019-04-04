@@ -46,6 +46,10 @@ def test_Parameter():
     assert p1.ctr != p2.ctr
     with pytest.raises(ValueError):
         Parameter(None, datatype=float)
+    p3 = p1.copy()
+    assert repr(p1) == repr(p3)
+    assert p1.datatype != p3.datatype
+
 
 def test_Override():
     p = Parameter('description1', datatype=BoolType, default=False)

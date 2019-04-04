@@ -104,6 +104,13 @@ class DataType(object):
             value = default
         setattr(self, key, func(value))
 
+    def copy(self):
+        """make a deep copy of the datatype"""
+
+        # looks like the simplest way to make a deep copy
+        return get_datatype(self.export_datatype())
+
+
 class FloatRange(DataType):
     """Restricted float type"""
 
@@ -243,6 +250,8 @@ class ScaledInteger(DataType):
             raise ValueError(u'absolute_resolution MUST be >=0')
         if self.relative_resolution < 0:
             raise ValueError(u'relative_resolution MUST be >=0')
+        # Remark: Datatype.copy() will round min, max to a multiple of self.scale
+        # this should be o.k.
 
     @property
     def as_json(self):
@@ -272,7 +281,7 @@ class ScaledInteger(DataType):
     def __repr__(self):
         hints = self.as_json[1]
         hints.pop('scale')
-        items = [self.scale]
+        items = ['%g' % self.scale]
         for k,v in hints.items():
             items.append(u'%s=%r' % (k,v))
         return u'ScaledInteger(%s)' % (', '.join(items))
@@ -306,6 +315,10 @@ class EnumType(DataType):
             kwds.update(kwds[u'members'])
             kwds.pop(u'members')
         self._enum = Enum(enum_or_name, **kwds)
+
+    def copy(self):
+        # as the name is not exported, we have to implement copy ourselfs
+        return EnumType(self._enum)
 
     @property
     def as_json(self):
@@ -752,7 +765,7 @@ DATATYPES = dict(
     array   =lambda min, max, members: ArrayOf(get_datatype(members), minsize=min, maxsize=max),
     tuple   =lambda members=[]: TupleOf(*map(get_datatype, members)),
     enum    =lambda members={}: EnumType('', members=members),
-    struct  =lambda members: StructOf(
+    struct  =lambda optional=None, members=None: StructOf(optional,
         **dict((n, get_datatype(t)) for n, t in list(members.items()))),
     command = lambda argument, result: CommandType(get_datatype(argument), get_datatype(result)),
 )

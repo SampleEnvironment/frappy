@@ -44,7 +44,7 @@ class Accessible(CountedObj):
             ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
 
     def copy(self):
-        # return a copy of ourselfs
+        '''return a copy of ourselfs'''
         props = self.__dict__.copy()
         return type(self)(**props)
 
@@ -146,11 +146,15 @@ class Parameter(Accessible):
         if ctr is not None:
             self.ctr = ctr
 
+    def copy(self):
+        '''return a copy of ourselfs'''
+        result = Accessible.copy(self)
+        result.datatype = result.datatype.copy()
+        return result
+
     def for_export(self):
         # used for serialisation only
         res = self.exported_properties()
-        if self.unit:
-            res['unit'] = self.unit
         return res
 
     def export_value(self):

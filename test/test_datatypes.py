@@ -31,6 +31,11 @@ from secop.datatypes import ArrayOf, BLOBType, BoolType, \
     ScaledInteger, StringType, StructOf, TupleOf, get_datatype
 
 
+def copytest(dt):
+    assert repr(dt) == repr(dt.copy())
+    assert dt.export_datatype() == dt.copy().export_datatype()
+    assert dt != dt.copy()
+
 def test_DataType():
     dt = DataType()
     assert dt.as_json == [u'undefined']
@@ -44,6 +49,7 @@ def test_DataType():
 
 def test_FloatRange():
     dt = FloatRange(-3.14, 3.14)
+    copytest(dt)
     assert dt.as_json == [u'double', {u'min':-3.14, u'max':3.14}]
 
     with pytest.raises(ValueError):
@@ -61,12 +67,17 @@ def test_FloatRange():
     assert dt.import_value(-2.718) == -2.718
     with pytest.raises(ValueError):
         FloatRange(u'x', u'Y')
+    # check that unit can be changed
+    dt.unit = u'K'
+    assert dt.as_json == [u'double', {u'min':-3.14, u'max':3.14, u'unit': u'K'}]
 
     dt = FloatRange()
+    copytest(dt)
     assert dt.as_json == [u'double', {}]
 
     dt = FloatRange(unit=u'X', fmtstr=u'%r', absolute_resolution=1,
                     relative_resolution=0.1)
+    copytest(dt)
     assert dt.as_json == [u'double', {u'unit':u'X', u'fmtstr':u'%r',
                                       u'absolute_resolution':1,
                                       u'relative_resolution':0.1}]
@@ -78,6 +89,7 @@ def test_FloatRange():
 
 def test_IntRange():
     dt = IntRange(-3, 3)
+    copytest(dt)
     assert dt.as_json == [u'int', {u'min':-3, u'max':3}]
 
     with pytest.raises(ValueError):
@@ -94,14 +106,15 @@ def test_IntRange():
         IntRange(u'xc', u'Yx')
 
     dt = IntRange()
+    copytest(dt)
     assert dt.as_json[0] == u'int'
     assert dt.as_json[1][u'min'] < 0 < dt.as_json[1][u'max']
     assert dt.as_json == [u'int', {u'max': 16777216, u'min': -16777216}]
     assert dt.format_value(42) == u'42'
 
-
 def test_ScaledInteger():
     dt = ScaledInteger(0.01, -3, 3)
+    copytest(dt)
     # serialisation of datatype contains limits on the 'integer' value
     assert dt.as_json == [u'scaled', {u'scale':0.01, u'min':-300, u'max':300}]
 
@@ -121,6 +134,9 @@ def test_ScaledInteger():
         ScaledInteger(scale=0, minval=1, maxval=2)
     with pytest.raises(ValueError):
         ScaledInteger(scale=-10, minval=1, maxval=2)
+    # check that unit can be changed
+    dt.unit = u'A'
+    assert dt.as_json == [u'scaled', {u'scale':0.01, u'min':-300, u'max':300, u'unit': u'A'}]
 
     assert dt.export_value(0.0001) == int(0)
     assert dt.export_value(2.71819) == int(272)
@@ -128,6 +144,7 @@ def test_ScaledInteger():
 
     dt = ScaledInteger(0.003, 0, 1, unit=u'X', fmtstr=u'%r',
                        absolute_resolution=0.001, relative_resolution=1e-5)
+    copytest(dt)
     assert dt.as_json == [u'scaled', {u'scale':0.003,u'min':0,u'max':333,
                                       u'unit':u'X', u'fmtstr':u'%r',
                                       u'absolute_resolution':0.001,
@@ -149,6 +166,7 @@ def test_EnumType():
         EnumType([u'b', 0])
 
     dt = EnumType(u'dt', a=3, c=7, stuff=1)
+    copytest(dt)
     assert dt.as_json == [u'enum', dict(members=dict(a=3, c=7, stuff=1))]
 
     with pytest.raises(ValueError):
@@ -183,11 +201,14 @@ def test_EnumType():
 def test_BLOBType():
     # test constructor catching illegal arguments
     dt = BLOBType()
+    copytest(dt)
     assert dt.as_json == [u'blob', {u'min':0, u'max':255}]
     dt = BLOBType(10)
+    copytest(dt)
     assert dt.as_json == [u'blob', {u'min':10, u'max':10}]
 
     dt = BLOBType(3, 10)
+    copytest(dt)
     assert dt.as_json == [u'blob', {u'min':3, u'max':10}]
 
     with pytest.raises(ValueError):
@@ -212,10 +233,13 @@ def test_BLOBType():
 def test_StringType():
     # test constructor catching illegal arguments
     dt = StringType()
+    copytest(dt)
     dt = StringType(12)
+    copytest(dt)
     assert dt.as_json == [u'string', {u'min':12, u'max':12}]
 
     dt = StringType(4, 11)
+    copytest(dt)
     assert dt.as_json == [u'string', {u'min':4, u'max':11}]
 
     with pytest.raises(ValueError):
@@ -241,6 +265,7 @@ def test_StringType():
 def test_BoolType():
     # test constructor catching illegal arguments
     dt = BoolType()
+    copytest(dt)
     assert dt.as_json == [u'bool', {}]
 
     with pytest.raises(ValueError):
@@ -272,11 +297,13 @@ def test_ArrayOf():
     with pytest.raises(ValueError):
         ArrayOf(-3, IntRange(-10,10))
     dt = ArrayOf(IntRange(-10, 10), 5)
+    copytest(dt)
     assert dt.as_json == [u'array', {u'min':5, u'max':5,
                                      u'members':[u'int', {u'min':-10,
                                                           u'max':10}]}]
 
     dt = ArrayOf(FloatRange(-10, 10, unit=u'Z'), 1, 3)
+    copytest(dt)
     assert dt.as_json == [u'array', {u'min':1, u'max':3,
                                      u'members':[u'double', {u'min':-10,
                                                              u'max':10,
@@ -302,6 +329,7 @@ def test_TupleOf():
         TupleOf(2)
 
     dt = TupleOf(IntRange(-10, 10), BoolType())
+    copytest(dt)
     assert dt.as_json == [u'tuple', {u'members':[[u'int', {u'min':-10,
                                                            u'max':10}],
                                                  [u'bool', {}]]}]
@@ -328,6 +356,7 @@ def test_StructOf():
 
     dt = StructOf(a_string=StringType(0, 55), an_int=IntRange(0, 999),
                   optional=[u'an_int'])
+    copytest(dt)
     assert dt.as_json == [u'struct', {u'members':{u'a_string':
                                          [u'string', {u'min':0, u'max':55}],
                                       u'an_int':
