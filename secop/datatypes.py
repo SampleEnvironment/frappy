@@ -57,7 +57,6 @@ DEFAULT_MAX_INT = 16777216
 
 
 class DataType(object):
-    as_json = [u'undefined']
     IS_COMMAND = False
     unit = u''
     fmtstr = u'%r'
@@ -75,7 +74,7 @@ class DataType(object):
 
     def export_datatype(self):
         """return a python object which after jsonifying identifies this datatype"""
-        return self.as_json
+        raise NotImplementedError
 
     def export_value(self, value):
         """if needed, reformat value for transport"""
@@ -134,8 +133,7 @@ class FloatRange(DataType):
         if self.relative_resolution < 0:
             raise ValueError(u'relative_resolution MUST be >=0')
 
-    @property
-    def as_json(self):
+    def export_datatype(self):
         return [u'double', {k: getattr(self, k) for k, v in self._defaults.items()
                             if v != getattr(self, k)}]
 
@@ -151,7 +149,7 @@ class FloatRange(DataType):
                          (value, self.min, self.max))
 
     def __repr__(self):
-        items = [u'%s=%r' % (k,v) for k,v in self.as_json[1].items()]
+        items = [u'%s=%r' % (k,v) for k,v in self.export_datatype()[1].items()]
         return u'FloatRange(%s)' % (', '.join(items))
 
     def export_value(self, value):
@@ -185,8 +183,7 @@ class IntRange(DataType):
         if self.min > self.max:
             raise ValueError(u'Max must be larger then min!')
 
-    @property
-    def as_json(self):
+    def export_datatype(self):
         return [u'int', {"min": self.min, "max": self.max}]
 
     def validate(self, value):
@@ -253,8 +250,7 @@ class ScaledInteger(DataType):
         # Remark: Datatype.copy() will round min, max to a multiple of self.scale
         # this should be o.k.
 
-    @property
-    def as_json(self):
+    def export_datatype(self):
         info = {k: getattr(self, k) for k, v in self._defaults.items()
                 if v != getattr(self, k)}
         info['scale'] = self.scale
@@ -279,7 +275,7 @@ class ScaledInteger(DataType):
         return value  # return 'actual' value (which is more discrete than a float)
 
     def __repr__(self):
-        hints = self.as_json[1]
+        hints = self.export_datatype()[1]
         hints.pop('scale')
         items = ['%g' % self.scale]
         for k,v in hints.items():
@@ -320,8 +316,7 @@ class EnumType(DataType):
         # as the name is not exported, we have to implement copy ourselfs
         return EnumType(self._enum)
 
-    @property
-    def as_json(self):
+    def export_datatype(self):
         return [u'enum'] + [{u"members":dict((m.name, m.value) for m in self._enum.members)}]
 
     def __repr__(self):
@@ -364,7 +359,9 @@ class BLOBType(DataType):
             raise ValueError(u'sizes must be bigger than or equal to 0!')
         elif self.minsize > self.maxsize:
             raise ValueError(u'maxsize must be bigger than or equal to minsize!')
-        self.as_json = [u'blob', dict(min=minsize, max=maxsize)]
+
+    def export_datatype(self):
+        return [u'blob', dict(min=self.minsize, max=self.maxsize)]
 
     def __repr__(self):
         return u'BLOB(%d, %d)' % (self.minsize, self.maxsize)
@@ -400,7 +397,6 @@ class BLOBType(DataType):
 
 
 class StringType(DataType):
-    as_json = [u'string']
     minsize = None
     maxsize = None
 
@@ -413,7 +409,9 @@ class StringType(DataType):
             raise ValueError(u'sizes must be bigger than or equal to 0!')
         elif self.minsize > self.maxsize:
             raise ValueError(u'maxsize must be bigger than or equal to minsize!')
-        self.as_json = [u'string', dict(min=minsize, max=maxsize)]
+
+    def export_datatype(self):
+        return [u'string', dict(min=self.minsize, max=self.maxsize)]
 
     def __repr__(self):
         return u'StringType(%d, %d)' % (self.minsize, self.maxsize)
@@ -454,8 +452,8 @@ class StringType(DataType):
 # Bool is a special enum
 class BoolType(DataType):
 
-    def __init__(self):
-        self.as_json = [u'bool', {}]
+    def export_datatype(self):
+        return [u'bool', {}]
 
     def __repr__(self):
         return u'BoolType()'
@@ -513,13 +511,10 @@ class ArrayOf(DataType):
             raise ValueError(u'Maximum size must be >= 1!')
         elif self.minsize > self.maxsize:
             raise ValueError(u'maxsize must be bigger than or equal to minsize!')
-        # if only one arg is given, it is maxsize!
-        if self.unit:
-            self.as_json = [u'array', dict(min=minsize, max=maxsize,
-                                           members=members.as_json, unit=self.unit)]
-        else:
-            self.as_json = [u'array', dict(min=minsize, max=maxsize,
-                                           members=members.as_json)]
+
+    def export_datatype(self):
+        return [u'array', dict(min=self.minsize, max=self.maxsize,
+                               members=self.members.export_datatype())]
 
     def __repr__(self):
         return u'ArrayOf(%s, %s, %s)' % (
@@ -574,7 +569,9 @@ class TupleOf(DataType):
                 raise ValueError(
                     u'TupleOf only works with DataType objs as arguments!')
         self.members = members
-        self.as_json = [u'tuple', dict(members=[subtype.as_json for subtype in members])]
+
+    def export_datatype(self):
+        return [u'tuple', dict(members=[subtype.export_datatype() for subtype in self.members])]
 
     def __repr__(self):
         return u'TupleOf(%s)' % u', '.join([repr(st) for st in self.members])
@@ -630,15 +627,16 @@ class StructOf(DataType):
             if name not in members:
                 raise ProgrammingError(
                     u'Only members of StructOf may be declared as optional!')
-        self.as_json = [u'struct', dict(members=dict((n, s.as_json)
-                                       for n, s in list(members.items())))]
-        if optional:
-            self.as_json[1]['optional'] = self.optional
 
 
     def __repr__(self):
         return u'StructOf(%s)' % u', '.join(
             [u'%s=%s' % (n, repr(st)) for n, st in list(self.members.items())])
+
+    def export_datatype(self):
+        return [u'struct', dict(members=dict((n, s.export_datatype())
+                                             for n, s in list(self.members.items())),
+                                optional=self.optional)]
 
     def validate(self, value):
         """return the validated value or raise"""
@@ -697,11 +695,13 @@ class CommandType(DataType):
         self.argtype = argument
         self.resulttype = result
 
-        if argument:
-            argument = argument.as_json
-        if result:
-            result = result.as_json
-        self.as_json = [u'command', dict(argument=argument, result=result)]
+    def export_datatype(self):
+        info = {}
+        if self.argtype:
+            info['argument'] = self.argtype.export_datatype()
+        if self.resulttype:
+            info['result'] = self.argtype.export_datatype()
+        return [u'command', info]
 
     def __repr__(self):
         argstr = repr(self.argtype) if self.argtype else ''
