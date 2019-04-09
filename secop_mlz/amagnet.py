@@ -142,9 +142,9 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         self._currentsource = self.DISPATCHER.get_module(
             self.subdev_currentsource)
         self.init_sequencer(fault_on_error=False, fault_on_stop=False)
-        self._symmetry.read_value(0)
+        self._symmetry.read_value()
 
-    def read_calibration(self, maxage=0):
+    def read_calibration(self):
         try:
             try:
                 return self.calibrationtable[self._symmetry.value]
@@ -175,13 +175,13 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         limits = self._checkLimits(value)
         return limits
 
-    def read_abslimits(self, maxage=0):
+    def read_abslimits(self):
         maxfield = self._current2field(self._currentsource.abslimits[1])
         # limit to configured value (if any)
         maxfield = min(maxfield, max(self.accessibles['abslimits'].default))
         return -maxfield, maxfield
 
-    def read_ramp(self, maxage=0):
+    def read_ramp(self):
         # This is an approximation!
         return self.calibration[0] * abs(self._currentsource.ramp)
 
@@ -213,26 +213,26 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         # unsafe to switch, go to safe state first
         self._currentsource.write_target(0)
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self._current2field(
-            self._currentsource.read_value(maxage) *
+            self._currentsource.read_value() *
             self._get_field_polarity())
 
-    def read_hw_status(self, maxage=0):
+    def read_hw_status(self):
         # called from SequencerMixin.read_status if no sequence is running
         if self._enable.value == 'Off':
             return self.Status.WARN, 'Disabled'
-        if self._enable.read_status(maxage)[0] != self.Status.IDLE:
+        if self._enable.read_status()[0] != self.Status.IDLE:
             return self._enable.status
         if self._polswitch.value in ['0', 0]:
             return self.Status.IDLE, 'Shorted, ' + self._currentsource.status[1]
         if self._symmetry.value in ['short', 0]:
             return self._currentsource.status[
                 0], 'Shorted, ' + self._currentsource.status[1]
-        return self._currentsource.read_status(maxage)
+        return self._currentsource.read_status()
 
     def write_target(self, target):
-        if target != 0 and self._symmetry.read_value(0) in ['short', 0]:
+        if target != 0 and self._symmetry.read_value() in ['short', 0]:
             raise DisabledError(
                 'Symmetry is shorted, please select another symmetry first!')
 
@@ -245,7 +245,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         seq.append(Step('preparing', 0, self._prepare_ramp))
         seq.append(Step('recover', 0, self._recover))
         if current_polarity != wanted_polarity:
-            if self._currentsource.read_value(0) > 0.1:
+            if self._currentsource.read_value() > 0.1:
                 # switching only allowed if current is low enough -> ramp down
                 # first
                 seq.append(
@@ -286,7 +286,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
     def _recover(self, store):
         # check for interlock
-        if self._currentsource.read_status(0)[0] != self.Status.ERROR:
+        if self._currentsource.read_status()[0] != self.Status.ERROR:
             return
         # recover from interlock
         ramp = self._currentsource.ramp
@@ -303,11 +303,11 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     def _ramp_current(self, store, target):
         if abs(self._currentsource.value - target) <= 0.05:
             # done with this step if no longer BUSY
-            return self._currentsource.read_status(0)[0] == 'BUSY'
+            return self._currentsource.read_status()[0] == 'BUSY'
         if self._currentsource.status[0] != 'BUSY':
             if self._enable.status[0] == 'ERROR':
                 self._enable.do_reset()
-                self._enable.read_status(0)
+                self._enable.read_status()
             self._enable.write_target('On')
             self._enable._hw_wait()
             self._currentsource.write_target(target)
@@ -316,15 +316,15 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     def _ramp_current_cleanup(self, store, step_was_busy, target):
         # don't cleanup if step finished
         if step_was_busy:
-            self._currentsource.write_target(self._currentsource.read_value(0))
+            self._currentsource.write_target(self._currentsource.read_value())
         self._currentsource.window = max(store.old_window, 10)
 
     def _set_polarity(self, store, target):
-        if self._polswitch.read_status(0)[0] == self.Status.BUSY:
+        if self._polswitch.read_status()[0] == self.Status.BUSY:
             return True
         if int(self._polswitch.value) == int(target):
             return False  # done with this step
-        if self._polswitch.read_value(0) != 0:
+        if self._polswitch.read_value() != 0:
             self._polswitch.write_target(0)
         else:
             self._polswitch.write_target(target)

@@ -127,7 +127,7 @@ class SequencerMixin(object):
         """Can be called to check if a sequence is currently running."""
         return self._seq_thread and self._seq_thread.isAlive()
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         if self.seq_is_alive():
             return self.Status.BUSY, u'moving: ' + self._seq_phase
         elif self._seq_error:
@@ -139,7 +139,7 @@ class SequencerMixin(object):
                 return self.Status.ERROR, self._seq_stopped
             return self.Status.WARN, self._seq_stopped
         if hasattr(self, u'read_hw_status'):
-            return self.read_hw_status(maxage)
+            return self.read_hw_status()
         return self.Status.IDLE, u''
 
     def do_stop(self):

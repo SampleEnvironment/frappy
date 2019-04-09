@@ -140,11 +140,11 @@ class ModuleMeta(type):
                     break
                 rfunc = getattr(base, 'read_' + pname, None)
 
-            def wrapped_rfunc(self, maxage=0, pname=pname, rfunc=rfunc):
+            def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
                 if rfunc:
                     self.log.debug("rfunc(%s): call %r" % (pname, rfunc))
                     try:
-                        value = rfunc(self, maxage)
+                        value = rfunc(self)
                     except Exception as e:
                         pobj = self.accessibles[pname]
                         self.DISPATCHER.announce_update_error(self, pname, pobj, e)

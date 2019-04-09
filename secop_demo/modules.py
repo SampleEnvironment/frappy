@@ -53,13 +53,13 @@ class Switch(Drivable):
                                  ),
     }
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         # could ask HW
         # we just return the value of the target here.
         self._update()
         return self.value
 
-    def read_target(self, maxage=0):
+    def read_target(self):
         # could ask HW
         return self.target
 
@@ -69,7 +69,7 @@ class Switch(Drivable):
         # note: setting self.target to the new value is done after this....
         # note: we may also return the read-back value from the hw here
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         self.log.info("read status")
         info = self._update()
         if self.target == self.value:
@@ -129,7 +129,7 @@ class MagneticField(Drivable):
         _thread.daemon = True
         _thread.start()
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self.value
 
     def write_target(self, value):
@@ -139,7 +139,7 @@ class MagneticField(Drivable):
         # note: setting self.target to the new value is done after this....
         # note: we may also return the read-back value from the hw here
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         if self._state == self._state.enum.idle:
             return (self.Status.PERSIST, 'at field') if self.value else \
                    (self.Status.IDLE, 'zero field')
@@ -206,7 +206,7 @@ class CoilTemp(Readable):
                         ),
     }
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return round(2.3 + random.random(), 3)
 
 
@@ -275,7 +275,7 @@ class Label(Readable):
                        ),
     }
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         strings = [self.system]
 
         dev_ts = self.DISPATCHER.get_module(self.subdev_ts)

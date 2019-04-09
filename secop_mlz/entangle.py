@@ -229,7 +229,7 @@ class PyTangoDevice(Module):
 
     def _hw_wait(self):
         """Wait until hardware status is not BUSY."""
-        while self.read_status(0)[0] == Drivable.Status.BUSY:
+        while self.read_status()[0] == Drivable.Status.BUSY:
             sleep(0.3)
 
     def _getProperty(self, name, dev=None):
@@ -361,7 +361,7 @@ class PyTangoDevice(Module):
         self.log.debug('PyTango error: %s', fulldesc)
         raise exclass(self, fulldesc)
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         # Query status code and string
         tangoState = self._dev.State()
         tangoStatus = self._dev.Status()
@@ -389,7 +389,7 @@ class AnalogInput(PyTangoDevice, Readable):
         if attrInfo.unit != 'No unit':
             self.accessibles['value'].unit = attrInfo.unit
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self._dev.value
 
 
@@ -481,12 +481,12 @@ class AnalogOutput(PyTangoDevice, Drivable):
             # else: remove a stale point
             self._history.pop(0)
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         value = self._dev.value
         self._history.append((currenttime(), value))
         return value
 
-    def read_target(self, maxage=0):
+    def read_target(self):
         attrObj = self._dev.read_attribute('value')
         return attrObj.w_value
 
@@ -511,7 +511,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
 
         return stable and at_target
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         if self._isAtTarget():
             self._timeout = None
             self._moving = False
@@ -584,7 +584,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
             self._timeout = None
         self._moving = True
         self._history = []  # clear history
-        self.read_status(0)  # poll our status to keep it updated
+        self.read_status()  # poll our status to keep it updated
 
     def _hw_wait(self):
         while super(AnalogOutput, self).read_status()[0] == self.Status.BUSY:
@@ -620,18 +620,18 @@ class Actuator(AnalogOutput):
                                ),
     }
 
-    def read_speed(self, maxage=0):
+    def read_speed(self):
         return self._dev.speed
 
     def write_speed(self, value):
         self._dev.speed = value
 
-    def read_ramp(self, maxage=0):
+    def read_ramp(self):
         return self.read_speed() * 60
 
     def write_ramp(self, value):
         self.write_speed(value / 60.)
-        return self.read_speed(0) * 60
+        return self.read_speed() * 60
 
     def do_setposition(self, value=FloatRange()):
         self._dev.Adjust(value)
@@ -660,16 +660,16 @@ class Motor(Actuator):
         'reference': Command('Do a reference run', argument=None, result=None),
     }
 
-    def read_refpos(self, maxage=0):
+    def read_refpos(self):
         return float(self._getProperty('refpos'))
 
-    def read_accel(self, maxage=0):
+    def read_accel(self):
         return self._dev.accel
 
     def write_accel(self, value):
         self._dev.accel = value
 
-    def read_decel(self, maxage=0):
+    def read_decel(self):
         return self._dev.decel
 
     def write_decel(self, value):
@@ -712,32 +712,32 @@ class TemperatureController(Actuator):
         'precision': Override(default=0.1),
     }
 
-    def read_ramp(self, maxage=0):
+    def read_ramp(self):
         return self._dev.ramp
 
     def write_ramp(self, value):
         self._dev.ramp = value
         return self._dev.ramp
 
-    def read_p(self, maxage=0):
+    def read_p(self):
         return self._dev.p
 
     def write_p(self, value):
         self._dev.p = value
 
-    def read_i(self, maxage=0):
+    def read_i(self):
         return self._dev.i
 
     def write_i(self, value):
         self._dev.i = value
 
-    def read_d(self, maxage=0):
+    def read_d(self):
         return self._dev.d
 
     def write_d(self, value):
         self._dev.d = value
 
-    def read_pid(self, maxage=0):
+    def read_pid(self):
         self.read_p()
         self.read_i()
         self.read_d()
@@ -748,10 +748,10 @@ class TemperatureController(Actuator):
         self._dev.i = value[1]
         self._dev.d = value[2]
 
-    def read_setpoint(self, maxage=0):
+    def read_setpoint(self):
         return self._dev.setpoint
 
-    def read_heateroutput(self, maxage=0):
+    def read_heateroutput(self):
         return self._dev.heaterOutput
 
 
@@ -768,16 +768,16 @@ class PowerSupply(Actuator):
                          datatype=FloatRange(), poll=-5),
     }
 
-    def read_ramp(self, maxage=0):
+    def read_ramp(self):
         return self._dev.ramp
 
     def write_ramp(self, value):
         self._dev.ramp = value
 
-    def read_voltage(self, maxage=0):
+    def read_voltage(self):
         return self._dev.voltage
 
-    def read_current(self, maxage=0):
+    def read_current(self):
         return self._dev.current
 
 
@@ -789,7 +789,7 @@ class DigitalInput(PyTangoDevice, Readable):
         'value': Override(datatype=IntRange()),
     }
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self._dev.value
 
 
@@ -810,7 +810,7 @@ class NamedDigitalInput(DigitalInput):
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         value = self._dev.value
         return value  # mapping is done by datatype upon export()
 
@@ -832,7 +832,7 @@ class PartialDigitalInput(NamedDigitalInput):
         self._mask = (1 << self.bitwidth) - 1
         # self.accessibles['value'].datatype = IntRange(0, self._mask)
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         raw_value = self._dev.value
         value = (raw_value >> self.startbit) & self._mask
         return value  # mapping is done by datatype upon export()
@@ -848,14 +848,14 @@ class DigitalOutput(PyTangoDevice, Drivable):
         'target': Override(datatype=IntRange()),
     }
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self._dev.value  # mapping is done by datatype upon export()
 
     def write_target(self, value):
         self._dev.value = value
         self.read_value()
 
-    def read_target(self, maxage=0):
+    def read_target(self):
         attrObj = self._dev.read_attribute('value')
         return attrObj.w_value
 
@@ -903,7 +903,7 @@ class PartialDigitalOutput(NamedDigitalOutput):
         # self.accessibles['value'].datatype = IntRange(0, self._mask)
         # self.accessibles['target'].datatype = IntRange(0, self._mask)
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         raw_value = self._dev.value
         value = (raw_value >> self.startbit) & self._mask
         return value  # mapping is done by datatype upon export()
@@ -933,19 +933,19 @@ class StringIO(PyTangoDevice, Module):
                              group='communication'),
     }
 
-    def read_bustimeout(self, maxage=0):
+    def read_bustimeout(self):
         return self._dev.communicationTimeout
 
     def write_bustimeout(self, value):
         self._dev.communicationTimeout = value
 
-    def read_endofline(self, maxage=0):
+    def read_endofline(self):
         return self._dev.endOfLine
 
     def write_endofline(self, value):
         self._dev.endOfLine = value
 
-    def read_startofline(self, maxage=0):
+    def read_startofline(self):
         return self._dev.startOfLine
 
     def write_startofline(self, value):

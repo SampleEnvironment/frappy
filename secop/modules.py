@@ -352,7 +352,7 @@ class Drivable(Writable):
     # improved polling: may poll faster if module is BUSY
     def pollParams(self, nr=0):
         # poll status first
-        self.read_status(0)
+        self.read_status()
         fastpoll = self.isBusy()
         for pname, pobj in self.parameters.items():
             if not pobj.poll:

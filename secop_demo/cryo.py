@@ -140,16 +140,16 @@ class Cryostat(CryoBase):
         self._stopflag = False
         self._thread = mkthread(self.thread)
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         # instead of asking a 'Hardware' take the value from the simulation
         return self.status
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         # return regulation value (averaged regulation temp)
         return self.regulationtemp + \
             self.jitter * (0.5 - random.random())
 
-    def read_target(self, maxage=0):
+    def read_target(self):
         return self.target
 
     def write_target(self, value):
@@ -162,7 +162,7 @@ class Cryostat(CryoBase):
         self.status = self.Status.BUSY, 'new target set'
         return value
 
-    def read_maxpower(self, maxage=0):
+    def read_maxpower(self):
         return self.maxpower
 
     def write_maxpower(self, newpower):
@@ -176,7 +176,7 @@ class Cryostat(CryoBase):
         self.p, self.i, self.d = newpid
         return (self.p, self.i, self.d)
 
-    def read_pid(self, maxage=0):
+    def read_pid(self):
         return (self.p, self.i, self.d)
 
     def do_stop(self):

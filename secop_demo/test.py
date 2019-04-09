@@ -44,7 +44,7 @@ class LN2(Readable):
     but the implementation may do anything
     """
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return round(100 * random.random(), 1)
 
 
@@ -60,7 +60,7 @@ class Heater(Drivable):
                                 ),
     }
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return round(100 * random.random(), 1)
 
     def write_target(self, target):
@@ -90,7 +90,7 @@ class Temp(Drivable):
         ),
     }
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return round(100 * random.random(), 1)
 
     def write_target(self, target):

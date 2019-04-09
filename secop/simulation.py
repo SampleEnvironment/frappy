@@ -47,7 +47,7 @@ class SimBase(object):
                 self.accessibles[k] = Parameter('extra_param: %s' % k.strip(),
                                        datatype=FloatRange(),
                                        default=0.0)
-                def reader(maxage=0, pname=k):
+                def reader(pname=k):
                     self.log.debug('simulated reading %s' % pname)
                     return self.accessibles[pname].value
                 setattr(self, 'read_' + k, reader)
@@ -71,7 +71,7 @@ class SimBase(object):
     def sim(self):
         return True
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         if 'jitter' in self.accessibles:
             return self._value + self.jitter*(0.5-random.random())
         return self._value
@@ -95,7 +95,7 @@ class SimWritable(SimBase, Writable):
         SimBase.__init__(self, cfgdict)
         Writable.__init__(self, devname, logger, cfgdict, dispatcher)
         self._value = self.accessibles['value'].default
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self.target
     def write_target(self, value):
         self.value = value

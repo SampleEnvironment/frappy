@@ -103,10 +103,10 @@ class EpicsReadable(Readable):
             pv = PV(pv_name + ".VAL")
             pv.value = write_value
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self._read_pv(self.value_pv)
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         # XXX: comparison may need to be a little unsharp
         # XXX: Hardware may have it's own idea about the status: how to obtain?
         if self.status_pv != 'unset':
@@ -164,16 +164,16 @@ class EpicsDrivable(Drivable):
             pv = PV(pv_name + ".VAL")
             pv.value = write_value
 
-    def read_target(self, maxage=0):
+    def read_target(self):
         return self._read_pv(self.target_pv)
 
     def write_target(self, write_value):
         self._write_pv(self.target_pv, write_value)
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self._read_pv(self.value_pv)
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         # XXX: comparison may need to be a little unsharp
         # XXX: Hardware may have it's own idea about the status: how to obtain?
         if self.status_pv != 'unset':
@@ -204,7 +204,7 @@ class EpicsTempCtrl(EpicsDrivable):
                                 datatype=StringType(), default="unset", export=False,),
     }
 
-    def read_target(self, maxage=0):
+    def read_target(self):
         return self._read_pv(self.target_pv)
 
     def write_target(self, write_value):
@@ -213,19 +213,19 @@ class EpicsTempCtrl(EpicsDrivable):
         # update our status
         self.read_status()
 
-    def read_value(self, maxage=0):
+    def read_value(self):
         return self._read_pv(self.value_pv)
 
-    def read_status(self, maxage=0):
+    def read_status(self):
         # XXX: comparison may need to collect a history to detect oscillations
-        at_target = abs(self.read_value(maxage) - self.read_target(maxage)) \
+        at_target = abs(self.read_value() - self.read_target()) \
             <= self.tolerance
         if at_target:
             return (Drivable.Status.IDLE, 'at Target')
         return (Drivable.Status.BUSY, 'Moving')
 
     # TODO: add support for strings over epics pv
-    # def read_heaterrange(self, maxage=0):
+    # def read_heaterrange(self):
     #    return self._read_pv(self.heaterrange_pv)
 
     # TODO: add support for strings over epics pv
