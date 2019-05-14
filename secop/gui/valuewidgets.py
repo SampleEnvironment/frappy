@@ -40,7 +40,7 @@ class StringWidget(QLineEdit):
 
     def get_value(self):
         res = self.text()
-        return self.datatype.validate(res)
+        return self.datatype(res)
 
     def set_value(self, value):
         self.setText(value)
@@ -136,7 +136,7 @@ class TupleWidget(QFrame):
         self.update()
 
     def get_value(self):
-        return [v.validate(w.get_value()) for w, v in zip(self.subwidgets, self.datatypes)]
+        return [v(w.get_value()) for w, v in zip(self.subwidgets, self.datatypes)]
 
     def set_value(self, value):
         for w, _ in zip(self.subwidgets, value):
@@ -166,14 +166,14 @@ class StructWidget(QGroupBox):
         res = {}
         for name, entry in self.subwidgets.items():
             w, dt = entry
-            res[name] = dt.validate(w.get_value())
+            res[name] = dt(w.get_value())
         return res
 
     def set_value(self, value):
         for k, v in value.items():
             entry = self.subwidgets[k]
             w, dt = entry
-            w.set_value(dt.validate(v))
+            w.set_value(dt(v))
 
 
 class ArrayWidget(QGroupBox):
@@ -190,7 +190,7 @@ class ArrayWidget(QGroupBox):
         self.setLayout(self.layout)
 
     def get_value(self):
-        return [self.datatype.validate(w.get_value()) for w in self.subwidgets]
+        return [self.datatype(w.get_value()) for w in self.subwidgets]
 
     def set_value(self, values):
         for w, v in zip(self.subwidgets, values):

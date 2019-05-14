@@ -137,7 +137,7 @@ class GenericCmdWidget(ParameterWidget):
         loadUi(self, 'cmdbuttons.ui')
 
         self.cmdLineEdit.setText('')
-        self.cmdLineEdit.setEnabled(self.datatype.argtype is not None)
+        self.cmdLineEdit.setEnabled(self.datatype.argument is not None)
         self.cmdLineEdit.returnPressed.connect(
             self.on_cmdPushButton_clicked)
 

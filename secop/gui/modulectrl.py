@@ -131,8 +131,8 @@ class CommandButton(QPushButton):
         super(CommandButton, self).__init__(parent)
 
         self._cmdname = cmdname
-        self._argintype = cmdinfo['datatype'].argtype   # single datatype
-        self.resulttype = cmdinfo['datatype'].resulttype
+        self._argintype = cmdinfo['datatype'].argument   # single datatype
+        self.result = cmdinfo['datatype'].result
         self._cb = cb  # callback function for exection
 
         self.setText(cmdname)

@@ -26,17 +26,20 @@ import random
 import time
 from math import atan
 
-from secop.datatypes import EnumType, FloatRange, TupleOf
+from secop.datatypes import EnumType, FloatRange, TupleOf, StringType, BoolType
 from secop.lib import clamp, mkthread
-from secop.modules import Command, Drivable, Override, Parameter
+from secop.modules import Drivable, Override, Parameter
 
 # test custom property (value.test can be changed in config file)
-Parameter.add_property('test')
-# in the rare case of namespace conflicts, the external name could be completely different
-Command.add_property(special='_peculiar')
+from secop.properties import Property
+
+Parameter.properties['test'] = Property(StringType(), default='', export=True)
+
 
 class CryoBase(Drivable):
-    pass
+    properties = {
+        'is_cryo': Property(BoolType(), default=True, export=True),
+    }
 
 
 class Cryostat(CryoBase):

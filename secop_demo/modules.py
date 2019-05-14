@@ -29,8 +29,16 @@ import time
 from secop.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, IntRange, StringType, StructOf, TupleOf
 from secop.lib.enum import Enum
-from secop.modules import Drivable, Override, Parameter, Readable
+from secop.modules import Drivable, Override, Parameter as SECoP_Parameter, Readable
+from secop.properties import Property
 
+
+class Parameter(SECoP_Parameter):
+    properties = {
+        'test' : Property(StringType(), default='', mandatory=False, extname='test'),
+    }
+
+PERSIST = 101
 
 class Switch(Drivable):
     """switch it on or off....
@@ -51,6 +59,10 @@ class Switch(Drivable):
                                  datatype=FloatRange(0, 60), unit='s',
                                  default=10, export=False,
                                  ),
+    }
+
+    properties = {
+        'description' : Property(StringType(), default='no description', mandatory=False, extname='description'),
     }
 
     def read_value(self):
@@ -117,7 +129,7 @@ class MagneticField(Drivable):
                             datatype=StringType(), export=False,
                             ),
     }
-    Status = Enum(Drivable.Status, PERSIST=101, PREPARE=301, RAMPING=302, FINISH=303)
+    Status = Enum(Drivable.Status, PERSIST=PERSIST, PREPARE=301, RAMPING=302, FINISH=303)
     overrides = {
         'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
     }
@@ -141,7 +153,7 @@ class MagneticField(Drivable):
 
     def read_status(self):
         if self._state == self._state.enum.idle:
-            return (self.Status.PERSIST, 'at field') if self.value else \
+            return (PERSIST, 'at field') if self.value else \
                    (self.Status.IDLE, 'zero field')
         elif self._state == self._state.enum.switch_on:
             return (self.Status.PREPARE, self._state.name)
@@ -262,16 +274,16 @@ class Label(Readable):
     """
     parameters = {
         'system': Parameter("Name of the magnet system",
-                        datatype=StringType, export=False,
+                        datatype=StringType(), export=False,
                         ),
         'subdev_mf': Parameter("name of subdevice for magnet status",
-                           datatype=StringType, export=False,
+                           datatype=StringType(), export=False,
                            ),
         'subdev_ts': Parameter("name of subdevice for sample temp",
-                           datatype=StringType, export=False,
+                           datatype=StringType(), export=False,
                            ),
         'value': Override("final value of label string", default='',
-                       datatype=StringType,
+                       datatype=StringType(),
                        ),
     }
 

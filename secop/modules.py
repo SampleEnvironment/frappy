@@ -27,14 +27,17 @@ import sys
 import time
 from collections import OrderedDict
 
-from secop.datatypes import EnumType, FloatRange, \
-    StringType, TupleOf, get_datatype
+from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
+    StringType, TupleOf, get_datatype, ArrayOf
 from secop.errors import ConfigError, ProgrammingError
 from secop.lib import formatException, \
     formatExtendedStack, mkthread, unset_value
 from secop.lib.enum import Enum
-from secop.metaclass import ModuleMeta, add_metaclass
-from secop.params import PREDEFINED_ACCESSIBLES, Command, Override, Parameter
+from secop.lib.metaclass import add_metaclass
+from secop.metaclass import ModuleMeta
+from secop.params import PREDEFINED_ACCESSIBLES, Command, Override, Parameter, Parameters, Commands
+from secop.properties import HasProperties, Property
+
 
 # XXX: connect with 'protocol'-Modules.
 # Idea: every Module defined herein is also a 'protocol'-Module,
@@ -43,7 +46,7 @@ from secop.params import PREDEFINED_ACCESSIBLES, Command, Override, Parameter
 
 
 @add_metaclass(ModuleMeta)
-class Module(object):
+class Module(HasProperties):
     """Basic Module
 
     ALL secop Modules derive from this
@@ -61,16 +64,17 @@ class Module(object):
     # static properties, definitions in derived classes should overwrite earlier ones.
     # note: properties don't change after startup and are usually filled
     #       with data from a cfg file...
-    # note: so far all properties are STRINGS
-    # note: only the properties defined here are allowed to be set in the cfg file
+    # note: only the properties predefined here are allowed to be set in the cfg file
+    # note: the names map to a [datatype, value] list, value comes from the cfg file,
+    #       datatype is fixed!
     properties = {
-        'export': True, # should be exported remotely?
-        'group': None,  # some Modules may be grouped together
-        'description': "Short description of this Module class and its functionality.",
-
-        'meaning': None,  # XXX: ???
-        'priority': None,  # XXX: ???
-        'visibility': None,  # XXX: ????
+        'export':          Property(BoolType(), default=True, export=False),
+        'group':           Property(StringType(), default='', extname='group'),
+        'description':     Property(StringType(), extname='description', mandatory=True),
+        'meaning':         Property(TupleOf(StringType(),IntRange(0,50)), default=('',0), extname='meaning'),
+        'visibility':      Property(EnumType('visibility', user=1, advanced=2, expert=3), default=1, extname='visibility'),
+        'implementation':  Property(StringType(), extname='implementation'),
+        'interface_class': Property(ArrayOf(StringType()), extname='interface_class'),
         # what else?
     }
 
@@ -89,32 +93,26 @@ class Module(object):
 
         # handle module properties
         # 1) make local copies of properties
-        # XXX: self.properties = self.properties.copy() ???
-        props = {}
-        for k, v in list(self.properties.items()):
-            props[k] = v
-        self.properties = props
+        super(Module, self).__init__()
 
         # 2) check and apply properties specified in cfgdict
         #    specified as '.<propertyname> = <propertyvalue>'
         for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if k[0] == '.':
-                if k[1:] in self.properties:
-                    self.properties[k[1:]] = cfgdict.pop(k)
-                elif k[1] == '_':
-                    self.properties[k[1:]] = cfgdict.pop(k)
+                if k[1:] in self.__class__.properties:
+                    self.setProperty(k[1:], cfgdict.pop(k))
                 else:
                     raise ConfigError('Module %r has no property %r' %
                                       (self.name, k[1:]))
-        # 3) remove unset (default) module properties
-        for k, v in list(self.properties.items()):  # keep list() as dict may change during iter
-            if v is None:
-                del self.properties[k]
 
         # 4) set automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
-        self.properties['_implementation'] = myclassname
+        self.properties['implementation'] = myclassname
+        # list of all 'secop' modules
+        self.properties['interface_class'] = [
+            b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
+        # list of only the 'highest' secop module class
         self.properties['interface_class'] = [[
             b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')][0]]
 
@@ -136,20 +134,20 @@ class Module(object):
                     predefined_obj = PREDEFINED_ACCESSIBLES.get(aname, None)
                     if predefined_obj:
                         if isinstance(aobj, predefined_obj):
-                            aobj.export = aname
+                            aobj.setProperty('export', aname)
                         else:
                             raise ProgrammingError("can not use '%s' as name of a %s" %
                                   (aname, aobj.__class__.__name__))
                     else: # create custom parameter
-                        aobj.export = '_' + aname
+                        aobj.setProperty('export', '_' + aname)
                 accessiblename2attr[aobj.export] = aname
             accessibles[aname] = aobj
         # do not re-use self.accessibles as this is the same for all instances
         self.accessibles = accessibles
         self.accessiblename2attr = accessiblename2attr
         # provide properties to 'filter' out the parameters/commands
-        self.parameters = dict((k,v) for k,v in accessibles.items() if isinstance(v, Parameter))
-        self.commands = dict((k,v) for k,v in accessibles.items() if isinstance(v, Command))
+        self.parameters = Parameters((k,v) for k,v in accessibles.items() if isinstance(v, Parameter))
+        self.commands = Commands((k,v) for k,v in accessibles.items() if isinstance(v, Command))
 
         # 2) check and apply parameter_properties
         #    specified as '<paramname>.<propertyname> = <propertyvalue>'
@@ -160,9 +158,9 @@ class Module(object):
                 # paramobj might also be a command (not sure if this is needed)
                 if paramobj:
                     if propname == 'datatype':
-                        paramobj.datatype = get_datatype(cfgdict.pop(k))
-                    elif hasattr(paramobj, propname):
-                        setattr(paramobj, propname, cfgdict.pop(k))
+                        paramobj.setProperty('datatype', get_datatype(cfgdict.pop(k)))
+                    elif propname in paramobj.__class__.properties:
+                        paramobj.setProperty(propname, cfgdict.pop(k))
                     else:
                         raise ConfigError('Module %s: Parameter %r has no property %r!' %
                                           (self.name, paramname, propname))
@@ -194,8 +192,8 @@ class Module(object):
             # apply datatype, complain if type does not fit
             datatype = self.parameters[k].datatype
             try:
-                v = datatype.validate(v)
-                self.parameters[k].default = v
+                v = datatype(v)
+                self.parameters[k].value = v
             except (ValueError, TypeError):
                 self.log.exception(formatExtendedStack())
                 raise
@@ -211,6 +209,18 @@ class Module(object):
         for k, v in self.parameters.items():
             if '$' in v.unit:
                 v.unit = v.unit.replace('$', self.parameters['value'].unit)
+
+        # 6) check complete configuration of * properties
+        self.checkProperties()
+        for p in self.parameters.values():
+            p.checkProperties()
+
+    # helper cfg-editor
+    def __iter__(self):
+        return self.accessibles.__iter__()
+
+    def __getitem__(self, item):
+        return self.accessibles.__getitem__(item)
 
     def isBusy(self):
         '''helper function for treating substates of BUSY correctly'''
@@ -247,10 +257,9 @@ class Readable(Module):
     Status = Enum('Status',
                   IDLE = 100,
                   WARN = 200,
-                  UNSTABLE = 250,
+                  UNSTABLE = 270,
                   ERROR = 400,
-                  DISABLED = 500,
-                  UNKNOWN = 0,
+                  DISABLED = 0,
                  )
     parameters = {
         'value':        Parameter('current value of the Module', readonly=True,

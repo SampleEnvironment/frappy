@@ -289,7 +289,7 @@ class Enum(dict):
         return self[key]
 
     def __setattr__(self, key, value):
-        if self.name:
+        if self.name and key != 'name':
             raise TypeError('Enum %r can not be changed!' % self.name)
         super(Enum, self).__setattr__(key, value)
 

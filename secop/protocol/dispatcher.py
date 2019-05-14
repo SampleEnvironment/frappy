@@ -181,7 +181,7 @@ class Dispatcher(object):
                            (modulename, res))
             return res
         self.log.debug(u'-> module is not to be exported!')
-        return {}
+        return []
 
     def get_descriptive_data(self):
         """returns a python object which upon serialisation results in the descriptive data"""
@@ -194,36 +194,43 @@ class Dispatcher(object):
                 continue
             # some of these need rework !
             mod_desc = {u'accessibles': self.export_accessibles(modulename)}
-            for propname, prop in list(module.properties.items()):
-                if propname == 'export':
-                    continue
-                mod_desc[propname] = prop
+            mod_desc.update(module.exportProperties())
+            mod_desc.pop('export', False)
             result[u'modules'].append([modulename, mod_desc])
         result[u'equipment_id'] = self.equipment_id
         result[u'firmware'] = u'FRAPPY - The Python Framework for SECoP'
-        result[u'version'] = u'2019.03'
+        result[u'version'] = u'2019.05'
         result.update(self.nodeprops)
         return result
 
-    def _execute_command(self, modulename, command, argument=None):
+    def _execute_command(self, modulename, exportedname, argument=None):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
 
-        cmdspec = moduleobj.accessibles.get(command, None)
-        if cmdspec is None:
-            raise NoSuchCommandError(u'Module has no such command!')
-        if argument is None and cmdspec.datatype.argtype is not None:
+        cmdname = moduleobj.commands.exported.get(exportedname, None)
+        if cmdname is None:
+            raise NoSuchCommandError(u'Module has no command %r on this SEC-Node!' % exportedname)
+        cmdspec = moduleobj.commands[cmdname]
+        if argument is None and cmdspec.datatype.argument is not None:
             raise BadValueError(u'Command needs an argument!')
 
-        if argument is not None and cmdspec.datatype.argtype is None:
+        if argument is not None and cmdspec.datatype.argument is None:
             raise BadValueError(u'Command takes no argument!')
 
-        # now call func and wrap result as value
+        if cmdspec.datatype.argument:
+            # validate!
+            argument = cmdspec.datatype(argument)
+
+        # now call func
         # note: exceptions are handled in handle_request, not here!
-        func = getattr(moduleobj, u'do_' + command)
+        func = getattr(moduleobj, u'do_' + cmdname)
         res = func(argument) if argument else func()
-        # XXX: pipe through cmdspec.datatype.result ?
+
+        # pipe through cmdspec.datatype.result
+        if cmdspec.datatype.result:
+            res = cmdspec.datatype.result(res)
+
         return res, dict(t=currenttime())
 
     def _setParameterValue(self, modulename, exportedname, value):
@@ -231,45 +238,46 @@ class Dispatcher(object):
         if moduleobj is None:
             raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
 
-        pname = moduleobj.accessiblename2attr.get(exportedname, None)
-        pobj = moduleobj.accessibles.get(pname, None)
-        if pobj is None or not isinstance(pobj, Parameter):
-            raise NoSuchParameterError(u'Module has no such parameter on this SEC-Node!')
+        pname = moduleobj.parameters.exported.get(exportedname, None)
+        if pname is None:
+            raise NoSuchParameterError(u'Module has no parameter %r on this SEC-Node!' % exportedname)
+        pobj = moduleobj.parameters[pname]
         if pobj.constant is not None:
             raise ReadOnlyError(u'This parameter is constant and can not be accessed remotely.')
         if pobj.readonly:
             raise ReadOnlyError(u'This parameter can not be changed remotely.')
 
+        # validate!
+        value = pobj.datatype(value)
         writefunc = getattr(moduleobj, u'write_%s' % pname, None)
         # note: exceptions are handled in handle_request, not here!
         if writefunc:
-            value = writefunc(value)
+            # return value is ignored here, as it is automatically set on the pobj and broadcast
+            writefunc(value)
         else:
             setattr(moduleobj, pname, value)
-        if pobj.timestamp:
-            return pobj.export_value(), dict(t=pobj.timestamp)
-        return pobj.export_value(), {}
+        return pobj.export_value(), dict(t=pobj.timestamp) if pobj.timestamp else {}
 
     def _getParameterValue(self, modulename, exportedname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
 
-        pname = moduleobj.accessiblename2attr.get(exportedname, None)
-        pobj = moduleobj.accessibles.get(pname, None)
-        if pobj is None or not isinstance(pobj, Parameter):
-            raise NoSuchParameterError(u'Module has no such parameter on this SEC-Node!')
+        pname = moduleobj.parameters.exported.get(exportedname, None)
+        if pname is None:
+            raise NoSuchParameterError(u'Module has no parameter %r on this SEC-Node!' % exportedname)
+        pobj = moduleobj.parameters[pname]
         if pobj.constant is not None:
-            raise ReadOnlyError(u'This parameter is constant and can not be accessed remotely.')
+            # really needed? we could just construct a readreply instead....
+            #raise ReadOnlyError(u'This parameter is constant and can not be accessed remotely.')
+            return pobj.datatype.export_value(pobj.constant)
 
         readfunc = getattr(moduleobj, u'read_%s' % pname, None)
         if readfunc:
             # should also update the pobj (via the setter from the metaclass)
             # note: exceptions are handled in handle_request, not here!
             readfunc()
-        if pobj.timestamp:
-            return pobj.export_value(), dict(t=pobj.timestamp)
-        return pobj.export_value(), {}
+        return pobj.export_value(), dict(t=pobj.timestamp) if pobj.timestamp else {}
 
     #
     # api to be called from the 'interface'

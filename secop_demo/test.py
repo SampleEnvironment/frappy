@@ -26,6 +26,7 @@ import random
 
 from secop.datatypes import FloatRange, StringType
 from secop.modules import Communicator, Drivable, Parameter, Readable, Override
+from secop.params import Command
 
 try:
     # py2
@@ -99,5 +100,8 @@ class Temp(Drivable):
 
 class Lower(Communicator):
     """Communicator returning a lowercase version of the request"""
+    command = {
+        'communicate': Command('lowercase a string', StringType(), StringType(), export='communicate'),
+    }
     def do_communicate(self, request):
         return unicode(request).lower()

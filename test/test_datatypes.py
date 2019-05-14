@@ -28,7 +28,7 @@ import pytest
 
 from secop.datatypes import ArrayOf, BLOBType, BoolType, \
     DataType, EnumType, FloatRange, IntRange, ProgrammingError, \
-    ScaledInteger, StringType, StructOf, TupleOf, get_datatype
+    ScaledInteger, StringType, StructOf, TupleOf, get_datatype, CommandType
 
 
 def copytest(dt):
@@ -41,7 +41,7 @@ def test_DataType():
     with pytest.raises(NotImplementedError):
         dt.export_datatype()
     with pytest.raises(NotImplementedError):
-        dt.validate('')
+        dt('')
     dt.export_value('')
     dt.import_value('')
 
@@ -52,16 +52,16 @@ def test_FloatRange():
     assert dt.export_datatype() == [u'double', {u'min':-3.14, u'max':3.14}]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate(-9)
+        dt(-9)
     with pytest.raises(ValueError):
-        dt.validate(u'XX')
+        dt(u'XX')
     with pytest.raises(ValueError):
-        dt.validate([19, u'X'])
-    dt.validate(1)
-    dt.validate(0)
-    dt.validate(13.14 - 10)  # raises an error, if resolution is not handled correctly
+        dt([19, u'X'])
+    dt(1)
+    dt(0)
+    dt(13.14 - 10)  # raises an error, if resolution is not handled correctly
     assert dt.export_value(-2.718) == -2.718
     assert dt.import_value(-2.718) == -2.718
     with pytest.raises(ValueError):
@@ -74,13 +74,13 @@ def test_FloatRange():
     copytest(dt)
     assert dt.export_datatype() == [u'double', {}]
 
-    dt = FloatRange(unit=u'X', fmtstr=u'%r', absolute_resolution=1,
+    dt = FloatRange(unit=u'X', fmtstr=u'%.2f', absolute_resolution=1,
                     relative_resolution=0.1)
     copytest(dt)
-    assert dt.export_datatype() == [u'double', {u'unit':u'X', u'fmtstr':u'%r',
-                                      u'absolute_resolution':1,
+    assert dt.export_datatype() == [u'double', {u'unit':u'X', u'fmtstr':u'%.2f',
+                                      u'absolute_resolution':1.0,
                                       u'relative_resolution':0.1}]
-    assert dt.validate(4) == 4
+    assert dt(4) == 4
     assert dt.format_value(3.14) == u'3.14 X'
     assert dt.format_value(3.14, u'') == u'3.14'
     assert dt.format_value(3.14, u'#') == u'3.14 #'
@@ -92,15 +92,15 @@ def test_IntRange():
     assert dt.export_datatype() == [u'int', {u'min':-3, u'max':3}]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate(-9)
+        dt(-9)
     with pytest.raises(ValueError):
-        dt.validate(u'XX')
+        dt(u'XX')
     with pytest.raises(ValueError):
-        dt.validate([19, u'X'])
-    dt.validate(1)
-    dt.validate(0)
+        dt([19, u'X'])
+    dt(1)
+    dt(0)
     with pytest.raises(ValueError):
         IntRange(u'xc', u'Yx')
 
@@ -118,15 +118,15 @@ def test_ScaledInteger():
     assert dt.export_datatype() == [u'scaled', {u'scale':0.01, u'min':-300, u'max':300}]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate(-9)
+        dt(-9)
     with pytest.raises(ValueError):
-        dt.validate(u'XX')
+        dt(u'XX')
     with pytest.raises(ValueError):
-        dt.validate([19, u'X'])
-    dt.validate(1)
-    dt.validate(0)
+        dt([19, u'X'])
+    dt(1)
+    dt(0)
     with pytest.raises(ValueError):
         ScaledInteger(u'xc', u'Yx')
     with pytest.raises(ValueError):
@@ -141,20 +141,20 @@ def test_ScaledInteger():
     assert dt.export_value(2.71819) == int(272)
     assert dt.import_value(272) == 2.72
 
-    dt = ScaledInteger(0.003, 0, 1, unit=u'X', fmtstr=u'%r',
+    dt = ScaledInteger(0.003, 0, 1, unit=u'X', fmtstr=u'%.1f',
                        absolute_resolution=0.001, relative_resolution=1e-5)
     copytest(dt)
-    assert dt.export_datatype() == [u'scaled', {u'scale':0.003,u'min':0,u'max':333,
-                                      u'unit':u'X', u'fmtstr':u'%r',
+    assert dt.export_datatype() == [u'scaled', {u'scale':0.003, u'min':0, u'max':333,
+                                      u'unit':u'X', u'fmtstr':u'%.1f',
                                       u'absolute_resolution':0.001,
                                       u'relative_resolution':1e-5}]
-    assert dt.validate(0.4) == 0.399
+    assert dt(0.4) == 0.399
     assert dt.format_value(0.4) == u'0.4 X'
     assert dt.format_value(0.4, u'') == u'0.4'
     assert dt.format_value(0.4, u'Z') == u'0.4 Z'
-    assert dt.validate(1.0029) == 0.999
+    assert dt(1.0029) == 0.999
     with pytest.raises(ValueError):
-        dt.validate(1.004)
+        dt(1.004)
 
 
 def test_EnumType():
@@ -169,19 +169,19 @@ def test_EnumType():
     assert dt.export_datatype() == [u'enum', dict(members=dict(a=3, c=7, stuff=1))]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate(-9)
+        dt(-9)
     with pytest.raises(ValueError):
-        dt.validate(u'XX')
+        dt(u'XX')
     with pytest.raises(TypeError):
-        dt.validate([19, u'X'])
+        dt([19, u'X'])
 
-    assert dt.validate(u'a') == 3
-    assert dt.validate(u'stuff') == 1
-    assert dt.validate(1) == 1
+    assert dt(u'a') == 3
+    assert dt(u'stuff') == 1
+    assert dt(1) == 1
     with pytest.raises(ValueError):
-        dt.validate(2)
+        dt(2)
 
     assert dt.export_value(u'c') == 7
     assert dt.export_value(u'stuff') == 1
@@ -211,14 +211,14 @@ def test_BLOBType():
     assert dt.export_datatype() == [u'blob', {u'min':3, u'max':10}]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate(u'av')
+        dt(u'av')
     with pytest.raises(ValueError):
-        dt.validate(u'abcdefghijklmno')
-    assert dt.validate('abcd') == b'abcd'
-    assert dt.validate(b'abcd') == b'abcd'
-    assert dt.validate(u'abcd') == b'abcd'
+        dt(u'abcdefghijklmno')
+    assert dt('abcd') == b'abcd'
+    assert dt(b'abcd') == b'abcd'
+    assert dt(u'abcd') == b'abcd'
 
     assert dt.export_value('abcd') == u'YWJjZA=='
     assert dt.export_value(b'abcd') == u'YWJjZA=='
@@ -242,16 +242,16 @@ def test_StringType():
     assert dt.export_datatype() == [u'string', {u'min':4, u'max':11}]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate(u'av')
+        dt(u'av')
     with pytest.raises(ValueError):
-        dt.validate(u'abcdefghijklmno')
+        dt(u'abcdefghijklmno')
     with pytest.raises(ValueError):
-        dt.validate('abcdefg\0')
-    assert dt.validate('abcd') == b'abcd'
-    assert dt.validate(b'abcd') == b'abcd'
-    assert dt.validate(u'abcd') == b'abcd'
+        dt('abcdefg\0')
+    assert dt('abcd') == b'abcd'
+    assert dt(b'abcd') == b'abcd'
+    assert dt(u'abcd') == b'abcd'
 
     assert dt.export_value('abcd') == b'abcd'
     assert dt.export_value(b'abcd') == b'abcd'
@@ -268,13 +268,13 @@ def test_BoolType():
     assert dt.export_datatype() == [u'bool', {}]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate(u'av')
+        dt(u'av')
 
-    assert dt.validate(u'true') is True
-    assert dt.validate(u'off') is False
-    assert dt.validate(1) is True
+    assert dt(u'true') is True
+    assert dt(u'off') is False
+    assert dt(1) is True
 
     assert dt.export_value(u'false') is False
     assert dt.export_value(0) is False
@@ -308,11 +308,11 @@ def test_ArrayOf():
                                                              u'max':10,
                                                              u'unit':u'Z'}]}]
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate(u'av')
+        dt(u'av')
 
-    assert dt.validate([1, 2, 3]) == [1, 2, 3]
+    assert dt([1, 2, 3]) == [1, 2, 3]
 
     assert dt.export_value([1, 2, 3]) == [1, 2, 3]
     assert dt.import_value([1, 2, 3]) == [1, 2, 3]
@@ -334,11 +334,11 @@ def test_TupleOf():
                                                  [u'bool', {}]]}]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate([99, 'X'])
+        dt([99, 'X'])
 
-    assert dt.validate([1, True]) == [1, True]
+    assert dt([1, True]) == [1, True]
 
     assert dt.export_value([1, True]) == [1, True]
     assert dt.import_value([1, True]) == [1, True]
@@ -364,13 +364,13 @@ def test_StructOf():
                                      }]
 
     with pytest.raises(ValueError):
-        dt.validate(9)
+        dt(9)
     with pytest.raises(ValueError):
-        dt.validate([99, u'X'])
+        dt([99, u'X'])
     with pytest.raises(ValueError):
-        dt.validate(dict(a_string=u'XXX', an_int=1811))
+        dt(dict(a_string=u'XXX', an_int=1811))
 
-    assert dt.validate(dict(a_string=u'XXX', an_int=8)) == {u'a_string': u'XXX',
+    assert dt(dict(a_string=u'XXX', an_int=8)) == {u'a_string': u'XXX',
                                                             u'an_int': 8}
     assert dt.export_value({u'an_int': 13, u'a_string': u'WFEC'}) == {
         u'a_string': u'WFEC', u'an_int': 13}
@@ -378,6 +378,18 @@ def test_StructOf():
         u'a_string': u'WFEC', u'an_int': 13}
 
     assert dt.format_value({u'an_int':2, u'a_string':u'Z'}) == u"{a_string=u'Z', an_int=2}"
+
+
+def test_Command():
+    dt = CommandType()
+    assert dt.export_datatype() == [u'command', {u'argument':None, u'result':None}]
+
+    dt = CommandType(IntRange(-1,1))
+    assert dt.export_datatype() == [u'command', {u'argument':[u'int', {u'min':-1, u'max':1}], u'result':None}]
+
+    dt = CommandType(IntRange(-1,1), IntRange(-3,3))
+    assert dt.export_datatype() == [u'command', {u'argument':[u'int', {u'min':-1, u'max':1}],
+                                                 u'result':[u'int', {u'min':-3, u'max':3}]}]
 
 
 def test_get_datatype():

@@ -26,38 +26,18 @@ from __future__ import division, print_function
 import time
 from collections import OrderedDict
 
-from secop.datatypes import EnumType
 from secop.errors import ProgrammingError
 from secop.params import Command, Override, Parameter
-
-try:
-    # pylint: disable=unused-import
-    from six import add_metaclass # for py2/3 compat
-except ImportError:
-    # copied from six v1.10.0
-    def add_metaclass(metaclass):
-        """Class decorator for creating a class with a metaclass."""
-        def wrapper(cls):
-            orig_vars = cls.__dict__.copy()
-            slots = orig_vars.get('__slots__')
-            if slots is not None:
-                if isinstance(slots, str):
-                    slots = [slots]
-                for slots_var in slots:
-                    orig_vars.pop(slots_var)
-            orig_vars.pop('__dict__', None)
-            orig_vars.pop('__weakref__', None)
-            return metaclass(cls.__name__, cls.__bases__, orig_vars)
-        return wrapper
+from secop.datatypes import EnumType
+from secop.properties import PropertyMeta
 
 
-
-EVENT_ONLY_ON_CHANGED_VALUES = True
+EVENT_ONLY_ON_CHANGED_VALUES = False
 
 
 # warning: MAGIC!
 
-class ModuleMeta(type):
+class ModuleMeta(PropertyMeta):
     """Metaclass
 
     joining the class's properties, parameters and commands dicts with
@@ -75,12 +55,7 @@ class ModuleMeta(type):
         if '__constructed__' in attrs:
             return newtype
 
-        # merge properties from all sub-classes
-        newentry = {}
-        for base in reversed(bases):
-            newentry.update(getattr(base, "properties", {}))
-        newentry.update(attrs.get("properties", {}))
-        newtype.properties = newentry
+        newtype = PropertyMeta.__join_properties__(newtype, name, bases, attrs)
 
         # merge accessibles from all sub-classes, treat overrides
         # for now, allow to use also the old syntax (parameters/commands dict)
@@ -118,7 +93,7 @@ class ModuleMeta(type):
 
         # Correct naming of EnumTypes
         for k, v in accessibles.items():
-            if isinstance(v.datatype, EnumType) and not v.datatype._enum.name:
+            if isinstance(v, Parameter) and isinstance(v.datatype, EnumType):
                 v.datatype._enum.name = k
 
         # newtype.accessibles will be used in 2 places only:
@@ -172,18 +147,12 @@ class ModuleMeta(type):
                 def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
                     self.log.debug("wfunc(%s): set %r" % (pname, value))
                     pobj = self.accessibles[pname]
-                    value = pobj.datatype.validate(value)
+                    value = pobj.datatype(value)
                     if wfunc:
                         self.log.debug('calling %r(%r)' % (wfunc, value))
-                        try:
-                            returned_value = wfunc(self, value)
-                        except Exception as e:
-                            self.DISPATCHER.announce_update_error(self, pname, pobj, e)
-                            raise e
+                        returned_value = wfunc(self, value)
                         if returned_value is not None:
                             value = returned_value
-                    # XXX: use setattr or direct manipulation
-                    # of self.accessibles[pname]?
                     setattr(self, pname, value)
                     return value
 
@@ -198,7 +167,7 @@ class ModuleMeta(type):
 
             def setter(self, value, pname=pname):
                 pobj = self.accessibles[pname]
-                value = pobj.datatype.validate(value)
+                value = pobj.datatype(value)
                 pobj.timestamp = time.time()
                 if (not EVENT_ONLY_ON_CHANGED_VALUES) or (value != pobj.value):
                     pobj.value = value
@@ -218,3 +187,18 @@ class ModuleMeta(type):
 
         attrs['__constructed__'] = True
         return newtype
+
+    @property
+    def configurables(cls):
+        # note: this ends up as an property of the Module class (not on the instance)!
+
+        # list of tuples (cfg-file key, Property/Parameter)
+        res = []
+        # collect info about properties
+        for pn, pv in cls.properties.items():
+            res.append((u'%s' % pn, pv,))
+        # collect info about parameters and their properties
+        for param, pobj in cls.accessibles.items():
+            for pn, pv in pobj.__class__.properties.items():
+                res.append((u'%s.%s' % (param,pn), pv))
+        return res

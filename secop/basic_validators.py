@@ -146,3 +146,10 @@ def TupleProperty(*checkers):
             return tuple(c(v) for c, v in zip(checkers, values))
         raise ValueError(u'Value needs %d elements!' % len(checkers))
     return TupleChecker
+
+def ListOfProperty(checker):
+    if not callable(checker):
+        raise ProgrammingError(u'ListOfProperty needs a basic validator as Argument!')
+    def ListOfChecker(values):
+        return [checker(v) for v in values]
+    return ListOfChecker

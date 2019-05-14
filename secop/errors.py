@@ -83,7 +83,7 @@ class ReadOnlyError(SECoPError):
     pass
 
 
-class BadValueError(SECoPError):
+class BadValueError(ValueError, SECoPError):
     pass
 
 

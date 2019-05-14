@@ -23,10 +23,17 @@
 
 from __future__ import division, print_function
 
-from secop.datatypes import CommandType, DataType
-from secop.errors import ProgrammingError
-from secop.lib import unset_value
+from collections import OrderedDict
 
+from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType
+from secop.errors import ProgrammingError
+from secop.properties import HasProperties, Property
+
+try:
+    unicode
+except NameError:
+    # pylint: disable=redefined-builtin
+    unicode = str  # py3 compat
 
 class CountedObj(object):
     ctr = [0]
@@ -36,41 +43,34 @@ class CountedObj(object):
         self.ctr = cl[0]
 
 
-class Accessible(CountedObj):
-    '''abstract base class for Parameter and Command'''
+class Accessible(HasProperties, CountedObj):
+    '''base class for Parameter and Command'''
+
+    properties = {}
+
+    def __init__(self, **kwds):
+        super(Accessible, self).__init__()
+        self.properties.update(kwds)
 
     def __repr__(self):
-        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
-            ['%s=%r' % (k, v) for k, v in sorted(self.__dict__.items())]))
+        return u'%s_%d(%s)' % (self.__class__.__name__, self.ctr, ',\n\t'.join(
+            [u'%s=%r' % (k, self.properties.get(k, v.default)) for k, v in sorted(self.__class__.properties.items())]))
 
     def copy(self):
-        '''return a copy of ourselfs'''
-        props = self.__dict__.copy()
+        # return a copy of ourselfs
+        props = dict(self.properties, ctr=self.ctr)
         return type(self)(**props)
 
-    def exported_properties(self):
-        res = dict(datatype=self.datatype.export_datatype())
-        for key, value in self.__dict__.items():
-            if key in self.valid_properties:
-                res[self.valid_properties[key]] = value
-        return res
-
-    @classmethod
-    def add_property(cls, *args, **kwds):
-        '''add custom properties
-
-        args: custom properties, exported with leading underscore
-        kwds: special cases, where exported name differs from internal
-
-        intention: to be called in secop_<facility>/__init__.py for
-        facility specific properties
-        '''
-        for name in args:
-            kwds[name] = '_' + name
-        for name, external in kwds.items():
-            if name in cls.valid_properties and name != cls.valid_properties[name]:
-                raise ProgrammingError('can not overrride property name %s' % name)
-            cls.valid_properties[name] = external
+    def for_export(self):
+        # used for serialisation only
+        # some specials:
+        # - datatype needs a special serialisation
+        # - readonly is mandatory for serialisation, but not for declaration in classes
+        r =  self.exportProperties()
+        if isinstance(self, Parameter):
+            if 'readonly' not in r:
+                r['readonly'] = self.__class__.properties['readonly'].default
+        return r
 
 
 class Parameter(Accessible):
@@ -90,85 +90,111 @@ class Parameter(Accessible):
     note: Drivable (and derived classes) poll with 10 fold frequency if module is busy....
     """
 
-    # unit and datatype are not listed (handled separately)
-    valid_properties = dict()
-    for prop in ('description', 'readonly', 'group', 'visibility', 'constant'):
-        valid_properties[prop] = prop
+    properties = {
+        u'description': Property(StringType(), extname=u'description', mandatory=True),
+        u'datatype':    Property(DataTypeType(), extname=u'datatype', mandatory=True),
+        u'unit':        Property(StringType(), extname=u'unit', default=''),  # goodie, should be on the datatype!
+        u'readonly':    Property(BoolType(), extname=u'readonly', default=True),
+        u'group':       Property(StringType(), extname=u'group', default=''),
+        u'visibility':  Property(EnumType(u'visibility', user=1, advanced=2, expert=3),
+                                 extname=u'visibility', default=1),
+        u'constant':    Property(ValueType(), extname=u'constant', default=None),
+        u'default':     Property(ValueType(), export=False, default=None, mandatory=False),
+        u'export':      Property(OrType(BoolType(), StringType()), export=False, default=True),
+        u'poll':        Property(ValueType(), export=False, default=True),  # check default value!
+        u'optional':    Property(BoolType(), export=False, default=False),
+    }
 
-    def __init__(self,
-                 description,
-                 datatype=None,
-                 default=unset_value,
-                 readonly=True,
-                 export=True,
-                 poll=False,
-                 unit=u'',
-                 constant=None,
-                 value=None, # swallow
-                 timestamp=None, # swallow
-                 optional=False,
-                 ctr=None,
-                 **kwds):
-        super(Parameter, self).__init__()
+    value = None
+    timestamp = None
+    def __init__(self, description, datatype, ctr=None, **kwds):
+
+        if ctr is not None:
+            self.ctr = ctr
+
         if not isinstance(datatype, DataType):
             if issubclass(datatype, DataType):
                 # goodie: make an instance from a class (forgotten ()???)
                 datatype = datatype()
             else:
                 raise ValueError(
-                    'datatype MUST be derived from class DataType!')
-        self.description = description
-        self.datatype = datatype
-        self.default = default
-        self.readonly = readonly if constant is None else True
-        self.export = export
-        self.optional = optional
-        self.constant = constant
+                    u'datatype MUST be derived from class DataType!')
+
+        kwds[u'description'] = description
+        kwds[u'datatype'] = datatype
+        super(Parameter, self).__init__(**kwds)
 
         # note: auto-converts True/False to 1/0 which yield the expected
         # behaviour...
-        self.poll = int(poll)
-        for key in kwds:
-            if key not in self.valid_properties:
-                raise ProgrammingError('%s is not a valid parameter property' % key)
-        if constant is not None:
+        self.properties[u'poll'] = int(self.poll)
+
+        if self.constant is not None:
+            self.properties[u'readonly'] = True
             # The value of the `constant` property should be the
             # serialised version of the constant, or unset
-            constant = self.datatype.validate(constant)
-            self.constant = self.datatype.export_value(constant)
-        # helper. unit should be set on the datatype, not on the parameter!
-        if unit:
-            self.datatype.unit = unit
-        self.__dict__.update(kwds)
+            constant = self.datatype(kwds[u'constant'])
+            self.properties[u'constant'] = self.datatype.export_value(constant)
+
+        # helper: unit should be set on the datatype, not on the parameter!
+        if self.unit:
+            self.datatype.unit = self.unit
+            self.properties[u'unit'] = ''
+
         # internal caching: value and timestamp of last change...
-        self.value = default
+        self.value = self.default
         self.timestamp = 0
-        if ctr is not None:
-            self.ctr = ctr
-
-    def copy(self):
-        '''return a copy of ourselfs'''
-        result = Accessible.copy(self)
-        result.datatype = result.datatype.copy()
-        return result
-
-    def for_export(self):
-        # used for serialisation only
-        res = self.exported_properties()
-        return res
 
     def export_value(self):
         return self.datatype.export_value(self.value)
 
+    # helpers...
     def _get_unit_(self):
         return self.datatype.unit
 
     def _set_unit_(self, unit):
+        print(u'DeprecationWarning: setting unit on the parameter is going to be removed')
         self.datatype.unit = unit
 
     unit = property(_get_unit_, _set_unit_)
     del _get_unit_
     del _set_unit_
+
+
+class UnusedClass(object):
+    # do not derive anything from this!
+    pass
+
+class Parameters(OrderedDict):
+    """class storage for Parameters"""
+    def __init__(self, *args, **kwds):
+        self.exported = {}  # only for lookups!
+        super(Parameters, self).__init__(*args, **kwds)
+
+    def __setitem__(self, key, value):
+        if value.export:
+            if isinstance(value, PREDEFINED_ACCESSIBLES.get(key, UnusedClass)):
+                value.properties[u'export'] = key
+            else:
+                value.properties[u'export'] = '_' + key
+                self.exported[value.export] = key
+        super(Parameters, self).__setitem__(key, value)
+
+    def __getitem__(self, item):
+        if item in self.exported:
+            return self[self.exported[item]]
+        return super(Parameters, self).__getitem__(item)
+
+
+class ParamValue(object):
+    __slots__ = ['value', 'timestamp']
+    def __init__(self, value, timestamp=0):
+        self.value = value
+        self.timestamp = timestamp
+
+
+class Commands(Parameters):
+    """class storage for Commands"""
+    pass
 
 
 class Override(CountedObj):
@@ -183,37 +209,31 @@ class Override(CountedObj):
         self.reorder = reorder
         # allow to override description without keyword
         if description:
-            self.kwds['description'] = description
+            self.kwds[u'description'] = description
         # for now, do not use the Override ctr
         # self.kwds['ctr'] = self.ctr
 
     def __repr__(self):
-        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
-            ['%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
+        return u'%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
+            [u'%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
 
     def apply(self, obj):
         if isinstance(obj, Accessible):
-            props = obj.__dict__.copy()
-            for key in self.kwds:
-                if key == 'unit':
-                    # XXX: HACK!
-                    continue
-                if key not in props and key not in type(obj).valid_properties:
-                    raise ProgrammingError( "%s is not a valid %s property" %
-                                           (key, type(obj).__name__))
+            props = obj.properties.copy()
             if isinstance(obj, Parameter):
                 if u'constant' in self.kwds:
-                    constant = obj.datatype.validate(self.kwds.pop(u'constant'))
+                    constant = obj.datatype(self.kwds.pop(u'constant'))
                     self.kwds[u'constant'] = obj.datatype.export_value(constant)
                     self.kwds[u'readonly'] = True
             props.update(self.kwds)
 
             if self.reorder:
-                props['ctr'] = self.ctr
+                #props['ctr'] = self.ctr
+                return type(obj)(ctr=self.ctr, **props)
             return type(obj)(**props)
         else:
             raise ProgrammingError(
-                "Overrides can only be applied to Accessibles, %r is none!" %
+                u"Overrides can only be applied to Accessibles, %r is none!" %
                 obj)
 
 
@@ -221,39 +241,45 @@ class Command(Accessible):
     """storage for Commands settings (description + call signature...)
     """
     # datatype is not listed (handled separately)
-    valid_properties = dict()
-    for prop in ('description', 'group', 'visibility'):
-        valid_properties[prop] = prop
+    properties = {
+        u'description': Property(StringType(), extname=u'description', export=True, mandatory=True),
+        u'group':       Property(StringType(), extname=u'group', export=True, default=''),
+        u'visibility':  Property(EnumType(u'visibility', user=1, advanced=2, expert=3),
+                                 extname=u'visibility', export=True, default=1),
+        u'export':      Property(OrType(BoolType(), StringType()), export=False, default=True),
+        u'optional':    Property(BoolType(), export=False, default=False, settable=False),
+        u'datatype': Property(DataTypeType(), extname=u'datatype', mandatory=True),
+    }
 
-    def __init__(self,
-                 description,
-                 argument=None,
-                 result=None,
-                 export=True,
-                 optional=False,
-                 datatype=None, # swallow datatype argument on copy
-                 ctr=None,
-                 **kwds):
-        super(Command, self).__init__()
-        # descriptive text for humans
-        self.description = description
-        # datatypes for argument/result
-        self.argument = argument
-        self.result = result
-        self.datatype = CommandType(argument, result)
-        # whether implementation is optional
-        self.optional = optional
-        self.export = export
-        for key in kwds:
-            if key not in self.valid_properties:
-                raise ProgrammingError('%s is not a valid command property' % key)
-        self.__dict__.update(kwds)
+    def __init__(self, description, argument=None, result=None, ctr=None, **kwds):
+        kwds[u'description'] = description
+        kwds[u'datatype'] = CommandType(argument, result)
+        super(Command, self).__init__(**kwds)
         if ctr is not None:
             self.ctr = ctr
 
+    @property
+    def argument(self):
+        return self.datatype.argument
+
+    @property
+    def result(self):
+        return self.datatype.result
+
     def for_export(self):
         # used for serialisation only
-        return self.exported_properties()
+        # some specials:
+        # - datatype needs a special serialisation
+        # - readonly is mandatory for serialisation, but not for declaration in classes
+        r =  self.exportProperties()
+#        if isinstance(self, Parameter):
+#            if u'readonly' not in r:
+#                r[u'readonly'] = self.__class__.properties[u'readonly'].default
+#        if u'datatype' in r:
+#            _d = r[u'datatype']
+#            print(formatExtendedStack())  # for debug
+        return r
+
 
 # list of predefined accessibles with their type
 PREDEFINED_ACCESSIBLES = dict(
