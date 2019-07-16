@@ -143,17 +143,3 @@ def test_ModuleMeta():
         o.earlyInit()
     for o in objects:
         o.initModule()
-
-    for o in objects:
-        event = threading.Event()
-        event2 = threading.Event()
-        def started_callback(event=event, event2=event2):
-            if event.is_set():
-                event2.set()
-            else:
-                event.set()
-            raise Exception("end test") # this will kill the polling thread on the second call
-
-        o.startModule(started_callback)
-        assert event2.wait(timeout=1)
-        assert event.is_set()
