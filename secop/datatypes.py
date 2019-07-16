@@ -315,6 +315,7 @@ class EnumType(DataType):
             kwds.update(kwds[u'members'])
             kwds.pop(u'members')
         self._enum = Enum(enum_or_name, **kwds)
+        self.default = self._enum[self._enum.members[0]]
 
     def copy(self):
         # as the name is not exported, we have to implement copy ourselfs
@@ -863,7 +864,7 @@ DATATYPES = dict(
     enum    =lambda members={}: EnumType('', members=members),
     struct  =lambda optional=None, members=None: StructOf(optional,
         **dict((n, get_datatype(t)) for n, t in list(members.items()))),
-    command = lambda argument, result: CommandType(get_datatype(argument), get_datatype(result)),
+    command = lambda argument=None, result=None: CommandType(get_datatype(argument), get_datatype(result)),
 )
 
 
