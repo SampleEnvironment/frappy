@@ -68,7 +68,7 @@ class TCPConnection(object):
         self._readbuffer = queue.Queue(100)
         io = socket.create_connection((self._host, self._port))
         io.setblocking(False)
-        io.settimeout(0.3)
+        self.stopflag = False
         self._io = io
         if self._thread and self._thread.is_alive():
             return
@@ -76,49 +76,60 @@ class TCPConnection(object):
 
     def _run(self):
         try:
-            data = u''
-            while True:
-                newdata = b''
-                try:
-                    dlist = [self._io.fileno()]
-                    rlist, wlist, xlist = select(dlist, dlist, dlist, 1)
-                    if dlist[0] in rlist + wlist:
-                        newdata = self._io.recv(1024)
-                    if dlist[0] in xlist:
-                        print("Problem: exception on socket, reconnecting!")
-                        for cb, arg in self.callbacks:
-                            cb(arg)
-                        return
-                except socket.timeout:
-                    pass
-                except Exception as err:
-                    print(err, "reconnecting")
-                    for cb, arg in self.callbacks:
-                        cb(arg)
-                    return
-                data += newdata.decode('latin-1')
-                while '\n' in data:
-                    line, data = data.split('\n', 1)
+            data = b''
+            while not self.stopflag:
+                rlist, _, xlist = select([self._io], [], [self._io], 1)
+                if xlist:
+                    # on some strange systems, a closed connection is indicated by
+                    # an exceptional condition instead of "read ready" + "empty recv"
+                    newdata = b''
+                else:
+                    if not rlist:
+                        continue # check stopflag every second
+                    # self._io is now ready to read some bytes
                     try:
-                        self._readbuffer.put(line.strip('\r'),
-                                             block=True,
-                                             timeout=1)
+                        newdata = self._io.recv(1024)
+                    except socket.error as err:
+                        if err.args[0] == socket.EAGAIN:
+                            # if we receive an EAGAIN error, just continue
+                            continue
+                        newdata = b''
+                    except Exception:
+                        newdata = b''
+                if not newdata: # no data on recv indicates a closed connection
+                    raise IOError('%s:%d disconnected' % (self._host, self._port))
+                lines = (data + newdata).split(b'\n')
+                for line in lines[:-1]: # last line is incomplete or empty
+                    try:
+                        self._readbuffer.put(line.strip(b'\r').decode('utf-8'),
+                                             block=True, timeout=1)
                     except queue.Full:
-                        self.log.debug('rcv queue full! dropping line: %r' %
-                                       line)
-        finally:
-            self._thread = None
+                        self.log.debug('rcv queue full! dropping line: %r' % line)
+                data = lines[-1]
+        except Exception as err:
+            self.log.error(err)
+        try:
+            self._io.shutdown(socket.SHUT_RDWR)
+        except socket.error:
+            pass
+        try:
+            self._io.close()
+        except socket.error:
+            pass
+        for cb, args in self.callbacks:
+            cb(*args)
 
-    def readline(self, block=False):
-        """blocks until a full line was read and returns it"""
-        i = 10
-        while i:
-            try:
-                return self._readbuffer.get(block=True, timeout=1)
-            except queue.Empty:
-                pass
-            if not block:
-                i -= 1
+    def readline(self, timeout=None):
+        """blocks until a full line was read and returns it
+
+        returns None when connection is stopped"""
+        if self.stopflag:
+            return None
+        return self._readbuffer.get(block=True, timeout=timeout)
+
+    def stop(self):
+        self.stopflag = True
+        self._readbuffer.put(None) # terminate pending readline
 
     def readable(self):
         return not self._readbuffer.empty()
@@ -239,6 +250,8 @@ class Client(object):
 
         while not self.stopflag:
             line = self.connection.readline()
+            if line is None: # connection stopped
+                break
             self.connection_established = True
             self.log.debug('got answer %r' % line)
             if line.startswith(('SECoP', 'SINE2020&ISSE,SECoP')):
@@ -396,8 +409,8 @@ class Client(object):
         self.callbacks.setdefault('%s:%s' % (module, parameter),
                                   set()).discard(cb)
 
-    def register_shutdown_callback(self, func, arg):
-        self.connection.callbacks.append((func, arg))
+    def register_shutdown_callback(self, func, *args):
+        self.connection.callbacks.append((func, args))
 
     def communicate(self, msgtype, spec='', data=None):
         # only return the data portion....
@@ -470,10 +483,11 @@ class Client(object):
 
     def quit(self):
         # after calling this the client is dysfunctional!
-        self.communicate(DISABLEEVENTSREQUEST)
+        # self.communicate(DISABLEEVENTSREQUEST)
         self.stopflag = True
+        self.connection.stop()
         if self._thread and self._thread.is_alive():
-            self.thread.join(self._thread)
+            self._thread.join(10)
 
     def startup(self, _async=False):
         self._issueDescribe()

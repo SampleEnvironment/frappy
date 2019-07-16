@@ -65,6 +65,7 @@ class QSECNode(SECNode, QObject):
 
 
 class MainWindow(QMainWindow):
+    showMessageSignal = pyqtSignal(str, str)
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -83,6 +84,7 @@ class MainWindow(QMainWindow):
         self._paramCtrls = {}
         self._topItems = {}
         self._currentWidget = self.splitter.widget(1).layout().takeAt(0)
+        self.showMessageSignal.connect(self.showMessage)
 
         # add localhost (if available) and SEC nodes given as arguments
         args = sys.argv[1:]
@@ -129,15 +131,17 @@ class MainWindow(QMainWindow):
                                    current.parent().text(0), current.text(0))
 
     def _removeSubTree(self, toplevel_item):
-        #....
-        pass
+        self.treeWidget.invisibleRootItem().removeChild(toplevel_item)
 
     def _nodeDisconnected_callback(self, host):
         node = self._nodes[host]
-        topItem = self._topItems[node]
-        self._removeSubTree(topItem)
+        self._removeSubTree(self._topItems[node])
+        del self._topItems[node]
         node.quit()
-        QMessageBox(self.parent(), repr(host))
+        self.showMessageSignal.emit('connection closed', 'connection to %s closed' % host)
+
+    def showMessage(self, title, text):
+        QMessageBox.warning(self.parent(), title, text)
 
     def _addNode(self, host):
 
