@@ -25,9 +25,11 @@ import collections
 import socket
 import sys
 
+from secop.datatypes import StringType, IntRange, BoolType
 from secop.errors import SECoPError
 from secop.lib import formatException, \
     formatExtendedStack, formatExtendedTraceback
+from secop.properties import HasProperties, Property
 from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
 from secop.protocol.messages import ERRORPREFIX, \
     HELPREPLY, HELPREQUEST, HelpMessage
@@ -180,22 +182,37 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
             self.request.close()
 
 
-class TCPServer(socketserver.ThreadingTCPServer):
+class TCPServer(HasProperties, socketserver.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
+
+    properties = {
+        'bindto' : Property(StringType(), default='localhost:%d' % DEF_PORT, export=False),
+        'bindport' : Property(IntRange(1,65535), default=DEF_PORT, export=False),
+        'detailed_errors': Property(BoolType(), default=False, export=False),
+    }
+
+    # XXX: create configurables from Metaclass!
+    configurables = properties
 
     def __init__(self, name, logger, options, srv):
         self.dispatcher = srv.dispatcher
         self.name = name
         self.log = logger
+        super(TCPServer, self).__init__()
         bindto = options.pop('bindto', 'localhost')
-        portnum = int(options.pop('bindport', DEF_PORT))
-        self.detailed_errors = options.pop('detailed_errors', False)
+        bindport = int(options.pop('bindport', DEF_PORT))
+        detailed_errors = options.pop('detailed_errors', False)
         if ':' in bindto:
             bindto, _port = bindto.rsplit(':')
-            portnum = int(_port)
+            bindport = int(_port)
 
-        self.log.info("TCPServer %s binding to %s:%d" % (name, bindto, portnum))
+        self.setProperty('bindto', bindto)
+        self.setProperty('bindport', bindport)
+        self.setProperty('detailed_errors', detailed_errors)
+        self.checkProperties()
+
+        self.log.info("TCPServer %s binding to %s:%d" % (name, self.bindto, self.bindport))
         socketserver.ThreadingTCPServer.__init__(
-            self, (bindto, portnum), TCPRequestHandler, bind_and_activate=True)
+            self, (self.bindto, self.bindport), TCPRequestHandler, bind_and_activate=True)
         self.log.info("TCPServer initiated")
