@@ -192,13 +192,14 @@ class ModuleMeta(PropertyMeta):
     def configurables(cls):
         # note: this ends up as an property of the Module class (not on the instance)!
 
-        # list of tuples (cfg-file key, Property/Parameter)
-        res = []
+        # dict of properties with Property and Parameter with dict of properties
+        res = {}
         # collect info about properties
         for pn, pv in cls.properties.items():
-            res.append((u'%s' % pn, pv,))
+            res[pn] = pv
         # collect info about parameters and their properties
         for param, pobj in cls.accessibles.items():
+            res[param] = {}
             for pn, pv in pobj.__class__.properties.items():
-                res.append((u'%s.%s' % (param,pn), pv))
+                res[param][pn] = pv
         return res
