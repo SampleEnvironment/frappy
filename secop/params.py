@@ -25,7 +25,8 @@ from __future__ import division, print_function
 
 from collections import OrderedDict
 
-from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType
+from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType, \
+    NoneOr
 from secop.errors import ProgrammingError
 from secop.properties import HasProperties, Property
 
@@ -91,18 +92,26 @@ class Parameter(Accessible):
     """
 
     properties = {
-        u'description': Property(StringType(), extname=u'description', mandatory=True),
-        u'datatype':    Property(DataTypeType(), extname=u'datatype', mandatory=True),
-        u'unit':        Property(StringType(), extname=u'unit', default=''),  # goodie, should be on the datatype!
-        u'readonly':    Property(BoolType(), extname=u'readonly', default=True),
-        u'group':       Property(StringType(), extname=u'group', default=''),
-        u'visibility':  Property(EnumType(u'visibility', user=1, advanced=2, expert=3),
+        u'description': Property('Description of the Parameter', StringType(),
+                                 extname=u'description', mandatory=True),
+        u'datatype':    Property('Datatype of the Parameter', DataTypeType(),
+                                 extname=u'datatype', mandatory=True),
+        u'unit':        Property('[legacy] unit of the parameter. This should now be on the datatype!', StringType(),
+                                 extname=u'unit', default=''),  # goodie, should be on the datatype!
+        u'readonly':    Property('Is the Parameter readonly? (vs. changeable via SECoP)', BoolType(),
+                                 extname=u'readonly', default=True),
+        u'group':       Property('Optional parameter group this parameter belongs to', StringType(),
+                                 extname=u'group', default=''),
+        u'visibility':  Property('Optional visibility hint', EnumType(u'visibility', user=1, advanced=2, expert=3),
                                  extname=u'visibility', default=1),
-        u'constant':    Property(ValueType(), extname=u'constant', default=None),
-        u'default':     Property(ValueType(), export=False, default=None, mandatory=False),
-        u'export':      Property(OrType(BoolType(), StringType()), export=False, default=True),
-        u'poll':        Property(ValueType(), export=False, default=True),  # check default value!
-        u'optional':    Property(BoolType(), export=False, default=False),
+        u'constant':    Property('Optional constant value for constant parameters', ValueType(),
+                                 extname=u'constant', default=None),
+        u'default':     Property('Default (startup) value of this parameter if it can not be read from the hardware.',
+                                 ValueType(), export=False, default=None, mandatory=False),
+        u'export':      Property('Is this parameter accessible via SECoP? (vs. internal parameter)',
+                                 OrType(BoolType(), StringType()), export=False, default=True),
+        u'poll':        Property('Polling indicator', ValueType(), export=False, default=True),  # check default value!
+        u'optional':    Property('[Internal] is this parameter optional?', BoolType(), export=False, default=False),
     }
 
     value = None
@@ -242,18 +251,27 @@ class Command(Accessible):
     """
     # datatype is not listed (handled separately)
     properties = {
-        u'description': Property(StringType(), extname=u'description', export=True, mandatory=True),
-        u'group':       Property(StringType(), extname=u'group', export=True, default=''),
-        u'visibility':  Property(EnumType(u'visibility', user=1, advanced=2, expert=3),
+        u'description': Property('Description of the Command', StringType(),
+                                 extname=u'description', export=True, mandatory=True),
+        u'group':       Property('Optional command group of the command.', StringType(),
+                                 extname=u'group', export=True, default=''),
+        u'visibility':  Property('Optional visibility hint', EnumType(u'visibility', user=1, advanced=2, expert=3),
                                  extname=u'visibility', export=True, default=1),
-        u'export':      Property(OrType(BoolType(), StringType()), export=False, default=True),
-        u'optional':    Property(BoolType(), export=False, default=False, settable=False),
-        u'datatype': Property(DataTypeType(), extname=u'datatype', mandatory=True),
+        u'export':      Property('[internal] Flag: is the command accessible via SECoP? (vs. pure internal use)',
+                                 OrType(BoolType(), StringType()), export=False, default=True),
+        u'optional':    Property('[internal] is The comamnd optional to implement? (vs. mandatory',
+                                 BoolType(), export=False, default=False, settable=False),
+        u'datatype': Property('[internal] datatype of the command, auto generated from \'argument\' and \'result\'',
+                              DataTypeType(), extname=u'datatype', mandatory=True),
+        u'argument': Property('Datatype of the argument to the command, or None.',
+                              NoneOr(DataTypeType()), export=False, mandatory=True),
+        u'result': Property('Datatype of the result from the command, or None.',
+                              NoneOr(DataTypeType()), export=False, mandatory=True),
     }
 
-    def __init__(self, description, argument=None, result=None, ctr=None, **kwds):
+    def __init__(self, description, ctr=None, **kwds):
         kwds[u'description'] = description
-        kwds[u'datatype'] = CommandType(argument, result)
+        kwds[u'datatype'] = CommandType(kwds.get('argument', None), kwds.get('result', None))
         super(Command, self).__init__(**kwds)
         if ctr is not None:
             self.ctr = ctr

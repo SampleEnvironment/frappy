@@ -39,7 +39,7 @@ def test_Command():
     assert cmd.for_export() == {u'datatype': [u'command', {u'argument': None, u'result': None}],
                                 u'description': u'do_something'}
 
-    cmd = Command(u'do_something', IntRange(-9,9), IntRange(-1,1))
+    cmd = Command(u'do_something', argument=IntRange(-9,9), result=IntRange(-1,1))
     assert cmd.description
     assert isinstance(cmd.argument, IntRange)
     assert isinstance(cmd.result, IntRange)

@@ -54,7 +54,7 @@ V_test_Property = [
 def test_Property():
     for entry in V_test_Property:
         args, check = entry
-        p = Property(*args)
+        p = Property('', *args)
         for k,v in check.items():
             assert getattr(p, k) == v
 
@@ -62,15 +62,18 @@ def test_Property_basic():
     with pytest.raises(TypeError):
         # pylint: disable=no-value-for-parameter
         Property()
+    with pytest.raises(TypeError):
+        # pylint: disable=no-value-for-parameter
+        Property('')
     with pytest.raises(ValueError):
-        Property(1)
-    Property(IntRange(), '42', 'extname', False, False)
+        Property('', 1)
+    Property('', IntRange(), '42', 'extname', False, False)
 
 def test_Properties():
     p = Properties()
     with pytest.raises(ProgrammingError):
         p[1] = 2
-    p['a'] = Property(IntRange(), '42', export=True)
+    p['a'] = Property('', IntRange(), '42', export=True)
     assert p['a'].default == 42
     assert p['a'].export is True
     assert p['a'].extname == u'_a'
@@ -80,7 +83,7 @@ def test_Properties():
         del p[1]
     with pytest.raises(ProgrammingError):
         del p['a']
-    p['a'] = Property(IntRange(), 0, export=False)
+    p['a'] = Property('', IntRange(), 0, export=False)
     assert p['a'].default == 0
     assert p['a'].export is False
     assert p['a'].extname == ''
@@ -88,13 +91,13 @@ def test_Properties():
 
 class c(HasProperties):
     properties = {
-        'a' : Property(IntRange(), 1),
+        'a' : Property('', IntRange(), 1),
     }
 
 class cl(c):
     properties = {
-        'a' : Property(IntRange(), 3),
-        'b' : Property(FloatRange(), 3.14),
+        'a' : Property('', IntRange(), 3),
+        'b' : Property('', FloatRange(), 3.14),
     }
 
 def test_HasProperties():

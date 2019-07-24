@@ -33,12 +33,12 @@ from secop.modules import Drivable, Override, Parameter
 # test custom property (value.test can be changed in config file)
 from secop.properties import Property
 
-Parameter.properties['test'] = Property(StringType(), default='', export=True)
+Parameter.properties['test'] = Property('A Property for testing purposes', StringType(), default='', export=True)
 
 
 class CryoBase(Drivable):
     properties = {
-        'is_cryo': Property(BoolType(), default=True, export=True),
+        'is_cryo': Property('private Flag if this is a cryostat', BoolType(), default=True, export=True),
     }
 
 

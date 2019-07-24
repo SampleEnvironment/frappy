@@ -35,7 +35,7 @@ from secop.properties import Property
 
 class Parameter(SECoP_Parameter):
     properties = {
-        'test' : Property(StringType(), default='', mandatory=False, extname='test'),
+        'test' : Property('A property for testing purposes', StringType(), default='', mandatory=False, extname='test'),
     }
 
 PERSIST = 101
@@ -62,7 +62,8 @@ class Switch(Drivable):
     }
 
     properties = {
-        'description' : Property(StringType(), default='no description', mandatory=False, extname='description'),
+        'description' : Property('The description of the Module', StringType(),
+                                 default='no description', mandatory=False, extname='description'),
     }
 
     def read_value(self):

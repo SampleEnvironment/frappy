@@ -36,15 +36,16 @@ class Property(object):
     '''base class holding info about a property
 
     properties are only sent to the ECS if export is True, or an extname is set
-    if mandatory is True, they MUST have avalue in the cfg file assigned to them.
+    if mandatory is True, they MUST have a value in the cfg file assigned to them.
     otherwise, this is optional in which case the default value is applied.
     All values MUST pass the datatype.
     '''
     # note: this is inteded to be used on base classes.
     #       the VALUES of the properties are on the instances!
-    def __init__(self, datatype, default=None, extname='', export=False, mandatory=False, settable=True):
+    def __init__(self, description, datatype, default=None, extname='', export=False, mandatory=False, settable=True):
         if not callable(datatype):
             raise ValueError(u'datatype MUST be a valid DataType or a basic_validator')
+        self.description = description
         self.default = datatype.default if default is None else datatype(default)
         self.datatype = datatype
         self.extname = unicode(extname)
@@ -53,8 +54,8 @@ class Property(object):
         self.settable = settable or mandatory  # settable means settable from the cfg file
 
     def __repr__(self):
-        return u'Property(%s, default=%r, extname=%r, export=%r, mandatory=%r)' % (
-            self.datatype, self.default, self.extname, self.export, self.mandatory)
+        return u'Property(%s, %s, default=%r, extname=%r, export=%r, mandatory=%r)' % (
+            self.description, self.datatype, self.default, self.extname, self.export, self.mandatory)
 
 
 class Properties(OrderedDict):

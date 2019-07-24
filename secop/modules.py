@@ -68,13 +68,17 @@ class Module(HasProperties):
     # note: the names map to a [datatype, value] list, value comes from the cfg file,
     #       datatype is fixed!
     properties = {
-        'export':          Property(BoolType(), default=True, export=False),
-        'group':           Property(StringType(), default='', extname='group'),
-        'description':     Property(StringType(), extname='description', mandatory=True),
-        'meaning':         Property(TupleOf(StringType(),IntRange(0,50)), default=('',0), extname='meaning'),
-        'visibility':      Property(EnumType('visibility', user=1, advanced=2, expert=3), default=1, extname='visibility'),
-        'implementation':  Property(StringType(), extname='implementation'),
-        'interface_class': Property(ArrayOf(StringType()), extname='interface_class'),
+        'export':          Property('Flag if this Module is to be exported', BoolType(), default=True, export=False),
+        'group':           Property('Optional group the Module belongs to', StringType(), default='', extname='group'),
+        'description':     Property('Description of the module', StringType(), extname='description', mandatory=True),
+        'meaning':         Property('Optional Meaning indicator', TupleOf(StringType(),IntRange(0,50)),
+                                    default=('',0), extname='meaning'),
+        'visibility':      Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
+                                    default='user', extname='visibility'),
+        'implementation':  Property('Internal name of the implementation class of the module', StringType(),
+                                    extname='implementation'),
+        'interface_class': Property('Offical highest Interface-class of the module', ArrayOf(StringType()),
+                                    extname='interface_class'),
         # what else?
     }
 

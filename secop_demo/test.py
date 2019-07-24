@@ -101,7 +101,7 @@ class Temp(Drivable):
 class Lower(Communicator):
     """Communicator returning a lowercase version of the request"""
     command = {
-        'communicate': Command('lowercase a string', StringType(), StringType(), export='communicate'),
+        'communicate': Command('lowercase a string', argument=StringType(), result=StringType(), export='communicate'),
     }
     def do_communicate(self, request):
         return unicode(request).lower()
