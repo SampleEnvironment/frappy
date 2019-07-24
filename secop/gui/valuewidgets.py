@@ -24,9 +24,10 @@
 from __future__ import division, print_function
 
 from secop.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
-    FloatRange, IntRange, StringType, StructOf, TupleOf
+    FloatRange, IntRange, StringType, StructOf, TupleOf, TextType
 from secop.gui.qt import QCheckBox, QComboBox, QDialog, QDoubleSpinBox, \
-    QFrame, QGridLayout, QGroupBox, QLabel, QLineEdit, QSpinBox, QVBoxLayout
+    QFrame, QGridLayout, QGroupBox, QLabel, QLineEdit, QSpinBox, QVBoxLayout, \
+    QTextEdit
 from secop.gui.util import loadUi
 
 # XXX: implement live validators !!!!
@@ -46,9 +47,25 @@ class StringWidget(QLineEdit):
         self.setText(value)
 
 
+class TextWidget(QTextEdit):
+    def __init__(self, datatype, readonly=False, parent=None):
+        super(TextWidget, self).__init__(parent)
+        self.datatype = datatype
+        if readonly:
+            self.setEnabled(False)
+
+    def get_value(self):
+        res = self.text()
+        return self.datatype(res)
+
+    def set_value(self, value):
+        self.setText(value)
+
+
 class BlobWidget(StringWidget):
     #  XXX: make an editable hex-table ?
     pass
+
 
 # or derive from widget and switch between combobox and radiobuttons?
 class EnumWidget(QComboBox):
@@ -202,6 +219,7 @@ def get_widget(datatype, readonly=False, parent=None):
     return {FloatRange: FloatWidget,
      IntRange: IntWidget,
      StringType: StringWidget,
+     TextType: TextWidget,
      BLOBType: BlobWidget,
      EnumType: EnumWidget,
      BoolType: BoolWidget,

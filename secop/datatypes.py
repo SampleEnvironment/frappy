@@ -408,7 +408,7 @@ class StringType(DataType):
 
     def __init__(self, minsize=0, maxsize=None):
         if maxsize is None:
-            maxsize = minsize or 255*256
+            maxsize = minsize or 100
         self.minsize = int(minsize)
         self.maxsize = int(maxsize)
         if self.minsize < 0:
@@ -454,6 +454,20 @@ class StringType(DataType):
 
     def format_value(self, value, unit=None):
         return repr(value)
+
+
+# TextType is a special StringType intended for longer texts (i.e. embedding \n),
+# whereas StringType is supposed to not contain '\n'
+# unfortunately, SECoP makes no distinction here....
+# note: content is supposed to follow the format of a git commit message, i.e. a line of text, 2 '\n' + a longer explanation
+class TextType(StringType):
+    def __init__(self, maxsize=None):
+        if maxsize is None:
+            maxsize = 8000
+        super(TextType, self).__init__(0, maxsize)
+
+    def __repr__(self):
+        return u'TextType(%d, %d)' % (self.minsize, self.maxsize)
 
 
 # Bool is a special enum

@@ -28,7 +28,7 @@ import pytest
 
 from secop.datatypes import ArrayOf, BLOBType, BoolType, \
     DataType, EnumType, FloatRange, IntRange, ProgrammingError, \
-    ScaledInteger, StringType, StructOf, TupleOf, get_datatype, CommandType
+    ScaledInteger, StringType, TextType, StructOf, TupleOf, get_datatype, CommandType
 
 
 def copytest(dt):
@@ -259,6 +259,27 @@ def test_StringType():
     assert dt.import_value(u'abcd') == u'abcd'
 
     assert dt.format_value(u'abcd') == u"u'abcd'"
+
+
+def test_TextType():
+    # test constructor catching illegal arguments
+    dt = TextType(12)
+    assert dt.export_datatype() == [u'string', {u'min':0, u'max':12}]
+
+    with pytest.raises(ValueError):
+        dt(9)
+    with pytest.raises(ValueError):
+        dt(u'abcdefghijklmno')
+    with pytest.raises(ValueError):
+        dt('abcdefg\0')
+    assert dt('ab\n\ncd\n') == b'ab\n\ncd\n'
+    assert dt(b'ab\n\ncd\n') == b'ab\n\ncd\n'
+    assert dt(u'ab\n\ncd\n') == b'ab\n\ncd\n'
+
+    assert dt.export_value('abcd') == b'abcd'
+    assert dt.export_value(b'abcd') == b'abcd'
+    assert dt.export_value(u'abcd') == b'abcd'
+    assert dt.import_value(u'abcd') == u'abcd'
 
 
 def test_BoolType():
