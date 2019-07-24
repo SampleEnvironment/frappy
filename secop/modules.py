@@ -28,7 +28,7 @@ import time
 from collections import OrderedDict
 
 from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
-    StringType, TupleOf, get_datatype, ArrayOf
+    StringType, TupleOf, get_datatype, ArrayOf, TextType
 from secop.errors import ConfigError, ProgrammingError
 from secop.lib import formatException, \
     formatExtendedStack, mkthread, unset_value
@@ -70,7 +70,7 @@ class Module(HasProperties):
     properties = {
         'export':          Property('Flag if this Module is to be exported', BoolType(), default=True, export=False),
         'group':           Property('Optional group the Module belongs to', StringType(), default='', extname='group'),
-        'description':     Property('Description of the module', StringType(), extname='description', mandatory=True),
+        'description':     Property('Description of the module', TextType(), extname='description', mandatory=True),
         'meaning':         Property('Optional Meaning indicator', TupleOf(StringType(),IntRange(0,50)),
                                     default=('',0), extname='meaning'),
         'visibility':      Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),

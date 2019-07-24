@@ -187,9 +187,12 @@ class TCPServer(HasProperties, socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
     properties = {
-        'bindto' : Property(StringType(), default='localhost:%d' % DEF_PORT, export=False),
-        'bindport' : Property(IntRange(1,65535), default=DEF_PORT, export=False),
-        'detailed_errors': Property(BoolType(), default=False, export=False),
+        'bindto' : Property('hostname or ip address for binding',StringType(),
+                            default='localhost:%d' % DEF_PORT, export=False),
+        'bindport' : Property('port number to bind',IntRange(1,65535),
+                              default=DEF_PORT, export=False),
+        'detailed_errors': Property('Flag to enable detailed Errorreporting.', BoolType(),
+                                    default=False, export=False),
     }
 
     # XXX: create configurables from Metaclass!

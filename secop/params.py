@@ -26,7 +26,7 @@ from __future__ import division, print_function
 from collections import OrderedDict
 
 from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType, \
-    NoneOr
+    NoneOr, TextType
 from secop.errors import ProgrammingError
 from secop.properties import HasProperties, Property
 
@@ -92,7 +92,7 @@ class Parameter(Accessible):
     """
 
     properties = {
-        u'description': Property('Description of the Parameter', StringType(),
+        u'description': Property('Description of the Parameter', TextType(),
                                  extname=u'description', mandatory=True),
         u'datatype':    Property('Datatype of the Parameter', DataTypeType(),
                                  extname=u'datatype', mandatory=True),
@@ -251,7 +251,7 @@ class Command(Accessible):
     """
     # datatype is not listed (handled separately)
     properties = {
-        u'description': Property('Description of the Command', StringType(),
+        u'description': Property('Description of the Command', TextType(),
                                  extname=u'description', export=True, mandatory=True),
         u'group':       Property('Optional command group of the command.', StringType(),
                                  extname=u'group', export=True, default=''),
