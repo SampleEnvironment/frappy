@@ -31,6 +31,8 @@ from secop.gui.qt import QCheckBox, QComboBox, QDialog, QDoubleSpinBox, \
 from secop.gui.util import loadUi
 
 # XXX: implement live validators !!!!
+# XXX: signals upon change of value
+# XXX: honor readonly in all cases!
 
 class StringWidget(QLineEdit):
     def __init__(self, datatype, readonly=False, parent=None):
@@ -59,7 +61,7 @@ class TextWidget(QTextEdit):
         return self.datatype(res)
 
     def set_value(self, value):
-        self.setText(value)
+        self.setPlainText(value)
 
 
 class BlobWidget(StringWidget):
