@@ -185,13 +185,11 @@ class Parameters(OrderedDict):
                 value.properties[u'export'] = key
             else:
                 value.properties[u'export'] = '_' + key
-                self.exported[value.export] = key
+            self.exported[value.export] = key
         super(Parameters, self).__setitem__(key, value)
 
     def __getitem__(self, item):
-        if item in self.exported:
-            return self[self.exported[item]]
-        return super(Parameters, self).__getitem__(item)
+        return super(Parameters, self).__getitem__(self.exported.get(item, item))
 
 
 class ParamValue(object):
