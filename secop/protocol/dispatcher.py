@@ -24,10 +24,10 @@
 Interface to the service offering part:
 
  - 'handle_request(connectionobj, data)' handles incoming request
-   will call 'queue_request(data)' on connectionobj before returning
+   it returns the (sync) reply, and it may call 'queue_async_reply(data)'
+   on the connectionobj
  - 'add_connection(connectionobj)' registers new connection
  - 'remove_connection(connectionobj)' removes now longer functional connection
- - may at any time call 'queue_async_request(connobj, data)' on the connobj
 
 Interface to the modules:
  - add_module(modulename, moduleobj, export=True) registers a new module under the
@@ -286,7 +286,7 @@ class Dispatcher(object):
     def handle_request(self, conn, msg):
         """handles incoming request
 
-        will call 'queue_async_request(data)' on conn or return reply
+        will call 'queue_async_reply(data)' on conn or return reply
         """
         self.log.debug(u'Dispatcher: handling msg: %s' % repr(msg))
 

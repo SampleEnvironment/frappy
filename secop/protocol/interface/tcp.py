@@ -49,14 +49,15 @@ CR = b'\r'
 SPACE = b' '
 
 
-
+class OutputBufferOverflow(Exception):
+    pass
 
 class TCPRequestHandler(socketserver.BaseRequestHandler):
 
     def setup(self):
         self.log = self.server.log
         # Queue of msgObjects to send
-        self._queue = collections.deque(maxlen=100)
+        self._queue = collections.deque() # do not use maxlen, as items might get lost
 #        self.framing = self.server.framingCLS()
 #        self.encoding = self.server.encodingCLS()
 
@@ -92,7 +93,8 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 outdata = encode_msg_frame(*outmsg)
                 try:
                     mysocket.sendall(outdata)
-                except Exception:
+                except Exception as e:
+                    self.log.error('error on sendall: %r', e)
                     return
 
             # XXX: improve: use polling/select here?
@@ -139,6 +141,8 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 else:
                     try:
                         result = serverobj.dispatcher.handle_request(self, msg)
+                    except OutputBufferOverflow:
+                        raise
                     except SECoPError as err:
                         result = (ERRORPREFIX + msg[0], msg[1], [err.name, str(err),
                                                                  {'exception': formatException(),
@@ -164,6 +168,11 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
     def queue_async_reply(self, data):
         """called by dispatcher for async data units"""
         if data:
+            # avoid queue growing to infinity. the needed size of the queue might be
+            # a multiple of the total number of parameters -> use a big number
+            if len(self._queue) > 10000:
+                self.log.error('output message buffer overflow')
+                raise OutputBufferOverflow()
             self._queue.append(data)
         else:
             self.log.error('should async_queue empty data!')

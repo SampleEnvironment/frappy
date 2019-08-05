@@ -32,8 +32,10 @@ def encode_msg_frame(action, specifier=None, data=None):
     data may be an json-yfied python object"""
     action = action.encode('utf-8')
     if specifier is None:
-        # implicit: data is None
-        return b''.join((action, EOL))
+        if data is None:
+            return b''.join((action, EOL))
+        # error_activate might have no specifier
+        specifier = ''
     specifier = specifier.encode('utf-8')
     if data:
         data = json.dumps(data).encode('utf-8')
