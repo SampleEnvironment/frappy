@@ -174,7 +174,7 @@ def test_EnumType():
         dt(-9)
     with pytest.raises(ValueError):
         dt(u'XX')
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         dt([19, u'X'])
 
     assert dt(u'a') == 3

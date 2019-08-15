@@ -339,7 +339,7 @@ class EnumType(DataType):
         """return the validated (internal) value or raise"""
         try:
             return self._enum[value]
-        except KeyError:
+        except (KeyError, TypeError): # TypeError will be raised when value is not hashable
             raise BadValueError(u'%r is not a member of enum %r' % (value, self._enum))
 
     def from_string(self, text):
@@ -468,6 +468,10 @@ class TextType(StringType):
 
     def __repr__(self):
         return u'TextType(%d, %d)' % (self.minsize, self.maxsize)
+
+    def copy(self):
+        # DataType.copy will not work, because it is exported as 'string'
+        return TextType(self.maxsize)
 
 
 # Bool is a special enum
