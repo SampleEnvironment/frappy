@@ -59,7 +59,9 @@ def test_Parameter():
     with pytest.raises(ValueError):
         Parameter(None, datatype=float)
     p3 = p1.copy()
-    assert repr(p1)[12:] == repr(p3)[12:]
+    assert p1.ctr != p3.ctr
+    p3.ctr = p1.ctr # manipulate ctr for next line
+    assert repr(p1) == repr(p3)
     assert p1.datatype != p2.datatype
 
 
