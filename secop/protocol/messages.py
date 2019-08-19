@@ -26,7 +26,7 @@ from __future__ import division, print_function
 
 IDENTREQUEST = u'*IDN?'  # literal
 # literal! first part is fixed!
-IDENTREPLY = u'SINE2020&ISSE,SECoP,V2019-03-20,v1.0 RC1'
+IDENTREPLY = u'SINE2020&ISSE,SECoP,V2019-08-20,v1.0 RC2'
 
 DESCRIPTIONREQUEST = u'describe'  # literal
 DESCRIPTIONREPLY = u'describing'  # +<id> +json

@@ -36,18 +36,18 @@ def test_Command():
     assert cmd.ctr
     assert cmd.argument is None
     assert cmd.result is None
-    assert cmd.for_export() == {u'datatype': [u'command', {u'argument': None, u'result': None}],
+    assert cmd.for_export() == {u'datatype': {u'command': {}},
                                 u'description': u'do_something'}
 
     cmd = Command(u'do_something', argument=IntRange(-9,9), result=IntRange(-1,1))
     assert cmd.description
     assert isinstance(cmd.argument, IntRange)
     assert isinstance(cmd.result, IntRange)
-    assert cmd.for_export() == {u'datatype': [u'command', {u'argument': [u'int', {u'min':-9, u'max':9}],
-                                                           u'result': [u'int', {u'min':-1, u'max':1}]}],
+    assert cmd.for_export() == {u'datatype': {u'command': {u'argument': {u'int': {u'min':-9, u'max':9}},
+                                                           u'result': {u'int': {u'min':-1, u'max':1}}}},
                                 u'description': u'do_something'}
-    assert cmd.exportProperties() == {u'datatype': [u'command', {u'argument': [u'int', {u'max': 9, u'min': -9}],
-                                                                 u'result': [u'int', {u'max': 1, u'min': -1}]}],
+    assert cmd.exportProperties() == {u'datatype': {u'command': {u'argument': {u'int': {u'max': 9, u'min': -9}},
+                                                                 u'result': {u'int': {u'max': 1, u'min': -1}}}},
                                       u'description': u'do_something'}
 
 

@@ -136,8 +136,8 @@ class FloatRange(DataType):
             raise BadValueError(u'relative_resolution MUST be >=0')
 
     def export_datatype(self):
-        return [u'double', {k: getattr(self, k) for k, v in self._defaults.items()
-                            if v != getattr(self, k)}]
+        return {u'double': {k: getattr(self, k) for k, v in self._defaults.items()
+                            if v != getattr(self, k)}}
 
     def __call__(self, value):
         try:
@@ -147,11 +147,11 @@ class FloatRange(DataType):
         prec = max(abs(value * self.relative_resolution), self.absolute_resolution)
         if self.min - prec <= value <= self.max + prec:
             return min(max(value, self.min), self.max)
-        raise BadValueError(u'%g should be a float between %g and %g' %
+        raise BadValueError(u'%.14g should be a float between %.14g and %.14g' %
                          (value, self.min, self.max))
 
     def __repr__(self):
-        items = [u'%s=%r' % (k,v) for k,v in self.export_datatype()[1].items()]
+        items = [u'%s=%r' % (k,v) for k,v in self.export_datatype()['double'].items()]
         return u'FloatRange(%s)' % (', '.join(items))
 
     def export_value(self, value):
@@ -187,7 +187,7 @@ class IntRange(DataType):
             raise BadValueError(u'Max must be larger then min!')
 
     def export_datatype(self):
-        return [u'int', {"min": self.min, "max": self.max}]
+        return {u'int': {"min": self.min, "max": self.max}}
 
     def __call__(self, value):
         try:
@@ -260,7 +260,7 @@ class ScaledInteger(DataType):
         info['scale'] = self.scale
         info['min'] = int((self.min + self.scale * 0.5) // self.scale)
         info['max'] = int((self.max + self.scale * 0.5) // self.scale)
-        return [u'scaled', info]
+        return {u'scaled': info}
 
     def __call__(self, value):
         try:
@@ -279,7 +279,7 @@ class ScaledInteger(DataType):
         return value  # return 'actual' value (which is more discrete than a float)
 
     def __repr__(self):
-        hints = self.export_datatype()[1]
+        hints = self.export_datatype()['scaled']
         hints.pop('scale')
         items = ['%g' % self.scale]
         for k,v in hints.items():
@@ -322,7 +322,7 @@ class EnumType(DataType):
         return EnumType(self._enum)
 
     def export_datatype(self):
-        return [u'enum'] + [{u"members":dict((m.name, m.value) for m in self._enum.members)}]
+        return {u'enum': {u"members":dict((m.name, m.value) for m in self._enum.members)}}
 
     def __repr__(self):
         return u"EnumType(%r, %s)" % (self._enum.name, ', '.join(u'%s=%d' %(m.name, m.value) for m in self._enum.members))
@@ -367,7 +367,7 @@ class BLOBType(DataType):
         self.default = b'\0' * self.minsize
 
     def export_datatype(self):
-        return [u'blob', dict(min=self.minsize, max=self.maxsize)]
+        return {u'blob': dict(min=self.minsize, max=self.maxsize)}
 
     def __repr__(self):
         return u'BLOB(%d, %d)' % (self.minsize, self.maxsize)
@@ -418,7 +418,7 @@ class StringType(DataType):
         self.default = u' ' * self.minsize
 
     def export_datatype(self):
-        return [u'string', dict(min=self.minsize, max=self.maxsize)]
+        return {u'string': dict(min=self.minsize, max=self.maxsize)}
 
     def __repr__(self):
         return u'StringType(%d, %d)' % (self.minsize, self.maxsize)
@@ -479,7 +479,7 @@ class BoolType(DataType):
     default = False
 
     def export_datatype(self):
-        return [u'bool', {}]
+        return {u'bool': {}}
 
     def __repr__(self):
         return u'BoolType()'
@@ -541,8 +541,8 @@ class ArrayOf(DataType):
         self.default = [members.default] * self.minsize
 
     def export_datatype(self):
-        return [u'array', dict(min=self.minsize, max=self.maxsize,
-                               members=self.members.export_datatype())]
+        return {u'array': dict(min=self.minsize, max=self.maxsize,
+                               members=self.members.export_datatype())}
 
     def __repr__(self):
         return u'ArrayOf(%s, %s, %s)' % (
@@ -600,7 +600,7 @@ class TupleOf(DataType):
         self.default = tuple(el.default for el in members)
 
     def export_datatype(self):
-        return [u'tuple', dict(members=[subtype.export_datatype() for subtype in self.members])]
+        return {u'tuple': dict(members=[subtype.export_datatype() for subtype in self.members])}
 
     def __repr__(self):
         return u'TupleOf(%s)' % u', '.join([repr(st) for st in self.members])
@@ -659,10 +659,10 @@ class StructOf(DataType):
         self.default = dict((k,el.default) for k, el in members.items())
 
     def export_datatype(self):
-        res = [u'struct', dict(members=dict((n, s.export_datatype())
-                                       for n, s in list(self.members.items())))]
+        res = {u'struct': dict(members=dict((n, s.export_datatype())
+                                       for n, s in list(self.members.items())))}
         if self.optional:
-            res[1]['optional'] = self.optional
+            res['struct']['optional'] = self.optional
         return res
 
     def __repr__(self):
@@ -728,11 +728,12 @@ class CommandType(DataType):
 
     def export_datatype(self):
         a, r = self.argument, self.result
+        props = {}
         if a is not None:
-            a = a.export_datatype()
+            props['argument'] = a.export_datatype()
         if r is not None:
-            r = r.export_datatype()
-        return [u'command', dict(argument=a, result=r)]
+            props['result'] = r.export_datatype()
+        return {u'command': props}
 
     def __repr__(self):
         argstr = repr(self.argument) if self.argument else ''
@@ -875,12 +876,12 @@ DATATYPES = dict(
     int     =lambda min, max, **kwds: IntRange(minval=min, maxval=max, **kwds),
     scaled  =lambda scale, min, max, **kwds: ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **kwds),
     double  =lambda min=None, max=None, **kwds: FloatRange(minval=min, maxval=max, **kwds),
-    blob    =lambda min=0, max=None: BLOBType(minsize=min, maxsize=max),
-    string  =lambda min=0, max=None: StringType(minsize=min, maxsize=max),
-    array   =lambda min, max, members: ArrayOf(get_datatype(members), minsize=min, maxsize=max),
-    tuple   =lambda members=[]: TupleOf(*map(get_datatype, members)),
-    enum    =lambda members={}: EnumType('', members=members),
-    struct  =lambda optional=None, members=None: StructOf(optional,
+    blob    =lambda max, min=0: BLOBType(minsize=min, maxsize=max),
+    string  =lambda max, min=0: StringType(minsize=min, maxsize=max),
+    array   =lambda max, members, min=0: ArrayOf(get_datatype(members), minsize=min, maxsize=max),
+    tuple   =lambda members: TupleOf(*map(get_datatype, members)),
+    enum    =lambda members: EnumType('', members=members),
+    struct  =lambda members, optional=None: StructOf(optional,
         **dict((n, get_datatype(t)) for n, t in list(members.items()))),
     command = lambda argument=None, result=None: CommandType(get_datatype(argument), get_datatype(result)),
 )
@@ -894,15 +895,13 @@ def get_datatype(json):
     """
     if json is None:
         return json
-    if not isinstance(json, list):
-        raise BadValueError(
-            u'Can not interpret datatype %r, it should be a list!' % json)
-    if len(json) != 2:
-        raise BadValueError(u'Can not interpret datatype %r, it should be a list of 2 elements!' % json)
-    base, args = json
-    if base in DATATYPES:
-        try:
-            return DATATYPES[base](**args)
-        except (TypeError, AttributeError):
-            raise BadValueError(u'Invalid datatype descriptor in %r' % json)
-    raise BadValueError(u'can not convert %r to datatype: unknown descriptor!' % json)
+    if isinstance(json, list) and len(json) == 2:
+        base, args = json # still allow old syntax
+    elif isinstance(json, dict) and len(json) == 1:
+        base, args = tuple(json.items())[0]
+    else:
+        raise BadValueError('a data descriptor must be a dict (len=1), not %r' % json)
+    try:
+        return DATATYPES[base](**args)
+    except (TypeError, AttributeError, KeyError):
+        raise BadValueError(u'invalid data descriptor: %r' % json)

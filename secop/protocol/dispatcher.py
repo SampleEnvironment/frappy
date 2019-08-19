@@ -39,6 +39,7 @@ Interface to the modules:
 from __future__ import division, print_function
 
 import threading
+from collections import OrderedDict
 from time import time as currenttime
 
 from secop.errors import SECoPServerError as InternalError
@@ -173,21 +174,20 @@ class Dispatcher(object):
         self.log.debug(u'export_accessibles(%r)' % modulename)
         if modulename in self._export:
             # omit export=False params!
-            res = []
+            res = OrderedDict()
             for aobj in self.get_module(modulename).accessibles.values():
                 if aobj.export:
-                    res.append([aobj.export, aobj.for_export()])
+                    res[aobj.export] = aobj.for_export()
             self.log.debug(u'list accessibles for module %s -> %r' %
                            (modulename, res))
             return res
         self.log.debug(u'-> module is not to be exported!')
-        return []
+        return OrderedDict()
 
     def get_descriptive_data(self):
         """returns a python object which upon serialisation results in the descriptive data"""
         # XXX: be lazy and cache this?
-        # format: {[{[{[, specific entries first
-        result = {u'modules': []}
+        result = {u'modules': OrderedDict()}
         for modulename in self._export:
             module = self.get_module(modulename)
             if not module.properties.get('export', False):
@@ -196,10 +196,10 @@ class Dispatcher(object):
             mod_desc = {u'accessibles': self.export_accessibles(modulename)}
             mod_desc.update(module.exportProperties())
             mod_desc.pop('export', False)
-            result[u'modules'].append([modulename, mod_desc])
+            result[u'modules'][modulename] = mod_desc
         result[u'equipment_id'] = self.equipment_id
         result[u'firmware'] = u'FRAPPY - The Python Framework for SECoP'
-        result[u'version'] = u'2019.05'
+        result[u'version'] = u'2019.08'
         result.update(self.nodeprops)
         return result
 
