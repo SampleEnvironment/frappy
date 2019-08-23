@@ -181,10 +181,15 @@ class Server(object):
                 raise ConfigError(u'cfgfile %r: needs exactly one node section!' % self._cfgfile)
             self.dispatcher = self.nodes.values()[0]
 
+        pollTable = dict()
         # all objs created, now start them up and interconnect
         for modname, modobj in self.modules.items():
             self.log.info(u'registering module %r' % modname)
             self.dispatcher.register_module(modobj, modname, modobj.properties['export'])
+            try:
+                modobj.pollerClass.add_to_table(pollTable, modobj)
+            except AttributeError:
+                pass
             # also call earlyInit on the modules
             modobj.earlyInit()
 
@@ -197,9 +202,14 @@ class Server(object):
             event = threading.Event()
             # startModule must return either a timeout value or None (default 30 sec)
             timeout = modobj.startModule(started_callback=event.set) or 30
-            start_events.append((time.time() + timeout, modname, event))
-        self.log.info(u'waiting for modules being started')
-        for deadline, modname, event in sorted(start_events):
+            start_events.append((time.time() + timeout, 'module %s' % modname, event))
+        for poller in pollTable.values():
+            event = threading.Event()
+            # poller.start must return either a timeout value or None (default 30 sec)
+            timeout = poller.start(started_callback=event.set) or 30
+            start_events.append((time.time() + timeout, repr(poller), event))
+        self.log.info(u'waiting for modules and pollers being started')
+        for deadline, name, event in sorted(start_events):
             if not event.wait(timeout=max(0, deadline - time.time())):
-                self.log.info('WARNING: timeout when starting module %s' % modname)
-        self.log.info(u'all modules started')
+                self.log.info('WARNING: timeout when starting %s' % name)
+        self.log.info(u'all modules and pollers started')

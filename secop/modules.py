@@ -283,7 +283,11 @@ class Readable(Module):
 
     def startModule(self, started_callback):
         '''start polling thread'''
-        mkthread(self.__pollThread, started_callback)
+        if hasattr(self, 'pollerClass'): # an other poller is used
+            started_callback()
+        else:
+            # basic poller kept for reference
+            mkthread(self.__pollThread, started_callback)
 
     def __pollThread(self, started_callback):
         while True:
