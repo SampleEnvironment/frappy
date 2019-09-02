@@ -123,7 +123,7 @@ class ModuleMeta(PropertyMeta):
                     except Exception as e:
                         pobj = self.accessibles[pname]
                         self.DISPATCHER.announce_update_error(self, pname, pobj, e)
-                        raise e
+                        raise
                 else:
                     # return cached value
                     self.log.debug("rfunc(%s): return cached value" % pname)
