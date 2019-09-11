@@ -198,7 +198,7 @@ def run_docs() {
 
 
 
-node("master") {
+node("dockerhost") {
     stage('clean workspace')
     {
         cleanWs()
@@ -233,20 +233,19 @@ node("master") {
    }
 
     stage('execute tests') {
+    def img = docker.image('secop_base:latest')
+    def docimg = docker.image('secop_docs:latest')
 
     parallel 'Test': {
-        img = docker.image('secop_base:latest')
         img.inside {
             run_tests('python2')
         }},
             'Pylint': {
-        img = docker.image('secop_base:latest')
         img.inside {
             run_pylint('python2')
         }},
             'Docs': {
-        img = docker.image('secop_docs:latest')
-        img.inside {
+        docimg.inside {
             run_docs()
         }
         stage('publish') {
