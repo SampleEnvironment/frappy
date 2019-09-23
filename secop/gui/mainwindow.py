@@ -150,7 +150,7 @@ class MainWindow(QMainWindow):
         if ':' in host:
             host, port = host.split(':', 1)
             port = int(port)
-        node = QSECNode({'connectto': host, 'port': port}, parent=self)
+        node = QSECNode({'host': host, 'port': port}, parent=self)
         host = '%s:%d' % (host, port)
 
         host = '%s (%s)' % (node.equipmentId, host)

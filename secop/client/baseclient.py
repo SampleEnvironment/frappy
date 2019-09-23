@@ -203,7 +203,7 @@ class Client(object):
                 devport, baudrate=baudrate, timeout=1)
             self.connection.callbacks = []
         elif 'testing' not in opts:
-            host = opts.pop('connectto', 'localhost')
+            host = opts.pop('host', 'localhost')
             port = int(opts.pop('port', 10767))
             self.contactPoint = "tcp://%s:%d" % (host, port)
             self.connection = TCPConnection(host, port)
