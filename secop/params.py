@@ -95,7 +95,7 @@ class Parameter(Accessible):
         u'description': Property('Description of the Parameter', TextType(),
                                  extname=u'description', mandatory=True),
         u'datatype':    Property('Datatype of the Parameter', DataTypeType(),
-                                 extname=u'datatype', mandatory=True),
+                                 extname=u'datainfo', mandatory=True),
         u'unit':        Property('[legacy] unit of the parameter. This should now be on the datatype!', StringType(),
                                  extname=u'unit', default=''),  # goodie, should be on the datatype!
         u'readonly':    Property('Is the Parameter readonly? (vs. changeable via SECoP)', BoolType(),
@@ -260,7 +260,7 @@ class Command(Accessible):
         u'optional':    Property('[internal] is The comamnd optional to implement? (vs. mandatory',
                                  BoolType(), export=False, default=False, settable=False),
         u'datatype': Property('[internal] datatype of the command, auto generated from \'argument\' and \'result\'',
-                              DataTypeType(), extname=u'datatype', mandatory=True),
+                              DataTypeType(), extname=u'datainfo', mandatory=True),
         u'argument': Property('Datatype of the argument to the command, or None.',
                               NoneOr(DataTypeType()), export=False, mandatory=True),
         u'result': Property('Datatype of the result from the command, or None.',

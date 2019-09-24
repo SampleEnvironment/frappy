@@ -386,7 +386,7 @@ class Client(object):
 
             for module, moduleData in self.describing_data['modules'].items():
                 for aname, adata in moduleData['accessibles'].items():
-                    datatype = get_datatype(adata['datatype'])
+                    datatype = get_datatype(adata.pop('datainfo'))
                     # *sigh* special handling for 'some' parameters....
                     if isinstance(datatype, EnumType):
                         datatype._enum.name = aname
