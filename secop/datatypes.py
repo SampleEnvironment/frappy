@@ -97,12 +97,23 @@ class DataType(object):
         if unit is given, use it, else use the unit of the datatype (if any)"""
         raise NotImplementedError
 
-    def setprop(self, key, value, default, func=lambda x:x):
-        """set a datatype property and store the default"""
+    def set_prop(self, key, value, default, func=lambda x:x):
+        """set an optional datatype property and store the default"""
         self._defaults[key] = default
         if value is None:
             value = default
         setattr(self, key, func(value))
+
+    def get_info(self, **kwds):
+        """prepare dict for export or repr
+
+        get a dict with all items different from default
+        plus mandatory keys from kwds"""
+        for k,v in self._defaults.items():
+            value = getattr(self, k)
+            if value != v:
+                kwds[k] = value
+        return kwds
 
     def copy(self):
         """make a deep copy of the datatype"""
@@ -118,12 +129,12 @@ class FloatRange(DataType):
                        absolute_resolution=None, relative_resolution=None,):
         self.default = 0 if minval <= 0 <= maxval else minval
         self._defaults = {}
-        self.setprop('min', minval, float(u'-inf'), float)
-        self.setprop('max', maxval, float(u'+inf'), float)
-        self.setprop('unit', unit, u'', unicode)
-        self.setprop('fmtstr', fmtstr, u'%g', unicode)
-        self.setprop('absolute_resolution', absolute_resolution, 0.0, float)
-        self.setprop('relative_resolution', relative_resolution, 1.2e-7, float)
+        self.set_prop('min', minval, float(u'-inf'), float)
+        self.set_prop('max', maxval, float(u'+inf'), float)
+        self.set_prop('unit', unit, u'', unicode)
+        self.set_prop('fmtstr', fmtstr, u'%g', unicode)
+        self.set_prop('absolute_resolution', absolute_resolution, 0.0, float)
+        self.set_prop('relative_resolution', relative_resolution, 1.2e-7, float)
 
         # check values
         if self.min > self.max:
@@ -136,8 +147,7 @@ class FloatRange(DataType):
             raise BadValueError(u'relative_resolution MUST be >=0')
 
     def export_datatype(self):
-        return {u'double': {k: getattr(self, k) for k, v in self._defaults.items()
-                            if v != getattr(self, k)}}
+        return self.get_info(type='double')
 
     def __call__(self, value):
         try:
@@ -151,8 +161,12 @@ class FloatRange(DataType):
                          (value, self.min, self.max))
 
     def __repr__(self):
-        items = [u'%s=%r' % (k,v) for k,v in self.export_datatype()['double'].items()]
-        return u'FloatRange(%s)' % (', '.join(items))
+        hints = self.get_info()
+        if 'min' in hints:
+            hints['minval'] = hints.pop('min')
+        if 'max' in hints:
+            hints['maxval'] = hints.pop('max')
+        return u'FloatRange(%s)' % (', '.join('%s=%r' % (k,v) for k,v in hints.items()))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -181,13 +195,15 @@ class IntRange(DataType):
         self.min = DEFAULT_MIN_INT if minval is None else int(minval)
         self.max = DEFAULT_MAX_INT if maxval is None else int(maxval)
         self.default = 0 if minval <= 0 <= maxval else minval
+        # a unit on an int is now allowed in SECoP, but do we need them in Frappy?
+        # self.set_prop('unit', unit, u'', unicode)
 
         # check values
         if self.min > self.max:
             raise BadValueError(u'Max must be larger then min!')
 
     def export_datatype(self):
-        return {u'int': {"min": self.min, "max": self.max}}
+        return dict(type='int', min=self.min, max=self.max)
 
     def __call__(self, value):
         try:
@@ -234,10 +250,10 @@ class ScaledInteger(DataType):
         self.scale = float(scale)
         if not self.scale > 0:
             raise BadValueError(u'Scale MUST be positive!')
-        self.setprop('unit', unit, u'', unicode)
-        self.setprop('fmtstr', fmtstr, u'%g', unicode)
-        self.setprop('absolute_resolution', absolute_resolution, self.scale, float)
-        self.setprop('relative_resolution', relative_resolution, 1.2e-7, float)
+        self.set_prop('unit', unit, u'', unicode)
+        self.set_prop('fmtstr', fmtstr, u'%g', unicode)
+        self.set_prop('absolute_resolution', absolute_resolution, self.scale, float)
+        self.set_prop('relative_resolution', relative_resolution, 1.2e-7, float)
 
         self.min = DEFAULT_MIN_INT * self.scale if minval is None else float(minval)
         self.max = DEFAULT_MAX_INT * self.scale if maxval is None else float(maxval)
@@ -255,12 +271,9 @@ class ScaledInteger(DataType):
         # this should be o.k.
 
     def export_datatype(self):
-        info = {k: getattr(self, k) for k, v in self._defaults.items()
-                if v != getattr(self, k)}
-        info['scale'] = self.scale
-        info['min'] = int((self.min + self.scale * 0.5) // self.scale)
-        info['max'] = int((self.max + self.scale * 0.5) // self.scale)
-        return {u'scaled': info}
+        return self.get_info(type='scaled', scale=self.scale,
+                                min = int((self.min + self.scale * 0.5) // self.scale),
+                                max = int((self.max + self.scale * 0.5) // self.scale))
 
     def __call__(self, value):
         try:
@@ -279,12 +292,10 @@ class ScaledInteger(DataType):
         return value  # return 'actual' value (which is more discrete than a float)
 
     def __repr__(self):
-        hints = self.export_datatype()['scaled']
-        hints.pop('scale')
-        items = ['%g' % self.scale]
-        for k,v in hints.items():
-            items.append(u'%s=%r' % (k,v))
-        return u'ScaledInteger(%s)' % (', '.join(items))
+        hints = self.get_info(scale='%g' % self.scale,
+                              min = int((self.min + self.scale * 0.5) // self.scale),
+                              max = int((self.max + self.scale * 0.5) // self.scale))
+        return u'ScaledInteger(%s)' % (', '.join('%s=%r' % kv for kv in hints.items()))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -322,7 +333,7 @@ class EnumType(DataType):
         return EnumType(self._enum)
 
     def export_datatype(self):
-        return {u'enum': {u"members":dict((m.name, m.value) for m in self._enum.members)}}
+        return {'type': 'enum', 'members':dict((m.name, m.value) for m in self._enum.members)}
 
     def __repr__(self):
         return u"EnumType(%r, %s)" % (self._enum.name, ', '.join(u'%s=%d' %(m.name, m.value) for m in self._enum.members))
@@ -350,39 +361,40 @@ class EnumType(DataType):
 
 
 class BLOBType(DataType):
-    minsize = None
-    maxsize = None
+    minbytes = None
+    maxbytes = None
 
-    def __init__(self, minsize=0, maxsize=None):
+    def __init__(self, minbytes=0, maxbytes=None):
         # if only one argument is given, use exactly that many bytes
         # if nothing is given, default to 255
-        if maxsize is None:
-            maxsize = minsize or 255
-        self.minsize = int(minsize)
-        self.maxsize = int(maxsize)
-        if self.minsize < 0:
+        if maxbytes is None:
+            maxbytes = minbytes or 255
+        self._defaults = {}
+        self.set_prop('minbytes', minbytes, 0, int)
+        self.maxbytes = int(maxbytes)
+        if self.minbytes < 0:
             raise BadValueError(u'sizes must be bigger than or equal to 0!')
-        elif self.minsize > self.maxsize:
-            raise BadValueError(u'maxsize must be bigger than or equal to minsize!')
-        self.default = b'\0' * self.minsize
+        elif self.minbytes > self.maxbytes:
+            raise BadValueError(u'maxbytes must be bigger than or equal to minbytes!')
+        self.default = b'\0' * self.minbytes
 
     def export_datatype(self):
-        return {u'blob': dict(min=self.minsize, max=self.maxsize)}
+        return self.get_info(type='blob', maxbytes=self.maxbytes)
 
     def __repr__(self):
-        return u'BLOB(%d, %d)' % (self.minsize, self.maxsize)
+        return u'BLOBType(%d, %d)' % (self.minbytes, self.maxbytes)
 
     def __call__(self, value):
         """return the validated (internal) value or raise"""
         if type(value) not in [unicode, str]:
             raise BadValueError(u'%r has the wrong type!' % value)
         size = len(value)
-        if size < self.minsize:
+        if size < self.minbytes:
             raise BadValueError(
-                u'%r must be at least %d bytes long!' % (value, self.minsize))
-        if size > self.maxsize:
+                u'%r must be at least %d bytes long!' % (value, self.minbytes))
+        if size > self.maxbytes:
             raise BadValueError(
-                u'%r must be at most %d bytes long!' % (value, self.maxsize))
+                u'%r must be at most %d bytes long!' % (value, self.maxbytes))
         return value
 
     def export_value(self, value):
@@ -403,37 +415,43 @@ class BLOBType(DataType):
 
 
 class StringType(DataType):
-    minsize = None
-    maxsize = None
+    MAXCHARS = 0xffffffff
 
-    def __init__(self, minsize=0, maxsize=None):
-        if maxsize is None:
-            maxsize = minsize or 100
-        self.minsize = int(minsize)
-        self.maxsize = int(maxsize)
-        if self.minsize < 0:
+    def __init__(self, minchars=0, maxchars=None, isUTF8=False):
+        if maxchars is None:
+            maxchars = minchars or self.MAXCHARS
+        self._defaults = {}
+        self.set_prop('minchars', minchars, 0, int)
+        self.set_prop('maxchars', maxchars, self.MAXCHARS, int)
+        self.set_prop('isUTF8', isUTF8, False, bool)
+        if self.minchars < 0:
             raise BadValueError(u'sizes must be bigger than or equal to 0!')
-        elif self.minsize > self.maxsize:
-            raise BadValueError(u'maxsize must be bigger than or equal to minsize!')
-        self.default = u' ' * self.minsize
+        elif self.minchars > self.maxchars:
+            raise BadValueError(u'maxchars must be bigger than or equal to minchars!')
+        self.default = u' ' * self.minchars
 
     def export_datatype(self):
-        return {u'string': dict(min=self.minsize, max=self.maxsize)}
+        return self.get_info(type='string')
 
     def __repr__(self):
-        return u'StringType(%d, %d)' % (self.minsize, self.maxsize)
+        return u'StringType(%s)' % (', '.join('%s=%r' % kv for kv in self.get_info().items()))
 
     def __call__(self, value):
         """return the validated (internal) value or raise"""
         if type(value) not in (unicode, str):
             raise BadValueError(u'%r has the wrong type!' % value)
+        if not self.isUTF8:
+            try:
+                value.encode('ascii')
+            except UnicodeEncodeError:
+                raise BadValueError(u'%r contains non-ascii character!' % value)
         size = len(value)
-        if size < self.minsize:
+        if size < self.minchars:
             raise BadValueError(
-                u'%r must be at least %d bytes long!' % (value, self.minsize))
-        if size > self.maxsize:
+                u'%r must be at least %d bytes long!' % (value, self.minchars))
+        if size > self.maxchars:
             raise BadValueError(
-                u'%r must be at most %d bytes long!' % (value, self.maxsize))
+                u'%r must be at most %d bytes long!' % (value, self.maxchars))
         if u'\0' in value:
             raise BadValueError(
                 u'Strings are not allowed to embed a \\0! Use a Blob instead!')
@@ -461,17 +479,17 @@ class StringType(DataType):
 # unfortunately, SECoP makes no distinction here....
 # note: content is supposed to follow the format of a git commit message, i.e. a line of text, 2 '\n' + a longer explanation
 class TextType(StringType):
-    def __init__(self, maxsize=None):
-        if maxsize is None:
-            maxsize = 8000
-        super(TextType, self).__init__(0, maxsize)
+    def __init__(self, maxchars=None):
+        if maxchars is None:
+            maxchars = self.MAXCHARS
+        super(TextType, self).__init__(0, maxchars)
 
     def __repr__(self):
-        return u'TextType(%d, %d)' % (self.minsize, self.maxsize)
+        return u'TextType(%d, %d)' % (self.minchars, self.maxchars)
 
     def copy(self):
         # DataType.copy will not work, because it is exported as 'string'
-        return TextType(self.maxsize)
+        return TextType(self.maxchars)
 
 
 # Bool is a special enum
@@ -479,7 +497,7 @@ class BoolType(DataType):
     default = False
 
     def export_datatype(self):
-        return {u'bool': {}}
+        return {'type': 'bool'}
 
     def __repr__(self):
         return u'BoolType()'
@@ -514,51 +532,51 @@ class BoolType(DataType):
 
 
 class ArrayOf(DataType):
-    minsize = None
-    maxsize = None
+    minlen = None
+    maxlen = None
     members = None
 
-    def __init__(self, members, minsize=0, maxsize=None, unit=None):
+    def __init__(self, members, minlen=0, maxlen=None, unit=None):
         if not isinstance(members, DataType):
             raise BadValueError(
                 u'ArrayOf only works with a DataType as first argument!')
         # one argument -> exactly that size
         # argument default to 100
-        if maxsize is None:
-            maxsize = minsize or 100
+        if maxlen is None:
+            maxlen = minlen or 100
         self.members = members
         if unit:
             self.members.unit = unit
 
-        self.minsize = int(minsize)
-        self.maxsize = int(maxsize)
-        if self.minsize < 0:
+        self.minlen = int(minlen)
+        self.maxlen = int(maxlen)
+        if self.minlen < 0:
             raise BadValueError(u'sizes must be > 0')
-        elif self.maxsize < 1:
+        elif self.maxlen < 1:
             raise BadValueError(u'Maximum size must be >= 1!')
-        elif self.minsize > self.maxsize:
-            raise BadValueError(u'maxsize must be bigger than or equal to minsize!')
-        self.default = [members.default] * self.minsize
+        elif self.minlen > self.maxlen:
+            raise BadValueError(u'maxlen must be bigger than or equal to minlen!')
+        self.default = [members.default] * self.minlen
 
     def export_datatype(self):
-        return {u'array': dict(min=self.minsize, max=self.maxsize,
-                               members=self.members.export_datatype())}
+        return dict(type='array', minlen=self.minlen, maxlen=self.maxlen,
+                               members=self.members.export_datatype())
 
     def __repr__(self):
         return u'ArrayOf(%s, %s, %s)' % (
-            repr(self.members), self.minsize, self.maxsize)
+            repr(self.members), self.minlen, self.maxlen)
 
     def __call__(self, value):
         """validate an external representation to an internal one"""
         if isinstance(value, (tuple, list)):
             # check number of elements
-            if self.minsize is not None and len(value) < self.minsize:
+            if self.minlen is not None and len(value) < self.minlen:
                 raise BadValueError(
                     u'Array too small, needs at least %d elements!' %
-                    self.minsize)
-            if self.maxsize is not None and len(value) > self.maxsize:
+                    self.minlen)
+            if self.maxlen is not None and len(value) > self.maxlen:
                 raise BadValueError(
-                    u'Array too big, holds at most %d elements!' % self.minsize)
+                    u'Array too big, holds at most %d elements!' % self.minlen)
             # apply subtype valiation to all elements and return as list
             return [self.members(elem) for elem in value]
         raise BadValueError(
@@ -600,7 +618,7 @@ class TupleOf(DataType):
         self.default = tuple(el.default for el in members)
 
     def export_datatype(self):
-        return {u'tuple': dict(members=[subtype.export_datatype() for subtype in self.members])}
+        return dict(type='tuple', members=[subtype.export_datatype() for subtype in self.members])
 
     def __repr__(self):
         return u'TupleOf(%s)' % u', '.join([repr(st) for st in self.members])
@@ -659,15 +677,16 @@ class StructOf(DataType):
         self.default = dict((k,el.default) for k, el in members.items())
 
     def export_datatype(self):
-        res = {u'struct': dict(members=dict((n, s.export_datatype())
-                                       for n, s in list(self.members.items())))}
+        res = dict(type='struct', members=dict((n, s.export_datatype())
+                                       for n, s in list(self.members.items())))
         if self.optional:
-            res['struct']['optional'] = self.optional
+            res['optional'] = self.optional
         return res
 
     def __repr__(self):
-        return u'StructOf(%s)' % u', '.join(
-            [u'%s=%s' % (n, repr(st)) for n, st in list(self.members.items())])
+        opt = self.optional if self.optional else ''
+        return u'StructOf(%s%s)' % (u', '.join(
+            [u'%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
     def __call__(self, value):
         """return the validated value or raise"""
@@ -728,12 +747,12 @@ class CommandType(DataType):
 
     def export_datatype(self):
         a, r = self.argument, self.result
-        props = {}
+        props = {'type': 'command'}
         if a is not None:
             props['argument'] = a.export_datatype()
         if r is not None:
             props['result'] = r.export_datatype()
-        return {u'command': props}
+        return props
 
     def __repr__(self):
         argstr = repr(self.argument) if self.argument else ''
@@ -876,9 +895,9 @@ DATATYPES = dict(
     int     =lambda min, max, **kwds: IntRange(minval=min, maxval=max, **kwds),
     scaled  =lambda scale, min, max, **kwds: ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **kwds),
     double  =lambda min=None, max=None, **kwds: FloatRange(minval=min, maxval=max, **kwds),
-    blob    =lambda max, min=0: BLOBType(minsize=min, maxsize=max),
-    string  =lambda max, min=0: StringType(minsize=min, maxsize=max),
-    array   =lambda max, members, min=0: ArrayOf(get_datatype(members), minsize=min, maxsize=max),
+    blob    =lambda maxbytes, minbytes=0: BLOBType(minbytes=minbytes, maxbytes=maxbytes),
+    string  =lambda minchars=0, maxchars=None: StringType(minchars=minchars, maxchars=maxchars),
+    array   =lambda maxlen, members, minlen=0: ArrayOf(get_datatype(members), minlen=minlen, maxlen=maxlen),
     tuple   =lambda members: TupleOf(*map(get_datatype, members)),
     enum    =lambda members: EnumType('', members=members),
     struct  =lambda members, optional=None: StructOf(optional,
@@ -897,10 +916,12 @@ def get_datatype(json):
         return json
     if isinstance(json, list) and len(json) == 2:
         base, args = json # still allow old syntax
-    elif isinstance(json, dict) and len(json) == 1:
-        base, args = tuple(json.items())[0]
     else:
-        raise BadValueError('a data descriptor must be a dict (len=1), not %r' % json)
+        try:
+            args = json.copy()
+            base = args.pop('type')
+        except (TypeError, KeyError, AttributeError):
+            raise BadValueError('a data descriptor must be a dict containing a "type" key, not %r' % json)
     try:
         return DATATYPES[base](**args)
     except (TypeError, AttributeError, KeyError):
