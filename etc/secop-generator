@@ -1,0 +1,59 @@
+
+#!/usr/bin/env python
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+# Copyright (c) 2015-2019 by the authors, see LICENSE
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#
+# *****************************************************************************
+
+import os
+import sys
+import fnmatch
+from os import path
+
+from secop.lib import getGeneralConfig
+
+def main():
+    normal_dir = sys.argv[1]
+
+    global_config = getGeneralConfig()
+    config_dir = global_config['confdir']
+
+    secop_unit = '/lib/systemd/system/secop@.service'
+    wants_dir = normal_dir + '/secop.target.wants'
+
+    all_servers = [base for (base, ext) in
+                   map(path.splitext, os.listdir(config_dir)) if ext == '.cfg']
+    all_servers.sort()
+
+    for srv in all_servers:
+        symlink = '%s/secop@%s.service' % (normal_dir, srv)
+        os.symlink(secop_unit, symlink)
+
+    # the stamp file signals successful run of the generator
+    open(normal_dir + '/secop.stamp', 'w').close()
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        pass  # don't signal an error here
