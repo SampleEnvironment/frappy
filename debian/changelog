@@ -1,3 +1,71 @@
+secop-core (0.8.0) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * remove support for declaring parameters/commands as accessibles
+
+  [ Markus Zolliker ]
+  * changed started_callback mechanism
+  * - added Module.is_busy() for treating substates of BUSY correctly
+
+  [ Enrico Faulhaber ]
+  * rename framework methods to camelCase
+
+  [ Markus Zolliker ]
+  * moved creation parameters + commands to Module.__init__
+  * as_json on FloatRange and ScaledInteger must be a property
+  * validator should take resolution into account
+  * introduced Datatype.copy
+  * replace Datatype.as_json by Datatype.export_datatype()
+  * remove 'maxage' argument for read_* methods
+
+  [ Enrico Faulhaber ]
+  * Add basic validators
+  * rework property handling
+  * configurables: switch from list to dict
+
+  [ Markus Zolliker ]
+  * remove test for started_callback function in Test_ModuleMeta
+  * fixes in datatype.py
+
+  [ Enrico Faulhaber ]
+  * interface/tcp: provide properties
+
+  [ Seger Sandra ]
+  * add cfg-editor
+
+  [ Markus Zolliker ]
+  * handle SEC node connection properly in client
+
+  [ Enrico Faulhaber ]
+  * Provide Properties with a description
+  * Add TextType to ease gui generation
+  * Use new TextType
+  * ValueWidget: use only PlainText
+
+  [ Markus Zolliker ]
+  * fix behaviour of exported predefined parameters
+  * avoid lost messages after activate message
+  * fixes in datatypes
+  * fix: test_params randomly failes
+  * changes according to new syntax decided on vidconf 2019-08-07
+  * improved poller
+  * improve traceback info
+
+  [ Björn Pedersen ]
+  * [CI]: Update to use label dockerhost
+
+  [ Enrico Faulhaber ]
+  * rename host argument to client
+  * lib: fix lazy_property descriptor
+
+  [ Markus Zolliker ]
+  * change again SECoP datatype syntax
+  * change datatype property to datainfo
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Wed, 25 Sep 2019 10:27:51 +0200
+
 secop-core (0.7.0) unstable; urgency=low
 
   [ Markus Zolliker ]
