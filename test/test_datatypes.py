@@ -213,20 +213,21 @@ def test_BLOBType():
     with pytest.raises(ValueError):
         dt(9)
     with pytest.raises(ValueError):
-        dt(u'av')
+        dt(b'av')
     with pytest.raises(ValueError):
-        dt(u'abcdefghijklmno')
-    assert dt('abcd') == b'abcd'
+        dt(b'abcdefghijklmno')
+    with pytest.raises(ValueError):
+        dt(u'abcd')
     assert dt(b'abcd') == b'abcd'
-    assert dt(u'abcd') == b'abcd'
 
-    assert dt.export_value('abcd') == u'YWJjZA=='
     assert dt.export_value(b'abcd') == u'YWJjZA=='
-    assert dt.export_value(u'abcd') == u'YWJjZA=='
+    assert dt.export_value(b'abcd') == u'YWJjZA=='
+    # assert dt.export_value(u'abcd') == u'YWJjZA=='
     assert dt.import_value(u'YWJjZA==') == b'abcd'
 
     # XXX: right? or different format?
-    assert dt.format_value(b'ab\0cd') == '\'ab\\x00cd\''
+    # to be added after migration to py3
+    # assert dt.format_value(b'ab\0cd') == "b'ab\\x00cd\'"
 
 
 def test_StringType():
@@ -250,16 +251,15 @@ def test_StringType():
         dt(u'abcdefghijklmno')
     with pytest.raises(ValueError):
         dt('abcdefg\0')
-    assert dt('abcd') == b'abcd'
-    assert dt(b'abcd') == b'abcd'
-    assert dt(u'abcd') == b'abcd'
+    assert dt('abcd') == 'abcd'
+    # tests with bytes have to be added after migration to py3
+    #assert dt(b'abcd') == 'abcd'
 
-    assert dt.export_value('abcd') == b'abcd'
-    assert dt.export_value(b'abcd') == b'abcd'
-    assert dt.export_value(u'abcd') == b'abcd'
-    assert dt.import_value(u'abcd') == u'abcd'
+    assert dt.export_value('abcd') == 'abcd'
+    # assert dt.export_value(b'abcd') == 'abcd'
+    assert dt.import_value('abcd') == 'abcd'
 
-    assert dt.format_value(u'abcd') == u"u'abcd'"
+    assert dt.format_value('abcd') == "'abcd'"
 
 
 def test_TextType():
@@ -274,14 +274,13 @@ def test_TextType():
         dt(u'abcdefghijklmno')
     with pytest.raises(ValueError):
         dt('abcdefg\0')
-    assert dt('ab\n\ncd\n') == b'ab\n\ncd\n'
-    assert dt(b'ab\n\ncd\n') == b'ab\n\ncd\n'
-    assert dt(u'ab\n\ncd\n') == b'ab\n\ncd\n'
+    assert dt('ab\n\ncd\n') == 'ab\n\ncd\n'
+    # assert dt(b'ab\n\ncd\n') == 'ab\n\ncd\n'
 
-    assert dt.export_value('abcd') == b'abcd'
-    assert dt.export_value(b'abcd') == b'abcd'
-    assert dt.export_value(u'abcd') == b'abcd'
-    assert dt.import_value(u'abcd') == u'abcd'
+    assert dt.export_value('abcd') == 'abcd'
+    # assert dt.export_value(b'abcd') == b'abcd'
+    assert dt.export_value('abcd') == 'abcd'
+    assert dt.import_value('abcd') == 'abcd'
 
 
 def test_BoolType():
@@ -395,7 +394,7 @@ def test_StructOf():
     assert dt.import_value({u'an_int': 13, u'a_string': u'WFEC'}) == {
         u'a_string': u'WFEC', u'an_int': 13}
 
-    assert dt.format_value({u'an_int':2, u'a_string':u'Z'}) == u"{a_string=u'Z', an_int=2}"
+    assert dt.format_value({'an_int':2, u'a_string':'Z'}) == u"{a_string='Z', an_int=2}"
 
 
 def test_Command():

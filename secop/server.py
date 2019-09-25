@@ -179,7 +179,7 @@ class Server(object):
             # following line is the reason for 'node' beeing the first entry in CFGSECTIONS
             if len(self.nodes) != 1:
                 raise ConfigError(u'cfgfile %r: needs exactly one node section!' % self._cfgfile)
-            self.dispatcher = self.nodes.values()[0]
+            self.dispatcher, = tuple(self.nodes.values())
 
         pollTable = dict()
         # all objs created, now start them up and interconnect

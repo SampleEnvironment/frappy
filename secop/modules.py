@@ -192,7 +192,7 @@ class Module(HasProperties):
 
         # 5) 'apply' config:
         #    pass values through the datatypes and store as attributes
-        for k, v in cfgdict.items():
+        for k, v in list(cfgdict.items()):
             # apply datatype, complain if type does not fit
             datatype = self.parameters[k].datatype
             try:

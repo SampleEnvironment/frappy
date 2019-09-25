@@ -70,7 +70,7 @@ class EnumMember(object):
     def __eq__(self, other):
         if isinstance(other, (EnumMember)):
             return other.value == self.value
-        if isinstance(other, (int, long)):
+        if isinstance(other, int):
             return other == self.value
         # compare by name (for (in)equality only)
         if isinstance(other, (str, unicode)):
@@ -178,8 +178,6 @@ class EnumMember(object):
         return self.value.__invert__()
     def __int__(self):
         return self.value.__int__()
-    def __long__(self):
-        return self.value.__long__()
     def __float__(self):
         return self.value.__float__()
         #return NotImplemented  # makes no sense

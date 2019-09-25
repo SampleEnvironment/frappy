@@ -48,7 +48,7 @@ class Property(object):
         self.description = description
         self.default = datatype.default if default is None else datatype(default)
         self.datatype = datatype
-        self.extname = unicode(extname)
+        self.extname = extname
         self.export = export or bool(extname)
         self.mandatory = mandatory or (default is None and not isinstance(datatype, ValueType))
         self.settable = settable or mandatory  # settable means settable from the cfg file
@@ -121,8 +121,9 @@ class PropertyMeta(type):
 class HasProperties(object):
     properties = {}
 
-    def __init__(self, *args):
-        super(HasProperties, self).__init__()
+    def __init__(self, supercall_init=True):
+        if supercall_init:
+            super(HasProperties, self).__init__()
         # store property values in the instance, keep descriptors on the class
         self.properties = {}
         # pre-init with properties default value (if any)

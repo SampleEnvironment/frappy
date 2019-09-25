@@ -211,7 +211,7 @@ class TCPServer(HasProperties, socketserver.ThreadingTCPServer):
         self.dispatcher = srv.dispatcher
         self.name = name
         self.log = logger
-        super(TCPServer, self).__init__()
+        HasProperties.__init__(self, supercall_init=False)
         bindto = options.pop('bindto', 'localhost')
         bindport = int(options.pop('bindport', DEF_PORT))
         detailed_errors = options.pop('detailed_errors', False)

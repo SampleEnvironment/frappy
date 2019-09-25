@@ -127,7 +127,6 @@ class FloatRange(DataType):
 
     def __init__(self, minval=None, maxval=None, unit=None, fmtstr=None,
                        absolute_resolution=None, relative_resolution=None,):
-        self.default = 0 if minval <= 0 <= maxval else minval
         self._defaults = {}
         self.set_prop('min', minval, float(u'-inf'), float)
         self.set_prop('max', maxval, float(u'+inf'), float)
@@ -135,6 +134,7 @@ class FloatRange(DataType):
         self.set_prop('fmtstr', fmtstr, u'%g', unicode)
         self.set_prop('absolute_resolution', absolute_resolution, 0.0, float)
         self.set_prop('relative_resolution', relative_resolution, 1.2e-7, float)
+        self.default = 0 if self.min <= 0 <= self.max else self.min
 
         # check values
         if self.min > self.max:
@@ -194,7 +194,7 @@ class IntRange(DataType):
     def __init__(self, minval=None, maxval=None):
         self.min = DEFAULT_MIN_INT if minval is None else int(minval)
         self.max = DEFAULT_MAX_INT if maxval is None else int(maxval)
-        self.default = 0 if minval <= 0 <= maxval else minval
+        self.default = 0 if self.min <= 0 <= self.max else self.min
         # a unit on an int is now allowed in SECoP, but do we need them in Frappy?
         # self.set_prop('unit', unit, u'', unicode)
 
@@ -245,7 +245,6 @@ class ScaledInteger(DataType):
 
     def __init__(self, scale, minval=None, maxval=None, unit=None, fmtstr=None,
                        absolute_resolution=None, relative_resolution=None,):
-        self.default = 0 if minval <= 0 <= maxval else minval
         self._defaults = {}
         self.scale = float(scale)
         if not self.scale > 0:
@@ -257,6 +256,7 @@ class ScaledInteger(DataType):
 
         self.min = DEFAULT_MIN_INT * self.scale if minval is None else float(minval)
         self.max = DEFAULT_MAX_INT * self.scale if maxval is None else float(maxval)
+        self.default = 0 if self.min <= 0 <= self.max else self.min
 
         # check values
         if self.min > self.max:
@@ -386,7 +386,7 @@ class BLOBType(DataType):
 
     def __call__(self, value):
         """return the validated (internal) value or raise"""
-        if type(value) not in [unicode, str]:
+        if not isinstance(value, bytes):
             raise BadValueError(u'%r has the wrong type!' % value)
         size = len(value)
         if size < self.minbytes:
@@ -399,7 +399,7 @@ class BLOBType(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return b64encode(value)
+        return b64encode(value).decode('ascii')
 
     def import_value(self, value):
         """returns a python object from serialisation"""
@@ -407,7 +407,7 @@ class BLOBType(DataType):
 
     def from_string(self, text):
         value = text
-        # XXX:
+        # XXX: what should we do here?
         return self(value)
 
     def format_value(self, value, unit=None):

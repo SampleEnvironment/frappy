@@ -47,16 +47,15 @@ V_test_Property = [
     [(IntRange(), 0, '', False, False),
      dict(default=0, extname='', export=False, mandatory=False)],
     [(IntRange(), None, '', False, False),
-     dict(default=None, extname='', export=False, mandatory=True)], # 'normal types + no default -> mandatory
+     dict(default=0, extname='', export=False, mandatory=True)], # 'normal types + no default -> mandatory
     [(ValueType(), None, '', False, False),
      dict(default=None, extname='', export=False, mandatory=False)], # 'special type + no default -> NOT mandatory
 ]
-def test_Property():
-    for entry in V_test_Property:
-        args, check = entry
-        p = Property('', *args)
-        for k,v in check.items():
-            assert getattr(p, k) == v
+@pytest.mark.parametrize('args, check', V_test_Property)
+def test_Property(args, check):
+    p = Property('', *args)
+    for k,v in check.items():
+        assert getattr(p, k) == v
 
 def test_Property_basic():
     with pytest.raises(TypeError):
