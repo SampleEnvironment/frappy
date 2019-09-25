@@ -21,7 +21,6 @@
 #
 # *****************************************************************************
 
-from __future__ import division, print_function
 
 from secop.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
     FloatRange, IntRange, StringType, StructOf, TupleOf, TextType

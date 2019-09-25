@@ -21,18 +21,9 @@
 #
 # *****************************************************************************
 
-from __future__ import division, print_function
 
 from secop.gui.qt import QLabel, QSizePolicy, QWidget
 from secop.gui.util import loadUi
-
-try:
-    # py2
-    unicode(u'')
-except NameError:
-    # py3
-    unicode = str  # pylint: disable=redefined-builtin
-
 
 
 class ParameterView(QWidget):

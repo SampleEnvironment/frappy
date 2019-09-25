@@ -21,7 +21,6 @@
 # *****************************************************************************
 """Define classes for Parameters/Commands and Overriding them"""
 
-from __future__ import division, print_function
 
 from collections import OrderedDict
 
@@ -30,11 +29,6 @@ from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumTyp
 from secop.errors import ProgrammingError
 from secop.properties import HasProperties, Property
 
-try:
-    unicode
-except NameError:
-    # pylint: disable=redefined-builtin
-    unicode = str  # py3 compat
 
 class CountedObj(object):
     ctr = [0]
@@ -54,8 +48,8 @@ class Accessible(HasProperties, CountedObj):
         self.properties.update(kwds)
 
     def __repr__(self):
-        return u'%s_%d(%s)' % (self.__class__.__name__, self.ctr, ',\n\t'.join(
-            [u'%s=%r' % (k, self.properties.get(k, v.default)) for k, v in sorted(self.__class__.properties.items())]))
+        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ',\n\t'.join(
+            ['%s=%r' % (k, self.properties.get(k, v.default)) for k, v in sorted(self.__class__.properties.items())]))
 
     def copy(self):
         # return a copy of ourselfs
@@ -92,26 +86,26 @@ class Parameter(Accessible):
     """
 
     properties = {
-        u'description': Property('Description of the Parameter', TextType(),
-                                 extname=u'description', mandatory=True),
-        u'datatype':    Property('Datatype of the Parameter', DataTypeType(),
-                                 extname=u'datainfo', mandatory=True),
-        u'unit':        Property('[legacy] unit of the parameter. This should now be on the datatype!', StringType(),
-                                 extname=u'unit', default=''),  # goodie, should be on the datatype!
-        u'readonly':    Property('Is the Parameter readonly? (vs. changeable via SECoP)', BoolType(),
-                                 extname=u'readonly', default=True),
-        u'group':       Property('Optional parameter group this parameter belongs to', StringType(),
-                                 extname=u'group', default=''),
-        u'visibility':  Property('Optional visibility hint', EnumType(u'visibility', user=1, advanced=2, expert=3),
-                                 extname=u'visibility', default=1),
-        u'constant':    Property('Optional constant value for constant parameters', ValueType(),
-                                 extname=u'constant', default=None),
-        u'default':     Property('Default (startup) value of this parameter if it can not be read from the hardware.',
+        'description': Property('Description of the Parameter', TextType(),
+                                 extname='description', mandatory=True),
+        'datatype':    Property('Datatype of the Parameter', DataTypeType(),
+                                 extname='datainfo', mandatory=True),
+        'unit':        Property('[legacy] unit of the parameter. This should now be on the datatype!', StringType(),
+                                 extname='unit', default=''),  # goodie, should be on the datatype!
+        'readonly':    Property('Is the Parameter readonly? (vs. changeable via SECoP)', BoolType(),
+                                 extname='readonly', default=True),
+        'group':       Property('Optional parameter group this parameter belongs to', StringType(),
+                                 extname='group', default=''),
+        'visibility':  Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
+                                 extname='visibility', default=1),
+        'constant':    Property('Optional constant value for constant parameters', ValueType(),
+                                 extname='constant', default=None),
+        'default':     Property('Default (startup) value of this parameter if it can not be read from the hardware.',
                                  ValueType(), export=False, default=None, mandatory=False),
-        u'export':      Property('Is this parameter accessible via SECoP? (vs. internal parameter)',
+        'export':      Property('Is this parameter accessible via SECoP? (vs. internal parameter)',
                                  OrType(BoolType(), StringType()), export=False, default=True),
-        u'poll':        Property('Polling indicator', ValueType(), export=False, default=True),  # check default value!
-        u'optional':    Property('[Internal] is this parameter optional?', BoolType(), export=False, default=False),
+        'poll':        Property('Polling indicator', ValueType(), export=False, default=True),  # check default value!
+        'optional':    Property('[Internal] is this parameter optional?', BoolType(), export=False, default=False),
     }
 
     value = None
@@ -127,27 +121,27 @@ class Parameter(Accessible):
                 datatype = datatype()
             else:
                 raise ValueError(
-                    u'datatype MUST be derived from class DataType!')
+                    'datatype MUST be derived from class DataType!')
 
-        kwds[u'description'] = description
-        kwds[u'datatype'] = datatype
+        kwds['description'] = description
+        kwds['datatype'] = datatype
         super(Parameter, self).__init__(**kwds)
 
         # note: auto-converts True/False to 1/0 which yield the expected
         # behaviour...
-        self.properties[u'poll'] = int(self.poll)
+        self.properties['poll'] = int(self.poll)
 
         if self.constant is not None:
-            self.properties[u'readonly'] = True
+            self.properties['readonly'] = True
             # The value of the `constant` property should be the
             # serialised version of the constant, or unset
-            constant = self.datatype(kwds[u'constant'])
-            self.properties[u'constant'] = self.datatype.export_value(constant)
+            constant = self.datatype(kwds['constant'])
+            self.properties['constant'] = self.datatype.export_value(constant)
 
         # helper: unit should be set on the datatype, not on the parameter!
         if self.unit:
             self.datatype.unit = self.unit
-            self.properties[u'unit'] = ''
+            self.properties['unit'] = ''
 
         # internal caching: value and timestamp of last change...
         self.value = self.default
@@ -161,7 +155,7 @@ class Parameter(Accessible):
         return self.datatype.unit
 
     def _set_unit_(self, unit):
-        print(u'DeprecationWarning: setting unit on the parameter is going to be removed')
+        print('DeprecationWarning: setting unit on the parameter is going to be removed')
         self.datatype.unit = unit
 
     unit = property(_get_unit_, _set_unit_)
@@ -182,9 +176,9 @@ class Parameters(OrderedDict):
     def __setitem__(self, key, value):
         if value.export:
             if isinstance(value, PREDEFINED_ACCESSIBLES.get(key, UnusedClass)):
-                value.properties[u'export'] = key
+                value.properties['export'] = key
             else:
-                value.properties[u'export'] = '_' + key
+                value.properties['export'] = '_' + key
             self.exported[value.export] = key
         super(Parameters, self).__setitem__(key, value)
 
@@ -216,22 +210,22 @@ class Override(CountedObj):
         self.reorder = reorder
         # allow to override description without keyword
         if description:
-            self.kwds[u'description'] = description
+            self.kwds['description'] = description
         # for now, do not use the Override ctr
         # self.kwds['ctr'] = self.ctr
 
     def __repr__(self):
-        return u'%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
-            [u'%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
+        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
+            ['%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
 
     def apply(self, obj):
         if isinstance(obj, Accessible):
             props = obj.properties.copy()
             if isinstance(obj, Parameter):
-                if u'constant' in self.kwds:
-                    constant = obj.datatype(self.kwds.pop(u'constant'))
-                    self.kwds[u'constant'] = obj.datatype.export_value(constant)
-                    self.kwds[u'readonly'] = True
+                if 'constant' in self.kwds:
+                    constant = obj.datatype(self.kwds.pop('constant'))
+                    self.kwds['constant'] = obj.datatype.export_value(constant)
+                    self.kwds['readonly'] = True
             props.update(self.kwds)
 
             if self.reorder:
@@ -249,27 +243,27 @@ class Command(Accessible):
     """
     # datatype is not listed (handled separately)
     properties = {
-        u'description': Property('Description of the Command', TextType(),
-                                 extname=u'description', export=True, mandatory=True),
-        u'group':       Property('Optional command group of the command.', StringType(),
-                                 extname=u'group', export=True, default=''),
-        u'visibility':  Property('Optional visibility hint', EnumType(u'visibility', user=1, advanced=2, expert=3),
-                                 extname=u'visibility', export=True, default=1),
-        u'export':      Property('[internal] Flag: is the command accessible via SECoP? (vs. pure internal use)',
+        'description': Property('Description of the Command', TextType(),
+                                 extname='description', export=True, mandatory=True),
+        'group':       Property('Optional command group of the command.', StringType(),
+                                 extname='group', export=True, default=''),
+        'visibility':  Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
+                                 extname='visibility', export=True, default=1),
+        'export':      Property('[internal] Flag: is the command accessible via SECoP? (vs. pure internal use)',
                                  OrType(BoolType(), StringType()), export=False, default=True),
-        u'optional':    Property('[internal] is The comamnd optional to implement? (vs. mandatory',
+        'optional':    Property('[internal] is The comamnd optional to implement? (vs. mandatory',
                                  BoolType(), export=False, default=False, settable=False),
-        u'datatype': Property('[internal] datatype of the command, auto generated from \'argument\' and \'result\'',
-                              DataTypeType(), extname=u'datainfo', mandatory=True),
-        u'argument': Property('Datatype of the argument to the command, or None.',
+        'datatype': Property('[internal] datatype of the command, auto generated from \'argument\' and \'result\'',
+                              DataTypeType(), extname='datainfo', mandatory=True),
+        'argument': Property('Datatype of the argument to the command, or None.',
                               NoneOr(DataTypeType()), export=False, mandatory=True),
-        u'result': Property('Datatype of the result from the command, or None.',
+        'result': Property('Datatype of the result from the command, or None.',
                               NoneOr(DataTypeType()), export=False, mandatory=True),
     }
 
     def __init__(self, description, ctr=None, **kwds):
-        kwds[u'description'] = description
-        kwds[u'datatype'] = CommandType(kwds.get('argument', None), kwds.get('result', None))
+        kwds['description'] = description
+        kwds['datatype'] = CommandType(kwds.get('argument', None), kwds.get('result', None))
         super(Command, self).__init__(**kwds)
         if ctr is not None:
             self.ctr = ctr
@@ -289,10 +283,10 @@ class Command(Accessible):
         # - readonly is mandatory for serialisation, but not for declaration in classes
         r =  self.exportProperties()
 #        if isinstance(self, Parameter):
-#            if u'readonly' not in r:
-#                r[u'readonly'] = self.__class__.properties[u'readonly'].default
-#        if u'datatype' in r:
-#            _d = r[u'datatype']
+#            if 'readonly' not in r:
+#                r['readonly'] = self.__class__.properties['readonly'].default
+#        if 'datatype' in r:
+#            _d = r['datatype']
 #            print(formatExtendedStack())  # for debug
         return r
 

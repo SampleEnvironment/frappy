@@ -20,7 +20,6 @@
 #
 # *****************************************************************************
 """test basic validators."""
-from __future__ import division, print_function
 
 # no fixtures needed
 import pytest
@@ -42,9 +41,9 @@ class unprintable(object):
     [PositiveIntProperty,      ['x', 1.9, '-9', '1e-4'], [1, '1']],
     [NonNegativeIntProperty,   ['x', 1.9, '-9', '1e-6'], [0, '1']],
     [BoolProperty,             ['x', 3],                 ['on', 'off', True, False]],
-    [StringProperty,           [unprintable()],          [u'1', 1.2, [{}]]],
-    [UnitProperty,             [unprintable(), '3', 9],  [u'mm', 'Gbarn', 'acre']],
-    [FmtStrProperty,           [1, None, 'a', '%f'],     [u'%.0e', u'%.3f','%.1g']],
+    [StringProperty,           [unprintable()],          ['1', 1.2, [{}]]],
+    [UnitProperty,             [unprintable(), '3', 9],  ['mm', 'Gbarn', 'acre']],
+    [FmtStrProperty,           [1, None, 'a', '%f'],     ['%.0e', '%.3f','%.1g']],
 ])
 def test_validators(validators_args):
     v, fails, oks = validators_args
@@ -72,7 +71,7 @@ def test_checker_fails(checker_inits):
 @pytest.mark.parametrize('checker_args', [
     [OneOfProperty(1,2,3), ['x', None, 4], [1, 2, 3]],
     [NoneOr(IntProperty),  ['a', 1.2, '1.2'], [None, 1, '-1', '999999999999999']],
-    [EnumProperty(a=1, b=2), ['x', None, 3], [u'a', 'b', 1, 2]],
+    [EnumProperty(a=1, b=2), ['x', None, 3], ['a', 'b', 1, 2]],
     [TupleProperty(IntProperty, StringProperty), [1, 'a', ('x', 2)], [(1,'x')]],
 ])
 def test_checkers(checker_args):

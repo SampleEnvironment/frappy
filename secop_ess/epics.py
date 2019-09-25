@@ -20,7 +20,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
 
 from secop.datatypes import EnumType, FloatRange, StringType
 from secop.modules import Drivable, Parameter, Readable

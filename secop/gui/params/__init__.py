@@ -21,7 +21,6 @@
 #
 # *****************************************************************************
 
-from __future__ import print_function
 
 from secop.datatypes import EnumType, FloatRange, IntRange
 from secop.gui.qt import QPushButton as QButton
@@ -29,14 +28,6 @@ from secop.gui.qt import QCheckBox, QLabel, QLineEdit, \
     QMessageBox, QSizePolicy, Qt, QWidget, pyqtSignal, pyqtSlot
 from secop.gui.util import loadUi
 from secop.lib import formatExtendedStack
-
-try:
-    # py2
-    unicode(u'')
-except NameError:
-    unicode = str  # pylint: disable=redefined-builtin
-
-
 
 
 class ParameterWidget(QWidget):

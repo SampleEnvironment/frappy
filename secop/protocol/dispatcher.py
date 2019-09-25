@@ -36,7 +36,6 @@ Interface to the modules:
  - remove_module(modulename_or_obj): removes the module (during shutdown)
 
 """
-from __future__ import division, print_function
 
 import threading
 from collections import OrderedDict
@@ -49,12 +48,6 @@ from secop.params import Parameter
 from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
     HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY
-
-try:
-    unicode
-except NameError:
-    # no unicode on py3
-    unicode = str  # pylint: disable=redefined-builtin
 
 
 class Dispatcher(object):
@@ -101,7 +94,7 @@ class Dispatcher(object):
         """called by modules param setters to notify subscribers of new values
         """
         # argument pname is no longer used here - should we remove it?
-        msg = (EVENTREPLY, u'%s:%s' % (moduleobj.name, pobj.export),
+        msg = (EVENTREPLY, '%s:%s' % (moduleobj.name, pobj.export),
                [pobj.export_value(), dict(t=pobj.timestamp)])
         self.broadcast_event(msg)
 
@@ -113,7 +106,7 @@ class Dispatcher(object):
         # argument pname is no longer used here - should we remove it?
         if not isinstance(err, SECoPError):
             err = InternalError(err)
-        msg = (ERRORPREFIX + EVENTREPLY, u'%s:%s' % (moduleobj.name, pobj.export),
+        msg = (ERRORPREFIX + EVENTREPLY, '%s:%s' % (moduleobj.name, pobj.export),
                # error-report !
                [err.name, repr(err), dict(t=currenttime())])
         self.broadcast_event(msg)
@@ -125,7 +118,7 @@ class Dispatcher(object):
         if not ':' in eventname:
             # also remove 'more specific' subscriptions
             for k, v in self._subscriptions.items():
-                if k.startswith(u'%s:' % eventname):
+                if k.startswith('%s:' % eventname):
                     v.discard(conn)
         if eventname in self._subscriptions:
             self._subscriptions[eventname].discard(conn)
@@ -143,7 +136,7 @@ class Dispatcher(object):
         self._active_connections.discard(conn)
 
     def register_module(self, moduleobj, modulename, export=True):
-        self.log.debug(u'registering module %r as %s (export=%r)' %
+        self.log.debug('registering module %r as %s (export=%r)' %
                        (moduleobj, modulename, export))
         self._modules[modulename] = moduleobj
         if export:
@@ -154,7 +147,7 @@ class Dispatcher(object):
             return self._modules[modulename]
         elif modulename in list(self._modules.values()):
             return modulename
-        raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
+        raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
     def remove_module(self, modulename_or_obj):
         moduleobj = self.get_module(modulename_or_obj)
@@ -163,7 +156,7 @@ class Dispatcher(object):
             self._export.remove(modulename)
         self._modules.pop(modulename)
         self._subscriptions.pop(modulename, None)
-        for k in [k for k in self._subscriptions if k.startswith(u'%s:' % modulename)]:
+        for k in [kk for kk in self._subscriptions if kk.startswith('%s:' % modulename)]:
             self._subscriptions.pop(k, None)
 
     def list_module_names(self):
@@ -171,52 +164,52 @@ class Dispatcher(object):
         return self._export[:]
 
     def export_accessibles(self, modulename):
-        self.log.debug(u'export_accessibles(%r)' % modulename)
+        self.log.debug('export_accessibles(%r)' % modulename)
         if modulename in self._export:
             # omit export=False params!
             res = OrderedDict()
             for aobj in self.get_module(modulename).accessibles.values():
                 if aobj.export:
                     res[aobj.export] = aobj.for_export()
-            self.log.debug(u'list accessibles for module %s -> %r' %
+            self.log.debug('list accessibles for module %s -> %r' %
                            (modulename, res))
             return res
-        self.log.debug(u'-> module is not to be exported!')
+        self.log.debug('-> module is not to be exported!')
         return OrderedDict()
 
     def get_descriptive_data(self):
         """returns a python object which upon serialisation results in the descriptive data"""
         # XXX: be lazy and cache this?
-        result = {u'modules': OrderedDict()}
+        result = {'modules': OrderedDict()}
         for modulename in self._export:
             module = self.get_module(modulename)
             if not module.properties.get('export', False):
                 continue
             # some of these need rework !
-            mod_desc = {u'accessibles': self.export_accessibles(modulename)}
+            mod_desc = {'accessibles': self.export_accessibles(modulename)}
             mod_desc.update(module.exportProperties())
             mod_desc.pop('export', False)
-            result[u'modules'][modulename] = mod_desc
-        result[u'equipment_id'] = self.equipment_id
-        result[u'firmware'] = u'FRAPPY - The Python Framework for SECoP'
-        result[u'version'] = u'2019.08'
+            result['modules'][modulename] = mod_desc
+        result['equipment_id'] = self.equipment_id
+        result['firmware'] = 'FRAPPY - The Python Framework for SECoP'
+        result['version'] = '2019.08'
         result.update(self.nodeprops)
         return result
 
     def _execute_command(self, modulename, exportedname, argument=None):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
         cmdname = moduleobj.commands.exported.get(exportedname, None)
         if cmdname is None:
-            raise NoSuchCommandError(u'Module has no command %r on this SEC-Node!' % exportedname)
+            raise NoSuchCommandError('Module has no command %r on this SEC-Node!' % exportedname)
         cmdspec = moduleobj.commands[cmdname]
         if argument is None and cmdspec.datatype.argument is not None:
-            raise BadValueError(u'Command needs an argument!')
+            raise BadValueError('Command needs an argument!')
 
         if argument is not None and cmdspec.datatype.argument is None:
-            raise BadValueError(u'Command takes no argument!')
+            raise BadValueError('Command takes no argument!')
 
         if cmdspec.datatype.argument:
             # validate!
@@ -224,7 +217,7 @@ class Dispatcher(object):
 
         # now call func
         # note: exceptions are handled in handle_request, not here!
-        func = getattr(moduleobj, u'do_' + cmdname)
+        func = getattr(moduleobj, 'do_' + cmdname)
         res = func(argument) if argument else func()
 
         # pipe through cmdspec.datatype.result
@@ -236,20 +229,20 @@ class Dispatcher(object):
     def _setParameterValue(self, modulename, exportedname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
         pname = moduleobj.parameters.exported.get(exportedname, None)
         if pname is None:
-            raise NoSuchParameterError(u'Module has no parameter %r on this SEC-Node!' % exportedname)
+            raise NoSuchParameterError('Module has no parameter %r on this SEC-Node!' % exportedname)
         pobj = moduleobj.parameters[pname]
         if pobj.constant is not None:
-            raise ReadOnlyError(u'This parameter is constant and can not be accessed remotely.')
+            raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
         if pobj.readonly:
-            raise ReadOnlyError(u'This parameter can not be changed remotely.')
+            raise ReadOnlyError('This parameter can not be changed remotely.')
 
         # validate!
         value = pobj.datatype(value)
-        writefunc = getattr(moduleobj, u'write_%s' % pname, None)
+        writefunc = getattr(moduleobj, 'write_%s' % pname, None)
         # note: exceptions are handled in handle_request, not here!
         if writefunc:
             # return value is ignored here, as it is automatically set on the pobj and broadcast
@@ -261,18 +254,18 @@ class Dispatcher(object):
     def _getParameterValue(self, modulename, exportedname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError(u'Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
         pname = moduleobj.parameters.exported.get(exportedname, None)
         if pname is None:
-            raise NoSuchParameterError(u'Module has no parameter %r on this SEC-Node!' % exportedname)
+            raise NoSuchParameterError('Module has no parameter %r on this SEC-Node!' % exportedname)
         pobj = moduleobj.parameters[pname]
         if pobj.constant is not None:
             # really needed? we could just construct a readreply instead....
-            #raise ReadOnlyError(u'This parameter is constant and can not be accessed remotely.')
+            #raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
             return pobj.datatype.export_value(pobj.constant)
 
-        readfunc = getattr(moduleobj, u'read_%s' % pname, None)
+        readfunc = getattr(moduleobj, 'read_%s' % pname, None)
         if readfunc:
             # should also update the pobj (via the setter from the metaclass)
             # note: exceptions are handled in handle_request, not here!
@@ -288,7 +281,7 @@ class Dispatcher(object):
 
         will call 'queue_async_reply(data)' on conn or return reply
         """
-        self.log.debug(u'Dispatcher: handling msg: %s' % repr(msg))
+        self.log.debug('Dispatcher: handling msg: %s' % repr(msg))
 
         # play thread safe !
         # XXX: ONLY ONE REQUEST (per dispatcher) AT A TIME
@@ -298,8 +291,8 @@ class Dispatcher(object):
             if action == IDENTREQUEST:
                 action, specifier, data = '_ident', None, None
 
-            self.log.debug(u'Looking for handle_%s' % action)
-            handler = getattr(self, u'handle_%s' % action, None)
+            self.log.debug('Looking for handle_%s' % action)
+            handler = getattr(self, 'handle_%s' % action, None)
 
             if handler:
                 return handler(conn, specifier, data)
@@ -319,28 +312,28 @@ class Dispatcher(object):
     def handle_read(self, conn, specifier, data):
         if data:
             raise ProtocolError('read requests don\'t take data!')
-        modulename, pname = specifier, u'value'
+        modulename, pname = specifier, 'value'
         if ':' in specifier:
             modulename, pname = specifier.split(':', 1)
         # XXX: trigger polling and force sending event ???
         return (READREPLY, specifier, list(self._getParameterValue(modulename, pname)))
 
     def handle_change(self, conn, specifier, data):
-        modulename, pname = specifier, u'value'
+        modulename, pname = specifier, 'value'
         if ':' in specifier:
-            modulename, pname = specifier.split(u':', 1)
+            modulename, pname = specifier.split(':', 1)
         return (WRITEREPLY, specifier, list(self._setParameterValue(modulename, pname, data)))
 
     def handle_do(self, conn, specifier, data):
         # XXX: should this be done asyncron? we could just return the reply in
         # that case
-        modulename, cmd = specifier.split(u':', 1)
+        modulename, cmd = specifier.split(':', 1)
         return (COMMANDREPLY, specifier, list(self._execute_command(modulename, cmd, data)))
 
     def handle_ping(self, conn, specifier, data):
         if data:
             raise ProtocolError('ping requests don\'t take data!')
-        return (HEARTBEATREPLY, specifier, [None, {u't':currenttime()}])
+        return (HEARTBEATREPLY, specifier, [None, {'t':currenttime()}])
 
     def handle_activate(self, conn, specifier, data):
         if data:
@@ -348,7 +341,7 @@ class Dispatcher(object):
         if specifier:
             modulename, exportedname = specifier, None
             if ':' in specifier:
-                modulename, exportedname = specifier.split(u':', 1)
+                modulename, exportedname = specifier.split(':', 1)
             if modulename not in self._export:
                 raise NoSuchModuleError('Module does not exist on this SEC-Node!')
             moduleobj = self.get_module(modulename)
@@ -373,7 +366,7 @@ class Dispatcher(object):
             moduleobj = self._modules.get(modulename, None)
             if pname:
                 pobj = moduleobj.accessibles[pname]
-                updmsg = (EVENTREPLY, u'%s:%s' % (modulename, pobj.export),
+                updmsg = (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
                           [pobj.export_value(), dict(t=pobj.timestamp)])
                 conn.queue_async_reply(updmsg)
                 continue
@@ -383,7 +376,7 @@ class Dispatcher(object):
                 if not pobj.export:
                     continue
                 # can not use announce_update here, as this will send to all clients
-                updmsg = (EVENTREPLY, u'%s:%s' % (modulename, pobj.export),
+                updmsg = (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
                           [pobj.export_value(), dict(t=pobj.timestamp)])
                 conn.queue_async_reply(updmsg)
         return (ENABLEEVENTSREPLY, specifier, None) if specifier else (ENABLEEVENTSREPLY, None, None)

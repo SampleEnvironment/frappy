@@ -21,7 +21,6 @@
 # *****************************************************************************
 """test data types."""
 
-from __future__ import division, print_function
 
 # no fixtures needed
 import pytest
@@ -56,34 +55,34 @@ def test_FloatRange():
     with pytest.raises(ValueError):
         dt(-9)
     with pytest.raises(ValueError):
-        dt(u'XX')
+        dt('XX')
     with pytest.raises(ValueError):
-        dt([19, u'X'])
+        dt([19, 'X'])
     dt(1)
     dt(0)
     dt(13.14 - 10)  # raises an error, if resolution is not handled correctly
     assert dt.export_value(-2.718) == -2.718
     assert dt.import_value(-2.718) == -2.718
     with pytest.raises(ValueError):
-        FloatRange(u'x', u'Y')
+        FloatRange('x', 'Y')
     # check that unit can be changed
-    dt.unit = u'K'
-    assert dt.export_datatype() == {'type': 'double', 'min':-3.14, 'max':3.14, 'unit': u'K'}
+    dt.unit = 'K'
+    assert dt.export_datatype() == {'type': 'double', 'min':-3.14, 'max':3.14, 'unit': 'K'}
 
     dt = FloatRange()
     copytest(dt)
     assert dt.export_datatype() == {'type': 'double'}
 
-    dt = FloatRange(unit=u'X', fmtstr=u'%.2f', absolute_resolution=1,
+    dt = FloatRange(unit='X', fmtstr='%.2f', absolute_resolution=1,
                     relative_resolution=0.1)
     copytest(dt)
     assert dt.export_datatype() == {'type': 'double', 'unit':'X', 'fmtstr':'%.2f',
                                       'absolute_resolution':1.0,
                                       'relative_resolution':0.1}
     assert dt(4) == 4
-    assert dt.format_value(3.14) == u'3.14 X'
-    assert dt.format_value(3.14, u'') == u'3.14'
-    assert dt.format_value(3.14, u'#') == u'3.14 #'
+    assert dt.format_value(3.14) == '3.14 X'
+    assert dt.format_value(3.14, '') == '3.14'
+    assert dt.format_value(3.14, '#') == '3.14 #'
 
 
 def test_IntRange():
@@ -96,20 +95,20 @@ def test_IntRange():
     with pytest.raises(ValueError):
         dt(-9)
     with pytest.raises(ValueError):
-        dt(u'XX')
+        dt('XX')
     with pytest.raises(ValueError):
-        dt([19, u'X'])
+        dt([19, 'X'])
     dt(1)
     dt(0)
     with pytest.raises(ValueError):
-        IntRange(u'xc', u'Yx')
+        IntRange('xc', 'Yx')
 
     dt = IntRange()
     copytest(dt)
     assert dt.export_datatype()['type'] == 'int'
     assert dt.export_datatype()['min'] < 0 < dt.export_datatype()['max']
-    assert dt.export_datatype() == {'type': 'int', 'max': 16777216,u'min': -16777216}
-    assert dt.format_value(42) == u'42'
+    assert dt.export_datatype() == {'type': 'int', 'max': 16777216,'min': -16777216}
+    assert dt.format_value(42) == '42'
 
 def test_ScaledInteger():
     dt = ScaledInteger(0.01, -3, 3)
@@ -122,36 +121,36 @@ def test_ScaledInteger():
     with pytest.raises(ValueError):
         dt(-9)
     with pytest.raises(ValueError):
-        dt(u'XX')
+        dt('XX')
     with pytest.raises(ValueError):
-        dt([19, u'X'])
+        dt([19, 'X'])
     dt(1)
     dt(0)
     with pytest.raises(ValueError):
-        ScaledInteger(u'xc', u'Yx')
+        ScaledInteger('xc', 'Yx')
     with pytest.raises(ValueError):
         ScaledInteger(scale=0, minval=1, maxval=2)
     with pytest.raises(ValueError):
         ScaledInteger(scale=-10, minval=1, maxval=2)
     # check that unit can be changed
-    dt.unit = u'A'
+    dt.unit = 'A'
     assert dt.export_datatype() == {'type': 'scaled', 'scale':0.01, 'min':-300, 'max':300, 'unit': 'A'}
 
     assert dt.export_value(0.0001) == int(0)
     assert dt.export_value(2.71819) == int(272)
     assert dt.import_value(272) == 2.72
 
-    dt = ScaledInteger(0.003, 0, 1, unit=u'X', fmtstr=u'%.1f',
+    dt = ScaledInteger(0.003, 0, 1, unit='X', fmtstr='%.1f',
                        absolute_resolution=0.001, relative_resolution=1e-5)
     copytest(dt)
     assert dt.export_datatype() == {'type': 'scaled', 'scale':0.003, 'min':0, 'max':333,
-                                      u'unit':u'X', u'fmtstr':u'%.1f',
-                                      u'absolute_resolution':0.001,
-                                      u'relative_resolution':1e-5}
+                                      'unit':'X', 'fmtstr':'%.1f',
+                                      'absolute_resolution':0.001,
+                                      'relative_resolution':1e-5}
     assert dt(0.4) == 0.399
-    assert dt.format_value(0.4) == u'0.4 X'
-    assert dt.format_value(0.4, u'') == u'0.4'
-    assert dt.format_value(0.4, u'Z') == u'0.4 Z'
+    assert dt.format_value(0.4) == '0.4 X'
+    assert dt.format_value(0.4, '') == '0.4'
+    assert dt.format_value(0.4, 'Z') == '0.4 Z'
     assert dt(1.0029) == 0.999
     with pytest.raises(ValueError):
         dt(1.004)
@@ -162,9 +161,9 @@ def test_EnumType():
     with pytest.raises(TypeError):
         EnumType(1)
     with pytest.raises(TypeError):
-        EnumType([u'b', 0])
+        EnumType(['b', 0])
 
-    dt = EnumType(u'dt', a=3, c=7, stuff=1)
+    dt = EnumType('dt', a=3, c=7, stuff=1)
     copytest(dt)
     assert dt.export_datatype() == {'type': 'enum', 'members': dict(a=3, c=7, stuff=1)}
 
@@ -173,28 +172,28 @@ def test_EnumType():
     with pytest.raises(ValueError):
         dt(-9)
     with pytest.raises(ValueError):
-        dt(u'XX')
+        dt('XX')
     with pytest.raises(ValueError):
-        dt([19, u'X'])
+        dt([19, 'X'])
 
-    assert dt(u'a') == 3
-    assert dt(u'stuff') == 1
+    assert dt('a') == 3
+    assert dt('stuff') == 1
     assert dt(1) == 1
     with pytest.raises(ValueError):
         dt(2)
 
-    assert dt.export_value(u'c') == 7
-    assert dt.export_value(u'stuff') == 1
+    assert dt.export_value('c') == 7
+    assert dt.export_value('stuff') == 1
     assert dt.export_value(1) == 1
-    assert dt.import_value(u'c') == 7
-    assert dt.import_value(u'a') == 3
-    assert dt.import_value(u'stuff') == 1
+    assert dt.import_value('c') == 7
+    assert dt.import_value('a') == 3
+    assert dt.import_value('stuff') == 1
     with pytest.raises(ValueError):
         dt.export_value(2)
     with pytest.raises(ValueError):
-        dt.import_value(u'A')
+        dt.import_value('A')
 
-    assert dt.format_value(3) == u'a<3>'
+    assert dt.format_value(3) == 'a<3>'
 
 
 def test_BLOBType():
@@ -217,13 +216,13 @@ def test_BLOBType():
     with pytest.raises(ValueError):
         dt(b'abcdefghijklmno')
     with pytest.raises(ValueError):
-        dt(u'abcd')
+        dt('abcd')
     assert dt(b'abcd') == b'abcd'
 
-    assert dt.export_value(b'abcd') == u'YWJjZA=='
-    assert dt.export_value(b'abcd') == u'YWJjZA=='
-    # assert dt.export_value(u'abcd') == u'YWJjZA=='
-    assert dt.import_value(u'YWJjZA==') == b'abcd'
+    assert dt.export_value(b'abcd') == 'YWJjZA=='
+    assert dt.export_value(b'abcd') == 'YWJjZA=='
+    # assert dt.export_value('abcd') == 'YWJjZA=='
+    assert dt.import_value('YWJjZA==') == b'abcd'
 
     # XXX: right? or different format?
     # to be added after migration to py3
@@ -246,9 +245,9 @@ def test_StringType():
     with pytest.raises(ValueError):
         dt(9)
     with pytest.raises(ValueError):
-        dt(u'av')
+        dt('av')
     with pytest.raises(ValueError):
-        dt(u'abcdefghijklmno')
+        dt('abcdefghijklmno')
     with pytest.raises(ValueError):
         dt('abcdefg\0')
     assert dt('abcd') == 'abcd'
@@ -271,7 +270,7 @@ def test_TextType():
     with pytest.raises(ValueError):
         dt(9)
     with pytest.raises(ValueError):
-        dt(u'abcdefghijklmno')
+        dt('abcdefghijklmno')
     with pytest.raises(ValueError):
         dt('abcdefg\0')
     assert dt('ab\n\ncd\n') == 'ab\n\ncd\n'
@@ -292,20 +291,20 @@ def test_BoolType():
     with pytest.raises(ValueError):
         dt(9)
     with pytest.raises(ValueError):
-        dt(u'av')
+        dt('av')
 
-    assert dt(u'true') is True
-    assert dt(u'off') is False
+    assert dt('true') is True
+    assert dt('off') is False
     assert dt(1) is True
 
-    assert dt.export_value(u'false') is False
+    assert dt.export_value('false') is False
     assert dt.export_value(0) is False
-    assert dt.export_value(u'on') is True
+    assert dt.export_value('on') is True
 
     assert dt.import_value(False) is False
     assert dt.import_value(True) is True
     with pytest.raises(ValueError):
-        dt.import_value(u'av')
+        dt.import_value('av')
 
     assert dt.format_value(0) == u"False"
     assert dt.format_value(True) == u"True"
@@ -323,7 +322,7 @@ def test_ArrayOf():
                                      'members': {'type': 'int', 'min':-10,
                                                  'max':10}}
 
-    dt = ArrayOf(FloatRange(-10, 10, unit=u'Z'), 1, 3)
+    dt = ArrayOf(FloatRange(-10, 10, unit='Z'), 1, 3)
     copytest(dt)
     assert dt.export_datatype() == {'type': 'array', 'minlen':1, 'maxlen':3,
                                      'members':{'type': 'double', 'min':-10,
@@ -331,16 +330,16 @@ def test_ArrayOf():
     with pytest.raises(ValueError):
         dt(9)
     with pytest.raises(ValueError):
-        dt(u'av')
+        dt('av')
 
     assert dt([1, 2, 3]) == [1, 2, 3]
 
     assert dt.export_value([1, 2, 3]) == [1, 2, 3]
     assert dt.import_value([1, 2, 3]) == [1, 2, 3]
 
-    assert dt.format_value([1,2,3]) == u'[1, 2, 3] Z'
-    assert dt.format_value([1,2,3], u'') == u'[1, 2, 3]'
-    assert dt.format_value([1,2,3], u'Q') == u'[1, 2, 3] Q'
+    assert dt.format_value([1,2,3]) == '[1, 2, 3] Z'
+    assert dt.format_value([1,2,3], '') == '[1, 2, 3]'
+    assert dt.format_value([1,2,3], 'Q') == '[1, 2, 3] Q'
 
 
 def test_TupleOf():
@@ -373,7 +372,7 @@ def test_StructOf():
         StructOf(IntRange=1)
 
     dt = StructOf(a_string=StringType(0, 55), an_int=IntRange(0, 999),
-                  optional=[u'an_int'])
+                  optional=['an_int'])
     copytest(dt)
     assert dt.export_datatype() == {'type': 'struct',
       'members':{'a_string': {'type': 'string', 'maxchars':55},
@@ -383,18 +382,18 @@ def test_StructOf():
     with pytest.raises(ValueError):
         dt(9)
     with pytest.raises(ValueError):
-        dt([99, u'X'])
+        dt([99, 'X'])
     with pytest.raises(ValueError):
-        dt(dict(a_string=u'XXX', an_int=1811))
+        dt(dict(a_string='XXX', an_int=1811))
 
-    assert dt(dict(a_string=u'XXX', an_int=8)) == {u'a_string': u'XXX',
-                                                            u'an_int': 8}
-    assert dt.export_value({u'an_int': 13, u'a_string': u'WFEC'}) == {
-        u'a_string': u'WFEC', u'an_int': 13}
-    assert dt.import_value({u'an_int': 13, u'a_string': u'WFEC'}) == {
-        u'a_string': u'WFEC', u'an_int': 13}
+    assert dt(dict(a_string='XXX', an_int=8)) == {'a_string': 'XXX',
+                                                            'an_int': 8}
+    assert dt.export_value({'an_int': 13, 'a_string': 'WFEC'}) == {
+        'a_string': 'WFEC', 'an_int': 13}
+    assert dt.import_value({'an_int': 13, 'a_string': 'WFEC'}) == {
+        'a_string': 'WFEC', 'an_int': 13}
 
-    assert dt.format_value({'an_int':2, u'a_string':'Z'}) == u"{a_string='Z', an_int=2}"
+    assert dt.format_value({'an_int':2, 'a_string':'Z'}) == u"{a_string='Z', an_int=2}"
 
 
 def test_Command():
@@ -418,11 +417,11 @@ def test_get_datatype():
     with pytest.raises(ValueError):
         get_datatype(str)
     with pytest.raises(ValueError):
-        get_datatype({u'undefined': {}})
+        get_datatype({'undefined': {}})
 
     assert isinstance(get_datatype({'type': 'bool'}), BoolType)
     with pytest.raises(ValueError):
-        get_datatype([u'bool'])
+        get_datatype(['bool'])
 
     with pytest.raises(ValueError):
         get_datatype({'type': 'int', 'min':-10}) # missing max
@@ -444,7 +443,7 @@ def test_get_datatype():
                       FloatRange)
 
     with pytest.raises(ValueError):
-        get_datatype([u'double'])
+        get_datatype(['double'])
     with pytest.raises(ValueError):
         get_datatype({'type': 'double', 'min':10, 'max':-10})
     with pytest.raises(ValueError):
@@ -462,7 +461,7 @@ def test_get_datatype():
     assert get_datatype(dt.export_datatype()).export_datatype() == dt.export_datatype()
 
     with pytest.raises(ValueError):
-        get_datatype([u'scaled'])    # dict missing
+        get_datatype(['scaled'])    # dict missing
     with pytest.raises(ValueError):
         get_datatype({'type': 'scaled', 'min':-10, 'max':10})  # no scale
     with pytest.raises(ValueError):
@@ -471,7 +470,7 @@ def test_get_datatype():
         get_datatype(['scaled', {'min':10, 'max':-10, 'scale': 1},  2])
 
     with pytest.raises(ValueError):
-        get_datatype([u'enum'])
+        get_datatype(['enum'])
     with pytest.raises(ValueError):
         get_datatype({'type': 'enum', 'a': -2})
     assert isinstance(get_datatype({'type': 'enum', 'members':dict(a=-2)}), EnumType)
@@ -498,13 +497,13 @@ def test_get_datatype():
         get_datatype(['string', {'maxchars':-0}, 'x'])
 
     with pytest.raises(ValueError):
-        get_datatype([u'array'])
+        get_datatype(['array'])
     with pytest.raises(ValueError):
         get_datatype({'type': 'array', 'members': [1]})
     assert isinstance(get_datatype({'type': 'array', 'minlen':1, 'maxlen':1,
                                     'members':{'type': 'blob', 'maxbytes':1}}
                                    ), ArrayOf)
-    assert isinstance(get_datatype({'type': 'array', 'minlen':1, u'maxlen':1,
+    assert isinstance(get_datatype({'type': 'array', 'minlen':1, 'maxlen':1,
                                     'members':{'type': 'blob', 'maxbytes':1}}
                                    ).members, BLOBType)
 
@@ -528,7 +527,7 @@ def test_get_datatype():
     with pytest.raises(ValueError):
         get_datatype({'type': 'tuple', 'members': {}})
     with pytest.raises(ValueError):
-        get_datatype([u'tuple', 10, -10])
+        get_datatype(['tuple', 10, -10])
 
     assert isinstance(get_datatype({'type': 'tuple', 'members':[{'type': 'blob', 'maxbytes':1},
                                                     {'type': 'bool'}]}), TupleOf)
@@ -538,9 +537,9 @@ def test_get_datatype():
     with pytest.raises(ValueError):
         get_datatype(['struct', [1], 2, 3])
     assert isinstance(get_datatype({'type': 'struct', 'members':
-            {u'name': {'type': 'blob', 'maxbytes':1}}}), StructOf)
+            {'name': {'type': 'blob', 'maxbytes':1}}}), StructOf)
     assert isinstance(get_datatype({'type': 'struct', 'members':
-            {u'name': {'type': 'blob', 'maxbytes':1}}}).members[u'name'], BLOBType)
+            {'name': {'type': 'blob', 'maxbytes':1}}}).members['name'], BLOBType)
 
     with pytest.raises(ValueError):
         get_datatype({'type': 'struct', 'members': {}})

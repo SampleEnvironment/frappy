@@ -22,15 +22,9 @@
 # *****************************************************************************
 """Enum class"""
 
-from __future__ import division, print_function
 
 __ALL__ = ['Enum']
 
-try:
-    text_type = unicode  # Py2
-except NameError:
-    text_type = str  # Py3
-    unicode = str  # pylint: disable=redefined-builtin
 
 class EnumMember(object):
     """represents one member of an Enum
@@ -49,7 +43,7 @@ class EnumMember(object):
     def __cmp__(self, other):
         if isinstance(other, EnumMember):
             other = other.value
-        if isinstance(other, (str, unicode)):
+        if isinstance(other, str):
             if other in self.enum:
                 other = self.enum[other].value
         try:
@@ -73,7 +67,7 @@ class EnumMember(object):
         if isinstance(other, int):
             return other == self.value
         # compare by name (for (in)equality only)
-        if isinstance(other, (str, unicode)):
+        if isinstance(other, str):
             if other in self.enum:
                 return self.name == other
             return False
@@ -114,8 +108,6 @@ class EnumMember(object):
         return self.value.__sub__(other.value if isinstance(other, EnumMember) else other)
     def __mul__(self, other):
         return self.value.__mul__(other.value if isinstance(other, EnumMember) else other)
-    def __div__(self, other):
-        return self.value.__div__(other.value if isinstance(other, EnumMember) else other)
     def __truediv__(self, other):
         return self.value.__truediv__(other.value if isinstance(other, EnumMember) else other)
     def __floordiv__(self, other):
@@ -137,8 +129,6 @@ class EnumMember(object):
         return self.value.__rsub__(other.value if isinstance(other, EnumMember) else other)
     def __rmul__(self, other):
         return self.value.__rmul__(other.value if isinstance(other, EnumMember) else other)
-    def __rdiv__(self, other):
-        return self.value.__rdiv__(other.value if isinstance(other, EnumMember) else other)
     def __rtruediv__(self, other):
         return self.value.__rtruediv__(other.value if isinstance(other, EnumMember) else other)
     def __rfloordiv__(self, other):
@@ -181,10 +171,6 @@ class EnumMember(object):
     def __float__(self):
         return self.value.__float__()
         #return NotImplemented  # makes no sense
-    def __oct__(self):
-        return self.value.__oct__()
-    def __hex__(self):
-        return self.value.__hex__()
     def __index__(self):
         return self.value.__index__()
 
@@ -234,7 +220,7 @@ class Enum(dict):
                 name=parent.name
 #            else:
 #                raise TypeError('Enum instances need a name or an Enum parent!')
-        if not isinstance(name, (str, text_type)):
+        if not isinstance(name, str):
             raise TypeError('1st argument to Enum must be a name or an Enum!')
 
         names = set()

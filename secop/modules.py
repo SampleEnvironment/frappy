@@ -21,7 +21,6 @@
 # *****************************************************************************
 """Define Baseclasses for real Modules implemented in the server"""
 
-from __future__ import division, print_function
 
 import sys
 import time
@@ -33,7 +32,6 @@ from secop.errors import ConfigError, ProgrammingError
 from secop.lib import formatException, \
     formatExtendedStack, mkthread, unset_value
 from secop.lib.enum import Enum
-from secop.lib.metaclass import add_metaclass
 from secop.metaclass import ModuleMeta
 from secop.params import PREDEFINED_ACCESSIBLES, Command, Override, Parameter, Parameters, Commands
 from secop.properties import HasProperties, Property
@@ -45,8 +43,7 @@ from secop.properties import HasProperties, Property
 # from these base classes (how to do this?)
 
 
-@add_metaclass(ModuleMeta)
-class Module(HasProperties):
+class Module(HasProperties, metaclass=ModuleMeta):
     """Basic Module
 
     ALL secop Modules derive from this
@@ -205,7 +202,7 @@ class Module(HasProperties):
 #                                      (self.name, k, e))
             # note: this will call write_* methods which will
             # write to the hardware, if possible!
-            if k != u'value':
+            if k != 'value':
                 setattr(self, k, v)
             cfgdict.pop(k)
 

@@ -28,7 +28,7 @@ SPACE = b' '
 def encode_msg_frame(action, specifier=None, data=None):
     """ encode a msg_tripel into an msg_frame, ready to be sent
 
-    action (and optional specifier) are unicode strings,
+    action (and optional specifier) are str strings,
     data may be an json-yfied python object"""
     action = action.encode('utf-8')
     if specifier is None:
@@ -54,7 +54,7 @@ def get_msg(_bytes):
 
 
 def decode_msg(msg):
-    """decode the (binary) msg into a (unicode) msg_tripel"""
+    """decode the (binary) msg into a (str) msg_tripel"""
     # check for leading/trailing CR and remove it
     res = msg.split(b' ', 2)
     action = res[0].decode('utf-8')

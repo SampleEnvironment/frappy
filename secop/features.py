@@ -21,16 +21,14 @@
 # *****************************************************************************
 """Define Mixin Features for real Modules implemented in the server"""
 
-from __future__ import division, print_function
 
 from secop.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, StringType, StructOf, TupleOf
-from secop.metaclass import ModuleMeta, add_metaclass
+from secop.metaclass import ModuleMeta
 from secop.modules import Command, Parameter
 
 
-@add_metaclass(ModuleMeta)
-class Feature(object):
+class Feature(object, metaclass=ModuleMeta):
     """all things belonging to a small, predefined functionality influencing the working of a module"""
     pass
 

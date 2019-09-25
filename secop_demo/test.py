@@ -20,22 +20,12 @@
 # *****************************************************************************
 """testing devices"""
 
-from __future__ import division, print_function
 
 import random
 
 from secop.datatypes import FloatRange, StringType
 from secop.modules import Communicator, Drivable, Parameter, Readable, Override
 from secop.params import Command
-
-try:
-    # py2
-    unicode
-except NameError:
-    # py3
-    unicode = str  # pylint: disable=redefined-builtin
-
-
 
 
 class LN2(Readable):
@@ -104,4 +94,4 @@ class Lower(Communicator):
         'communicate': Command('lowercase a string', argument=StringType(), result=StringType(), export='communicate'),
     }
     def do_communicate(self, request):
-        return unicode(request).lower()
+        return str(request).lower()

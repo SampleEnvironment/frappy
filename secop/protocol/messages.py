@@ -20,50 +20,49 @@
 #
 # *****************************************************************************
 """Define SECoP Messages"""
-from __future__ import division, print_function
 
 # allowed actions:
 
-IDENTREQUEST = u'*IDN?'  # literal
+IDENTREQUEST = '*IDN?'  # literal
 # literal! first part is fixed!
-IDENTREPLY = u'SINE2020&ISSE,SECoP,V2019-08-20,v1.0 RC2'
+IDENTREPLY = 'SINE2020&ISSE,SECoP,V2019-08-20,v1.0 RC2'
 
-DESCRIPTIONREQUEST = u'describe'  # literal
-DESCRIPTIONREPLY = u'describing'  # +<id> +json
+DESCRIPTIONREQUEST = 'describe'  # literal
+DESCRIPTIONREPLY = 'describing'  # +<id> +json
 
-ENABLEEVENTSREQUEST = u'activate'  # literal + optional spec
-ENABLEEVENTSREPLY = u'active'  # literal + optional spec, is end-of-initial-data-transfer
+ENABLEEVENTSREQUEST = 'activate'  # literal + optional spec
+ENABLEEVENTSREPLY = 'active'  # literal + optional spec, is end-of-initial-data-transfer
 
-DISABLEEVENTSREQUEST = u'deactivate'  # literal + optional spec
-DISABLEEVENTSREPLY = u'inactive'  # literal + optional spec
+DISABLEEVENTSREQUEST = 'deactivate'  # literal + optional spec
+DISABLEEVENTSREPLY = 'inactive'  # literal + optional spec
 
-COMMANDREQUEST = u'do'  # +module:command +json args (if needed)
+COMMANDREQUEST = 'do'  # +module:command +json args (if needed)
 # +module:command +json args (if needed) # send after the command finished !
-COMMANDREPLY = u'done'
+COMMANDREPLY = 'done'
 
 # +module[:parameter] +json_value
-WRITEREQUEST = u'change'
+WRITEREQUEST = 'change'
 # +module[:parameter] +json_value # send with the read back value
-WRITEREPLY = u'changed'
+WRITEREPLY = 'changed'
 
 # +module[:parameter] +json_value
-BUFFERREQUEST = u'buffer'
+BUFFERREQUEST = 'buffer'
 # +module[:parameter] +json_value # send with the read back value
-BUFFERREPLY = u'buffered'
+BUFFERREPLY = 'buffered'
 
 # +module[:parameter] -> NO direct reply, calls POLL internally!
-READREQUEST = u'read'
-READREPLY = u'reply'  # See Issue 54
+READREQUEST = 'read'
+READREPLY = 'reply'  # See Issue 54
 
-EVENTREPLY = u'update'  # +module[:parameter] +json_value (value, qualifiers_as_dict)
+EVENTREPLY = 'update'  # +module[:parameter] +json_value (value, qualifiers_as_dict)
 
-HEARTBEATREQUEST = u'ping'  # +nonce_without_space
-HEARTBEATREPLY = u'pong'  # +nonce_without_space
+HEARTBEATREQUEST = 'ping'  # +nonce_without_space
+HEARTBEATREPLY = 'pong'  # +nonce_without_space
 
-ERRORPREFIX = u'error_'  # + specifier + json_extended_info(error_report)
+ERRORPREFIX = 'error_'  # + specifier + json_extended_info(error_report)
 
-HELPREQUEST = u'help'  # literal
-HELPREPLY = u'helping'  # +line number +json_text
+HELPREQUEST = 'help'  # literal
+HELPREPLY = 'helping'  # +line number +json_text
 
 # helper mapping to find the REPLY for a REQUEST
 REQUEST2REPLY = {

@@ -23,7 +23,6 @@
 #
 # *****************************************************************************
 
-from __future__ import division, print_function
 
 import os.path
 from subprocess import PIPE, Popen

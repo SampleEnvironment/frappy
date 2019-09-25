@@ -21,18 +21,10 @@
 # *****************************************************************************
 """basic validators (for properties)"""
 
-from __future__ import division, print_function
 
 import re
 
 from secop.errors import ProgrammingError
-
-try:
-    # py2
-    unicode
-except NameError:
-    # py3
-    unicode = str  # pylint: disable=redefined-builtin
 
 
 def FloatProperty(value):
@@ -43,80 +35,80 @@ def PositiveFloatProperty(value):
     value = float(value)
     if value > 0:
         return value
-    raise ValueError(u'Value must be >0 !')
+    raise ValueError('Value must be >0 !')
 
 
 def NonNegativeFloatProperty(value):
     value = float(value)
     if value >= 0:
         return value
-    raise ValueError(u'Value must be >=0 !')
+    raise ValueError('Value must be >=0 !')
 
 
 def IntProperty(value):
     if int(value) == float(value):
         return int(value)
-    raise ValueError(u'Can\'t convert %r to int!' % value)
+    raise ValueError('Can\'t convert %r to int!' % value)
 
 
 def PositiveIntProperty(value):
     value = IntProperty(value)
     if value > 0:
         return value
-    raise ValueError(u'Value must be >0 !')
+    raise ValueError('Value must be >0 !')
 
 
 def NonNegativeIntProperty(value):
     value = IntProperty(value)
     if value >= 0:
         return value
-    raise ValueError(u'Value must be >=0 !')
+    raise ValueError('Value must be >=0 !')
 
 
 def BoolProperty(value):
     try:
-        if value.lower() in [u'0', u'false', u'no', u'off',]:
+        if value.lower() in ['0', 'false', 'no', 'off',]:
             return False
-        if value.lower() in [u'1', u'true', u'yes', u'on', ]:
+        if value.lower() in ['1', 'true', 'yes', 'on', ]:
             return True
     except AttributeError: # was no string
         if bool(value) == value:
             return value
-    raise ValueError(u'%r is no valid boolean: try one of True, False, "on", "off",...' % value)
+    raise ValueError('%r is no valid boolean: try one of True, False, "on", "off",...' % value)
 
 
 def StringProperty(value):
-    return unicode(value)
+    return str(value)
 
 
 def UnitProperty(value):
     # probably too simple!
-    for s in unicode(value):
-        if s.lower() not in u'°abcdefghijklmnopqrstuvwxyz':
-            raise ValueError(u'%r is not a valid unit!')
+    for s in str(value):
+        if s.lower() not in '°abcdefghijklmnopqrstuvwxyz':
+            raise ValueError('%r is not a valid unit!')
 
 
 def FmtStrProperty(value, regexp=re.compile(r'^%\.?\d+[efg]$')):
-    value=unicode(value)
+    value=str(value)
     if regexp.match(value):
         return value
-    raise ValueError(u'%r is not a valid fmtstr!' % value)
+    raise ValueError('%r is not a valid fmtstr!' % value)
 
 
 def OneOfProperty(*args):
     # literally oneof!
     if not args:
-        raise ProgrammingError(u'OneOfProperty needs some argumets to check against!')
+        raise ProgrammingError('OneOfProperty needs some argumets to check against!')
     def OneOfChecker(value):
         if value not in args:
-            raise ValueError(u'Value must be one of %r' % list(args))
+            raise ValueError('Value must be one of %r' % list(args))
         return value
     return OneOfChecker
 
 
 def NoneOr(checker):
     if not callable(checker):
-        raise ProgrammingError(u'NoneOr needs a basic validator as Argument!')
+        raise ProgrammingError('NoneOr needs a basic validator as Argument!')
     def NoneOrChecker(value):
         if value is None:
             return None
@@ -126,13 +118,13 @@ def NoneOr(checker):
 
 def EnumProperty(**kwds):
     if not kwds:
-        raise ProgrammingError(u'EnumProperty needs a mapping!')
+        raise ProgrammingError('EnumProperty needs a mapping!')
     def EnumChecker(value):
         if value in kwds:
             return kwds[value]
         if value in kwds.values():
             return value
-        raise ValueError(u'Value must be one of %r' % list(kwds))
+        raise ValueError('Value must be one of %r' % list(kwds))
     return EnumChecker
 
 def TupleProperty(*checkers):
@@ -140,16 +132,16 @@ def TupleProperty(*checkers):
         checkers = [None]
     for c in checkers:
         if not callable(c):
-            raise ProgrammingError(u'TupleProperty needs basic validators as Arguments!')
+            raise ProgrammingError('TupleProperty needs basic validators as Arguments!')
     def TupleChecker(values):
         if len(values)==len(checkers):
             return tuple(c(v) for c, v in zip(checkers, values))
-        raise ValueError(u'Value needs %d elements!' % len(checkers))
+        raise ValueError('Value needs %d elements!' % len(checkers))
     return TupleChecker
 
 def ListOfProperty(checker):
     if not callable(checker):
-        raise ProgrammingError(u'ListOfProperty needs a basic validator as Argument!')
+        raise ProgrammingError('ListOfProperty needs a basic validator as Argument!')
     def ListOfChecker(values):
         return [checker(v) for v in values]
     return ListOfChecker

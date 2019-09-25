@@ -21,14 +21,11 @@
 # *****************************************************************************
 """Define validated data types."""
 
-from __future__ import division, print_function
 
 from collections import OrderedDict
 
 from secop.datatypes import ValueType, DataType
 from secop.errors import ProgrammingError, ConfigError
-from secop.lib.metaclass import add_metaclass
-
 
 
 # storage for 'properties of a property'
@@ -44,7 +41,7 @@ class Property(object):
     #       the VALUES of the properties are on the instances!
     def __init__(self, description, datatype, default=None, extname='', export=False, mandatory=False, settable=True):
         if not callable(datatype):
-            raise ValueError(u'datatype MUST be a valid DataType or a basic_validator')
+            raise ValueError('datatype MUST be a valid DataType or a basic_validator')
         self.description = description
         self.default = datatype.default if default is None else datatype(default)
         self.datatype = datatype
@@ -54,7 +51,7 @@ class Property(object):
         self.settable = settable or mandatory  # settable means settable from the cfg file
 
     def __repr__(self):
-        return u'Property(%s, %s, default=%r, extname=%r, export=%r, mandatory=%r)' % (
+        return 'Property(%s, %s, default=%r, extname=%r, export=%r, mandatory=%r)' % (
             self.description, self.datatype, self.default, self.extname, self.export, self.mandatory)
 
 
@@ -67,16 +64,16 @@ class Properties(OrderedDict):
     """
     def __setitem__(self, key, value):
         if not isinstance(value, Property):
-            raise ProgrammingError(u'setting property %r on classes is not supported!' % key)
+            raise ProgrammingError('setting property %r on classes is not supported!' % key)
         # make sure, extname is valid if export is True
         if not value.extname and value.export:
-            value.extname = u'_%s' % key  # generate custom kex
+            value.extname = '_%s' % key  # generate custom kex
         elif value.extname and not value.export:
             value.export = True
         OrderedDict.__setitem__(self, key, value)
 
     def __delitem__(self, key):
-        raise ProgrammingError(u'deleting Properties is not supported!')
+        raise ProgrammingError('deleting Properties is not supported!')
 
 
 class PropertyMeta(type):
@@ -112,13 +109,12 @@ class PropertyMeta(type):
                 return self.properties.get(pname, val)
             if k in attrs:
                 if not isinstance(attrs[k], property):
-                    raise ProgrammingError(u'Name collision with property %r' % k)
+                    raise ProgrammingError('Name collision with property %r' % k)
             setattr(newtype, k, property(getter))
         return newtype
 
 
-@add_metaclass(PropertyMeta)
-class HasProperties(object):
+class HasProperties(object, metaclass=PropertyMeta):
     properties = {}
 
     def __init__(self, supercall_init=True):

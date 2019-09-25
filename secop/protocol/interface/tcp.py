@@ -19,11 +19,11 @@
 #
 # *****************************************************************************
 """provides tcp interface to the SECoP Server"""
-from __future__ import division, print_function
 
-import collections
-import socket
 import sys
+import socket
+import collections
+import socketserver
 
 from secop.datatypes import StringType, IntRange, BoolType
 from secop.errors import SECoPError
@@ -34,16 +34,9 @@ from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
 from secop.protocol.messages import ERRORPREFIX, \
     HELPREPLY, HELPREQUEST, HelpMessage
 
-try:
-    import socketserver  # py3
-except ImportError:
-    import SocketServer as socketserver  # py2
-
-
 
 DEF_PORT = 10767
 MESSAGE_READ_SIZE = 1024
-
 
 CR = b'\r'
 SPACE = b' '

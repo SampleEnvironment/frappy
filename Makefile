@@ -11,7 +11,7 @@ demo:
 	@ps aux|grep [s]ecop-server|awk '{print $$2}'|xargs kill
 
 build:
-	python setup.py build
+	python3 setup.py build
 
 clean:
 	find . -name '*.pyc' -delete
@@ -19,20 +19,20 @@ clean:
 	$(MAKE) -C doc clean
 
 install: build
-	python setup.py install
+	python3 setup.py install
 
 test:
 ifdef T
-	python $(shell which pytest) -v test -l -k $(T)
+	python3 $(shell which pytest) -v test -l -k $(T)
 else
-	python $(shell which pytest) -v test -l
+	python3 $(shell which pytest) -v test -l
 endif
 
 test-verbose:
-	python $(shell which pytest) -v test -s
+	python3 $(shell which pytest) -v test -s
 
 test-coverage:
-	python $(shell which pytest) -v test --cov=secop
+	python3 $(shell which pytest) -v test --cov=secop
 
 doc:
 	$(MAKE) -C doc html

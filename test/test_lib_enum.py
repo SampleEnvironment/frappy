@@ -21,7 +21,6 @@
 # *****************************************************************************
 """test Enum type."""
 
-from __future__ import division, print_function
 
 # no fixtures needed
 import pytest

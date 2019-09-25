@@ -27,7 +27,6 @@
 Here we support devices which fulfill the official
 MLZ TANGO interface for the respective device classes.
 """
-from __future__ import division, print_function
 
 import re
 import threading

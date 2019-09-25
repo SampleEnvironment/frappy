@@ -23,7 +23,6 @@
 
 # pylint: disable=abstract-method
 
-from __future__ import division, print_function
 
 from base64 import b64decode, b64encode
 
@@ -31,22 +30,15 @@ from secop.errors import ProgrammingError, ProtocolError, BadValueError
 from secop.lib.enum import Enum
 from secop.parse import Parser
 
-try:
-    # py2
-    unicode
-except NameError:
-    # py3
-    unicode = str  # pylint: disable=redefined-builtin
-
 
 # Only export these classes for 'from secop.datatypes import *'
 __all__ = [
-    u'DataType',
-    u'FloatRange', u'IntRange',
-    u'BoolType', u'EnumType',
-    u'BLOBType', u'StringType',
-    u'TupleOf', u'ArrayOf', u'StructOf',
-    u'CommandType',
+    'DataType',
+    'FloatRange', 'IntRange',
+    'BoolType', 'EnumType',
+    'BLOBType', 'StringType',
+    'TupleOf', 'ArrayOf', 'StructOf',
+    'CommandType',
 ]
 
 # *DEFAULT* limits for IntRange/ScaledIntegers transport serialisation
@@ -58,8 +50,8 @@ Parser = Parser()
 # base class for all DataTypes
 class DataType(object):
     IS_COMMAND = False
-    unit = u''
-    fmtstr = u'%r'
+    unit = ''
+    fmtstr = '%r'
     default = None
 
     def __call__(self, value):
@@ -90,7 +82,7 @@ class DataType(object):
         return value
 
     def format_value(self, value, unit=None):
-        """format a value of this type into a unicode string
+        """format a value of this type into a str string
 
         This is intended for 'nice' formatting for humans and is NOT
         the opposite of :meth:`from_string`
@@ -128,23 +120,23 @@ class FloatRange(DataType):
     def __init__(self, minval=None, maxval=None, unit=None, fmtstr=None,
                        absolute_resolution=None, relative_resolution=None,):
         self._defaults = {}
-        self.set_prop('min', minval, float(u'-inf'), float)
-        self.set_prop('max', maxval, float(u'+inf'), float)
-        self.set_prop('unit', unit, u'', unicode)
-        self.set_prop('fmtstr', fmtstr, u'%g', unicode)
+        self.set_prop('min', minval, float('-inf'), float)
+        self.set_prop('max', maxval, float('+inf'), float)
+        self.set_prop('unit', unit, '', str)
+        self.set_prop('fmtstr', fmtstr, '%g', str)
         self.set_prop('absolute_resolution', absolute_resolution, 0.0, float)
         self.set_prop('relative_resolution', relative_resolution, 1.2e-7, float)
         self.default = 0 if self.min <= 0 <= self.max else self.min
 
         # check values
         if self.min > self.max:
-            raise BadValueError(u'max must be larger then min!')
+            raise BadValueError('max must be larger then min!')
         if '%' not in self.fmtstr:
-            raise BadValueError(u'Invalid fmtstr!')
+            raise BadValueError('Invalid fmtstr!')
         if self.absolute_resolution < 0:
-            raise BadValueError(u'absolute_resolution MUST be >=0')
+            raise BadValueError('absolute_resolution MUST be >=0')
         if self.relative_resolution < 0:
-            raise BadValueError(u'relative_resolution MUST be >=0')
+            raise BadValueError('relative_resolution MUST be >=0')
 
     def export_datatype(self):
         return self.get_info(type='double')
@@ -153,11 +145,11 @@ class FloatRange(DataType):
         try:
             value = float(value)
         except Exception:
-            raise BadValueError(u'Can not __call__ %r to float' % value)
+            raise BadValueError('Can not __call__ %r to float' % value)
         prec = max(abs(value * self.relative_resolution), self.absolute_resolution)
         if self.min - prec <= value <= self.max + prec:
             return min(max(value, self.min), self.max)
-        raise BadValueError(u'%.14g should be a float between %.14g and %.14g' %
+        raise BadValueError('%.14g should be a float between %.14g and %.14g' %
                          (value, self.min, self.max))
 
     def __repr__(self):
@@ -166,7 +158,7 @@ class FloatRange(DataType):
             hints['minval'] = hints.pop('min')
         if 'max' in hints:
             hints['maxval'] = hints.pop('max')
-        return u'FloatRange(%s)' % (', '.join('%s=%r' % (k,v) for k,v in hints.items()))
+        return 'FloatRange(%s)' % (', '.join('%s=%r' % (k,v) for k,v in hints.items()))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -184,7 +176,7 @@ class FloatRange(DataType):
         if unit is None:
             unit = self.unit
         if unit:
-            return u' '.join([self.fmtstr % value, unit])
+            return ' '.join([self.fmtstr % value, unit])
         return self.fmtstr % value
 
 
@@ -196,11 +188,11 @@ class IntRange(DataType):
         self.max = DEFAULT_MAX_INT if maxval is None else int(maxval)
         self.default = 0 if self.min <= 0 <= self.max else self.min
         # a unit on an int is now allowed in SECoP, but do we need them in Frappy?
-        # self.set_prop('unit', unit, u'', unicode)
+        # self.set_prop('unit', unit, '', str)
 
         # check values
         if self.min > self.max:
-            raise BadValueError(u'Max must be larger then min!')
+            raise BadValueError('Max must be larger then min!')
 
     def export_datatype(self):
         return dict(type='int', min=self.min, max=self.max)
@@ -209,17 +201,17 @@ class IntRange(DataType):
         try:
             value = int(value)
             if value < self.min:
-                raise BadValueError(u'%r should be an int between %d and %d' %
+                raise BadValueError('%r should be an int between %d and %d' %
                                  (value, self.min, self.max or 0))
             if value > self.max:
-                raise BadValueError(u'%r should be an int between %d and %d' %
+                raise BadValueError('%r should be an int between %d and %d' %
                                  (value, self.min or 0, self.max))
             return value
         except Exception:
-            raise BadValueError(u'Can not convert %r to int' % value)
+            raise BadValueError('Can not convert %r to int' % value)
 
     def __repr__(self):
-        return u'IntRange(%d, %d)' % (self.min, self.max)
+        return 'IntRange(%d, %d)' % (self.min, self.max)
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -234,7 +226,7 @@ class IntRange(DataType):
         return self(value)
 
     def format_value(self, value, unit=None):
-        return u'%d' % value
+        return '%d' % value
 
 
 class ScaledInteger(DataType):
@@ -248,9 +240,9 @@ class ScaledInteger(DataType):
         self._defaults = {}
         self.scale = float(scale)
         if not self.scale > 0:
-            raise BadValueError(u'Scale MUST be positive!')
-        self.set_prop('unit', unit, u'', unicode)
-        self.set_prop('fmtstr', fmtstr, u'%g', unicode)
+            raise BadValueError('Scale MUST be positive!')
+        self.set_prop('unit', unit, '', str)
+        self.set_prop('fmtstr', fmtstr, '%g', str)
         self.set_prop('absolute_resolution', absolute_resolution, self.scale, float)
         self.set_prop('relative_resolution', relative_resolution, 1.2e-7, float)
 
@@ -260,13 +252,13 @@ class ScaledInteger(DataType):
 
         # check values
         if self.min > self.max:
-            raise BadValueError(u'Max must be larger then min!')
+            raise BadValueError('Max must be larger then min!')
         if '%' not in self.fmtstr:
-            raise BadValueError(u'Invalid fmtstr!')
+            raise BadValueError('Invalid fmtstr!')
         if self.absolute_resolution < 0:
-            raise BadValueError(u'absolute_resolution MUST be >=0')
+            raise BadValueError('absolute_resolution MUST be >=0')
         if self.relative_resolution < 0:
-            raise BadValueError(u'relative_resolution MUST be >=0')
+            raise BadValueError('relative_resolution MUST be >=0')
         # Remark: Datatype.copy() will round min, max to a multiple of self.scale
         # this should be o.k.
 
@@ -279,13 +271,13 @@ class ScaledInteger(DataType):
         try:
             value = float(value)
         except Exception:
-            raise BadValueError(u'Can not convert %r to float' % value)
+            raise BadValueError('Can not convert %r to float' % value)
         prec = max(self.scale, abs(value * self.relative_resolution),
                    self.absolute_resolution)
         if self.min - prec <= value <= self.max + prec:
             value = min(max(value, self.min), self.max)
         else:
-            raise BadValueError(u'%g should be a float between %g and %g' %
+            raise BadValueError('%g should be a float between %g and %g' %
                              (value, self.min, self.max))
         intval = int((value + self.scale * 0.5) // self.scale)
         value = float(intval * self.scale)
@@ -295,7 +287,7 @@ class ScaledInteger(DataType):
         hints = self.get_info(scale='%g' % self.scale,
                               min = int((self.min + self.scale * 0.5) // self.scale),
                               max = int((self.max + self.scale * 0.5) // self.scale))
-        return u'ScaledInteger(%s)' % (', '.join('%s=%r' % kv for kv in hints.items()))
+        return 'ScaledInteger(%s)' % (', '.join('%s=%r' % kv for kv in hints.items()))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -314,17 +306,17 @@ class ScaledInteger(DataType):
         if unit is None:
             unit = self.unit
         if unit:
-            return u' '.join([self.fmtstr % value, unit])
+            return ' '.join([self.fmtstr % value, unit])
         return self.fmtstr % value
 
 
 class EnumType(DataType):
 
     def __init__(self, enum_or_name='', **kwds):
-        if u'members' in kwds:
+        if 'members' in kwds:
             kwds = dict(kwds)
-            kwds.update(kwds[u'members'])
-            kwds.pop(u'members')
+            kwds.update(kwds['members'])
+            kwds.pop('members')
         self._enum = Enum(enum_or_name, **kwds)
         self.default = self._enum[self._enum.members[0]]
 
@@ -336,7 +328,7 @@ class EnumType(DataType):
         return {'type': 'enum', 'members':dict((m.name, m.value) for m in self._enum.members)}
 
     def __repr__(self):
-        return u"EnumType(%r, %s)" % (self._enum.name, ', '.join(u'%s=%d' %(m.name, m.value) for m in self._enum.members))
+        return u"EnumType(%r, %s)" % (self._enum.name, ', '.join('%s=%d' %(m.name, m.value) for m in self._enum.members))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -351,13 +343,13 @@ class EnumType(DataType):
         try:
             return self._enum[value]
         except (KeyError, TypeError): # TypeError will be raised when value is not hashable
-            raise BadValueError(u'%r is not a member of enum %r' % (value, self._enum))
+            raise BadValueError('%r is not a member of enum %r' % (value, self._enum))
 
     def from_string(self, text):
         return self(text)
 
     def format_value(self, value, unit=None):
-        return u'%s<%s>' % (self._enum[value].name, self._enum[value].value)
+        return '%s<%s>' % (self._enum[value].name, self._enum[value].value)
 
 
 class BLOBType(DataType):
@@ -373,28 +365,28 @@ class BLOBType(DataType):
         self.set_prop('minbytes', minbytes, 0, int)
         self.maxbytes = int(maxbytes)
         if self.minbytes < 0:
-            raise BadValueError(u'sizes must be bigger than or equal to 0!')
+            raise BadValueError('sizes must be bigger than or equal to 0!')
         elif self.minbytes > self.maxbytes:
-            raise BadValueError(u'maxbytes must be bigger than or equal to minbytes!')
+            raise BadValueError('maxbytes must be bigger than or equal to minbytes!')
         self.default = b'\0' * self.minbytes
 
     def export_datatype(self):
         return self.get_info(type='blob', maxbytes=self.maxbytes)
 
     def __repr__(self):
-        return u'BLOBType(%d, %d)' % (self.minbytes, self.maxbytes)
+        return 'BLOBType(%d, %d)' % (self.minbytes, self.maxbytes)
 
     def __call__(self, value):
         """return the validated (internal) value or raise"""
         if not isinstance(value, bytes):
-            raise BadValueError(u'%r has the wrong type!' % value)
+            raise BadValueError('%r has the wrong type!' % value)
         size = len(value)
         if size < self.minbytes:
             raise BadValueError(
-                u'%r must be at least %d bytes long!' % (value, self.minbytes))
+                '%r must be at least %d bytes long!' % (value, self.minbytes))
         if size > self.maxbytes:
             raise BadValueError(
-                u'%r must be at most %d bytes long!' % (value, self.maxbytes))
+                '%r must be at most %d bytes long!' % (value, self.maxbytes))
         return value
 
     def export_value(self, value):
@@ -425,49 +417,49 @@ class StringType(DataType):
         self.set_prop('maxchars', maxchars, self.MAXCHARS, int)
         self.set_prop('isUTF8', isUTF8, False, bool)
         if self.minchars < 0:
-            raise BadValueError(u'sizes must be bigger than or equal to 0!')
+            raise BadValueError('sizes must be bigger than or equal to 0!')
         elif self.minchars > self.maxchars:
-            raise BadValueError(u'maxchars must be bigger than or equal to minchars!')
-        self.default = u' ' * self.minchars
+            raise BadValueError('maxchars must be bigger than or equal to minchars!')
+        self.default = ' ' * self.minchars
 
     def export_datatype(self):
         return self.get_info(type='string')
 
     def __repr__(self):
-        return u'StringType(%s)' % (', '.join('%s=%r' % kv for kv in self.get_info().items()))
+        return 'StringType(%s)' % (', '.join('%s=%r' % kv for kv in self.get_info().items()))
 
     def __call__(self, value):
         """return the validated (internal) value or raise"""
-        if type(value) not in (unicode, str):
-            raise BadValueError(u'%r has the wrong type!' % value)
+        if not isinstance(value, str):
+            raise BadValueError('%r has the wrong type!' % value)
         if not self.isUTF8:
             try:
                 value.encode('ascii')
             except UnicodeEncodeError:
-                raise BadValueError(u'%r contains non-ascii character!' % value)
+                raise BadValueError('%r contains non-ascii character!' % value)
         size = len(value)
         if size < self.minchars:
             raise BadValueError(
-                u'%r must be at least %d bytes long!' % (value, self.minchars))
+                '%r must be at least %d bytes long!' % (value, self.minchars))
         if size > self.maxchars:
             raise BadValueError(
-                u'%r must be at most %d bytes long!' % (value, self.maxchars))
-        if u'\0' in value:
+                '%r must be at most %d bytes long!' % (value, self.maxchars))
+        if '\0' in value:
             raise BadValueError(
-                u'Strings are not allowed to embed a \\0! Use a Blob instead!')
+                'Strings are not allowed to embed a \\0! Use a Blob instead!')
         return value
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return u'%s' % value
+        return '%s' % value
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        # XXX: do we keep it as unicode str, or convert it to something else? (UTF-8 maybe?)
-        return unicode(value)
+        # XXX: do we keep it as str str, or convert it to something else? (UTF-8 maybe?)
+        return str(value)
 
     def from_string(self, text):
-        value = unicode(text)
+        value = str(text)
         return self(value)
 
     def format_value(self, value, unit=None):
@@ -485,7 +477,7 @@ class TextType(StringType):
         super(TextType, self).__init__(0, maxchars)
 
     def __repr__(self):
-        return u'TextType(%d, %d)' % (self.minchars, self.maxchars)
+        return 'TextType(%d, %d)' % (self.minchars, self.maxchars)
 
     def copy(self):
         # DataType.copy will not work, because it is exported as 'string'
@@ -500,15 +492,15 @@ class BoolType(DataType):
         return {'type': 'bool'}
 
     def __repr__(self):
-        return u'BoolType()'
+        return 'BoolType()'
 
     def __call__(self, value):
         """return the validated (internal) value or raise"""
-        if value in [0, u'0', u'False', u'false', u'no', u'off', False]:
+        if value in [0, '0', 'False', 'false', 'no', 'off', False]:
             return False
-        if value in [1, u'1', u'True', u'true', u'yes', u'on', True]:
+        if value in [1, '1', 'True', 'true', 'yes', 'on', True]:
             return True
-        raise BadValueError(u'%r is not a boolean value!' % value)
+        raise BadValueError('%r is not a boolean value!' % value)
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -539,7 +531,7 @@ class ArrayOf(DataType):
     def __init__(self, members, minlen=0, maxlen=None, unit=None):
         if not isinstance(members, DataType):
             raise BadValueError(
-                u'ArrayOf only works with a DataType as first argument!')
+                'ArrayOf only works with a DataType as first argument!')
         # one argument -> exactly that size
         # argument default to 100
         if maxlen is None:
@@ -551,11 +543,11 @@ class ArrayOf(DataType):
         self.minlen = int(minlen)
         self.maxlen = int(maxlen)
         if self.minlen < 0:
-            raise BadValueError(u'sizes must be > 0')
+            raise BadValueError('sizes must be > 0')
         elif self.maxlen < 1:
-            raise BadValueError(u'Maximum size must be >= 1!')
+            raise BadValueError('Maximum size must be >= 1!')
         elif self.minlen > self.maxlen:
-            raise BadValueError(u'maxlen must be bigger than or equal to minlen!')
+            raise BadValueError('maxlen must be bigger than or equal to minlen!')
         self.default = [members.default] * self.minlen
 
     def export_datatype(self):
@@ -563,7 +555,7 @@ class ArrayOf(DataType):
                                members=self.members.export_datatype())
 
     def __repr__(self):
-        return u'ArrayOf(%s, %s, %s)' % (
+        return 'ArrayOf(%s, %s, %s)' % (
             repr(self.members), self.minlen, self.maxlen)
 
     def __call__(self, value):
@@ -572,15 +564,15 @@ class ArrayOf(DataType):
             # check number of elements
             if self.minlen is not None and len(value) < self.minlen:
                 raise BadValueError(
-                    u'Array too small, needs at least %d elements!' %
+                    'Array too small, needs at least %d elements!' %
                     self.minlen)
             if self.maxlen is not None and len(value) > self.maxlen:
                 raise BadValueError(
-                    u'Array too big, holds at most %d elements!' % self.minlen)
+                    'Array too big, holds at most %d elements!' % self.minlen)
             # apply subtype valiation to all elements and return as list
             return [self.members(elem) for elem in value]
         raise BadValueError(
-            u'Can not convert %s to ArrayOf DataType!' % repr(value))
+            'Can not convert %s to ArrayOf DataType!' % repr(value))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -593,13 +585,13 @@ class ArrayOf(DataType):
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ProtocolError(u'trailing garbage: %r' % rem)
+            raise ProtocolError('trailing garbage: %r' % rem)
         return self(value)
 
     def format_value(self, value, unit=None):
         if unit is None:
             unit = self.unit or self.members.unit
-        res = u'[%s]' % (', '.join([self.members.format_value(elem, u'') for elem in value]))
+        res = '[%s]' % (', '.join([self.members.format_value(elem, '') for elem in value]))
         if unit:
             return ' '.join([res, unit])
         return res
@@ -609,11 +601,11 @@ class TupleOf(DataType):
 
     def __init__(self, *members):
         if not members:
-            raise BadValueError(u'Empty tuples are not allowed!')
+            raise BadValueError('Empty tuples are not allowed!')
         for subtype in members:
             if not isinstance(subtype, DataType):
                 raise BadValueError(
-                    u'TupleOf only works with DataType objs as arguments!')
+                    'TupleOf only works with DataType objs as arguments!')
         self.members = members
         self.default = tuple(el.default for el in members)
 
@@ -621,7 +613,7 @@ class TupleOf(DataType):
         return dict(type='tuple', members=[subtype.export_datatype() for subtype in self.members])
 
     def __repr__(self):
-        return u'TupleOf(%s)' % u', '.join([repr(st) for st in self.members])
+        return 'TupleOf(%s)' % ', '.join([repr(st) for st in self.members])
 
     def __call__(self, value):
         """return the validated value or raise"""
@@ -629,13 +621,13 @@ class TupleOf(DataType):
         try:
             if len(value) != len(self.members):
                 raise BadValueError(
-                    u'Illegal number of Arguments! Need %d arguments.' %
+                    'Illegal number of Arguments! Need %d arguments.' %
                         (len(self.members)))
             # validate elements and return as list
             return [sub(elem)
                     for sub, elem in zip(self.members, value)]
         except Exception as exc:
-            raise BadValueError(u'Can not validate:', unicode(exc))
+            raise BadValueError('Can not validate:', str(exc))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -648,11 +640,11 @@ class TupleOf(DataType):
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ProtocolError(u'trailing garbage: %r' % rem)
+            raise ProtocolError('trailing garbage: %r' % rem)
         return self(value)
 
     def format_value(self, value, unit=None):
-        return u'(%s)' % (', '.join([sub.format_value(elem)
+        return '(%s)' % (', '.join([sub.format_value(elem)
                                      for sub, elem in zip(self.members, value)]))
 
 
@@ -661,19 +653,19 @@ class StructOf(DataType):
     def __init__(self, optional=None, **members):
         self.members = members
         if not members:
-            raise BadValueError(u'Empty structs are not allowed!')
+            raise BadValueError('Empty structs are not allowed!')
         self.optional = list(optional or [])
         for name, subtype in list(members.items()):
             if not isinstance(subtype, DataType):
                 raise ProgrammingError(
-                    u'StructOf only works with named DataType objs as keyworded arguments!')
-            if not isinstance(name, (unicode, str)):
+                    'StructOf only works with named DataType objs as keyworded arguments!')
+            if not isinstance(name, str):
                 raise ProgrammingError(
-                    u'StructOf only works with named DataType objs as keyworded arguments!')
+                    'StructOf only works with named DataType objs as keyworded arguments!')
         for name in self.optional:
             if name not in members:
                 raise ProgrammingError(
-                    u'Only members of StructOf may be declared as optional!')
+                    'Only members of StructOf may be declared as optional!')
         self.default = dict((k,el.default) for k, el in members.items())
 
     def export_datatype(self):
@@ -685,8 +677,8 @@ class StructOf(DataType):
 
     def __repr__(self):
         opt = self.optional if self.optional else ''
-        return u'StructOf(%s%s)' % (u', '.join(
-            [u'%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
+        return 'StructOf(%s%s)' % (', '.join(
+            ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
     def __call__(self, value):
         """return the validated value or raise"""
@@ -694,40 +686,40 @@ class StructOf(DataType):
             # XXX: handle optional elements !!!
             if len(list(value.keys())) != len(list(self.members.keys())):
                 raise BadValueError(
-                    u'Illegal number of Arguments! Need %d arguments.' %
+                    'Illegal number of Arguments! Need %d arguments.' %
                         len(list(self.members.keys())))
             # validate elements and return as dict
-            return dict((unicode(k), self.members[k](v))
+            return dict((str(k), self.members[k](v))
                         for k, v in list(value.items()))
         except Exception as exc:
-            raise BadValueError(u'Can not validate %s: %s' % (repr(value), unicode(exc)))
+            raise BadValueError('Can not validate %s: %s' % (repr(value), str(exc)))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
         if len(list(value.keys())) != len(list(self.members.keys())):
             raise BadValueError(
-                u'Illegal number of Arguments! Need %d arguments.' % len(
+                'Illegal number of Arguments! Need %d arguments.' % len(
                     list(self.members.keys())))
-        return dict((unicode(k), self.members[k].export_value(v))
+        return dict((str(k), self.members[k].export_value(v))
                     for k, v in list(value.items()))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
         if len(list(value.keys())) != len(list(self.members.keys())):
             raise BadValueError(
-                u'Illegal number of Arguments! Need %d arguments.' % len(
+                'Illegal number of Arguments! Need %d arguments.' % len(
                     list(self.members.keys())))
-        return dict((unicode(k), self.members[k].import_value(v))
+        return dict((str(k), self.members[k].import_value(v))
                     for k, v in list(value.items()))
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ProtocolError(u'trailing garbage: %r' % rem)
+            raise ProtocolError('trailing garbage: %r' % rem)
         return self(dict(value))
 
     def format_value(self, value, unit=None):
-        return u'{%s}' % (', '.join(['%s=%s' % (k, self.members[k].format_value(v)) for k, v in sorted(value.items())]))
+        return '{%s}' % (', '.join(['%s=%s' % (k, self.members[k].format_value(v)) for k, v in sorted(value.items())]))
 
 
 class CommandType(DataType):
@@ -738,10 +730,10 @@ class CommandType(DataType):
     def __init__(self, argument=None, result=None):
         if argument is not None:
             if not isinstance(argument, DataType):
-                raise BadValueError(u'CommandType: Argument type must be a DataType!')
+                raise BadValueError('CommandType: Argument type must be a DataType!')
         if result is not None:
             if not isinstance(result, DataType):
-                raise BadValueError(u'CommandType: Result type must be a DataType!')
+                raise BadValueError('CommandType: Result type must be a DataType!')
         self.argument = argument
         self.result = result
 
@@ -757,23 +749,23 @@ class CommandType(DataType):
     def __repr__(self):
         argstr = repr(self.argument) if self.argument else ''
         if self.result is None:
-            return u'CommandType(%s)' % argstr
-        return u'CommandType(%s)->%s' % (argstr, repr(self.result))
+            return 'CommandType(%s)' % argstr
+        return 'CommandType(%s)->%s' % (argstr, repr(self.result))
 
     def __call__(self, value):
         """return the validated argument value or raise"""
         return self.argument(value)
 
     def export_value(self, value):
-        raise ProgrammingError(u'values of type command can not be transported!')
+        raise ProgrammingError('values of type command can not be transported!')
 
     def import_value(self, value):
-        raise ProgrammingError(u'values of type command can not be transported!')
+        raise ProgrammingError('values of type command can not be transported!')
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ProtocolError(u'trailing garbage: %r' % rem)
+            raise ProtocolError('trailing garbage: %r' % rem)
         return self(value)
 
     def format_value(self, value, unit=None):
@@ -789,7 +781,7 @@ class DataTypeType(DataType):
         returns the value or raises an appropriate exception"""
         if isinstance(value, DataType):
             return value
-        raise ProgrammingError(u'%r should be a DataType!' % value)
+        raise ProgrammingError('%r should be a DataType!' % value)
 
     def export_value(self, value):
         """if needed, reformat value for transport"""
@@ -872,7 +864,7 @@ class LimitsType(StructOf):
     def __call__(self, value):
         limits = StructOf.__call__(self, value)
         if limits['max'] < limits['min']:
-            raise BadValueError(u'Maximum Value %s must be greater than minimum value %s!' % (limits['max'], limits['min']))
+            raise BadValueError('Maximum Value %s must be greater than minimum value %s!' % (limits['max'], limits['min']))
         return limits
 
 
@@ -925,4 +917,4 @@ def get_datatype(json):
     try:
         return DATATYPES[base](**args)
     except (TypeError, AttributeError, KeyError):
-        raise BadValueError(u'invalid data descriptor: %r' % json)
+        raise BadValueError('invalid data descriptor: %r' % json)

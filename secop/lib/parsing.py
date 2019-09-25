@@ -21,7 +21,6 @@
 # *****************************************************************************
 """Define parsing helpers"""
 
-from __future__ import division, print_function
 
 import re
 import time
@@ -144,7 +143,7 @@ def format_args(args):
         return ','.join(format_args(arg) for arg in args).join('[]')
     if isinstance(args, tuple):
         return ','.join(format_args(arg) for arg in args).join('()')
-    if isinstance(args, (str, unicode)):
+    if isinstance(args, str):
         # XXX: check for 'easy' strings only and omit the ''
         return repr(args)
     return repr(args)  # for floats/ints/...

@@ -21,9 +21,9 @@
 # *****************************************************************************
 """Define Client side proxies"""
 
-from __future__ import division, print_function
 
 import json
+import queue
 import socket
 import threading
 import time
@@ -42,15 +42,6 @@ from secop.protocol.messages import BUFFERREQUEST, COMMANDREQUEST, \
     ENABLEEVENTSREQUEST, ERRORPREFIX, EVENTREPLY, \
     HEARTBEATREQUEST, HELPREQUEST, IDENTREQUEST, READREPLY, \
     READREQUEST, REQUEST2REPLY, WRITEREPLY, WRITEREQUEST
-
-try:
-    # py3
-    import queue
-except ImportError:
-    # py2
-    import Queue as queue
-
-
 
 
 class TCPConnection(object):

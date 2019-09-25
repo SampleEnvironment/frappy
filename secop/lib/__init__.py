@@ -32,21 +32,20 @@ import subprocess
 import sys
 import threading
 import traceback
-import unicodedata
 from os import path
 
-repodir = path.abspath(path.join(path.dirname(__file__), u'..', u'..'))
+repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
 
 CONFIG = {
-    u'piddir': os.path.join(repodir, u'pid'),
-    u'logdir': os.path.join(repodir, u'log'),
-    u'confdir': os.path.join(repodir, u'cfg'),
-    u'basedir': repodir,
-} if os.path.exists(os.path.join(repodir, u'.git')) else {
-    u'piddir': u'/var/run/secop',
-    u'logdir': u'/var/log',
-    u'confdir': u'/etc/secop',
-    u'basedir': repodir,
+    'piddir': os.path.join(repodir, 'pid'),
+    'logdir': os.path.join(repodir, 'log'),
+    'confdir': os.path.join(repodir, 'etc'),
+    'basedir': repodir,
+} if os.path.exists(os.path.join(repodir, '.git')) else {
+    'piddir': '/var/run/secop',
+    'logdir': '/var/log',
+    'confdir': '/etc/secop',
+    'basedir': repodir,
 }
 
 

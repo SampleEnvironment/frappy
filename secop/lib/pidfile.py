@@ -20,7 +20,6 @@
 #
 # *****************************************************************************
 """Define pidfile helpers"""
-from __future__ import division, print_function
 
 import atexit
 import os

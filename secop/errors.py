@@ -21,7 +21,6 @@
 # *****************************************************************************
 """Define (internal) SECoP Errors"""
 
-from __future__ import division, print_function
 
 
 class SECoPError(RuntimeError):

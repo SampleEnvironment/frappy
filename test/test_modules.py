@@ -20,7 +20,6 @@
 #
 # *****************************************************************************
 """test data types."""
-from __future__ import division, print_function
 
 # no fixtures needed
 #import pytest

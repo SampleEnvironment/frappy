@@ -21,7 +21,6 @@
 # *****************************************************************************
 """Define Simulation classes"""
 
-from __future__ import division, print_function
 
 import random
 from time import sleep

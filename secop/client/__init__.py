@@ -23,7 +23,6 @@
 
 # nothing here yet.
 
-from __future__ import print_function
 
 import code
 import socket

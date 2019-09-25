@@ -20,7 +20,6 @@
 #
 # *****************************************************************************
 """test data types."""
-from __future__ import division, print_function
 
 import pytest
 
@@ -31,13 +30,13 @@ from secop.properties import Property, Properties, HasProperties
 
 V_test_Property = [
     [(StringType(), 'default', 'extname', False, False),
-     dict(default=u'default', extname=u'extname', export=True, mandatory=False)],
+     dict(default='default', extname='extname', export=True, mandatory=False)],
     [(IntRange(), '42', '_extname', False, True),
-     dict(default=42, extname=u'_extname', export=True, mandatory=True)],
+     dict(default=42, extname='_extname', export=True, mandatory=True)],
     [(IntRange(), '42', '_extname', True, False),
-     dict(default=42, extname=u'_extname', export=True, mandatory=False)],
+     dict(default=42, extname='_extname', export=True, mandatory=False)],
     [(IntRange(), 42, '_extname', True, True),
-     dict(default=42, extname=u'_extname', export=True, mandatory=True)],
+     dict(default=42, extname='_extname', export=True, mandatory=True)],
     [(IntRange(), 0, '', True, True),
      dict(default=0, extname='', export=True, mandatory=True)],
     [(IntRange(), 0, '', True, False),
@@ -75,7 +74,7 @@ def test_Properties():
     p['a'] = Property('', IntRange(), '42', export=True)
     assert p['a'].default == 42
     assert p['a'].export is True
-    assert p['a'].extname == u'_a'
+    assert p['a'].extname == '_a'
     with pytest.raises(ProgrammingError):
         p['a'] = 137
     with pytest.raises(ProgrammingError):

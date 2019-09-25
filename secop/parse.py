@@ -36,7 +36,6 @@ text -> string
 
 further convertions are done by the validator of the datatype....
 """
-from __future__ import division, print_function
 
 from collections import OrderedDict
 
@@ -55,7 +54,7 @@ class Parser(object):
                 length = l
                 l += 1
             except ValueError:
-                if text[l - 1] in u'eE+-':
+                if text[l - 1] in 'eE+-':
                     l += 1
                     continue
                 if number is None:
@@ -69,7 +68,7 @@ class Parser(object):
     def parse_string(self, orgtext):
         # handle quoted and unquoted strings correctly
         text = orgtext.strip()
-        if text[0] in (u'"', u"'"):
+        if text[0] in ('"', u"'"):
             # quoted string
             quote = text[0]
             idx = 0
@@ -79,14 +78,14 @@ class Parser(object):
                 if idx == -1:
                     return None, orgtext
                 # check escapes!
-                if text[idx - 1] == u'\\':
+                if text[idx - 1] == '\\':
                     continue
                 return text[1:idx], text[idx + 1:]
 
         # unquoted strings are terminated by comma or whitespace
         idx = 0
         while idx < len(text):
-            if text[idx] in u'\x09 ,.;:()[]{}<>-+*/\\!"§$%&=?#~+*\'´`^°|-':
+            if text[idx] in '\x09 ,.;:()[]{}<>-+*/\\!"§$%&=?#~+*\'´`^°|-':
                 break
             idx += 1
         return text[:idx] or None, text[idx:]
@@ -94,10 +93,10 @@ class Parser(object):
     def parse_tuple(self, orgtext):
         text = orgtext.strip()
         bra = text[0]
-        if bra not in u'([<':
+        if bra not in '([<':
             return None, orgtext
         # convert to closing bracket
-        bra = u')]>'[u'([<'.index(bra)]
+        bra = ')]>'['([<'.index(bra)]
         reslist = []
         # search for cosing bracket, collecting results
         text = text[1:]
@@ -111,7 +110,7 @@ class Parser(object):
             if rem[0] == bra:
                 return tuple(reslist), rem[1:]
             # eat separator
-            if rem[0] in u',;':
+            if rem[0] in ',;':
                 text = rem[1:]
             else:
                 return None, rem
@@ -119,19 +118,19 @@ class Parser(object):
 
     def parse_dict(self, orgtext):
         text = orgtext.strip()
-        if text[0] != u'{':
+        if text[0] != '{':
             return None, orgtext
         # keep ordering
         result = OrderedDict()
         # search for cosing bracket, collecting results
         # watch for key=value or key:value pairs, separated by ,
         text = text[1:]
-        while u'}' in text:
+        while '}' in text:
             # first part is always a string
             key, rem = self.parse_string(text)
             if not key:
                 return None, orgtext
-            if rem[0] not in u':=':
+            if rem[0] not in ':=':
                 return None, rem
             # eat separator
             text = rem[1:]
@@ -139,10 +138,10 @@ class Parser(object):
             if not value:
                 return None, orgtext
             result[key] = value
-            if rem[0] == u'}':
+            if rem[0] == '}':
                 return result, rem[1:]
 
-            if rem[0] not in u',;':
+            if rem[0] not in ',;':
                 return None, rem
             # eat separator
             text = rem[1:]
@@ -152,17 +151,17 @@ class Parser(object):
         text = orgtext.strip()
         if not text:
             return None, orgtext
-        if text[0] in u'+-.0123456789':
+        if text[0] in '+-.0123456789':
             return self.parse_number(orgtext)
-        elif text[0] == u'{':
+        elif text[0] == '{':
             return self.parse_dict(orgtext)
-        elif text[0] in u'([<':
+        elif text[0] in '([<':
             return self.parse_tuple(orgtext)
         return self.parse_string(orgtext)
 
     def parse(self, orgtext):
         print("parsing %r" % orgtext)
         res, rem = self.parse_sub(orgtext)
-        if rem and rem[0] in u',;':
-            return self.parse_sub(u'[%s]' % orgtext)
+        if rem and rem[0] in ',;':
+            return self.parse_sub('[%s]' % orgtext)
         return res, rem

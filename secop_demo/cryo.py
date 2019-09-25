@@ -20,7 +20,6 @@
 # *****************************************************************************
 """playing implementation of a (simple) simulated cryostat"""
 
-from __future__ import division, print_function
 
 import random
 import time

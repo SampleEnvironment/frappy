@@ -21,7 +21,6 @@
 #
 # *****************************************************************************
 
-from __future__ import division, print_function
 
 import json
 import pprint
@@ -32,15 +31,6 @@ from secop.errors import SECoPError
 from secop.gui.qt import QFont, QFontMetrics, QLabel, \
     QMessageBox, QTextCursor, QWidget, pyqtSlot, toHtmlEscaped
 from secop.gui.util import loadUi
-
-try:
-    # py2
-    unicode(u'')
-except NameError:
-    unicode = str  # pylint: disable=redefined-builtin
-
-
-
 
 
 class NodeCtrl(QWidget):
@@ -334,6 +324,6 @@ class DrivableWidget(ReadableWidget):
     def on_targetLineEdit_returnPressed(self):
         self.target_go(self.targetLineEdit.text())
 
-    @pyqtSlot(unicode)
+    @pyqtSlot(str)
     def on_targetComboBox_activated(self, selection):
         self.target_go(selection)

@@ -21,7 +21,6 @@
 # *****************************************************************************
 """test data types."""
 
-from __future__ import division, print_function
 
 # no fixtures needed
 import pytest
@@ -31,24 +30,24 @@ from secop.params import Command, Override, Parameter, Parameters
 
 
 def test_Command():
-    cmd = Command(u'do_something')
-    assert cmd.description == u'do_something'
+    cmd = Command('do_something')
+    assert cmd.description == 'do_something'
     assert cmd.ctr
     assert cmd.argument is None
     assert cmd.result is None
-    assert cmd.for_export() == {u'datainfo': {'type': 'command'},
-                                u'description': u'do_something'}
+    assert cmd.for_export() == {'datainfo': {'type': 'command'},
+                                'description': 'do_something'}
 
-    cmd = Command(u'do_something', argument=IntRange(-9,9), result=IntRange(-1,1))
+    cmd = Command('do_something', argument=IntRange(-9,9), result=IntRange(-1,1))
     assert cmd.description
     assert isinstance(cmd.argument, IntRange)
     assert isinstance(cmd.result, IntRange)
-    assert cmd.for_export() == {u'datainfo': {'type': 'command', 'argument': {'type': 'int', 'min':-9, 'max':9},
-                                                           u'result': {'type': 'int', 'min':-1, 'max':1}},
-                                u'description': u'do_something'}
-    assert cmd.exportProperties() == {u'datainfo': {'type': 'command', 'argument': {'type': 'int', 'max': 9, 'min': -9},
+    assert cmd.for_export() == {'datainfo': {'type': 'command', 'argument': {'type': 'int', 'min':-9, 'max':9},
+                                                           'result': {'type': 'int', 'min':-1, 'max':1}},
+                                'description': 'do_something'}
+    assert cmd.exportProperties() == {'datainfo': {'type': 'command', 'argument': {'type': 'int', 'max': 9, 'min': -9},
                                                                  'result': {'type': 'int', 'max': 1, 'min': -1}},
-                                      u'description': u'do_something'}
+                                      'description': 'do_something'}
 
 
 def test_Parameter():

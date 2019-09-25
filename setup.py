@@ -22,7 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import division, print_function
 
 from glob import glob
 from os import listdir, path
