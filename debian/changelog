@@ -1,3 +1,12 @@
+secop-core (0.10.1) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Further dependency changes
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 26 Sep 2019 16:41:10 +0200
+
 secop-core (0.10.0) unstable; urgency=low
 
   [ Enrico Faulhaber ]
