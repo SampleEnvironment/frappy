@@ -238,11 +238,11 @@ node("dockerhost") {
 
     parallel 'Test': {
         img.inside {
-            run_tests('python2')
+            run_tests('python3')
         }},
             'Pylint': {
         img.inside {
-            run_pylint('python2')
+            run_pylint('python3')
         }},
             'Docs': {
         docimg.inside {

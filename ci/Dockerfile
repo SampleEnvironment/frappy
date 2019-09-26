@@ -1,17 +1,18 @@
-FROM debian:8 AS base
+FROM python:3-buster AS base
+ARG PYVER=python3
 ENV  DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
-  apt-get upgrade && \
+  apt-get upgrade -y && \
   apt-get install --no-install-recommends --no-install-suggests -y \
           gcc \
           git \
           openssh-client \
           make \
           locales \
-          python \
-          python-dev \
-          python-pytango \
-          python-virtualenv \
+          python3 \
+          python3-dev \
+          python3-pytango \
+          python3-venv python3-setuptools \
           virtualenv
 
 
@@ -31,11 +32,11 @@ RUN virtualenv /home/jenkins/tools2 && \
     pip install /home/jenkins/tools2src/ && \
     rm -rf /home/jenkins/tools2src
 
-RUN virtualenv --system-site-packages /home/jenkins/secopvenv && \
+RUN virtualenv -p /usr/bin/python3 --system-site-packages /home/jenkins/secopvenv && \
     git clone https://forge.frm2.tum.de/review/sine2020/secop/playground /home/jenkins/playground && \
     . /home/jenkins/secopvenv/bin/activate && \
     pip install -U pip wheel setuptools && \
-    pip install -r /home/jenkins/playground/requirements-dev.txt -r /home/jenkins/playground/requirements.txt && \
+    pip install -r /home/jenkins/playground/requirements-dev.txt -r /home/jenkins/playground/requirements.txt pylint pytest && \
     rm -rf /home/jenkins/playground
 
 
