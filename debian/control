@@ -8,7 +8,8 @@ Build-Depends: debhelper (>= 9.0.0),
  python3,
  python3-setuptools,
  python3-sip-dev,
- python3-pyqt5
+ python3-pyqt5,
+ python3-pytest
 Standards-Version: 4.3.0
 
 Package: secop-core
@@ -21,8 +22,7 @@ Depends: python (>= 3.6),
  python3-psutil (>= 0.4),
  python3-mlzlog,
  markdown,
- python3-daemon,
- python3-pytest
+ python3-daemon
 Description: Frappy SECoP core system
  contains the core server and client libraries and the server binary
  as well as the systemd integration
