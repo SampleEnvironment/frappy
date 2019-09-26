@@ -43,7 +43,7 @@ git diff HEAD~1... --name-only --diff-filter=ARCM -- \\*.py
 pip install -r requirements-dev.txt
 pip install -r requirements.txt
 pip install isort pylint
-python setup.py develop
+python3 setup.py develop
 export PYTHONIOENCODING=utf8
 
 echo "$changedFiles"
@@ -112,7 +112,7 @@ addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
 . /home/jenkins/secopvenv/bin/activate
 pip install -r requirements-dev.txt
 pip install -r requirements.txt
-python setup.py develop
+python3 setup.py develop
 make test
 '''
         verifyresult.put(pyver, 1)
@@ -143,7 +143,7 @@ def run_docs() {
         . /home/jenkins/secopvenv/bin/activate
         pip install -r requirements-dev.txt
         pip install -r requirements.txt
-        python setup.py develop
+        python3 setup.py develop
         '''
     }
 

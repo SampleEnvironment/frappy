@@ -1,41 +1,74 @@
 Source: secop-core
 Section: misc
-Priority: extra
+Priority: optional
 Maintainer: Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 Build-Depends: debhelper (>= 9.0.0),
+ dh-python,
  git,
- python (>= 2.7),
- python-setuptools,
- python-sip-dev,
- python-qt4-dev,
- python-qt4
-Standards-Version: 3.9.3
+ python3,
+ python3-setuptools,
+ python3-sip-dev,
+ python3-pyqt5
+Standards-Version: 4.3.0
 
 Package: secop-core
 Architecture: all
-Depends: python (>= 2.7),
- python-setuptools,
- python-numpy,
- python-psutil (>= 0.4),
- python-pytango,
- python-mlzlog,
+Depends: python (>= 3.6),
+ ${misc:Depends},
+ ${python3:Depends},
+ python3-setuptools,
+ python3-numpy,
+ python3-psutil (>= 0.4),
+ python3-mlzlog,
  markdown,
- python-daemon,
- python-pytest,
- python-qt4
-Description: SECoP Playground core system
+ python3-daemon,
+ python3-pytest
+Description: Frappy SECoP core system
+ contains the core server and client libraries and the server binary
+ as well as the systemd integration
+
+Package: secop-gui
+Architecture: all
+Depends: secop-core,
+ ${misc:Depends},
+ ${python3:Depends},
+ python3-pyqt (>=4)
+Description: Frappy SECoP gui client + cfgtool
+ contains the GUI client and the configurator
 
 Package: secop-demo
 Architecture: all
-Depends: secop-core
+Depends: secop-core,
+ ${misc:Depends},
+ ${python3:Depends}
 Description: SECoP demo files
+ for demonstration purposes
+Recommends: secop-gui
 
 Package: secop-ess
 Architecture: all
-Depends: secop-core
+Depends: secop-core,
+ ${misc:Depends},
+ ${python3:Depends}
 Description: SECoP ess files
+ Modules specific for ESS (http://esss.se)
+Recommends: secop-gui
 
 Package: secop-mlz
 Architecture: all
-Depends: secop-core
+Depends: secop-core,
+ ${misc:Depends},
+ ${python3:Depends},
+ python-pytango (>=9)
 Description: SECoP mlz files
+ Modules specific for MLZ (http://mlz-garching.de)
+Recommends: secop-gui
+
+Package: secop-psi
+Architecture: all
+Depends: secop-core,
+ ${misc:Depends},
+ ${python3:Depends}
+Description: SECoP psi files
+ Modules specific for PSI (http://psi.ch)
+Recommends: secop-gui

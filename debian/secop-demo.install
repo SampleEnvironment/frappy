@@ -1,1 +1,4 @@
-usr/lib/python2.7/dist-packages/secop_demo
+usr/lib/python3.7/dist-packages/secop_demo/modules.py
+usr/lib/python3.7/dist-packages/secop_demo/cryo.py
+usr/lib/python3.7/dist-packages/secop_demo/test.py
+usr/lib/python3.7/dist-packages/secop_demo/__init__.py

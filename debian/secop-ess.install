@@ -1,1 +1,2 @@
-usr/lib/python2.7/dist-packages/secop_ess
+usr/lib/python3.7/dist-packages/secop_ess/__init__.py
+usr/lib/python3.7/dist-packages/secop_ess/epics.py

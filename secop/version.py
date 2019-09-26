@@ -1,7 +1,6 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
-# MLZ library of Tango servers
-# Copyright (c) 2015-2017 by the authors, see LICENSE
+# Copyright (c) 2015-2019 by the authors, see LICENSE
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -20,6 +19,8 @@
 # Module authors:
 #   Douglas Creager <dcreager@dcreager.net>
 #   This file is placed into the public domain.
+#   fixes for PEP440 by:
+#   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
 
@@ -40,7 +41,12 @@ def get_git_version(abbrev=4, cwd=None):
                    'describe', '--abbrev=%d' % abbrev],
                   stdout=PIPE, stderr=PIPE)
         stdout, _stderr = p.communicate()
-        return stdout.strip().decode('utf-8', 'ignore')
+        version = stdout.strip().decode('utf-8', 'ignore')
+        # mangle version to comply with pep440
+        if version.count('-'):
+            version, patchcount, githash = version.split('-')
+            version += '.post%s+%s' %(patchcount, githash)
+        return version
     except Exception:
         return None
 
