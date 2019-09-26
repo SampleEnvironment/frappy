@@ -888,7 +888,7 @@ DATATYPES = dict(
     scaled  =lambda scale, min, max, **kwds: ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **kwds),
     double  =lambda min=None, max=None, **kwds: FloatRange(minval=min, maxval=max, **kwds),
     blob    =lambda maxbytes, minbytes=0: BLOBType(minbytes=minbytes, maxbytes=maxbytes),
-    string  =lambda minchars=0, maxchars=None: StringType(minchars=minchars, maxchars=maxchars),
+    string  =lambda minchars=0, maxchars=None, isUTF8=False: StringType(minchars=minchars, maxchars=maxchars, isUTF8=isUTF8),
     array   =lambda maxlen, members, minlen=0: ArrayOf(get_datatype(members), minlen=minlen, maxlen=maxlen),
     tuple   =lambda members: TupleOf(*tuple(map(get_datatype, members))),
     enum    =lambda members: EnumType('', members=members),
