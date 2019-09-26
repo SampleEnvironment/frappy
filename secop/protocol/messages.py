@@ -80,7 +80,7 @@ REQUEST2REPLY = {
 
 
 
-HelpMessage = u"""Try one of the following:
+HelpMessage = """Try one of the following:
             '%s' to query protocol version
             '%s' to read the description
             '%s <module>[:<parameter>]' to request reading a value

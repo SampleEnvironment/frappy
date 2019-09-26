@@ -232,7 +232,7 @@ class Override(CountedObj):
                 return type(obj)(ctr=self.ctr, **props)
             return type(obj)(**props)
         raise ProgrammingError(
-            u"Overrides can only be applied to Accessibles, %r is none!" %
+            "Overrides can only be applied to Accessibles, %r is none!" %
             obj)
 
 

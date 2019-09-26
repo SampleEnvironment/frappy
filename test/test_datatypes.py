@@ -306,8 +306,8 @@ def test_BoolType():
     with pytest.raises(ValueError):
         dt.import_value('av')
 
-    assert dt.format_value(0) == u"False"
-    assert dt.format_value(True) == u"True"
+    assert dt.format_value(0) == "False"
+    assert dt.format_value(True) == "True"
 
 
 def test_ArrayOf():
@@ -361,7 +361,7 @@ def test_TupleOf():
     assert dt.export_value([1, True]) == [1, True]
     assert dt.import_value([1, True]) == [1, True]
 
-    assert dt.format_value([3,0]) == u"(3, False)"
+    assert dt.format_value([3,0]) == "(3, False)"
 
 
 def test_StructOf():
@@ -393,7 +393,7 @@ def test_StructOf():
     assert dt.import_value({'an_int': 13, 'a_string': 'WFEC'}) == {
         'a_string': 'WFEC', 'an_int': 13}
 
-    assert dt.format_value({'an_int':2, 'a_string':'Z'}) == u"{a_string='Z', an_int=2}"
+    assert dt.format_value({'an_int':2, 'a_string':'Z'}) == "{a_string='Z', an_int=2}"
 
 
 def test_Command():

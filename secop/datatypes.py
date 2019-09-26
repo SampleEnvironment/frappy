@@ -328,7 +328,7 @@ class EnumType(DataType):
         return {'type': 'enum', 'members':dict((m.name, m.value) for m in self._enum.members)}
 
     def __repr__(self):
-        return u"EnumType(%r, %s)" % (self._enum.name, ', '.join('%s=%d' %(m.name, m.value) for m in self._enum.members))
+        return "EnumType(%r, %s)" % (self._enum.name, ', '.join('%s=%d' %(m.name, m.value) for m in self._enum.members))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -843,7 +843,7 @@ class OrType(DataType):
                 return t(value)
             except Exception:
                 pass
-        raise BadValueError(u"Invalid Value, must conform to one of %s" % (', '.join((str(t) for t in self.types))))
+        raise BadValueError("Invalid Value, must conform to one of %s" % (', '.join((str(t) for t in self.types))))
 
 
 Int8   = IntRange(-(1 << 7),  (1 << 7) - 1)
