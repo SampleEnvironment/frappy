@@ -25,6 +25,7 @@
 import json
 import pprint
 from time import sleep
+import mlzlog
 
 from secop.datatypes import EnumType, StringType
 from secop.errors import SECoPError
@@ -222,7 +223,6 @@ class ReadableWidget(QWidget):
         try:
             # if queried, we get the qualifiers as well, but don't want them
             # here
-            import mlzlog
             mlzlog.getLogger('cached values').warn(
                 'no cached value for %s:%s' % (self._module, pname))
             val = self._node.getParameter(self._module, pname)[0]

@@ -104,8 +104,7 @@ class TreeWidget(QTreeWidget):
                 self.set_tree(read_config(self.file_path))
                 self.emit_save_status_changed(True)
                 return True
-            else:
-                self.file_path = None
+            self.file_path = None
         return self.new_tree()
 
     def new_tree(self):
@@ -391,7 +390,7 @@ class AddDialog(QDialog):
         if self.exec_() == QDialog.Accepted:
             if self.kind in [NODE, MODULE, INTERFACE]:
                 return [self.name.text(), self.get_value()]
-            elif self.kind in [PARAMETER, PROPERTY, COMMENT]:
+            if self.kind in [PARAMETER, PROPERTY, COMMENT]:
                 return [self.get_value()]
         return None
 

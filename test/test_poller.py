@@ -28,7 +28,7 @@ from secop.modules import Drivable
 from secop.poller import Poller, REGULAR, DYNAMIC, SLOW
 Status = Drivable.Status
 
-class Time(object):
+class Time:
     STARTTIME = 1000 # artificial time zero
     def __init__(self):
         self.reset()
@@ -65,7 +65,7 @@ def patch_time(monkeypatch):
     monkeypatch.setattr(time, 'time', artime.time)
 
 
-class Event(object):
+class Event:
     def __init__(self):
         self.flag = False
 
@@ -79,7 +79,7 @@ class Event(object):
         return self.flag
 
 
-class Parameter(object):
+class Parameter:
     def __init__(self, name, readonly, poll, polltype, interval):
         self.poll = poll
         self.polltype = polltype # used for check only
@@ -107,7 +107,7 @@ class Parameter(object):
         return 'Parameter(%s)' % ", ".join("%s=%r" % item for item in self.__dict__.items())
 
 
-class Module(object):
+class Module:
     properties = {}
     pollerClass = Poller
     iodev = 'common_iodev'

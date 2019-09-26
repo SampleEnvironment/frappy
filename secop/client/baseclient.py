@@ -44,7 +44,7 @@ from secop.protocol.messages import BUFFERREQUEST, COMMANDREQUEST, \
     READREQUEST, REQUEST2REPLY, WRITEREPLY, WRITEREQUEST
 
 
-class TCPConnection(object):
+class TCPConnection:
     # disguise a TCP connection as serial one
 
     def __init__(self, host, port):
@@ -136,7 +136,7 @@ class TCPConnection(object):
             self.writeline(line)
 
 
-class Value(object):
+class Value:
     t = None  # pylint: disable = C0103
     u = None
     e = None
@@ -165,7 +165,7 @@ class Value(object):
         return self.fmtstr % self.value
 
 
-class Client(object):
+class Client:
     secop_id = 'unknown'
     describing_data = {}
     stopflag = False
@@ -175,7 +175,7 @@ class Client(object):
         if 'testing' not in opts:
             self.log = mlzlog.log.getChild('client', True)
         else:
-            class logStub(object):
+            class logStub:
 
                 def info(self, *args):
                     pass

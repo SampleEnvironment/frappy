@@ -29,7 +29,7 @@ from secop.errors import ProgrammingError, ConfigError
 
 
 # storage for 'properties of a property'
-class Property(object):
+class Property:
     '''base class holding info about a property
 
     properties are only sent to the ECS if export is True, or an extname is set
@@ -82,18 +82,18 @@ class PropertyMeta(type):
     joining the class's properties with those of base classes.
     """
 
-    def __new__(mcs, name, bases, attrs):
-        newtype = type.__new__(mcs, name, bases, attrs)
+    def __new__(cls, name, bases, attrs):
+        newtype = type.__new__(cls, name, bases, attrs)
         if '__constructed__' in attrs:
             return newtype
 
-        newtype = mcs.__join_properties__(newtype, name, bases, attrs)
+        newtype = cls.__join_properties__(newtype, name, bases, attrs)
 
         attrs['__constructed__'] = True
         return newtype
 
     @classmethod
-    def __join_properties__(mcs, newtype, name, bases, attrs):
+    def __join_properties__(cls, newtype, name, bases, attrs):
         # merge properties from all sub-classes
         properties = Properties()
         for base in reversed(bases):
@@ -114,7 +114,7 @@ class PropertyMeta(type):
         return newtype
 
 
-class HasProperties(object, metaclass=PropertyMeta):
+class HasProperties(metaclass=PropertyMeta):
     properties = {}
 
     def __init__(self, supercall_init=True):

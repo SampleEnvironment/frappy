@@ -30,11 +30,11 @@ from secop.errors import IsBusyError
 from secop.lib import mkthread
 
 
-class Namespace(object):
+class Namespace:
     pass
 
 
-class Step(object):
+class Step:
 
     def __init__(self, desc, waittime, func, *args, **kwds):
         self.desc = desc
@@ -44,7 +44,7 @@ class Step(object):
         self.kwds = kwds
 
 
-class SequencerMixin(object):
+class SequencerMixin:
     """Mixin for worker classes that need to execute a sequence of actions,
     including waits, that exceeds the usual Tango timeout (about 3 seconds)
     and should be executed asynchronously.
@@ -129,11 +129,11 @@ class SequencerMixin(object):
     def read_status(self):
         if self.seq_is_alive():
             return self.Status.BUSY, 'moving: ' + self._seq_phase
-        elif self._seq_error:
+        if self._seq_error:
             if self._seq_fault_on_error:
                 return self.Status.ERROR, self._seq_error
             return self.Status.WARN, self._seq_error
-        elif self._seq_stopped:
+        if self._seq_stopped:
             if self._seq_fault_on_stop:
                 return self.Status.ERROR, self._seq_stopped
             return self.Status.WARN, self._seq_stopped

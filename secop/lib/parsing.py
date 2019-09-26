@@ -149,7 +149,7 @@ def format_args(args):
     return repr(args)  # for floats/ints/...
 
 
-class ArgsParser(object):
+class ArgsParser:
     """returns a pythonic object from the input expression
 
     grammar:
@@ -164,10 +164,8 @@ class ArgsParser(object):
     name = [A-Za-z_] [A-Za-z0-9_]*
     """
 
-    DIGITS_CHARS = [c for c in '0123456789']
-    NAME_CHARS = [
-        c for c in '_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-    ]
+    DIGITS_CHARS = '0123456789'
+    NAME_CHARS = '_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
     NAME_CHARS2 = NAME_CHARS + DIGITS_CHARS
 
     def __init__(self, string=''):
@@ -276,7 +274,7 @@ class ArgsParser(object):
 
     def parse_record(self):
         """record_expr = '(' (name '=' expr ',')* ')' """
-        if self.get != '(':
+        if self.get() != '(':
             return None
         self.skip()
         res = {}

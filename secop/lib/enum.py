@@ -26,7 +26,7 @@
 __ALL__ = ['Enum']
 
 
-class EnumMember(object):
+class EnumMember:
     """represents one member of an Enum
 
     has an int-type value and attributes 'name' and 'value'
@@ -53,7 +53,7 @@ class EnumMember(object):
             return -1  # XXX:!
         if self.value < other:
             return -1
-        elif self.value > other:
+        if self.value > other:
             return 1
         return 0
 
@@ -262,7 +262,7 @@ class Enum(dict):
         elif isinstance(parent, dict):
             for k, v in parent.items():
                 add(self, k, v)
-        elif parent != None:
+        elif parent is not None:
             raise TypeError('parent (if given) MUST be a dict or an Enum!')
         for k, v in kwds.items():
             add(self, k, v)
@@ -286,7 +286,7 @@ class Enum(dict):
         raise TypeError('Enum %r can not be changed!' % self.name)
 
     def __repr__(self):
-        return '<Enum %r (%d values)>' % (self.name, len(self)/2)
+        return '<Enum %r (%d values)>' % (self.name, len(self)//2)
 
     def __call__(self, key):
         return self[key]

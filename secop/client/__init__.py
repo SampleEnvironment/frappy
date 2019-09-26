@@ -74,7 +74,7 @@ def getClientOpts(cfgfile):
     return dict(item for item in parser.items('client'))
 
 
-class ClientConsole(object):
+class ClientConsole:
 
     def __init__(self, cfgname, basepath):
         self.namespace = NameSpace()
@@ -99,7 +99,7 @@ class ClientConsole(object):
             help(arg)
 
 
-class TCPConnection(object):
+class TCPConnection:
 
     def __init__(self, connect, port, **kwds):
         self.log = mlzlog.log.getChild('connection', False)
@@ -173,7 +173,7 @@ class TCPConnection(object):
         self.callbacks.discard(callback)
 
 
-class Client(object):
+class Client:
 
     def __init__(self, opts):
         self.log = mlzlog.log.getChild('client', True)

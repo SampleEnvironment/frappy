@@ -6,7 +6,7 @@ import pytest
 @pytest.fixture(scope="module")
 def constants():
     # setup
-    class Constants(object):
+    class Constants:
         ONE = 1
         TWO = 2
     c = Constants()

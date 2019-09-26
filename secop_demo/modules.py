@@ -155,11 +155,11 @@ class MagneticField(Drivable):
         if self._state == self._state.enum.idle:
             return (PERSIST, 'at field') if self.value else \
                    (self.Status.IDLE, 'zero field')
-        elif self._state == self._state.enum.switch_on:
+        if self._state == self._state.enum.switch_on:
             return (self.Status.PREPARE, self._state.name)
-        elif self._state == self._state.enum.switch_off:
+        if self._state == self._state.enum.switch_off:
             return (self.Status.FINISH, self._state.name)
-        elif self._state == self._state.enum.ramp:
+        if self._state == self._state.enum.ramp:
             return (self.Status.RAMPING, self._state.name)
         return (self.Status.ERROR, self._state.name)
 

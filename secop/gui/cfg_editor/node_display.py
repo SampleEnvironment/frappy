@@ -28,7 +28,7 @@ class NodeDisplay(QWidget):
     def __init__(self, file_path=None, parent=None):
         QWidget.__init__(self, parent)
         loadUi(self, 'node_display.ui')
-        self.saved = True if file_path else False
+        self.saved = bool(file_path)
         self.created = self.tree_widget.set_file(file_path)
         self.tree_widget.save_status_changed.connect(self.change_save_status)
         self.tree_widget.currentItemChanged.connect(self.set_scroll_area)

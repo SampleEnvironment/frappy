@@ -29,7 +29,7 @@ from secop.basic_validators import FloatProperty, PositiveFloatProperty, \
     NonNegativeIntProperty, BoolProperty, StringProperty, UnitProperty, \
     FmtStrProperty, OneOfProperty, NoneOr, EnumProperty, TupleProperty
 
-class unprintable(object):
+class unprintable:
     def __str__(self):
         raise NotImplementedError
 

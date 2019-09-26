@@ -116,7 +116,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
             if field == tryfield:
                 self.log.debug('current for %g T is %g A', field, trycurr)
                 return trycurr  # Gotcha!
-            elif field > tryfield:
+            if field > tryfield:
                 # retry upper interval
                 mincurr = trycurr
                 minfield = tryfield

@@ -27,7 +27,7 @@ from secop.modules import Drivable, Parameter, Readable
 try:
     from pvaccess import Channel  # import EPIVSv4 functionallity, PV access
 except ImportError:
-    class Channel(object):
+    class Channel:
 
         def __init__(self, pv_name):
             self.pv_name = pv_name
@@ -48,7 +48,7 @@ except ImportError:
 try:
     from epics import PV
 except ImportError:
-    class PV(object):
+    class PV:
 
         def __init__(self, pv_name):
             self.pv_name = pv_name

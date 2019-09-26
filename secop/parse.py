@@ -40,7 +40,7 @@ further convertions are done by the validator of the datatype....
 from collections import OrderedDict
 
 
-class Parser(object):
+class Parser:
     # all parsing methods return (parsed value, remaining string)
     # or (None, remaining_text) if parsing error
 
@@ -153,9 +153,9 @@ class Parser(object):
             return None, orgtext
         if text[0] in '+-.0123456789':
             return self.parse_number(orgtext)
-        elif text[0] == '{':
+        if text[0] == '{':
             return self.parse_dict(orgtext)
-        elif text[0] in '([<':
+        if text[0] in '([<':
             return self.parse_tuple(orgtext)
         return self.parse_string(orgtext)
 

@@ -40,7 +40,7 @@ except ImportError:
     import daemon.pidfile as pidlockfile
 
 
-class Server(object):
+class Server:
     # list allowed section prefixes
     # if mapped dict does not exist -> section need a 'class' option
     # otherwise a 'type' option is evaluatet and the class from the mapping dict used

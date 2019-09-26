@@ -28,9 +28,8 @@ from secop.metaclass import ModuleMeta
 from secop.modules import Command, Parameter
 
 
-class Feature(object, metaclass=ModuleMeta):
+class Feature(metaclass=ModuleMeta):
     """all things belonging to a small, predefined functionality influencing the working of a module"""
-    pass
 
 
 class HAS_PID(Feature):

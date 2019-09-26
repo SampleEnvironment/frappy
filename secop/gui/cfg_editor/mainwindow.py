@@ -136,7 +136,7 @@ class MainWindow(QMainWindow):
             reply = self.show_save_message(self.tabWidget.tabText(index))
         if reply == QMessageBox.Cancel:
             return
-        elif reply == QMessageBox.Save:
+        if reply == QMessageBox.Save:
             self.save_tab(index)
         self.tabWidget.removeTab(index)
 
@@ -158,7 +158,7 @@ class MainWindow(QMainWindow):
             if reply == QMessageBox.Cancel:
                 event.ignore()
                 return
-            elif reply == QMessageBox.Save:
+            if reply == QMessageBox.Save:
                 for i in range(0, self.tabWidget.count()):
                     self.save_tab(i)
         event.accept()

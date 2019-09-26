@@ -48,7 +48,7 @@ DEFAULT_MAX_INT = 16777216
 Parser = Parser()
 
 # base class for all DataTypes
-class DataType(object):
+class DataType:
     IS_COMMAND = False
     unit = ''
     fmtstr = '%r'
@@ -353,7 +353,7 @@ class EnumType(DataType):
 
 
 class BLOBType(DataType):
-    minbytes = None
+    minbytes = 0
     maxbytes = None
 
     def __init__(self, minbytes=0, maxbytes=None):
@@ -366,7 +366,7 @@ class BLOBType(DataType):
         self.maxbytes = int(maxbytes)
         if self.minbytes < 0:
             raise BadValueError('sizes must be bigger than or equal to 0!')
-        elif self.minbytes > self.maxbytes:
+        if self.minbytes > self.maxbytes:
             raise BadValueError('maxbytes must be bigger than or equal to minbytes!')
         self.default = b'\0' * self.minbytes
 
@@ -418,7 +418,7 @@ class StringType(DataType):
         self.set_prop('isUTF8', isUTF8, False, bool)
         if self.minchars < 0:
             raise BadValueError('sizes must be bigger than or equal to 0!')
-        elif self.minchars > self.maxchars:
+        if self.minchars > self.maxchars:
             raise BadValueError('maxchars must be bigger than or equal to minchars!')
         self.default = ' ' * self.minchars
 
@@ -504,7 +504,7 @@ class BoolType(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return True if self(value) else False
+        return bool(self(value))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
@@ -544,9 +544,9 @@ class ArrayOf(DataType):
         self.maxlen = int(maxlen)
         if self.minlen < 0:
             raise BadValueError('sizes must be > 0')
-        elif self.maxlen < 1:
+        if self.maxlen < 1:
             raise BadValueError('Maximum size must be >= 1!')
-        elif self.minlen > self.maxlen:
+        if self.minlen > self.maxlen:
             raise BadValueError('maxlen must be bigger than or equal to minlen!')
         self.default = [members.default] * self.minlen
 
@@ -890,7 +890,7 @@ DATATYPES = dict(
     blob    =lambda maxbytes, minbytes=0: BLOBType(minbytes=minbytes, maxbytes=maxbytes),
     string  =lambda minchars=0, maxchars=None: StringType(minchars=minchars, maxchars=maxchars),
     array   =lambda maxlen, members, minlen=0: ArrayOf(get_datatype(members), minlen=minlen, maxlen=maxlen),
-    tuple   =lambda members: TupleOf(*map(get_datatype, members)),
+    tuple   =lambda members: TupleOf(*tuple(map(get_datatype, members))),
     enum    =lambda members: EnumType('', members=members),
     struct  =lambda members, optional=None: StructOf(optional,
         **dict((n, get_datatype(t)) for n, t in list(members.items()))),

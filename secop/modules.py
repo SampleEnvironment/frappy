@@ -324,6 +324,7 @@ class Readable(Module):
                         rfunc()  # pylint: disable = not-callable
                     except Exception:  # really all!
                         pass
+        return False
 
 
 class Writable(Readable):

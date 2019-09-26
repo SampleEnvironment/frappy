@@ -50,7 +50,7 @@ from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY
 
 
-class Dispatcher(object):
+class Dispatcher:
 
     def __init__(self, name, logger, options, srv):
         # to avoid errors, we want to eat all options here
@@ -145,7 +145,7 @@ class Dispatcher(object):
     def get_module(self, modulename):
         if modulename in self._modules:
             return self._modules[modulename]
-        elif modulename in list(self._modules.values()):
+        if modulename in list(self._modules.values()):
             return modulename
         raise NoSuchModuleError('Module does not exist on this SEC-Node!')
 
@@ -296,8 +296,7 @@ class Dispatcher(object):
 
             if handler:
                 return handler(conn, specifier, data)
-            else:
-                raise InternalError('unhandled message!')
+            raise InternalError('unhandled message!')
 
     # now the (defined) handlers for the different requests
     def handle_help(self, conn, specifier, data):

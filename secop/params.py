@@ -30,7 +30,7 @@ from secop.errors import ProgrammingError
 from secop.properties import HasProperties, Property
 
 
-class CountedObj(object):
+class CountedObj:
     ctr = [0]
     def __init__(self):
         cl = self.__class__.ctr
@@ -163,7 +163,7 @@ class Parameter(Accessible):
     del _set_unit_
 
 
-class UnusedClass(object):
+class UnusedClass:
     # do not derive anything from this!
     pass
 
@@ -186,7 +186,7 @@ class Parameters(OrderedDict):
         return super(Parameters, self).__getitem__(self.exported.get(item, item))
 
 
-class ParamValue(object):
+class ParamValue:
     __slots__ = ['value', 'timestamp']
     def __init__(self, value, timestamp=0):
         self.value = value
@@ -195,7 +195,6 @@ class ParamValue(object):
 
 class Commands(Parameters):
     """class storage for Commands"""
-    pass
 
 
 class Override(CountedObj):
@@ -232,10 +231,9 @@ class Override(CountedObj):
                 #props['ctr'] = self.ctr
                 return type(obj)(ctr=self.ctr, **props)
             return type(obj)(**props)
-        else:
-            raise ProgrammingError(
-                u"Overrides can only be applied to Accessibles, %r is none!" %
-                obj)
+        raise ProgrammingError(
+            u"Overrides can only be applied to Accessibles, %r is none!" %
+            obj)
 
 
 class Command(Accessible):

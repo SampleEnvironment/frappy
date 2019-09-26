@@ -30,7 +30,7 @@ from secop.client.baseclient import Client
 # define Test-only connection object
 
 
-class TestConnect(object):
+class TestConnect:
     callbacks = []
 
     def writeline(self, line):

@@ -32,6 +32,7 @@ import subprocess
 import sys
 import threading
 import traceback
+import importlib
 from os import path
 
 repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
@@ -51,7 +52,7 @@ CONFIG = {
 
 unset_value = object()
 
-class lazy_property(object):
+class lazy_property:
     """A property that calculates its value only once."""
 
     def __init__(self, func):
@@ -89,7 +90,6 @@ def clamp(_min, value, _max):
 def get_class(spec):
     """loads a class given by string in dotted notaion (as python would do)"""
     modname, classname = spec.rsplit('.', 1)
-    import importlib
     if modname.startswith('secop'):
         module = importlib.import_module(modname)
     else:

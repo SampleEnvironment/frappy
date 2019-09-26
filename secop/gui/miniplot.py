@@ -44,7 +44,7 @@ _orange = QBrush(QColor('#ffa500'))
 
 my_uipath = path.dirname(__file__)
 
-class MiniPlotCurve(object):
+class MiniPlotCurve:
     # placeholder for data
     linecolor = _black
     linewidth = 0  # set to 0 to disable lines

@@ -68,12 +68,11 @@ def get_version(abbrev=4):
         if git_version != release_version:
             write_release_version(git_version)
         return git_version
-    elif release_version:
+    if release_version:
         return release_version
-    else:
-        raise ValueError('Cannot find a version number - make sure that '
-                         'git is installed or a RELEASE-VERSION file is '
-                         'present!')
+    raise ValueError('Cannot find a version number - make sure that '
+                     'git is installed or a RELEASE-VERSION file is '
+                     'present!')
 
 
 if __name__ == "__main__":

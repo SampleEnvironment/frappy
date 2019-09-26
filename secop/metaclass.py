@@ -45,12 +45,12 @@ class ModuleMeta(PropertyMeta):
     and wraps read_*/write_* methods
     (so the dispatcher will get notfied of changed values)
     """
-    def __new__(mcs, name, bases, attrs):
+    def __new__(cls, name, bases, attrs):
         commands = attrs.pop('commands', {})
         parameters = attrs.pop('parameters', {})
         overrides = attrs.pop('overrides', {})
 
-        newtype = type.__new__(mcs, name, bases, attrs)
+        newtype = type.__new__(cls, name, bases, attrs)
         if '__constructed__' in attrs:
             return newtype
 

@@ -30,7 +30,7 @@ from secop.lib import mkthread
 from secop.modules import Drivable, Module, Parameter, Readable, Writable
 
 
-class SimBase(object):
+class SimBase:
     def __init__(self, cfgdict):
         # spice up parameters if requested by extra property
         # hint: us a comma-separated list if mor than one extra_param

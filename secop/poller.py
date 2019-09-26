@@ -45,7 +45,7 @@ SLOW = 2
 REGULAR = 3
 DYNAMIC = 4
 
-class PollerBase(object):
+class PollerBase:
 
     startup_timeout = 30 # default timeout for startup
     name = 'unknown' # to be overridden in implementors __init__ method
@@ -149,7 +149,7 @@ class Poller(PollerBase):
                 raise ProgrammingError("module %s must have a pollinterval"
                                        % module.name)
             if polltype == AUTO: # covers also pobj.poll == True
-                if pname == 'value' or pname == 'status':
+                if pname in ('value', 'status'):
                     polltype = DYNAMIC
                 elif pobj.readonly:
                     polltype = REGULAR
