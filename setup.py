@@ -45,12 +45,10 @@ setup(
     packages=find_packages(exclude=['test']),
     package_data={'secop': ['RELEASE-VERSION'] + uis},
     data_files=[
-        ('/etc/init.d', ['etc/secop-server']),
         ('/lib/systemd/system-generators', ['etc/secop-generator']),
         ('/lib/systemd/system', ['etc/secop@.service',
                                  'etc/secop.target']),
         ('/var/log/secop', []),
-        ('/var/run/secop', []),
     ],
     scripts=scripts,
     classifiers=[
@@ -61,8 +59,6 @@ setup(
         'License :: OSI Approved :: GPL License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Topic :: Scientific/Engineering',

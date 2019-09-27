@@ -1,6 +1,5 @@
 usr/bin/secop-server
 usr/bin/secop-console
-etc/init.d/secop-server
 usr/lib/python3.7/dist-packages/secop/errors.py
 usr/lib/python3.7/dist-packages/secop/modules.py
 usr/lib/python3.7/dist-packages/secop/features.py

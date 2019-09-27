@@ -37,11 +37,13 @@ GIT_REPO = os.path.join(os.path.dirname(__file__), '..', '.git')
 
 def get_git_version(abbrev=4, cwd=None):
     try:
+        print("REPO:", GIT_REPO)
         p = Popen(['git', '--git-dir=%s' % GIT_REPO,
                    'describe', '--abbrev=%d' % abbrev],
                   stdout=PIPE, stderr=PIPE)
         stdout, _stderr = p.communicate()
         version = stdout.strip().decode('utf-8', 'ignore')
+        print("git:", version)
         # mangle version to comply with pep440
         if version.count('-'):
             version, patchcount, githash = version.split('-')

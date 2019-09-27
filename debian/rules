@@ -9,25 +9,30 @@ DEBPYTHON_SUPPORTED=3.6
 
 export DEBPYTHON_DEFAULT DEBPYTHON_SUPPORTED
 
+export PYBUILD_NAME = secop
+export PYBUILD_TEST_PYTEST = 1
+
 override_dh_install:
-	@find debian/tmp -name '*.pyc' -exec rm \{\} \;
-	@find debian/tmp -type d -name '__pycache__' | xargs rmdir
+	@find debian -name '*.pyc' -exec rm \{\} \;
+	@find debian -type d -name '__pycache__' | xargs rmdir
+
+	cp -aR debian/python3-secop/* debian/tmp
+	mv debian/tmp/usr/lib/python3.? debian/tmp/usr/lib/python3
 
 	@echo "regen debian/secop-core.install"
 	@echo "usr/bin/secop-server" > debian/secop-core.install
 	@echo "usr/bin/secop-console" >> debian/secop-core.install
-	@echo "etc/init.d/secop-server" >> debian/secop-core.install
 	@(cd debian/tmp; find . -name '*.py'| grep -v gui|grep /secop/; \
-		find . | grep egg-info; \
-		find . | grep RELEASE-VERSION; \
-		find ./lib; \
-		find ./var ) | \
-		while read f;do echo $${f#./};done | cat >> debian/secop-core.install
+		find . -type f| grep egg-info; \
+		find . -type f| grep RELEASE-VERSION; \
+		find ./lib -type f; \
+		find ./var -type f) | \
+		while read f;do echo $${f#./}; done | cat >> debian/secop-core.install
 
 	@echo "regen debian/secop-gui.install"
 	@echo "usr/bin/secop-gui" > debian/secop-gui.install
 	@echo "usr/bin/secop-cfg-editor" >> debian/secop-gui.install
-	@(cd debian/tmp; find . |grep gui|grep /secop/) | \
+	@(cd debian/tmp; find . -type f|grep gui|grep /secop/) | \
 		while read f;do echo $${f#./};done | cat >> debian/secop-gui.install
 
 	@for facility in demo ess mlz psi;do \
