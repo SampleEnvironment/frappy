@@ -4,42 +4,15 @@
 # Uncomment this to turn on verbose mode.
 export DH_VERBOSE=1
 
-DEBPYTHON_DEFAULT=3.6
-DEBPYTHON_SUPPORTED=3.6
 
-export DEBPYTHON_DEFAULT DEBPYTHON_SUPPORTED
-
-export PYBUILD_NAME = secop
-export PYBUILD_TEST_PYTEST = 1
+export PYBUILD_DESTDIR_python3=debian/tmp/
+export PYBUILD_NAME=secop
+export PYBUILD_TEST_PYTEST=1
 
 override_dh_install:
-	@find debian -name '*.pyc' -exec rm \{\} \;
-	@find debian -type d -name '__pycache__' | xargs rmdir
-
-	cp -aR debian/python3-secop/* debian/tmp
-	mv debian/tmp/usr/lib/python3.? debian/tmp/usr/lib/python3
-
-	@echo "regen debian/secop-core.install"
-	@echo "usr/bin/secop-server" > debian/secop-core.install
-	@echo "usr/bin/secop-console" >> debian/secop-core.install
-	@(cd debian/tmp; find . -name '*.py'| grep -v gui|grep /secop/; \
-		find . -type f| grep egg-info; \
-		find . -type f| grep RELEASE-VERSION; \
-		find ./lib -type f; \
-		find ./var -type f) | \
-		while read f;do echo $${f#./}; done | cat >> debian/secop-core.install
-
-	@echo "regen debian/secop-gui.install"
-	@echo "usr/bin/secop-gui" > debian/secop-gui.install
-	@echo "usr/bin/secop-cfg-editor" >> debian/secop-gui.install
-	@(cd debian/tmp; find . -type f|grep gui|grep /secop/) | \
-		while read f;do echo $${f#./};done | cat >> debian/secop-gui.install
-
-	@for facility in demo ess mlz psi;do \
-		echo "regen debian/secop-$${facility}.install"; \
-	(cd debian/tmp; find . -name '*.py'|grep /secop_$${facility}/) | \
-		while read f;do echo $${f#./};done | cat > debian/secop-$${facility}.install; \
-	done
+	rmdir debian/tmp
+	mv debian/python3-secop debian/tmp
+	#find debian/tmp -depth -name __pycache__ -type d -exec rm -r \{\} \;
 
 	dh_install -i -O--buildsystem=pybuild
 	dh_missing --fail-missing

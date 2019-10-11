@@ -1,8 +1,7 @@
 [Unit]
 Description=Start all SECoP SEC-nodes
-Requires=network-online.service
-Wants=network-online.service
-After=network-online.service
+Requires=network-online.target
+After=network-online.target
 
 [Install]
 WantedBy=multi-user.target
