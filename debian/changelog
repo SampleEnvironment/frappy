@@ -1,3 +1,14 @@
+secop-core (0.10.2) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * upgrading debian files to compat 11
+  * fix packaging
+  * reduce verbosity of package building
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 11 Oct 2019 10:42:58 +0200
+
 secop-core (0.10.1) unstable; urgency=low
 
   [ Enrico Faulhaber ]
