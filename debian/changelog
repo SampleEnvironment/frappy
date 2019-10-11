@@ -1,3 +1,12 @@
+secop-core (0.10.3) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix for different python versions
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 11 Oct 2019 10:49:43 +0200
+
 secop-core (0.10.2) unstable; urgency=low
 
   [ Enrico Faulhaber ]
