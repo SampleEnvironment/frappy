@@ -26,7 +26,7 @@
 import pytest
 
 from secop.datatypes import ArrayOf, BLOBType, BoolType, \
-    DataType, EnumType, FloatRange, IntRange, ProgrammingError, \
+    DataType, EnumType, FloatRange, IntRange, ProgrammingError, ConfigError, \
     ScaledInteger, StringType, TextType, StructOf, TupleOf, get_datatype, CommandType
 
 
@@ -63,11 +63,14 @@ def test_FloatRange():
     dt(13.14 - 10)  # raises an error, if resolution is not handled correctly
     assert dt.export_value(-2.718) == -2.718
     assert dt.import_value(-2.718) == -2.718
-    with pytest.raises(ValueError):
+    with pytest.raises(ProgrammingError):
         FloatRange('x', 'Y')
     # check that unit can be changed
-    dt.unit = 'K'
+    dt.setProperty('unit', 'K')
     assert dt.export_datatype() == {'type': 'double', 'min':-3.14, 'max':3.14, 'unit': 'K'}
+    with pytest.raises(KeyError):
+        dt.setProperty('visibility', 0)
+    dt.setProperty('absolute_resolution', 0)
 
     dt = FloatRange()
     copytest(dt)
@@ -83,6 +86,14 @@ def test_FloatRange():
     assert dt.format_value(3.14) == '3.14 X'
     assert dt.format_value(3.14, '') == '3.14'
     assert dt.format_value(3.14, '#') == '3.14 #'
+
+    dt.setProperty('min', 1)
+    dt.setProperty('max', 0)
+    with pytest.raises(ConfigError):
+        dt.checkProperties()
+
+    with pytest.raises(ProgrammingError):
+        FloatRange(resolution=1)
 
 
 def test_IntRange():
@@ -100,7 +111,7 @@ def test_IntRange():
         dt([19, 'X'])
     dt(1)
     dt(0)
-    with pytest.raises(ValueError):
+    with pytest.raises(ProgrammingError):
         IntRange('xc', 'Yx')
 
     dt = IntRange()
@@ -109,6 +120,11 @@ def test_IntRange():
     assert dt.export_datatype()['min'] < 0 < dt.export_datatype()['max']
     assert dt.export_datatype() == {'type': 'int', 'max': 16777216,'min': -16777216}
     assert dt.format_value(42) == '42'
+
+    dt.setProperty('min', 1)
+    dt.setProperty('max', 0)
+    with pytest.raises(ConfigError):
+        dt.checkProperties()
 
 def test_ScaledInteger():
     dt = ScaledInteger(0.01, -3, 3)
@@ -128,17 +144,23 @@ def test_ScaledInteger():
     dt(0)
     with pytest.raises(ValueError):
         ScaledInteger('xc', 'Yx')
-    with pytest.raises(ValueError):
+    with pytest.raises(ProgrammingError):
         ScaledInteger(scale=0, minval=1, maxval=2)
-    with pytest.raises(ValueError):
+    with pytest.raises(ProgrammingError):
         ScaledInteger(scale=-10, minval=1, maxval=2)
     # check that unit can be changed
-    dt.unit = 'A'
-    assert dt.export_datatype() == {'type': 'scaled', 'scale':0.01, 'min':-300, 'max':300, 'unit': 'A'}
+    dt.setProperty('unit', 'A')
+    assert dt.export_datatype() == {'type': 'scaled', 'scale':0.01, 'min':-300, 'max':300,
+                                    'unit': 'A'}
 
     assert dt.export_value(0.0001) == int(0)
     assert dt.export_value(2.71819) == int(272)
     assert dt.import_value(272) == 2.72
+
+    dt.setProperty('scale', 0.1)
+    assert dt.export_datatype() == {'type': 'scaled', 'scale':0.1, 'min':-30, 'max':30,
+                                    'unit':'A'}
+    assert dt.absolute_resolution == dt.scale
 
     dt = ScaledInteger(0.003, 0, 1, unit='X', fmtstr='%.1f',
                        absolute_resolution=0.001, relative_resolution=1e-5)
@@ -154,6 +176,14 @@ def test_ScaledInteger():
     assert dt(1.0029) == 0.999
     with pytest.raises(ValueError):
         dt(1.004)
+
+    dt.setProperty('min', 1)
+    dt.setProperty('max', 0)
+    with pytest.raises(ConfigError):
+        dt.checkProperties()
+
+    with pytest.raises(ValueError):
+        dt.setProperty('scale', None)
 
 
 def test_EnumType():
@@ -219,6 +249,11 @@ def test_BLOBType():
         dt('abcd')
     assert dt(b'abcd') == b'abcd'
 
+    dt.setProperty('minbytes', 1)
+    dt.setProperty('maxbytes', 0)
+    with pytest.raises(ConfigError):
+        dt.checkProperties()
+
     assert dt.export_value(b'abcd') == 'YWJjZA=='
     assert dt.export_value(b'abcd') == 'YWJjZA=='
     # assert dt.export_value('abcd') == 'YWJjZA=='
@@ -259,6 +294,11 @@ def test_StringType():
     assert dt.import_value('abcd') == 'abcd'
 
     assert dt.format_value('abcd') == "'abcd'"
+
+    dt.setProperty('minchars', 1)
+    dt.setProperty('maxchars', 0)
+    with pytest.raises(ConfigError):
+        dt.checkProperties()
 
 
 def test_TextType():
@@ -309,6 +349,9 @@ def test_BoolType():
     assert dt.format_value(0) == "False"
     assert dt.format_value(True) == "True"
 
+    with pytest.raises(TypeError):
+        # pylint: disable=unexpected-keyword-arg
+        BoolType(unit='K')
 
 def test_ArrayOf():
     # test constructor catching illegal arguments
@@ -341,6 +384,17 @@ def test_ArrayOf():
     assert dt.format_value([1,2,3], '') == '[1, 2, 3]'
     assert dt.format_value([1,2,3], 'Q') == '[1, 2, 3] Q'
 
+    dt = ArrayOf(FloatRange(unit='K'))
+    assert dt.members.unit == 'K'
+    dt.setProperty('unit', 'mm')
+    with pytest.raises(TypeError):
+        # pylint: disable=unexpected-keyword-arg
+        ArrayOf(BoolType(), unit='K')
+
+    dt.setProperty('minlen', 1)
+    dt.setProperty('maxlen', 0)
+    with pytest.raises(ConfigError):
+        dt.checkProperties()
 
 def test_TupleOf():
     # test constructor catching illegal arguments

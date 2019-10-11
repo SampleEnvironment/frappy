@@ -57,22 +57,22 @@ def write_config(file_name, tree_widget):
                 blank_lines += 1
             value = value.replace('\n\n', '\n.\n')
             value = value.replace('\n', '\n    ')
-            itm_lines[itm] = '[%s %s]\n' % (itm.kind, itm.name) +\
+            itm_lines[id(itm)] = '[%s %s]\n' % (itm.kind, itm.name) +\
                              value_str % (SECTIONS[itm.kind], value)
         # TODO params and props
         elif itm.kind == PARAMETER and value:
-            itm_lines[itm] = value_str % (itm.name, value)
+            itm_lines[id(itm)] = value_str % (itm.name, value)
         elif itm.kind == PROPERTY:
             prop_name = '.%s' % itm.name
             if par.kind == PARAMETER:
                 prop_name = par.name + prop_name
-            itm_lines[itm] = value_str % (prop_name, value)
+            itm_lines[id(itm)] = value_str % (prop_name, value)
         elif itm.kind == COMMENT:
             temp_itm_lines = OrderedDict()
             for key, dict_value in itm_lines.items():
-                if key == par:
+                if key == id(par):
                     value = value.replace('\n', '\n# ')
-                    temp_itm_lines[itm] = '# %s' % value
+                    temp_itm_lines[id(itm)] = '# %s' % value
                 temp_itm_lines[key] = dict_value
             itm_lines.clear()
             itm_lines.update(temp_itm_lines)

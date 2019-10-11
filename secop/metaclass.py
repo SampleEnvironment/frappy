@@ -199,6 +199,6 @@ class ModuleMeta(PropertyMeta):
         # collect info about parameters and their properties
         for param, pobj in cls.accessibles.items():
             res[param] = {}
-            for pn, pv in pobj.__class__.properties.items():
+            for pn, pv in pobj.getProperties().items():
                 res[param][pn] = pv
         return res

@@ -45,7 +45,10 @@ class Accessible(HasProperties, CountedObj):
 
     def __init__(self, **kwds):
         super(Accessible, self).__init__()
-        self.properties.update(kwds)
+        # do not use self.properties.update here, as no invalid values should be
+        # assigned to properties, even not before checkProperties
+        for k,v in kwds.items():
+            self.setProperty(k, v)
 
     def __repr__(self):
         return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ',\n\t'.join(
@@ -54,6 +57,8 @@ class Accessible(HasProperties, CountedObj):
     def copy(self):
         # return a copy of ourselfs
         props = dict(self.properties, ctr=self.ctr)
+        # deep copy, as datatype might be altered from config
+        props['datatype'] = props['datatype'].copy()
         return type(self)(**props)
 
     def for_export(self):
@@ -90,8 +95,6 @@ class Parameter(Accessible):
                                  extname='description', mandatory=True),
         'datatype':    Property('Datatype of the Parameter', DataTypeType(),
                                  extname='datainfo', mandatory=True),
-        'unit':        Property('[legacy] unit of the parameter. This should now be on the datatype!', StringType(),
-                                 extname='unit', default=''),  # goodie, should be on the datatype!
         'readonly':    Property('Is the Parameter readonly? (vs. changeable via SECoP)', BoolType(),
                                  extname='readonly', default=True),
         'group':       Property('Optional parameter group this parameter belongs to', StringType(),
@@ -99,7 +102,7 @@ class Parameter(Accessible):
         'visibility':  Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
                                  extname='visibility', default=1),
         'constant':    Property('Optional constant value for constant parameters', ValueType(),
-                                 extname='constant', default=None),
+                                 extname='constant', default=None, mandatory=False),
         'default':     Property('Default (startup) value of this parameter if it can not be read from the hardware.',
                                  ValueType(), export=False, default=None, mandatory=False),
         'export':      Property('Is this parameter accessible via SECoP? (vs. internal parameter)',
@@ -110,7 +113,7 @@ class Parameter(Accessible):
 
     value = None
     timestamp = None
-    def __init__(self, description, datatype, ctr=None, **kwds):
+    def __init__(self, description, datatype, ctr=None, unit=None, **kwds):
 
         if ctr is not None:
             self.ctr = ctr
@@ -125,6 +128,8 @@ class Parameter(Accessible):
 
         kwds['description'] = description
         kwds['datatype'] = datatype
+        if unit is not None: # for legacy code only
+            datatype.setProperty('unit', unit)
         super(Parameter, self).__init__(**kwds)
 
         # note: auto-converts True/False to 1/0 which yield the expected
@@ -138,11 +143,6 @@ class Parameter(Accessible):
             constant = self.datatype(kwds['constant'])
             self.properties['constant'] = self.datatype.export_value(constant)
 
-        # helper: unit should be set on the datatype, not on the parameter!
-        if self.unit:
-            self.datatype.unit = self.unit
-            self.properties['unit'] = ''
-
         # internal caching: value and timestamp of last change...
         self.value = self.default
         self.timestamp = 0
@@ -150,17 +150,20 @@ class Parameter(Accessible):
     def export_value(self):
         return self.datatype.export_value(self.value)
 
-    # helpers...
-    def _get_unit_(self):
-        return self.datatype.unit
+    def getProperties(self):
+        """get also properties of datatype"""
+        return {**super().getProperties(), **self.datatype.getProperties()}
 
-    def _set_unit_(self, unit):
-        print('DeprecationWarning: setting unit on the parameter is going to be removed')
-        self.datatype.unit = unit
+    def setProperty(self, key, value):
+        """set also properties of datatype"""
+        if key in self.__class__.properties:
+            super().setProperty(key, value)
+        else:
+            self.datatype.setProperty(key, value)
 
-    unit = property(_get_unit_, _set_unit_)
-    del _get_unit_
-    del _set_unit_
+    def checkProperties(self):
+        super().checkProperties()
+        self.datatype.checkProperties()
 
 
 class UnusedClass:
@@ -220,6 +223,7 @@ class Override(CountedObj):
     def apply(self, obj):
         if isinstance(obj, Accessible):
             props = obj.properties.copy()
+            props['datatype'] = props['datatype'].copy()
             if isinstance(obj, Parameter):
                 if 'constant' in self.kwds:
                     constant = obj.datatype(self.kwds.pop('constant'))

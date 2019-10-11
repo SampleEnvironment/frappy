@@ -24,7 +24,6 @@
 
 from collections import OrderedDict
 
-from secop.datatypes import ValueType, DataType
 from secop.errors import ProgrammingError, ConfigError
 
 
@@ -39,7 +38,7 @@ class Property:
     '''
     # note: this is inteded to be used on base classes.
     #       the VALUES of the properties are on the instances!
-    def __init__(self, description, datatype, default=None, extname='', export=False, mandatory=False, settable=True):
+    def __init__(self, description, datatype, default=None, extname='', export=False, mandatory=None, settable=True):
         if not callable(datatype):
             raise ValueError('datatype MUST be a valid DataType or a basic_validator')
         self.description = description
@@ -47,7 +46,9 @@ class Property:
         self.datatype = datatype
         self.extname = extname
         self.export = export or bool(extname)
-        self.mandatory = mandatory or (default is None and not isinstance(datatype, ValueType))
+        if mandatory is None:
+            mandatory = default is None
+        self.mandatory = mandatory
         self.settable = settable or mandatory  # settable means settable from the cfg file
 
     def __repr__(self):
@@ -67,7 +68,7 @@ class Properties(OrderedDict):
             raise ProgrammingError('setting property %r on classes is not supported!' % key)
         # make sure, extname is valid if export is True
         if not value.extname and value.export:
-            value.extname = '_%s' % key  # generate custom kex
+            value.extname = '_%s' % key  # generate custom key
         elif value.extname and not value.export:
             value.export = True
         OrderedDict.__setitem__(self, key, value)
@@ -117,9 +118,11 @@ class PropertyMeta(type):
 class HasProperties(metaclass=PropertyMeta):
     properties = {}
 
-    def __init__(self, supercall_init=True):
-        if supercall_init:
-            super(HasProperties, self).__init__()
+    def __init__(self):
+        super(HasProperties, self).__init__()
+        self.initProperties()
+
+    def initProperties(self):
         # store property values in the instance, keep descriptors on the class
         self.properties = {}
         # pre-init with properties default value (if any)
@@ -128,16 +131,25 @@ class HasProperties(metaclass=PropertyMeta):
                 self.properties[pn] = po.default
 
     def checkProperties(self):
+        """validates properties and checks for min... <= max..."""
         for pn, po in self.__class__.properties.items():
             if po.export and po.mandatory:
                 if pn not in self.properties:
                     name = getattr(self, 'name', repr(self))
-                    raise ConfigError('Property %r of %r needs a value of type %r!' % (pn, name, po.datatype))
+                    raise ConfigError('Property %r of %s needs a value of type %r!' % (pn, name, po.datatype))
                 # apply validator (which may complain further)
                 self.properties[pn] = po.datatype(self.properties[pn])
-        if 'min' in self.properties and 'max' in self.properties:
-            if self.min > self.max:
-                raise ConfigError('min and max of %r need to fulfil min <= max! (is %r>%r)' % (self, self.min, self.max))
+        for pn, po in self.__class__.properties.items():
+            if pn.startswith('min'):
+                maxname = 'max' + pn[3:]
+                minval = self.properties[pn]
+                maxval = self.properties.get(maxname, minval)
+                if minval > maxval:
+                    raise ConfigError('%s=%r must be <= %s=%r for %r' % (pn, minval, maxname, maxval, self))
+
+
+    def getProperties(self):
+        return self.__class__.properties
 
     def exportProperties(self):
         # export properties which have
@@ -147,8 +159,10 @@ class HasProperties(metaclass=PropertyMeta):
         for pn, po in self.__class__.properties.items():
             val = self.properties.get(pn, None)
             if po.export and (po.mandatory or val != po.default):
-                if isinstance(po.datatype, DataType):
+                try:
                     val = po.datatype.export_value(val)
+                except AttributeError:
+                    pass # for properties, accept simple datatypes without export_value
                 res[po.extname] = val
         return res
 

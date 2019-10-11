@@ -200,11 +200,12 @@ class TCPServer(HasProperties, socketserver.ThreadingTCPServer):
     # XXX: create configurables from Metaclass!
     configurables = properties
 
-    def __init__(self, name, logger, options, srv):
+    def __init__(self, name, logger, options, srv): # pylint: disable=super-init-not-called
         self.dispatcher = srv.dispatcher
         self.name = name
         self.log = logger
-        HasProperties.__init__(self, supercall_init=False)
+        # do not call HasProperties.__init__, as this will supercall ThreadingTCPServer
+        self.initProperties()
         bindto = options.pop('bindto', 'localhost')
         bindport = int(options.pop('bindport', DEF_PORT))
         detailed_errors = options.pop('detailed_errors', False)

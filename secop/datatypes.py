@@ -24,11 +24,13 @@
 # pylint: disable=abstract-method
 
 
+import sys
 from base64 import b64decode, b64encode
 
-from secop.errors import ProgrammingError, ProtocolError, BadValueError
+from secop.errors import ProgrammingError, ProtocolError, BadValueError, ConfigError
 from secop.lib.enum import Enum
 from secop.parse import Parser
+from secop.properties import HasProperties, Property
 
 
 # Only export these classes for 'from secop.datatypes import *'
@@ -44,14 +46,14 @@ __all__ = [
 # *DEFAULT* limits for IntRange/ScaledIntegers transport serialisation
 DEFAULT_MIN_INT = -16777216
 DEFAULT_MAX_INT = 16777216
+UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for any datatype size
 
 Parser = Parser()
 
 # base class for all DataTypes
-class DataType:
+class DataType(HasProperties):
     IS_COMMAND = False
     unit = ''
-    fmtstr = '%r'
     default = None
 
     def __call__(self, value):
@@ -89,23 +91,23 @@ class DataType:
         if unit is given, use it, else use the unit of the datatype (if any)"""
         raise NotImplementedError
 
-    def set_prop(self, key, value, default, func=lambda x:x):
-        """set an optional datatype property and store the default"""
-        self._defaults[key] = default
-        if value is None:
-            value = default
-        setattr(self, key, func(value))
+    def set_properties(self, **kwds):
+        """init datatype properties"""
+        try:
+            for k,v in kwds.items():
+                self.setProperty(k, v)
+            self.checkProperties()
+        except Exception as e:
+            raise ProgrammingError(str(e))
 
     def get_info(self, **kwds):
         """prepare dict for export or repr
 
         get a dict with all items different from default
         plus mandatory keys from kwds"""
-        for k,v in self._defaults.items():
-            value = getattr(self, k)
-            if value != v:
-                kwds[k] = value
-        return kwds
+        result = self.exportProperties()
+        result.update(kwds)
+        return result
 
     def copy(self):
         """make a deep copy of the datatype"""
@@ -114,29 +116,62 @@ class DataType:
         return get_datatype(self.export_datatype())
 
 
+class Stub(DataType):
+    """incomplete datatype, to be replaced with a proper one later during module load
+
+    this workaround because datatypes need properties with datatypes defined later
+    """
+    def __init__(self, datatype_name, *args):
+        super().__init__()
+        self.name = datatype_name
+        self.args = args
+
+    def __call__(self, value):
+        """validate"""
+        return value
+
+    @classmethod
+    def fix_datatypes(cls):
+        """replace stubs with real datatypes
+
+        for all DataType classes in this module
+        to be called after all involved datatypes are defined
+        """
+        for dtcls in globals().values():
+            if isinstance(dtcls, type) and issubclass(dtcls, DataType):
+                for prop in dtcls.properties.values():
+                    stub = prop.datatype
+                    if isinstance(stub, cls):
+                        prop.datatype = globals()[stub.name](*stub.args)
+
+# SECoP types:
+
 class FloatRange(DataType):
     """Restricted float type"""
+    properties = {
+        'min': Property('low limit', Stub('FloatRange'), extname='min', default=float('-inf')),
+        'max': Property('high limit', Stub('FloatRange'), extname='max', default=float('+inf')),
+        'unit': Property('physical unit', Stub('StringType'), extname='unit', default=''),
+        'fmtstr': Property('format string', Stub('StringType'), extname='fmtstr', default='%g'),
+        'absolute_resolution': Property('absolute resolution', Stub('FloatRange', 0),
+                                        extname='absolute_resolution', default=0.0),
+        'relative_resolution': Property('relative resolution', Stub('FloatRange', 0),
+                                        extname='relative_resolution', default=1.2e-7),
+    }
 
-    def __init__(self, minval=None, maxval=None, unit=None, fmtstr=None,
-                       absolute_resolution=None, relative_resolution=None,):
-        self._defaults = {}
-        self.set_prop('min', minval, float('-inf'), float)
-        self.set_prop('max', maxval, float('+inf'), float)
-        self.set_prop('unit', unit, '', str)
-        self.set_prop('fmtstr', fmtstr, '%g', str)
-        self.set_prop('absolute_resolution', absolute_resolution, 0.0, float)
-        self.set_prop('relative_resolution', relative_resolution, 1.2e-7, float)
+    def __init__(self, minval=None, maxval=None, **kwds):
+        super().__init__()
+        if minval is not None:
+            kwds['min'] = minval
+        if maxval is not None:
+            kwds['max'] = maxval
+        self.set_properties(**kwds)
+
+    def checkProperties(self):
         self.default = 0 if self.min <= 0 <= self.max else self.min
-
-        # check values
-        if self.min > self.max:
-            raise BadValueError('max must be larger then min!')
+        super().checkProperties()
         if '%' not in self.fmtstr:
-            raise BadValueError('Invalid fmtstr!')
-        if self.absolute_resolution < 0:
-            raise BadValueError('absolute_resolution MUST be >=0')
-        if self.relative_resolution < 0:
-            raise BadValueError('relative_resolution MUST be >=0')
+            raise ConfigError('Invalid fmtstr!')
 
     def export_datatype(self):
         return self.get_info(type='double')
@@ -180,32 +215,34 @@ class FloatRange(DataType):
         return self.fmtstr % value
 
 
+
 class IntRange(DataType):
     """Restricted int type"""
+    properties = {
+        'min': Property('minimum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='min', mandatory=True),
+        'max': Property('maximum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='max', mandatory=True),
+        # a unit on an int is now allowed in SECoP, but do we need them in Frappy?
+        # 'unit': Property('physical unit', StringType(), extname='unit', default=''),
+    }
 
     def __init__(self, minval=None, maxval=None):
-        self.min = DEFAULT_MIN_INT if minval is None else int(minval)
-        self.max = DEFAULT_MAX_INT if maxval is None else int(maxval)
-        self.default = 0 if self.min <= 0 <= self.max else self.min
-        # a unit on an int is now allowed in SECoP, but do we need them in Frappy?
-        # self.set_prop('unit', unit, '', str)
+        super().__init__()
+        self.set_properties(min=DEFAULT_MIN_INT if minval is None else minval,
+                            max=DEFAULT_MAX_INT if maxval is None else maxval)
 
-        # check values
-        if self.min > self.max:
-            raise BadValueError('Max must be larger then min!')
+    def checkProperties(self):
+        self.default = 0 if self.min <= 0 <= self.max else self.min
+        super().checkProperties()
 
     def export_datatype(self):
-        return dict(type='int', min=self.min, max=self.max)
+        return self.get_info(type='int')
 
     def __call__(self, value):
         try:
             value = int(value)
-            if value < self.min:
+            if not (self.min <= value <= self.max) or int(value) != value:
                 raise BadValueError('%r should be an int between %d and %d' %
-                                 (value, self.min, self.max or 0))
-            if value > self.max:
-                raise BadValueError('%r should be an int between %d and %d' %
-                                 (value, self.min or 0, self.max))
+                                 (value, self.min, self.max))
             return value
         except Exception:
             raise BadValueError('Can not convert %r to int' % value)
@@ -234,36 +271,54 @@ class ScaledInteger(DataType):
 
     note: limits are for the scaled value (i.e. the internal value)
           the scale is only used for calculating to/from transport serialisation"""
+    properties = {
+        'scale': Property('scale factor', FloatRange(sys.float_info.min), extname='scale', mandatory=True),
+        'min': Property('low limit', FloatRange(), extname='min', mandatory=True),
+        'max': Property('high limit', FloatRange(), extname='max', mandatory=True),
+        'unit': Property('physical unit', Stub('StringType'), extname='unit', default=''),
+        'fmtstr': Property('format string', Stub('StringType'), extname='fmtstr', default='%g'),
+        'absolute_resolution': Property('absolute resolution', FloatRange(0),
+                                        extname='absolute_resolution', default=0.0),
+        'relative_resolution': Property('relative resolution', FloatRange(0),
+                                        extname='relative_resolution', default=1.2e-7),
+    }
 
-    def __init__(self, scale, minval=None, maxval=None, unit=None, fmtstr=None,
-                       absolute_resolution=None, relative_resolution=None,):
-        self._defaults = {}
-        self.scale = float(scale)
-        if not self.scale > 0:
-            raise BadValueError('Scale MUST be positive!')
-        self.set_prop('unit', unit, '', str)
-        self.set_prop('fmtstr', fmtstr, '%g', str)
-        self.set_prop('absolute_resolution', absolute_resolution, self.scale, float)
-        self.set_prop('relative_resolution', relative_resolution, 1.2e-7, float)
+    def __init__(self, scale, minval=None, maxval=None, absolute_resolution=None, **kwds):
+        super().__init__()
+        scale = float(scale)
+        if absolute_resolution is None:
+            absolute_resolution = scale
+        self.set_properties(scale=scale,
+            min=DEFAULT_MIN_INT * scale if minval is None else float(minval),
+            max=DEFAULT_MAX_INT * scale if maxval is None else float(maxval),
+            absolute_resolution=absolute_resolution,
+            **kwds)
 
-        self.min = DEFAULT_MIN_INT * self.scale if minval is None else float(minval)
-        self.max = DEFAULT_MAX_INT * self.scale if maxval is None else float(maxval)
+    def checkProperties(self):
         self.default = 0 if self.min <= 0 <= self.max else self.min
+        super().checkProperties()
 
         # check values
-        if self.min > self.max:
-            raise BadValueError('Max must be larger then min!')
         if '%' not in self.fmtstr:
             raise BadValueError('Invalid fmtstr!')
-        if self.absolute_resolution < 0:
-            raise BadValueError('absolute_resolution MUST be >=0')
-        if self.relative_resolution < 0:
-            raise BadValueError('relative_resolution MUST be >=0')
         # Remark: Datatype.copy() will round min, max to a multiple of self.scale
         # this should be o.k.
 
+    def exportProperties(self):
+        result = super().exportProperties()
+        if self.absolute_resolution == 0:
+            result['absolute_resolution'] = 0
+        elif self.absolute_resolution == self.scale:
+            result.pop('absolute_resolution', 0)
+        return result
+
+    def setProperty(self, key, value):
+        if key == 'scale' and self.absolute_resolution == self.scale:
+            super().setProperty('absolute_resolution', value)
+        super().setProperty(key, value)
+
     def export_datatype(self):
-        return self.get_info(type='scaled', scale=self.scale,
+        return self.get_info(type='scaled',
                                 min = int((self.min + self.scale * 0.5) // self.scale),
                                 max = int((self.max + self.scale * 0.5) // self.scale))
 
@@ -284,7 +339,7 @@ class ScaledInteger(DataType):
         return value  # return 'actual' value (which is more discrete than a float)
 
     def __repr__(self):
-        hints = self.get_info(scale='%g' % self.scale,
+        hints = self.get_info(scale=float('%g' % self.scale),
                               min = int((self.min + self.scale * 0.5) // self.scale),
                               max = int((self.max + self.scale * 0.5) // self.scale))
         return 'ScaledInteger(%s)' % (', '.join('%s=%r' % kv for kv in hints.items()))
@@ -313,6 +368,7 @@ class ScaledInteger(DataType):
 class EnumType(DataType):
 
     def __init__(self, enum_or_name='', **kwds):
+        super().__init__()
         if 'members' in kwds:
             kwds = dict(kwds)
             kwds.update(kwds['members'])
@@ -353,25 +409,27 @@ class EnumType(DataType):
 
 
 class BLOBType(DataType):
-    minbytes = 0
-    maxbytes = None
+    properties = {
+        'minbytes': Property('minimum number of bytes', IntRange(0), extname='minbytes',
+                             default=0),
+        'maxbytes': Property('maximum number of bytes', IntRange(0), extname='maxbytes',
+                             mandatory=True),
+    }
 
     def __init__(self, minbytes=0, maxbytes=None):
+        super().__init__()
         # if only one argument is given, use exactly that many bytes
         # if nothing is given, default to 255
         if maxbytes is None:
             maxbytes = minbytes or 255
-        self._defaults = {}
-        self.set_prop('minbytes', minbytes, 0, int)
-        self.maxbytes = int(maxbytes)
-        if self.minbytes < 0:
-            raise BadValueError('sizes must be bigger than or equal to 0!')
-        if self.minbytes > self.maxbytes:
-            raise BadValueError('maxbytes must be bigger than or equal to minbytes!')
+        self.set_properties(minbytes=minbytes, maxbytes=maxbytes)
+
+    def checkProperties(self):
         self.default = b'\0' * self.minbytes
+        super().checkProperties()
 
     def export_datatype(self):
-        return self.get_info(type='blob', maxbytes=self.maxbytes)
+        return self.get_info(type='blob')
 
     def __repr__(self):
         return 'BLOBType(%d, %d)' % (self.minbytes, self.maxbytes)
@@ -407,20 +465,24 @@ class BLOBType(DataType):
 
 
 class StringType(DataType):
-    MAXCHARS = 0xffffffff
+    properties = {
+        'minchars': Property('minimum number of character points', IntRange(0, UNLIMITED),
+                             extname='minchars', default=0),
+        'maxchars': Property('maximum number of character points', IntRange(0, UNLIMITED),
+                             extname='maxchars', default=UNLIMITED),
+        'isUTF8': Property('flag telling whether encoding is UTF-8 instead of ASCII',
+                           Stub('BoolType'), extname='isUTF8', default=False),
+    }
 
-    def __init__(self, minchars=0, maxchars=None, isUTF8=False):
+    def __init__(self, minchars=0, maxchars=None, **kwds):
+        super().__init__()
         if maxchars is None:
-            maxchars = minchars or self.MAXCHARS
-        self._defaults = {}
-        self.set_prop('minchars', minchars, 0, int)
-        self.set_prop('maxchars', maxchars, self.MAXCHARS, int)
-        self.set_prop('isUTF8', isUTF8, False, bool)
-        if self.minchars < 0:
-            raise BadValueError('sizes must be bigger than or equal to 0!')
-        if self.minchars > self.maxchars:
-            raise BadValueError('maxchars must be bigger than or equal to minchars!')
+            maxchars = minchars or UNLIMITED
+        self.set_properties(minchars=minchars, maxchars=maxchars, **kwds)
+
+    def checkProperties(self):
         self.default = ' ' * self.minchars
+        super().checkProperties()
 
     def export_datatype(self):
         return self.get_info(type='string')
@@ -455,7 +517,6 @@ class StringType(DataType):
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        # XXX: do we keep it as str str, or convert it to something else? (UTF-8 maybe?)
         return str(value)
 
     def from_string(self, text):
@@ -473,7 +534,7 @@ class StringType(DataType):
 class TextType(StringType):
     def __init__(self, maxchars=None):
         if maxchars is None:
-            maxchars = self.MAXCHARS
+            maxchars = UNLIMITED
         super(TextType, self).__init__(0, maxchars)
 
     def __repr__(self):
@@ -484,7 +545,6 @@ class TextType(StringType):
         return TextType(self.maxchars)
 
 
-# Bool is a special enum
 class BoolType(DataType):
     default = False
 
@@ -504,7 +564,7 @@ class BoolType(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return bool(self(value))
+        return self(value)
 
     def import_value(self, value):
         """returns a python object from serialisation"""
@@ -514,9 +574,10 @@ class BoolType(DataType):
         value = text
         return self(value)
 
-
     def format_value(self, value, unit=None):
         return repr(bool(value))
+
+Stub.fix_datatypes()
 
 #
 # nested types
@@ -524,11 +585,15 @@ class BoolType(DataType):
 
 
 class ArrayOf(DataType):
-    minlen = None
-    maxlen = None
-    members = None
+    properties = {
+        'minlen': Property('minimum number of elements', IntRange(0), extname='minlen',
+                           default=0),
+        'maxlen': Property('maximum number of elements', IntRange(0), extname='maxlen',
+                           mandatory=True),
+    }
 
-    def __init__(self, members, minlen=0, maxlen=None, unit=None):
+    def __init__(self, members, minlen=0, maxlen=None):
+        super().__init__()
         if not isinstance(members, DataType):
             raise BadValueError(
                 'ArrayOf only works with a DataType as first argument!')
@@ -537,18 +602,22 @@ class ArrayOf(DataType):
         if maxlen is None:
             maxlen = minlen or 100
         self.members = members
-        if unit:
-            self.members.unit = unit
+        self.set_properties(minlen=minlen, maxlen=maxlen)
 
-        self.minlen = int(minlen)
-        self.maxlen = int(maxlen)
-        if self.minlen < 0:
-            raise BadValueError('sizes must be > 0')
-        if self.maxlen < 1:
-            raise BadValueError('Maximum size must be >= 1!')
-        if self.minlen > self.maxlen:
-            raise BadValueError('maxlen must be bigger than or equal to minlen!')
-        self.default = [members.default] * self.minlen
+    def checkProperties(self):
+        self.default = [self.members.default] * self.minlen
+        super().checkProperties()
+
+    def getProperties(self):
+        """get also properties of members"""
+        return {**super().getProperties(), **self.members.getProperties()}
+
+    def setProperty(self, key, value):
+        """set also properties of members"""
+        if key in self.__class__.properties:
+            super().setProperty(key, value)
+        else:
+            self.members.setProperty(key, value)
 
     def export_datatype(self):
         return dict(type='array', minlen=self.minlen, maxlen=self.maxlen,
@@ -600,6 +669,7 @@ class ArrayOf(DataType):
 class TupleOf(DataType):
 
     def __init__(self, *members):
+        super().__init__()
         if not members:
             raise BadValueError('Empty tuples are not allowed!')
         for subtype in members:
@@ -651,6 +721,7 @@ class TupleOf(DataType):
 class StructOf(DataType):
 
     def __init__(self, optional=None, **members):
+        super().__init__()
         self.members = members
         if not members:
             raise BadValueError('Empty structs are not allowed!')
@@ -724,10 +795,9 @@ class StructOf(DataType):
 
 class CommandType(DataType):
     IS_COMMAND = True
-    argument = None
-    result = None
 
     def __init__(self, argument=None, result=None):
+        super().__init__()
         if argument is not None:
             if not isinstance(argument, DataType):
                 raise BadValueError('CommandType: Argument type must be a DataType!')
@@ -773,7 +843,7 @@ class CommandType(DataType):
         raise NotImplementedError
 
 
-# internally used datatypes (i.e. only for programming the SEC-node
+# internally used datatypes (i.e. only for programming the SEC-node)
 class DataTypeType(DataType):
     def __call__(self, value):
         """check if given value (a python obj) is a valid datatype
@@ -816,11 +886,13 @@ class ValueType(DataType):
         """
         raise NotImplementedError
 
+
 class NoneOr(DataType):
     """validates a None or smth. else"""
     default = None
 
     def __init__(self, other):
+        super().__init__()
         self.other = other
 
     def __call__(self, value):
@@ -834,6 +906,7 @@ class NoneOr(DataType):
 
 class OrType(DataType):
     def __init__(self, *types):
+        super().__init__()
         self.types = types
         self.default = self.types[0].default
 
@@ -916,5 +989,5 @@ def get_datatype(json):
             raise BadValueError('a data descriptor must be a dict containing a "type" key, not %r' % json)
     try:
         return DATATYPES[base](**args)
-    except (TypeError, AttributeError, KeyError):
-        raise BadValueError('invalid data descriptor: %r' % json)
+    except Exception as e:
+        raise BadValueError('invalid data descriptor: %r (%s)' % (json, str(e)))

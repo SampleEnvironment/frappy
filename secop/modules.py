@@ -160,7 +160,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
                 if paramobj:
                     if propname == 'datatype':
                         paramobj.setProperty('datatype', get_datatype(cfgdict.pop(k)))
-                    elif propname in paramobj.__class__.properties:
+                    elif propname in paramobj.getProperties():
                         paramobj.setProperty(propname, cfgdict.pop(k))
                     else:
                         raise ConfigError('Module %s: Parameter %r has no property %r!' %
@@ -208,8 +208,9 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
         # Modify units AFTER applying the cfgdict
         for k, v in self.parameters.items():
-            if '$' in v.unit:
-                v.unit = v.unit.replace('$', self.parameters['value'].unit)
+            dt = v.datatype
+            if '$' in dt.unit:
+                dt.setProperty('unit', dt.unit.replace('$', self.parameters['value'].datatype.unit))
 
         # 6) check complete configuration of * properties
         self.checkProperties()

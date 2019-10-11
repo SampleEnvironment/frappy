@@ -31,7 +31,6 @@ from secop.modules import Communicator, Drivable, Module
 from secop.params import Command, Override, Parameter
 
 
-
 def test_Communicator():
     logger = type('LoggerStub', (object,), dict(
         debug = lambda self, *a: print(*a),
@@ -54,11 +53,12 @@ def test_Communicator():
     assert event.is_set() # event should be set immediately
 
 def test_ModuleMeta():
+    # pylint: disable=too-many-function-args
     newclass1 = ModuleMeta.__new__(ModuleMeta, 'TestDrivable', (Drivable,), {
         "parameters" : {
             'pollinterval': Override(reorder=True),
             'param1' : Parameter('param1', datatype=BoolType(), default=False),
-            'param2': Parameter('param2', datatype=BoolType(), default=True),
+            'param2': Parameter('param2', datatype=FloatRange(unit='Ohm'), default=True),
             "cmd": Command('stuff', argument=BoolType(), result=BoolType())
         },
         "commands": {
@@ -82,10 +82,12 @@ def test_ModuleMeta():
     sortcheck1 = ['value', 'status', 'target', 'pollinterval',
                  'param1', 'param2', 'cmd', 'a1', 'a2', 'cmd2']
 
+    # pylint: disable=too-many-function-args
     newclass2 = ModuleMeta.__new__(ModuleMeta, 'UpperClass', (newclass1,), {
         "parameters": {
             'cmd2': Override('another stuff'),
-            'a1': Override(datatype=FloatRange(), reorder=True),
+            'value': Override(datatype=FloatRange(unit='deg'), reorder=True),
+            'a1': Override(datatype=FloatRange(unit='$/s'), reorder=True),
             'b2': Parameter('a2', datatype=BoolType(), default=True),
         },
     })
@@ -124,6 +126,25 @@ def test_ModuleMeta():
                 check_order = [(obj.accessibles[n].ctr, n) for n in sortcheck]
             # HACK: atm. disabled to fix all other problems first.
             assert check_order + sorted(check_order)
+
+    o1 = newclass1('o1', logger, {'.description':''}, srv)
+    o2 = newclass2('o2', logger, {'.description':''}, srv)
+    assert o2.parameters['a1'].datatype.unit == 'deg/s'
+    o2 = newclass2('o2', logger, {'.description':'', 'value.unit':'mm', 'param2.unit':'mm'}, srv)
+    # check datatype is not shared
+    assert o1.parameters['param2'].datatype.unit == 'Ohm'
+    assert o2.parameters['param2'].datatype.unit == 'mm'
+    # check '$' in unit works properly
+    assert o2.parameters['a1'].datatype.unit == 'mm/s'
+    cfg = newclass2.configurables
+    assert set(cfg.keys()) == {'export', 'group', 'description',
+        'meaning', 'visibility', 'implementation', 'interface_class', 'target', 'stop',
+        'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'b2', 'cmd2', 'value',
+        'a1'}
+    assert set(cfg['value'].keys()) == {'group', 'export', 'relative_resolution',
+        'visibility', 'unit', 'default', 'optional', 'datatype', 'fmtstr',
+        'absolute_resolution', 'poll', 'max', 'min', 'readonly', 'constant',
+        'description'}
 
     # check on the level of classes
     # this checks newclass1 too, as it is inherited by newclass2
