@@ -25,7 +25,7 @@
 from collections import OrderedDict
 
 from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType, \
-    NoneOr, TextType
+    NoneOr, TextType, IntRange
 from secop.errors import ProgrammingError
 from secop.properties import HasProperties, Property
 
@@ -82,12 +82,14 @@ class Parameter(Accessible):
     from the config file if specified there
 
     poll can be:
-    - False  (never poll this parameter)
-    - True   (poll this every pollinterval)
-    - positive int  (poll every N(th) pollinterval)
-    - negative int  (normally poll every N(th) pollinterval, if module is busy, poll every pollinterval)
-
-    note: Drivable (and derived classes) poll with 10 fold frequency if module is busy....
+    - False or 0 (never poll this parameter), this is the default
+    - True or 1  (poll this parameter)
+    - for any other integer, the meaning depends on the used poller
+      meaning for the default simple poller:
+        - True or 1 (poll this every pollinterval)
+        - positive int  (poll every N(th) pollinterval)
+        - negative int  (normally poll every N(th) pollinterval, if module is busy, poll every pollinterval)
+        note: Drivable (and derived classes) poll with 10 fold frequency if module is busy....
     """
 
     properties = {
@@ -107,7 +109,7 @@ class Parameter(Accessible):
                                  ValueType(), export=False, default=None, mandatory=False),
         'export':      Property('Is this parameter accessible via SECoP? (vs. internal parameter)',
                                  OrType(BoolType(), StringType()), export=False, default=True),
-        'poll':        Property('Polling indicator', ValueType(), export=False, default=True),  # check default value!
+        'poll':        Property('Polling indicator', IntRange(), export=False, default=False),
         'optional':    Property('[Internal] is this parameter optional?', BoolType(), export=False, default=False),
     }
 

@@ -40,7 +40,7 @@ __all__ = [
     'BoolType', 'EnumType',
     'BLOBType', 'StringType',
     'TupleOf', 'ArrayOf', 'StructOf',
-    'CommandType',
+    'CommandType', 'StatusType',
 ]
 
 # *DEFAULT* limits for IntRange/ScaledIntegers transport serialisation
@@ -941,7 +941,7 @@ class LimitsType(StructOf):
         return limits
 
 
-class Status(TupleOf):
+class StatusType(TupleOf):
     # shorten initialisation and allow acces to status enumMembers from status values
     def __init__(self, enum):
         TupleOf.__init__(self, EnumType(enum), StringType())
