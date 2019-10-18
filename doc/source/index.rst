@@ -1,12 +1,14 @@
-Welcome to SECoP's documentation!
-=================================
+Welcome to FRAPPY documentation!
+================================
 
 .. toctree::
    :maxdepth: 2
 
-   protocol/index
-   playground/index
-
+   server/index
+   client/index
+   framework/index
+   gui/index
+   facility/index
 
 
 Indices and tables
