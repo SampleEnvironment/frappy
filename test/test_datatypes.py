@@ -195,6 +195,7 @@ def test_EnumType():
 
     dt = EnumType('dt', a=3, c=7, stuff=1)
     copytest(dt)
+
     assert dt.export_datatype() == {'type': 'enum', 'members': dict(a=3, c=7, stuff=1)}
 
     with pytest.raises(ValueError):
@@ -396,6 +397,9 @@ def test_ArrayOf():
     with pytest.raises(ConfigError):
         dt.checkProperties()
 
+    dt = ArrayOf(EnumType('myenum', single=0), 5)
+    copytest(dt)
+
 def test_TupleOf():
     # test constructor catching illegal arguments
     with pytest.raises(ValueError):
@@ -416,6 +420,9 @@ def test_TupleOf():
     assert dt.import_value([1, True]) == [1, True]
 
     assert dt.format_value([3,0]) == "(3, False)"
+
+    dt = TupleOf(EnumType('myenum', single=0))
+    copytest(dt)
 
 
 def test_StructOf():
@@ -448,6 +455,9 @@ def test_StructOf():
         'a_string': 'WFEC', 'an_int': 13}
 
     assert dt.format_value({'an_int':2, 'a_string':'Z'}) == "{a_string='Z', an_int=2}"
+
+    dt = StructOf(['optionalmember'], optionalmember=EnumType('myenum', single=0))
+    copytest(dt)
 
 
 def test_Command():

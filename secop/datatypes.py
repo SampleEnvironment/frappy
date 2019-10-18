@@ -604,6 +604,10 @@ class ArrayOf(DataType):
         self.members = members
         self.set_properties(minlen=minlen, maxlen=maxlen)
 
+    def copy(self):
+        """DataType.copy does not work when members are enums"""
+        return ArrayOf(self.members.copy(), self.minlen, self.maxlen)
+
     def checkProperties(self):
         self.default = [self.members.default] * self.minlen
         super().checkProperties()
@@ -679,6 +683,10 @@ class TupleOf(DataType):
         self.members = members
         self.default = tuple(el.default for el in members)
 
+    def copy(self):
+        """DataType.copy does not work when members contain enums"""
+        return TupleOf(*(m.copy() for m in self.members))
+
     def export_datatype(self):
         return dict(type='tuple', members=[subtype.export_datatype() for subtype in self.members])
 
@@ -738,6 +746,10 @@ class StructOf(DataType):
                 raise ProgrammingError(
                     'Only members of StructOf may be declared as optional!')
         self.default = dict((k,el.default) for k, el in members.items())
+
+    def copy(self):
+        """DataType.copy does not work when members contain enums"""
+        return StructOf(self.optional, **{k: v.copy() for k,v in self.members.items()})
 
     def export_datatype(self):
         res = dict(type='struct', members=dict((n, s.export_datatype())
