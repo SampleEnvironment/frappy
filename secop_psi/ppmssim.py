@@ -74,6 +74,7 @@ class PpmsSim:
         self.time = int(time.time())
         self.start = self.time
         self.mf_start = 0
+        self.ch_start = 0
         self.changed = set()
 
     def progress(self):
@@ -127,11 +128,37 @@ class PpmsSim:
                 else:
                     self.mf += math.copysign(min(self.field.ramp, abs(dif)), dif)
             # print(self.mf, self.status.mf, self.field)
+
             dif = self.move.target - self.pos
             speed = (15 - self.move.code) * 0.8
             self.pos += math.copysign(min(speed, abs(dif)), dif)
 
-            # omit chamber for now
+            if 'CHAMBER' in self.changed:
+                self.changed.remove('CHAMBER')
+                if self.chamber.target == 0: # seal immediately
+                    self.status.ch = 3 # sealed unknown
+                    self.ch_start = 0
+                elif self.chamber.target == 3: # pump cont.
+                    self.status.ch = 8
+                    self.ch_start = 0
+                elif self.chamber.target == 4: # vent cont.
+                    self.status.ch = 9
+                    self.ch_start = 0
+                elif self.chamber.target == 1: # purge and seal
+                    self.status.ch = 4
+                    self.ch_start = now
+                elif self.chamber.target == 2: # vent and seal
+                    self.status.ch = 5
+                    self.ch_start = now
+                elif self.chamber.target == 5: # hi vac.
+                    self.status.ch = 6 # pumping down
+                    self.ch_start = now
+            elif self.ch_start and now > self.ch_start + 15:
+                self.ch_start = 0
+                if self.chamber.target == 5:
+                    self.status.ch = 7 # at high vac.
+                else:
+                    self.status.ch = self.chamber.target
 
         if abs(self.t - self.temp.target) < 0.01:
             self.status.t = 1

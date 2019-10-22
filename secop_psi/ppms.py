@@ -110,15 +110,15 @@ class Main(Communicator):
         result = {}
         for bitpos, channelname in enumerate(self._channel_names):
             if mask & (1 << bitpos):
-                result[channelname] = reply.pop(0)
+                result[channelname] = float(reply.pop(0))
         if 'temp' in result:
             result['tv'] = result['temp']
         if 'ts' in result:
             result['temp'] = result['ts']
         packed_status = int(result['packed_status'])
+        result['chamber'] = None # 'chamber' must be in result for status, but value is ignored
         for channelname, channel in self.modules.items():
-            if channelname in result and channel.enabled:
-                channel.update_value_status(float(result.get(channelname, None)), packed_status)
+            channel.update_value_status(result.get(channelname, None), packed_status)
         return data # return data as string
 
 
@@ -204,7 +204,10 @@ class PpmsMixin(Module):
         return self.status
 
     def update_value_status(self, value, packed_status):
-        """update value and status"""
+        """update value and status
+
+        to be reimplemented for modules looking at packed_status
+        """
         if not self.enabled:
             self.status = [self.Status.DISABLED, 'disabled']
             return
@@ -441,7 +444,10 @@ class Level(PpmsMixin, Readable):
 
 
 class Chamber(PpmsMixin, Drivable):
-    """sample chamber handling"""
+    """sample chamber handling
+
+    value is an Enum, which is redundant with the status text
+    """
 
     Status = Drivable.Status
     # pylint: disable=invalid-name
@@ -455,10 +461,24 @@ class Chamber(PpmsMixin, Drivable):
         hi_vacuum=5,
         noop=10,
     )
+    StatusCode = Enum(
+        'StatusCode',
+        unknown=0,
+        purged_and_sealed=1,
+        vented_and_sealed=2,
+        sealed_unknown=3,
+        purge_and_seal=4,
+        vent_and_seal=5,
+        pumping_down=6,
+        at_hi_vacuum=7,
+        pumping_continuously=8,
+        venting_continuously=9,
+        general_failure=15,
+    )
     parameters = {
         'value':
             Override(description='chamber state', poll=False,
-                     datatype=StringType(), default='unknown'),
+                     datatype=EnumType(StatusCode), default='unknown'),
         'status':
             Override(poll=False),
         'target':
@@ -468,17 +488,17 @@ class Chamber(PpmsMixin, Drivable):
             Override(visibility=3),
     }
     STATUS_MAP = {
-        0: [Status.ERROR, 'unknown'],
-        1: [Status.IDLE, 'purged and sealed'],
-        2: [Status.IDLE, 'vented and sealed'],
-        3: [Status.WARN, 'sealed unknown'],
-        4: [Status.BUSY, 'purge and seal'],
-        5: [Status.BUSY, 'vent and seal'],
-        6: [Status.BUSY, 'pumping down'],
-        7: [Status.IDLE, 'at hi vacuum'],
-        8: [Status.IDLE, 'pumping continuously'],
-        9: [Status.IDLE, 'venting continuously'],
-        15: [Status.ERROR, 'general failure'],
+        StatusCode.unknown: [Status.ERROR, 'unknown'],
+        StatusCode.purged_and_sealed: [Status.IDLE, 'purged and sealed'],
+        StatusCode.vented_and_sealed: [Status.IDLE, 'vented and sealed'],
+        StatusCode.sealed_unknown: [Status.WARN, 'sealed unknown'],
+        StatusCode.purge_and_seal: [Status.BUSY, 'purge and seal'],
+        StatusCode.vent_and_seal: [Status.BUSY, 'vent and seal'],
+        StatusCode.pumping_down: [Status.BUSY, 'pumping down'],
+        StatusCode.at_hi_vacuum: [Status.IDLE, 'at hi vacuum'],
+        StatusCode.pumping_continuously: [Status.IDLE, 'pumping continuously'],
+        StatusCode.venting_continuously: [Status.IDLE, 'venting continuously'],
+        StatusCode.general_failure: [Status.ERROR, 'general failure'],
     }
 
     channel = 'chamber'
@@ -486,8 +506,8 @@ class Chamber(PpmsMixin, Drivable):
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
-        self.status = self.STATUS_MAP[(packed_status >> 8) & 0xf]
-        self.value = self.status[1]
+        self.value = (packed_status >> 8) & 0xf
+        self.status = self.STATUS_MAP[self.value]
 
     def get_settings(self, pname):
         """read settings
