@@ -98,7 +98,7 @@ class Parameter(Accessible):
         'datatype':    Property('Datatype of the Parameter', DataTypeType(),
                                  extname='datainfo', mandatory=True),
         'readonly':    Property('Is the Parameter readonly? (vs. changeable via SECoP)', BoolType(),
-                                 extname='readonly', default=True),
+                                 extname='readonly', mandatory=True),
         'group':       Property('Optional parameter group this parameter belongs to', StringType(),
                                  extname='group', default=''),
         'visibility':  Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
@@ -130,6 +130,7 @@ class Parameter(Accessible):
 
         kwds['description'] = description
         kwds['datatype'] = datatype
+        kwds['readonly'] = kwds.get('readonly', True) # for frappy optional, for SECoP mandatory
         if unit is not None: # for legacy code only
             datatype.setProperty('unit', unit)
         super(Parameter, self).__init__(**kwds)
