@@ -30,7 +30,11 @@ import time
 from collections import OrderedDict
 from select import select
 
-import mlzlog
+try:
+    import mlzlog
+except ImportError:
+    pass
+
 import serial
 
 from secop.datatypes import CommandType, EnumType, get_datatype
@@ -43,20 +47,24 @@ from secop.protocol.messages import BUFFERREQUEST, COMMANDREQUEST, \
     HEARTBEATREQUEST, HELPREQUEST, IDENTREQUEST, READREPLY, \
     READREQUEST, REQUEST2REPLY, WRITEREPLY, WRITEREQUEST
 
-
 class TCPConnection:
     # disguise a TCP connection as serial one
 
-    def __init__(self, host, port):
-        self.log = mlzlog.getLogger('TCPConnection')
+    def __init__(self, host, port, getLogger=None):
+        if getLogger:
+            self.log = getLogger('TCPConnection')
+        else:
+            mlzlog.getLogger('TCPConnection')
         self._host = host
         self._port = int(port)
         self._thread = None
         self.callbacks = []  # called if SEC-node shuts down
+        self._io = None
         self.connect()
 
     def connect(self):
         self._readbuffer = queue.Queue(100)
+        time.sleep(1)
         io = socket.create_connection((self._host, self._port))
         io.setblocking(False)
         self.stopflag = False
@@ -126,6 +134,8 @@ class TCPConnection:
         return not self._readbuffer.empty()
 
     def write(self, data):
+        if self._io is None:
+            self.connect()
         self._io.sendall(data.encode('latin-1'))
 
     def writeline(self, line):
@@ -171,9 +181,12 @@ class Client:
     stopflag = False
     connection_established = False
 
-    def __init__(self, opts, autoconnect=True):
+    def __init__(self, opts, autoconnect=True, getLogger=None):
         if 'testing' not in opts:
-            self.log = mlzlog.log.getChild('client', True)
+            if getLogger:
+                self.log = getLogger('client')
+            else:
+                self.log = mlzlog.getLogger('client', True)
         else:
             class logStub:
 
@@ -197,7 +210,7 @@ class Client:
             host = opts.pop('host', 'localhost')
             port = int(opts.pop('port', 10767))
             self.contactPoint = "tcp://%s:%d" % (host, port)
-            self.connection = TCPConnection(host, port)
+            self.connection = TCPConnection(host, port, getLogger=getLogger)
         else:
             self.contactPoint = 'testing'
             self.connection = opts.pop('testing')

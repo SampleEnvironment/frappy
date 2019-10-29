@@ -30,7 +30,10 @@ import threading
 from collections import deque
 from os import path
 
-import mlzlog
+try:
+    import mlzlog
+except ImportError:
+    pass # has to be fixed in case this file is used again
 
 from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
 from secop.protocol.messages import DESCRIPTIONREQUEST, EVENTREPLY
