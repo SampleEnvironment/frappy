@@ -1,3 +1,28 @@
+secop-core (0.10.5) unstable; urgency=low
+
+  [ Markus Zolliker ]
+  * use Properties from secop.properties for datatypes
+  * revert default of poll to False
+
+  [ Enrico Faulhaber ]
+  * Remove obsolete protocol specification
+
+  [ Markus Zolliker ]
+  * fix DataType.copy for nested types
+  * added PPMS driver
+  * windows interface for the PPMS driver
+  * modified ppms driver
+  * readonly is mandatory for SECoP
+  * make baseclient work without mlzlog
+  * change interfaces_class to interface_classes
+
+  [ Enrico Faulhaber ]
+  * minor fixups
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 29 Oct 2019 16:33:18 +0100
+
 secop-core (0.10.3) unstable; urgency=low
 
   [ Enrico Faulhaber ]
