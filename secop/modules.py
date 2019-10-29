@@ -74,8 +74,8 @@ class Module(HasProperties, metaclass=ModuleMeta):
                                     default='user', extname='visibility'),
         'implementation':  Property('Internal name of the implementation class of the module', StringType(),
                                     extname='implementation'),
-        'interface_class': Property('Offical highest Interface-class of the module', ArrayOf(StringType()),
-                                    extname='interface_class'),
+        'interface_classes': Property('Offical highest Interface-class of the module', ArrayOf(StringType()),
+                                    extname='interface_classes'),
         # what else?
     }
 
@@ -111,10 +111,10 @@ class Module(HasProperties, metaclass=ModuleMeta):
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
         self.properties['implementation'] = myclassname
         # list of all 'secop' modules
-        self.properties['interface_class'] = [
+        self.properties['interface_classes'] = [
             b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
         # list of only the 'highest' secop module class
-        self.properties['interface_class'] = [[
+        self.properties['interface_classes'] = [[
             b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')][0]]
 
         # handle Features

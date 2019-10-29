@@ -135,10 +135,7 @@ class NodeCtrl(QWidget):
         row = 0
         for modname in sorted(self._node.modules):
             modprops = self._node.getModuleProperties(modname)
-            if 'interface_class' in modprops:
-                interfaces = modprops['interface_class']
-            else:
-                interfaces = modprops.get('interfaces', '')
+            interfaces = modprops.get('interface_classes', '')
             description = modprops.get('description', '!!! missing description !!!')
 
             # fallback: allow (now) invalid 'Driveable'

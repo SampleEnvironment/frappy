@@ -138,7 +138,7 @@ def test_ModuleMeta():
     assert o2.parameters['a1'].datatype.unit == 'mm/s'
     cfg = newclass2.configurables
     assert set(cfg.keys()) == {'export', 'group', 'description',
-        'meaning', 'visibility', 'implementation', 'interface_class', 'target', 'stop',
+        'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'b2', 'cmd2', 'value',
         'a1'}
     assert set(cfg['value'].keys()) == {'group', 'export', 'relative_resolution',

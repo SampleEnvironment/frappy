@@ -383,6 +383,11 @@ class Client:
             describing_data = self._decode_substruct(
                 ['modules'], describing_data)
             for modname, module in list(describing_data['modules'].items()):
+                # convert old namings of interface_classes
+                if 'interface_class' in module:
+                    module['interface_classes'] = module.pop('interface_class')
+                elif 'interfaces' in module:
+                    module['interface_classes'] = module.pop('interfaces')
                 describing_data['modules'][modname] = self._decode_substruct(
                     ['accessibles'], module)
 
@@ -551,7 +556,7 @@ class Client:
         return self.describing_data['modules'][module]['properties']
 
     def getModuleBaseClass(self, module):
-        return self.getModuleProperties(module)['interface_class']
+        return self.getModuleProperties(module)['interface_classes']
 
     def getCommands(self, module):
         cmds = filter(lambda item: isinstance(item[1]['datatype'], CommandType),
