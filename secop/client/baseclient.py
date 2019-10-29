@@ -54,7 +54,7 @@ class TCPConnection:
         if getLogger:
             self.log = getLogger('TCPConnection')
         else:
-            mlzlog.getLogger('TCPConnection')
+            self.log = mlzlog.getLogger('TCPConnection')
         self._host = host
         self._port = int(port)
         self._thread = None

@@ -614,7 +614,10 @@ class ArrayOf(DataType):
 
     def getProperties(self):
         """get also properties of members"""
-        return {**super().getProperties(), **self.members.getProperties()}
+        res = {}
+        res.update(super().getProperties())
+        res.update(self.members.getProperties())
+        return res
 
     def setProperty(self, key, value):
         """set also properties of members"""
