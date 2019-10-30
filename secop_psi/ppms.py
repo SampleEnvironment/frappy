@@ -488,7 +488,7 @@ class Chamber(PpmsMixin, Drivable):
             Override(visibility=3),
     }
     STATUS_MAP = {
-        StatusCode.unknown: [Status.ERROR, 'unknown'],
+        StatusCode.unknown: [Status.WARN, 'unknown'],
         StatusCode.purged_and_sealed: [Status.IDLE, 'purged and sealed'],
         StatusCode.vented_and_sealed: [Status.IDLE, 'vented and sealed'],
         StatusCode.sealed_unknown: [Status.WARN, 'sealed unknown'],
@@ -594,7 +594,7 @@ class Temp(PpmsMixin, Drivable):
     channel = 'temp'
     _settingnames = ['target', 'ramp', 'approachmode']
     _stopped = False
-    _expected_target = None
+    _expected_target = 0
     _last_change = 0 # 0 means no target change is pending
 
     def earlyInit(self):
@@ -633,7 +633,7 @@ class Temp(PpmsMixin, Drivable):
                     self.status = [self.Status.WARN, 'timeout while %s' % status[1]]
                     return
             else:
-                self._expected_target = None
+                self._expected_target = 0
         self.status = status
 
     def get_settings(self, pname):
@@ -678,7 +678,7 @@ class Temp(PpmsMixin, Drivable):
         return newtarget
 
     def write_ramp(self, value):
-        if not isDriving(self.status)():
+        if not isDriving(self.status):
             # do not yet write settings, as this may change the status to busy
             return value
         if time.time() < self._expected_target: # recalc expected target
@@ -694,7 +694,7 @@ class Temp(PpmsMixin, Drivable):
     def do_stop(self):
         if not isDriving(self.status):
             return
-        if self.status[0] == self.Status.STABLIZING:
+        if self.status[0] == self.Status.STABILIZING:
             # we are already near target
             newtarget = self.target
         else:
