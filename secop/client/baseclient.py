@@ -286,6 +286,7 @@ class Client:
                 entry[0].set()
                 return
             self.log.error("got an unexpected %s %r" % (msgtype,data[0:1]))
+            self.log.error(repr(data))
             return
         if msgtype == DESCRIPTIONREPLY:
             entry = self.expected_replies.get((msgtype, ''), None)

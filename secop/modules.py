@@ -324,6 +324,7 @@ class Readable(Module):
                     try:
                         rfunc()  # pylint: disable = not-callable
                     except Exception:  # really all!
+                        # XXX: Error-handling: send error_update !
                         pass
         return False
 
@@ -385,6 +386,7 @@ class Drivable(Writable):
                     try:
                         rfunc()  # pylint: disable = not-callable
                     except Exception:  # really all!
+                        # XXX: Error-handling: send error_update !
                         pass
         return fastpoll
 

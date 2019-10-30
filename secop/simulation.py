@@ -56,7 +56,7 @@ class SimBase:
                     return newval
                 setattr(self, 'write_' + k, writer)
 
-    def init_module(self):
+    def initModule(self):
         self._sim_thread = mkthread(self._sim)
 
     def _sim(self):
@@ -120,6 +120,10 @@ class SimDrivable(SimBase, Drivable):
         if speed == 0:
             self._value = self.target
         speed *= 0.3
+        try:
+            self.pollParams(0)
+        except Exception:
+            pass
 
         while self._value != self.target:
             if self._value < self.target - speed:
@@ -129,6 +133,10 @@ class SimDrivable(SimBase, Drivable):
             else:
                 self._value = self.target
             sleep(0.3)
+            try:
+                self.pollParams(0)
+            except Exception:
+                pass
         self.status = self.Status.IDLE, ''
 
     def _hw_wait(self):

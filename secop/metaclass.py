@@ -68,12 +68,11 @@ class ModuleMeta(PropertyMeta):
         for accessibles_dict in accessibles_list:
             for key, obj in accessibles_dict.items():
                 if isinstance(obj, Override):
-                    try:
-                        obj = obj.apply(accessibles[key])
-                        accessibles[key] = obj
-                    except KeyError:
-                        raise ProgrammingError("module %s: %s does not exist"
-                                       % (name, key))
+                    if key not in accessibles:
+                        raise ProgrammingError("module %s: can not apply Override on %s: no such accessible!"
+                                               % (name, key))
+                    obj = obj.apply(accessibles[key])
+                    accessibles[key] = obj
                 else:
                     if key in accessibles:
                         # for now, accept redefinitions:

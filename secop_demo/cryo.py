@@ -134,8 +134,7 @@ class Cryostat(CryoBase):
     )
     commands = dict(
         stop=Override(
-            "Stop ramping the setpoint\n\nby setting the current setpoint as new target",
-            special='content of special property'),
+            "Stop ramping the setpoint\n\nby setting the current setpoint as new target"),
     )
 
     def initModule(self):

@@ -53,18 +53,18 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         'subdev_polswitch': Parameter('Switch to set for polarity', datatype=StringType(), readonly=True, export=False),
         'subdev_symmetry': Parameter('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False),
         'userlimits': Parameter('User defined limits of device value',
-                            unit='main', datatype=TupleOf(FloatRange(), FloatRange()),
+                            datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
                             default=(float('-Inf'), float('+Inf')), readonly=False, poll=10),
         'abslimits': Parameter('Absolute limits of device value',
-                           unit='main', datatype=TupleOf(FloatRange(), FloatRange()),
+                           datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
                            default=(-0.5, 0.5), poll=True,
                            ),
         'precision': Parameter('Precision of the device value (allowed deviation '
                            'of stable values from target)',
-                           unit='main', datatype=FloatRange(0.001), default=0.001, readonly=False,
+                           datatype=FloatRange(0.001, unit='$'), default=0.001, readonly=False,
                            ),
         'ramp': Parameter('Target rate of field change per minute', readonly=False,
-                      unit='main/min', datatype=FloatRange(), default=1.0),
+                      datatype=FloatRange(unit='$/min'), default=1.0),
         'calibration': Parameter('Coefficients for calibration '
                              'function: [c0, c1, c2, c3, c4] calculates '
                              'B(I) = c0*I + c1*erf(c2*I) + c3*atan(c4*I)'

@@ -386,7 +386,7 @@ class AnalogInput(PyTangoDevice, Readable):
         # prefer configured unit if nothing is set on the Tango device, else
         # update
         if attrInfo.unit != 'No unit':
-            self.accessibles['value'].unit = attrInfo.unit
+            self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
 
     def read_value(self):
         return self._dev.value
@@ -469,7 +469,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         # prefer configured unit if nothing is set on the Tango device, else
         # update
         if attrInfo.unit != 'No unit':
-            self.accessibles['value'].unit = attrInfo.unit
+            self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
 
     def pollParams(self, nr=0):
         super(AnalogOutput, self).pollParams(nr)

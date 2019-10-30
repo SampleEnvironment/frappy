@@ -945,14 +945,14 @@ UInt64 = IntRange(0, (1 << 64) - 1)
 
 
 # Goodie: Convenience Datatypes for Programming
-class LimitsType(StructOf):
-    def __init__(self, _min=None, _max=None):
-        StructOf.__init__(self, min=FloatRange(_min,_max), max=FloatRange(_min, _max))
+class LimitsType(TupleOf):
+    def __init__(self, members):
+        TupleOf.__init__(self, members, members)
 
     def __call__(self, value):
-        limits = StructOf.__call__(self, value)
-        if limits['max'] < limits['min']:
-            raise BadValueError('Maximum Value %s must be greater than minimum value %s!' % (limits['max'], limits['min']))
+        limits = TupleOf.__call__(self, value)
+        if limits[1] < limits[0]:
+            raise BadValueError('Maximum Value %s must be greater than minimum value %s!' % (limits[1], limits[0]))
         return limits
 
 
@@ -983,6 +983,7 @@ DATATYPES = dict(
     struct  =lambda members, optional=None: StructOf(optional,
         **dict((n, get_datatype(t)) for n, t in list(members.items()))),
     command = lambda argument=None, result=None: CommandType(get_datatype(argument), get_datatype(result)),
+    limit   = lambda members: LimitsType(get_datatype(members)),
 )
 
 

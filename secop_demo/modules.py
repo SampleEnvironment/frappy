@@ -293,7 +293,7 @@ class Label(Readable):
         dev_ts = self.DISPATCHER.get_module(self.subdev_ts)
         if dev_ts:
             strings.append('at %.3f %s' %
-                           (dev_ts.read_value(), dev_ts.parameters['value'].unit))
+                           (dev_ts.read_value(), dev_ts.parameters['value'].datatype.unit))
         else:
             strings.append('No connection to sample temp!')
 
@@ -302,7 +302,7 @@ class Label(Readable):
             mf_stat = dev_mf.read_status()
             mf_mode = dev_mf.mode
             mf_val = dev_mf.value
-            mf_unit = dev_mf.parameters['value'].unit
+            mf_unit = dev_mf.parameters['value'].datatype.unit
             if mf_stat[0] == self.Status.IDLE:
                 state = 'Persistent' if mf_mode else 'Non-persistent'
             else:
