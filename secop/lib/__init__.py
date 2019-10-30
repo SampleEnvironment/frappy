@@ -40,7 +40,7 @@ repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
 CONFIG = {
     'piddir': os.path.join(repodir, 'pid'),
     'logdir': os.path.join(repodir, 'log'),
-    'confdir': os.path.join(repodir, 'etc'),
+    'confdir': os.path.join(repodir, 'cfg'),
     'basedir': repodir,
 } if os.path.exists(os.path.join(repodir, '.git')) else {
     'piddir': '/var/run/secop',
