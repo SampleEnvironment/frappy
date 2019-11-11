@@ -198,7 +198,7 @@ class PpmsMixin(Module):
     def read_status(self):
         """not very useful, as status is updated fast enough
 
-        note: this will update status of all modules, and this module twice
+        note: this will update the status of all modules, and this module twice
         """
         self._main.read_data()
         return self.status
@@ -422,6 +422,13 @@ class Level(PpmsMixin, Readable):
 
     channel = 'level'
     _settingnames = ['value', 'status']
+
+    def update_value_status(self, value, packed_status):
+        """must be a no-op
+
+        when called from Main.read_data, value is always None
+        value and status is polled via settings
+        """
 
     def get_settings(self, pname):
         """read settings
