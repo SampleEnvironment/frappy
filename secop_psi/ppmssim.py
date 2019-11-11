@@ -160,14 +160,19 @@ class PpmsSim:
                 else:
                     self.status.ch = self.chamber.target
 
-        if abs(self.t - self.temp.target) < 0.01:
-            self.status.t = 1
-        elif abs(self.t - self.temp.target) < 0.1:
-            self.status.t = 5
-        elif abs(self.t - self.temp.target) < 1:
-            self.status.t = 6
-        else:
-            self.status.t = 2
+            if 'TEMP' in self.changed:
+                self.changed.remove('TEMP')
+                self.status.t = 2 # changing
+                self.t_start = now
+            elif abs(self.t - self.temp.target) < 0.1:
+                if now > self.t_start + 10:
+                    self.status.t = 1 # stable
+                else:
+                    self.status.t = 5 # within tolerance
+            else:
+                self.t_start = now
+                if abs(self.t - self.temp.target) < 1:
+                    self.status.t = 6 # outside tolerance
 
 
         if abs(self.pos - self.move.target) < 0.01:
