@@ -64,7 +64,7 @@ class QSECNode(SECNode, QObject):
 
 
 class MainWindow(QMainWindow):
-    showMessageSignal = pyqtSignal(str, str)
+    askReopenSignal = pyqtSignal(str, str)
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -83,7 +83,7 @@ class MainWindow(QMainWindow):
         self._paramCtrls = {}
         self._topItems = {}
         self._currentWidget = self.splitter.widget(1).layout().takeAt(0)
-        self.showMessageSignal.connect(self.showMessage)
+        self.askReopenSignal.connect(self.askReopen)
 
         # add localhost (if available) and SEC nodes given as arguments
         args = sys.argv[1:]
@@ -132,15 +132,18 @@ class MainWindow(QMainWindow):
     def _removeSubTree(self, toplevel_item):
         self.treeWidget.invisibleRootItem().removeChild(toplevel_item)
 
-    def _nodeDisconnected_callback(self, host):
-        node = self._nodes[host]
+    def _nodeDisconnected_callback(self, nodename, host):
+        node = self._nodes[nodename]
         self._removeSubTree(self._topItems[node])
         del self._topItems[node]
         node.quit()
-        self.showMessageSignal.emit('connection closed', 'connection to %s closed' % host)
+        self.askReopenSignal.emit(nodename, host)
 
-    def showMessage(self, title, text):
-        QMessageBox.warning(self.parent(), title, text)
+    def askReopen(self, nodename, host):
+        result = QMessageBox.question(self.parent(), 'connection closed',
+            'connection to %s closed, reopen?' % nodename)
+        if result == QMessageBox.Yes:
+            self._addNode(host)
 
     def _addNode(self, host):
 
@@ -152,12 +155,12 @@ class MainWindow(QMainWindow):
         node = QSECNode({'host': host, 'port': port}, parent=self)
         host = '%s:%d' % (host, port)
 
-        host = '%s (%s)' % (node.equipmentId, host)
-        self._nodes[host] = node
-        node.register_shutdown_callback(self._nodeDisconnected_callback, host)
+        nodename = '%s (%s)' % (node.equipmentId, host)
+        self._nodes[nodename] = node
+        node.register_shutdown_callback(self._nodeDisconnected_callback, nodename, host)
 
         # fill tree
-        nodeItem = QTreeWidgetItem(None, [host], ITEM_TYPE_NODE)
+        nodeItem = QTreeWidgetItem(None, [nodename], ITEM_TYPE_NODE)
 
         for module in sorted(node.modules):
             moduleItem = QTreeWidgetItem(nodeItem, [module], ITEM_TYPE_MODULE)
