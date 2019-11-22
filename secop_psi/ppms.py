@@ -42,7 +42,7 @@ import threading
 import json
 
 from secop.modules import Module, Readable, Drivable, Parameter, Override,\
-    Communicator, Property
+    Communicator, Property, Attached
 from secop.datatypes import EnumType, FloatRange, IntRange, StringType,\
     BoolType, StatusType
 from secop.lib.enum import Enum
@@ -124,9 +124,7 @@ class Main(Communicator):
 
 class PpmsMixin(Module):
     properties = {
-        'iodev':
-            Property('attached communicator module',
-                     datatype=StringType(), export=False, default=''),
+        'iodev': Attached('_main'),
     }
     parameters = {
         'settings':
@@ -142,7 +140,6 @@ class PpmsMixin(Module):
     slow_pollfactor = 1
 
     def initModule(self):
-        self._main = self.DISPATCHER.get_module(self.iodev)
         self._main.register(self)
 
     def startModule(self, started_callback):

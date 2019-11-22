@@ -407,3 +407,14 @@ class Communicator(Module):
                             result=StringType()
                            ),
     }
+
+
+
+class Attached(Property):
+    # we can not put this to properties.py, as it needs datatypes
+    def __init__(self, attrname=None):
+        self.attrname = attrname
+        super().__init__('attached module', StringType())
+
+    def __repr__(self):
+        return 'Attached(%r)' % self.description

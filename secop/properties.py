@@ -52,7 +52,7 @@ class Property:
         self.settable = settable or mandatory  # settable means settable from the cfg file
 
     def __repr__(self):
-        return 'Property(%s, %s, default=%r, extname=%r, export=%r, mandatory=%r)' % (
+        return 'Property(%r, %s, default=%r, extname=%r, export=%r, mandatory=%r)' % (
             self.description, self.datatype, self.default, self.extname, self.export, self.mandatory)
 
 

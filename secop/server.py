@@ -33,6 +33,7 @@ from daemon import DaemonContext
 
 from secop.errors import ConfigError
 from secop.lib import formatException, get_class, getGeneralConfig
+from secop.modules import Attached
 
 try:
     import daemon.pidlockfile as pidlockfile
@@ -186,6 +187,12 @@ class Server:
             # also call earlyInit on the modules
             modobj.earlyInit()
 
+        # handle attached modules
+        for modname, modobj in self.modules.items():
+            for propname, propobj in modobj.__class__.properties.items():
+                if isinstance(propobj, Attached):
+                    setattr(modobj, propobj.attrname or '_' + propname,
+                            self.dispatcher.get_module(modobj.properties[propname]))
         # call init on each module after registering all
         for modname, modobj in self.modules.items():
             modobj.initModule()
