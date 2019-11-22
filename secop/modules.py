@@ -198,10 +198,9 @@ class Module(HasProperties, metaclass=ModuleMeta):
             except (ValueError, TypeError):
                 self.log.exception(formatExtendedStack())
                 raise
-#                    raise ConfigError('Module %s: config parameter %r:\n%r' %
-#                                      (self.name, k, e))
-            # note: this will call write_* methods which will
-            # write to the hardware, if possible!
+                # raise ConfigError('Module %s: config parameter %r:\n%r' %
+                #                   (self.name, k, e))
+            # note: this will NOT call write_* methods!
             if k != 'value':
                 setattr(self, k, v)
             cfgdict.pop(k)

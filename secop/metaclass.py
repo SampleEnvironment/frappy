@@ -194,10 +194,12 @@ class ModuleMeta(PropertyMeta):
         res = {}
         # collect info about properties
         for pn, pv in cls.properties.items():
-            res[pn] = pv
+            if pv.settable:
+                res[pn] = pv
         # collect info about parameters and their properties
         for param, pobj in cls.accessibles.items():
             res[param] = {}
             for pn, pv in pobj.getProperties().items():
-                res[param][pn] = pv
+                if pv.settable:
+                    res[param][pn] = pv
         return res
