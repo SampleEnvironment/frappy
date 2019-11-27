@@ -30,11 +30,12 @@ from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
     StringType, TupleOf, get_datatype, ArrayOf, TextType
 from secop.errors import ConfigError, ProgrammingError
 from secop.lib import formatException, \
-    formatExtendedStack, mkthread, unset_value
+    formatExtendedStack, mkthread
 from secop.lib.enum import Enum
 from secop.metaclass import ModuleMeta
 from secop.params import PREDEFINED_ACCESSIBLES, Command, Override, Parameter, Parameters, Commands
 from secop.properties import HasProperties, Property
+from secop.poller import Poller, BasicPoller
 
 
 # XXX: connect with 'protocol'-Modules.
@@ -85,6 +86,8 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
     # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
+
+    pollerClass = Poller
 
     def __init__(self, name, logger, cfgdict, srv):
         # remember the dispatcher object (for the async callbacks)
@@ -179,13 +182,14 @@ class Module(HasProperties, metaclass=ModuleMeta):
         #    is not specified in cfgdict
         for k, v in self.parameters.items():
             if k not in cfgdict:
-                if v.default is unset_value and k != 'value':
-                    # unset_value is the one single value you can not specify....
-                    raise ConfigError('Module %s: Parameter %r has no default '
-                                      'value and was not given in config!' %
-                                      (self.name, k))
-                # assume default value was given
-                cfgdict[k] = v.default
+                if v.default is None:
+                    if not v.poll:
+                        raise ConfigError('Module %s: Parameter %r has no default '
+                                          'value and was not given in config!' %
+                                          (self.name, k))
+                    cfgdict[k] = v.datatype.default
+                else:
+                    cfgdict[k] = v.default
 
         # 5) 'apply' config:
         #    pass values through the datatypes and store as attributes
@@ -265,7 +269,7 @@ class Readable(Module):
     parameters = {
         'value':        Parameter('current value of the Module', readonly=True,
                                   default=0., datatype=FloatRange(),
-                                  unit='', poll=True,
+                                  poll=True,
                                  ),
         'pollinterval': Parameter('sleeptime between polls', default=5,
                                   readonly=False,
@@ -279,12 +283,12 @@ class Readable(Module):
     }
 
     def startModule(self, started_callback):
-        '''start polling thread'''
-        if hasattr(self, 'pollerClass'): # an other poller is used
-            started_callback()
-        else:
-            # basic poller kept for reference
+        '''start basic polling thread'''
+        if issubclass(self.pollerClass, BasicPoller):
+            # use basic poller for legacy code
             mkthread(self.__pollThread, started_callback)
+        else:
+            started_callback()
 
     def __pollThread(self, started_callback):
         while True:

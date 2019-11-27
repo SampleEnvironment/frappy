@@ -41,7 +41,7 @@ from secop.errors import CommunicationFailedError, \
     ConfigError, HardwareError, ProgrammingError
 from secop.lib import lazy_property
 from secop.modules import Command, Drivable, \
-    Module, Override, Parameter, Readable
+    Module, Override, Parameter, Readable, BasicPoller
 
 #####
 
@@ -157,6 +157,8 @@ class PyTangoDevice(Module):
     The PyTangoDevice uses an internal PyTango.DeviceProxy but wraps command
     execution and attribute operations with logging and exception mapping.
     """
+
+    pollerClass = BasicPoller
 
     parameters = {
         'comtries': Parameter('Maximum retries for communication',

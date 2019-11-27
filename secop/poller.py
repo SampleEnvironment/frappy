@@ -58,17 +58,13 @@ class PollerBase:
         poller as value.
         <name> is module.iodev or module.name, if iodev is not present
         '''
-        try:
-            pollerClass = module.pollerClass
-        except AttributeError:
-            return # no pollerClass -> fall back to simple poller
         # for modules with the same iodev, a common poller is used,
         # modules without iodev all get their own poller
         name = getattr(module, 'iodev', module.name)
-        poller = table.get((pollerClass, name), None)
+        poller = table.get((cls, name), None)
         if poller is None:
-            poller = pollerClass(name)
-            table[(pollerClass, name)] = poller
+            poller = cls(name)
+            table[(cls, name)] = poller
         poller.add_to_poller(module)
 
     def start(self, started_callback):
@@ -96,8 +92,6 @@ class PollerBase:
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.name)
-
-    __nonzero__ = __bool__  # Py2/3 compat
 
 
 class Poller(PollerBase):
@@ -246,4 +240,14 @@ class Poller(PollerBase):
         '''is there any poll item?'''
         return any(self.queues.values())
 
-    __nonzero__ = __bool__  # Py2/3 compat
+
+class BasicPoller(PollerBase):
+    """basic poller
+
+    this is just a dummy, the poller thread is started in Readable.startModule
+    """
+    # pylint: disable=abstract-method
+
+    @classmethod
+    def add_to_table(cls, table, module):
+        pass

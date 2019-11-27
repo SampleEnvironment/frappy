@@ -31,7 +31,7 @@ import math
 from secop.datatypes import ArrayOf, FloatRange, StringType, StructOf, TupleOf
 from secop.errors import ConfigError, DisabledError
 from secop.lib.sequence import SequencerMixin, Step
-from secop.modules import Drivable, Parameter
+from secop.modules import Drivable, Parameter, BasicPoller
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):
@@ -46,6 +46,8 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     Coefficients c0..c4 are given as 'calibration_table' parameter,
     the symmetry setting selects which.
     """
+
+    pollerClass = BasicPoller
 
     parameters = {
         'subdev_currentsource': Parameter('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False),

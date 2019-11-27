@@ -27,10 +27,12 @@ from time import sleep
 
 from secop.datatypes import FloatRange
 from secop.lib import mkthread
-from secop.modules import Drivable, Module, Parameter, Readable, Writable
+from secop.modules import Drivable, Module, Parameter, Readable, Writable, BasicPoller
 
 
 class SimBase:
+    pollerClass = BasicPoller
+
     def __init__(self, cfgdict):
         # spice up parameters if requested by extra property
         # hint: us a comma-separated list if mor than one extra_param
@@ -68,7 +70,7 @@ class SimBase:
         self.log.info('sim thread ended')
 
     def sim(self):
-        return True
+        return True # nothing to do, stop thread
 
     def read_value(self):
         if 'jitter' in self.accessibles:
@@ -138,6 +140,7 @@ class SimDrivable(SimBase, Drivable):
             except Exception:
                 pass
         self.status = self.Status.IDLE, ''
+        return False # keep thread running
 
     def _hw_wait(self):
         while self.status[0] == self.Status.BUSY:

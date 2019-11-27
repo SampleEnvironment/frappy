@@ -122,8 +122,9 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 try:
                     msg = decode_msg(origin)
                 except Exception as err:
-                    # we have to decode 'origin' here. utf-8 and ascii may lead to encoding errors
-                    msg = origin.decode('latin-1').split(' ', 3)
+                    # we have to decode 'origin' here
+                    # use latin-1, as utf-8 or ascii may lead to encoding errors
+                    msg = origin.decode('latin-1').split(' ', 3) + (None,) # make sure len(msg) > 1
                     result = (ERRORPREFIX + msg[0], msg[1], ['InternalError', str(err),
                                                              {'exception': formatException(),
                                                               'traceback': formatExtendedStack()}])

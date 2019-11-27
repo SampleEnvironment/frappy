@@ -185,10 +185,7 @@ class Server:
         for modname, modobj in self.modules.items():
             self.log.info('registering module %r' % modname)
             self.dispatcher.register_module(modobj, modname, modobj.properties['export'])
-            try:
-                modobj.pollerClass.add_to_table(pollTable, modobj)
-            except AttributeError:
-                pass
+            modobj.pollerClass.add_to_table(pollTable, modobj)
             # also call earlyInit on the modules
             modobj.earlyInit()
 
