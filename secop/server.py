@@ -29,16 +29,19 @@ import threading
 import configparser
 from collections import OrderedDict
 
-from daemon import DaemonContext
+try:
+    from daemon import DaemonContext
+    try:
+        import daemon.pidlockfile as pidlockfile
+    except ImportError:
+        import daemon.pidfile as pidlockfile
+except ImportError:
+    DaemonContext = None
 
 from secop.errors import ConfigError
 from secop.lib import formatException, get_class, getGeneralConfig
 from secop.modules import Attached
 
-try:
-    import daemon.pidlockfile as pidlockfile
-except ImportError:
-    import daemon.pidfile as pidlockfile
 
 
 class Server:
@@ -75,6 +78,8 @@ class Server:
         self._interface = None
 
     def start(self):
+        if not DaemonContext:
+            raise ConfigError('can not daemonize, as python-daemon is not installed')
         piddir = os.path.dirname(self._pidfile)
         if not os.path.isdir(piddir):
             os.makedirs(piddir)
