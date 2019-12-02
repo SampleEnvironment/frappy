@@ -110,11 +110,15 @@ class Parameter(Accessible):
         'export':      Property('Is this parameter accessible via SECoP? (vs. internal parameter)',
                                  OrType(BoolType(), StringType()), export=False, default=True),
         'poll':        Property('Polling indicator', IntRange(), export=False, default=False),
-        'optional':    Property('[Internal] is this parameter optional?', BoolType(), export=False, default=False),
+        'optional':    Property('[Internal] is this parameter optional?', BoolType(), export=False,
+                                 settable=False, default=False),
+        'handler':     Property('[internal] overload the standard read and write functions',
+                                 ValueType(), export=False, default=None, mandatory=False, settable=False),
     }
 
     value = None
     timestamp = None
+
     def __init__(self, description, datatype, ctr=None, unit=None, **kwds):
 
         if ctr is not None:
@@ -256,7 +260,7 @@ class Command(Accessible):
                                  extname='visibility', export=True, default=1),
         'export':      Property('[internal] Flag: is the command accessible via SECoP? (vs. pure internal use)',
                                  OrType(BoolType(), StringType()), export=False, default=True),
-        'optional':    Property('[internal] is The comamnd optional to implement? (vs. mandatory',
+        'optional':    Property('[internal] is the command optional to implement? (vs. mandatory)',
                                  BoolType(), export=False, default=False, settable=False),
         'datatype': Property('[internal] datatype of the command, auto generated from \'argument\' and \'result\'',
                               DataTypeType(), extname='datainfo', mandatory=True),

@@ -33,6 +33,10 @@ from secop.properties import PropertyMeta
 
 EVENT_ONLY_ON_CHANGED_VALUES = False
 
+class Done:
+    """a special return value for a read/write function
+
+    indicating that the setter is triggered already"""
 
 # warning: MAGIC!
 
@@ -108,57 +112,76 @@ class ModuleMeta(PropertyMeta):
                 # skip commands for now
                 continue
             rfunc = attrs.get('read_' + pname, None)
-            for base in bases:
-                if rfunc is not None:
-                    break
-                rfunc = getattr(base, 'read_' + pname, None)
-
-            def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
+            handler = pobj.handler.get_read_func(pname) if pobj.handler else None
+            if handler:
                 if rfunc:
-                    self.log.debug("rfunc(%s): call %r" % (pname, rfunc))
-                    try:
-                        value = rfunc(self)
-                    except Exception as e:
-                        pobj = self.accessibles[pname]
-                        self.DISPATCHER.announce_update_error(self, pname, pobj, e)
-                        raise
-                else:
-                    # return cached value
-                    self.log.debug("rfunc(%s): return cached value" % pname)
-                    value = self.accessibles[pname].value
-                setattr(self, pname, value)  # important! trigger the setter
-                return value
+                    raise ProgrammingError("parameter '%s' can not have a handler "
+                                           "and read_%s" % (pname, pname))
+                rfunc = handler
+            else:
+                rfunc = attrs.get('read_' + pname, None)
+                for base in bases:
+                    if rfunc is not None:
+                        break
+                    rfunc = getattr(base, 'read_' + pname, None)
 
-            if rfunc:
+            if rfunc is None or getattr(rfunc, '__wrapped__', False) is False:
+
+                def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
+                    if rfunc:
+                        self.log.debug("rfunc(%s): call %r" % (pname, rfunc))
+                        try:
+                            value = rfunc(self)
+                            if value is Done: # the setter is already triggered
+                                return getattr(self, pname)
+                        except Exception as e:
+                            pobj = self.accessibles[pname]
+                            self.DISPATCHER.announce_update_error(self, pname, pobj, e)
+                            raise
+                    else:
+                        # return cached value
+                        self.log.debug("rfunc(%s): return cached value" % pname)
+                        value = self.accessibles[pname].value
+                    setattr(self, pname, value)  # important! trigger the setter
+                    return value
+
                 wrapped_rfunc.__doc__ = rfunc.__doc__
-            if getattr(rfunc, '__wrapped__', False) is False:
                 setattr(newtype, 'read_' + pname, wrapped_rfunc)
-            wrapped_rfunc.__wrapped__ = True
+                wrapped_rfunc.__wrapped__ = True
 
             if not pobj.readonly:
                 wfunc = attrs.get('write_' + pname, None)
-                for base in bases:
-                    if wfunc is not None:
-                        break
-                    wfunc = getattr(base, 'write_' + pname, None)
-
-                def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
-                    self.log.debug("wfunc(%s): set %r" % (pname, value))
-                    pobj = self.accessibles[pname]
-                    value = pobj.datatype(value)
+                handler = pobj.handler.get_write_func(pname) if pobj.handler else None
+                if handler:
                     if wfunc:
-                        self.log.debug('calling %r(%r)' % (wfunc, value))
-                        returned_value = wfunc(self, value)
-                        if returned_value is not None:
-                            value = returned_value
-                    setattr(self, pname, value)
-                    return value
+                        raise ProgrammingError("parameter '%s' can not have a handler "
+                                               "and write_%s" % (pname, pname))
+                    wfunc = handler
+                else:
+                    for base in bases:
+                        if wfunc is not None:
+                            break
+                        wfunc = getattr(base, 'write_' + pname, None)
 
-                if wfunc:
+                if wfunc is None or getattr(wfunc, '__wrapped__', False) is False:
+
+                    def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
+                        self.log.debug("check validity of %s = %r" % (pname, value))
+                        pobj = self.accessibles[pname]
+                        value = pobj.datatype(value)
+                        if wfunc:
+                            self.log.debug('calling %r(%r)' % (wfunc, value))
+                            returned_value = wfunc(self, value)
+                            if returned_value is Done:  # the setter is already triggered
+                                return getattr(self, pname)
+                            if returned_value is not None:
+                                value = returned_value
+                        setattr(self, pname, value)
+                        return value
+
                     wrapped_wfunc.__doc__ = wfunc.__doc__
-                if getattr(wfunc, '__wrapped__', False) is False:
                     setattr(newtype, 'write_' + pname, wrapped_wfunc)
-                wrapped_wfunc.__wrapped__ = True
+                    wrapped_wfunc.__wrapped__ = True
 
             def getter(self, pname=pname):
                 return self.accessibles[pname].value

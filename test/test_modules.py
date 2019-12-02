@@ -101,7 +101,7 @@ def test_ModuleMeta():
     ))()
 
     dispatcher = type('DispatcherStub', (object,), dict(
-        announce_update = lambda self, m, pn, pv: print('%s:%s=%r' % (m.name, pn, pv)),
+        announce_update = lambda self, m, pn, po: print('%s:%s=%r' % (m.name, pn, po.value)),
     ))()
 
     srv = type('ServerStub', (object,), dict(
@@ -142,7 +142,7 @@ def test_ModuleMeta():
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'b2', 'cmd2', 'value',
         'a1'}
     assert set(cfg['value'].keys()) == {'group', 'export', 'relative_resolution',
-        'visibility', 'unit', 'default', 'optional', 'datatype', 'fmtstr',
+        'visibility', 'unit', 'default', 'datatype', 'fmtstr',
         'absolute_resolution', 'poll', 'max', 'min', 'readonly', 'constant',
         'description'}
 
