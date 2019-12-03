@@ -87,6 +87,7 @@ class Parameter:
         self.readonly = readonly
         self.interval = interval
         self.timestamp = 0
+        self.handler = None
         self.reset()
 
     def reset(self):

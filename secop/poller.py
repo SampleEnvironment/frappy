@@ -132,10 +132,11 @@ class Poller(PollerBase):
             self.startup_timeout = max(self.startup_timeout, module.startup_timeout)
         except AttributeError:
             pass
+        handlers = set()
         # at the beginning, queues are simple lists
         # later, they will be converted to heaps
         for pname, pobj in module.parameters.items():
-            polltype = int(pobj.poll)
+            polltype = pobj.poll
             rfunc = getattr(module, 'read_' + pname, None)
             if not polltype or not rfunc:
                 continue
@@ -149,6 +150,13 @@ class Poller(PollerBase):
                     polltype = REGULAR
                 else:
                     polltype = SLOW
+            if not polltype in factors:
+                raise ProgrammingError("unknown poll type %r for parameter '%s'"
+                                       % (polltype, pname))
+            if pobj.handler:
+                if pobj.handler in handlers:
+                    continue # only one poller per handler
+                handlers.add(pobj.handler)
             # placeholders 0 are used for due, lastdue and idx
             self.queues[polltype].append((0, 0,
                 (0, module, pobj, rfunc, factors[polltype])))

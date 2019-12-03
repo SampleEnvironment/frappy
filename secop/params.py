@@ -139,9 +139,8 @@ class Parameter(Accessible):
             datatype.setProperty('unit', unit)
         super(Parameter, self).__init__(**kwds)
 
-        # note: auto-converts True/False to 1/0 which yield the expected
-        # behaviour...
-        self.properties['poll'] = int(self.poll)
+        if self.handler and not self.poll:
+            self.properties['poll'] = True
 
         if self.constant is not None:
             self.properties['readonly'] = True
