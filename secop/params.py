@@ -258,7 +258,6 @@ class Override(CountedObj):
 class Command(Accessible):
     """storage for Commands settings (description + call signature...)
     """
-    # datatype is not listed (handled separately)
     properties = {
         'description': Property('Description of the Command', TextType(),
                                  extname='description', export=True, mandatory=True),
@@ -326,4 +325,5 @@ PREDEFINED_ACCESSIBLES = dict(
     go = Command,
     abort = Command,
     shutdown = Command,
+    communicate = Command,
 )

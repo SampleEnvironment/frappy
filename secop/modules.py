@@ -28,7 +28,7 @@ from collections import OrderedDict
 
 from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
     StringType, TupleOf, get_datatype, ArrayOf, TextType
-from secop.errors import ConfigError, ProgrammingError, SECoPError, BadValueError
+from secop.errors import ConfigError, ProgrammingError, SECoPError, BadValueError, SilentError
 from secop.lib import formatException, formatExtendedStack, mkthread
 from secop.lib.enum import Enum
 from secop.metaclass import ModuleMeta
@@ -282,6 +282,8 @@ class Module(HasProperties, metaclass=ModuleMeta):
         """poll parameter <pname> with proper error handling"""
         try:
             return getattr(self, 'read_'+ pname)()
+        except SilentError as e:
+            pass
         except SECoPError as e:
             self.log.error(str(e))
         except Exception as e:
@@ -298,16 +300,18 @@ class Module(HasProperties, metaclass=ModuleMeta):
                 pnames = pobj.handler.parameters
                 valuedict = {n: self.writeDict.pop(n) for n in pnames if n in self.writeDict}
                 if valuedict:
-                    self.log.info('write parameters %r', valuedict)
+                    self.log.debug('write parameters %r', valuedict)
                     pobj.handler.write(self, valuedict, force_read=True)
                     return
                 pobj.handler.read(self)
             else:
                 if pname in self.writeDict:
-                    self.log.info('write parameter %s', pname)
+                    self.log.debug('write parameter %s', pname)
                     getattr(self, 'write_'+ pname)(self.writeDict.pop(pname))
                 else:
                     getattr(self, 'read_'+ pname)()
+        except SilentError as e:
+            pass
         except SECoPError as e:
             self.log.error(str(e))
         except Exception as e:

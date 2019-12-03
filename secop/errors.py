@@ -98,6 +98,14 @@ class CommunicationFailedError(SECoPError):
     pass
 
 
+class SilentError(SECoPError):
+    pass
+
+
+class CommunicationSilentError(SilentError, CommunicationFailedError):
+    name = 'CommunicationFailed'
+
+
 class IsBusyError(SECoPError):
     pass
 
