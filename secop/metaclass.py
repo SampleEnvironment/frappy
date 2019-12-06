@@ -112,7 +112,7 @@ class ModuleMeta(PropertyMeta):
                 # skip commands for now
                 continue
             rfunc = attrs.get('read_' + pname, None)
-            handler = pobj.handler.get_read_func(pname) if pobj.handler else None
+            handler = pobj.handler.get_read_func(newtype, pname) if pobj.handler else None
             if handler:
                 if rfunc:
                     raise ProgrammingError("parameter '%s' can not have a handler "
@@ -129,14 +129,15 @@ class ModuleMeta(PropertyMeta):
 
                 def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
                     if rfunc:
-                        self.log.debug("rfunc(%s): call %r" % (pname, rfunc))
+                        self.log.debug("calling %r" % rfunc)
                         try:
                             value = rfunc(self)
+                            self.log.debug("rfunc(%s) returned %r" % (pname, value))
                             if value is Done: # the setter is already triggered
                                 return getattr(self, pname)
                         except Exception as e:
-                            pobj = self.accessibles[pname]
-                            self.DISPATCHER.announce_update_error(self, pname, pobj, e)
+                            self.log.debug("rfunc(%s) failed %r" % (pname, e))
+                            self.setError(pname, e)
                             raise
                     else:
                         # return cached value
@@ -193,7 +194,7 @@ class ModuleMeta(PropertyMeta):
                 if (not EVENT_ONLY_ON_CHANGED_VALUES) or (value != pobj.value):
                     pobj.value = value
                     # also send notification
-                    if self.accessibles[pname].export:
+                    if pobj.export:
                         self.log.debug('%s is now %r' % (pname, value))
                         self.DISPATCHER.announce_update(self, pname, pobj)
 

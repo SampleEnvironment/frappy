@@ -157,6 +157,9 @@ class Module:
     def isBusy(self):
         return self.is_busy
 
+    def pollOne(self, pname):
+        getattr(self, 'read_' + pname)()
+
     def __repr__(self):
         rdict = self.__dict__.copy()
         rdict.pop('parameters')

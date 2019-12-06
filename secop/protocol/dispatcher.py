@@ -50,6 +50,16 @@ from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY
 
 
+
+def make_update(modulename, pobj):
+    if pobj.readerror:
+        return (ERRORPREFIX + EVENTREPLY, '%s:%s' % (modulename, pobj.export),
+               # error-report !
+               [pobj.readerror.name, repr(pobj.readerror), dict(t=pobj.timestamp)])
+    return (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
+               [pobj.export_value(), dict(t=pobj.timestamp)])
+
+
 class Dispatcher:
 
     def __init__(self, name, logger, options, srv):
@@ -94,9 +104,8 @@ class Dispatcher:
         """called by modules param setters to notify subscribers of new values
         """
         # argument pname is no longer used here - should we remove it?
-        msg = (EVENTREPLY, '%s:%s' % (moduleobj.name, pobj.export),
-               [pobj.export_value(), dict(t=pobj.timestamp)])
-        self.broadcast_event(msg)
+        pobj.readerror = None
+        self.broadcast_event(make_update(moduleobj.name, pobj))
 
     def announce_update_error(self, moduleobj, pname, pobj, err):
         """called by modules param setters/getters to notify subscribers
@@ -106,10 +115,11 @@ class Dispatcher:
         # argument pname is no longer used here - should we remove it?
         if not isinstance(err, SECoPError):
             err = InternalError(err)
-        msg = (ERRORPREFIX + EVENTREPLY, '%s:%s' % (moduleobj.name, pobj.export),
-               # error-report !
-               [err.name, repr(err), dict(t=currenttime())])
-        self.broadcast_event(msg)
+        if str(err) == str(pobj.readerror):
+            return # do not send updates for repeated errors
+        pobj.readerror = err
+        pobj.timestamp = currenttime() # indicates the first time this error appeared
+        self.broadcast_event(make_update(moduleobj.name, pobj))
 
     def subscribe(self, conn, eventname):
         self._subscriptions.setdefault(eventname, set()).add(conn)
@@ -364,20 +374,11 @@ class Dispatcher:
         for modulename, pname in modules:
             moduleobj = self._modules.get(modulename, None)
             if pname:
-                pobj = moduleobj.accessibles[pname]
-                updmsg = (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
-                          [pobj.export_value(), dict(t=pobj.timestamp)])
-                conn.queue_async_reply(updmsg)
+                conn.queue_async_reply(make_update(modulename, moduleobj.parameters[pname]))
                 continue
             for pobj in moduleobj.accessibles.values():
-                if not isinstance(pobj, Parameter):
-                    continue
-                if not pobj.export:
-                    continue
-                # can not use announce_update here, as this will send to all clients
-                updmsg = (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
-                          [pobj.export_value(), dict(t=pobj.timestamp)])
-                conn.queue_async_reply(updmsg)
+                if isinstance(pobj, Parameter) and pobj.export:
+                    conn.queue_async_reply(make_update(modulename, pobj))
         return (ENABLEEVENTSREPLY, specifier, None) if specifier else (ENABLEEVENTSREPLY, None, None)
 
     def handle_deactivate(self, conn, specifier, data):

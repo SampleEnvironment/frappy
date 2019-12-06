@@ -137,9 +137,10 @@ class ChangeWrapper:
 class CmdHandlerBase:
     """generic command handler"""
 
-    # def __init__(self, group, ...):
-    #     init must at least initialize self.group, which is is relevant for calling the
-    # proper analyze_<group> and change_<group> methods
+    def __init__(self, group):
+        # group is used for calling the proper analyze_<group> and change_<group> methods
+        self.group = group
+        self.parameters = {}
 
     def parse_reply(self, reply):
         """return values from a raw reply"""
@@ -159,7 +160,7 @@ class CmdHandlerBase:
         If changecmd is given, it is prepended before the query.
         """
         querycmd = self.make_query(module)
-        reply = module.sendRecv((changecmd + querycmd))
+        reply = module.sendRecv(changecmd + querycmd)
         return self.parse_reply(reply)
 
     def send_change(self, module, *values):
@@ -173,8 +174,16 @@ class CmdHandlerBase:
         module.sendRecv(changecmd) # ignore result
         return self.send_command(module)
 
-    def get_read_func(self, pname):
-        """returns the read function passed to the metaclass"""
+    def get_read_func(self, modclass, pname):
+        """returns the read function passed to the metaclass
+
+        and registers the parameter in this handler
+        """
+        if not modclass in self.parameters:
+            self.parameters[modclass] = []
+        # Make sure that parameters from different module classes are not mixed
+        # (not sure if this might happen)
+        self.parameters[modclass].append(pname)
         return self.read
 
     def read(self, module):
@@ -182,10 +191,21 @@ class CmdHandlerBase:
 
         overwrite with None if not used
         """
-        # do a read of the current hw values
-        reply = self.send_command(module)
-        # convert them to parameters
-        getattr(module, 'analyze_' + self.group)(*reply)
+        try:
+            # do a read of the current hw values
+            reply = self.send_command(module)
+            # convert them to parameters
+            getattr(module, 'analyze_' + self.group)(*reply)
+            for pname in self.parameters[module.__class__]:
+                if module.parameters[pname].readerror:
+                    # clear errors on parameters, which were not updated.
+                    # this will also inform all activated clients
+                    setattr(module, pname, getattr(module, pname))
+        except Exception as e:
+            # set all parameters of this handler to error
+            for pname in self.parameters[module.__class__]:
+                module.setError(pname, e)
+            raise
         return Done # parameters should be updated already
 
     def get_write_func(self, pname):
@@ -213,7 +233,6 @@ class CmdHandlerBase:
         return wfunc
 
 
-
 class CmdHandler(CmdHandlerBase):
     """more evolved command handler
 
@@ -237,7 +256,7 @@ class CmdHandler(CmdHandlerBase):
         querycmd:  the command for a query, may contain named formats for cmdargs
         replyfmt:  the format for reading the reply with some scanf like behaviour
         """
-        self.group = group
+        super().__init__(group)
         self.querycmd = querycmd
         self.replyfmt = CmdParser(replyfmt)
 

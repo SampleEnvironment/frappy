@@ -116,9 +116,6 @@ class Parameter(Accessible):
                                  ValueType(), export=False, default=None, mandatory=False, settable=False),
     }
 
-    value = None
-    timestamp = None
-
     def __init__(self, description, datatype, ctr=None, unit=None, **kwds):
 
         if ctr is not None:
@@ -152,6 +149,7 @@ class Parameter(Accessible):
         # internal caching: value and timestamp of last change...
         self.value = self.default
         self.timestamp = 0
+        self.readerror = None # if not None, indicates that last read was not successful
 
     def export_value(self):
         return self.datatype.export_value(self.value)

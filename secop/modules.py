@@ -28,9 +28,8 @@ from collections import OrderedDict
 
 from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
     StringType, TupleOf, get_datatype, ArrayOf, TextType
-from secop.errors import ConfigError, ProgrammingError
-from secop.lib import formatException, \
-    formatExtendedStack, mkthread
+from secop.errors import ConfigError, ProgrammingError, SECoPError
+from secop.lib import formatException, formatExtendedStack, mkthread
 from secop.lib.enum import Enum
 from secop.metaclass import ModuleMeta
 from secop.params import PREDEFINED_ACCESSIBLES, Command, Override, Parameter, Parameters, Commands
@@ -180,33 +179,34 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
         # 4) complain if a Parameter entry has no default value and
         #    is not specified in cfgdict
-        for k, v in self.parameters.items():
-            if k not in cfgdict:
-                if v.default is None:
-                    if not v.poll:
+        for pname, pobj in self.parameters.items():
+            if pname not in cfgdict:
+                if pobj.default is None:
+                    if not pobj.poll:
                         raise ConfigError('Module %s: Parameter %r has no default '
                                           'value and was not given in config!' %
-                                          (self.name, k))
-                    cfgdict[k] = v.datatype.default
+                                          (self.name, pname))
+                    # we do not want to call the setter for this parameter for now,
+                    # this should happen on the first read
+                    pobj.readerror = ConfigError('not initialized')
+                    # above error will be triggered on activate after startup,
+                    # when not all hardware parameters are read because of startup timeout
+                    pobj.value = pobj.datatype(pobj.datatype.default)
                 else:
-                    cfgdict[k] = v.default
+                    cfgdict[pname] = pobj.default
 
         # 5) 'apply' config:
         #    pass values through the datatypes and store as attributes
         for k, v in list(cfgdict.items()):
-            # apply datatype, complain if type does not fit
-            datatype = self.parameters[k].datatype
             try:
-                v = datatype(v)
-                self.parameters[k].value = v
+                # this checks also for the proper datatype
+                # note: this will NOT call write_* methods!
+                setattr(self, k, v)
             except (ValueError, TypeError):
                 self.log.exception(formatExtendedStack())
                 raise
                 # raise ConfigError('Module %s: config parameter %r:\n%r' %
                 #                   (self.name, k, e))
-            # note: this will NOT call write_* methods!
-            if k != 'value':
-                setattr(self, k, v)
             cfgdict.pop(k)
 
         # Modify units AFTER applying the cfgdict
@@ -226,6 +226,14 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
     def __getitem__(self, item):
         return self.accessibles.__getitem__(item)
+
+    def setError(self, pname, exception):
+        """sets a parameter to a read error state
+
+        the error will be cleared when the parameter is set
+        """
+        pobj = self.parameters[pname]
+        self.DISPATCHER.announce_update_error(self, pname, pobj, exception)
 
     def isBusy(self):
         '''helper function for treating substates of BUSY correctly'''
@@ -249,6 +257,15 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
         self.log.debug('empty %s.startModule()' % self.__class__.__name__)
         started_callback()
+
+    def pollOne(self, pname):
+        """call read function and handle error logging"""
+        try:
+            getattr(self, 'read_' + pname)()
+        except SECoPError as e:
+            self.log.error(str(e))
+        except Exception as e:
+            self.log.error(formatException())
 
 
 class Readable(Module):
@@ -322,13 +339,7 @@ class Readable(Module):
                 continue
             if nr % abs(int(pobj.poll)) == 0:
                 # pollParams every 'pobj.pollParams' iteration
-                rfunc = getattr(self, 'read_' + pname, None)
-                if rfunc:
-                    try:
-                        rfunc()  # pylint: disable = not-callable
-                    except Exception:  # really all!
-                        # XXX: Error-handling: send error_update !
-                        pass
+                self.pollOne(pname)
         return False
 
 
@@ -384,13 +395,7 @@ class Drivable(Writable):
                     nr % abs(int(pobj.poll))) == 0:
                 # poll always if pobj.poll is negative and fastpoll (i.e. Module is busy)
                 # otherwise poll every 'pobj.poll' iteration
-                rfunc = getattr(self, 'read_' + pname, None)
-                if rfunc:
-                    try:
-                        rfunc()  # pylint: disable = not-callable
-                    except Exception:  # really all!
-                        # XXX: Error-handling: send error_update !
-                        pass
+                self.pollOne(pname)
         return fastpoll
 
     def do_stop(self):

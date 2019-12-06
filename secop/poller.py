@@ -36,7 +36,7 @@ Usage examples:
 import time
 from threading import Event
 from heapq import heapify, heapreplace
-from secop.lib import mkthread, formatException
+from secop.lib import mkthread
 from secop.errors import ProgrammingError
 
 # poll types:
@@ -137,8 +137,7 @@ class Poller(PollerBase):
         # later, they will be converted to heaps
         for pname, pobj in module.parameters.items():
             polltype = pobj.poll
-            rfunc = getattr(module, 'read_' + pname, None)
-            if not polltype or not rfunc:
+            if not polltype:
                 continue
             if not hasattr(module, 'pollinterval'):
                 raise ProgrammingError("module %s must have a pollinterval"
@@ -159,7 +158,7 @@ class Poller(PollerBase):
                 handlers.add(pobj.handler)
             # placeholders 0 are used for due, lastdue and idx
             self.queues[polltype].append((0, 0,
-                (0, module, pobj, rfunc, factors[polltype])))
+                (0, module, pobj, pname, factors[polltype])))
 
     def poll_next(self, polltype):
         '''try to poll next item
@@ -177,7 +176,7 @@ class Poller(PollerBase):
             due, lastdue, pollitem = queue[0]
             if now < due:
                 return due
-            _, module, pobj, rfunc, factor = pollitem
+            _, module, pobj, pname, factor = pollitem
 
             if polltype == DYNAMIC and not module.isBusy():
                 interval = module.pollinterval   # effective interval
@@ -187,11 +186,7 @@ class Poller(PollerBase):
                 mininterval = interval
             due = max(lastdue + interval, pobj.timestamp + interval * 0.5)
             if now >= due:
-                try:
-                    rfunc()
-                except Exception: # really all. errors are handled within rfunc
-                    # TODO: filter repeated errors and log just statistics
-                    module.log.error(formatException())
+                module.pollOne(pname)
                 done = True
                 lastdue = due
                 due = max(lastdue + mininterval, now + min(self.maxwait, mininterval * 0.5))
@@ -217,16 +212,13 @@ class Poller(PollerBase):
             return
         # do all polls once and, at the same time, insert due info
         for _, queue in sorted(self.queues.items()): # do SLOW polls first
-            for idx, (_, _, (_, module, pobj, rfunc, factor)) in enumerate(queue):
+            for idx, (_, _, (_, module, pobj, pname, factor)) in enumerate(queue):
                 lastdue = time.time()
-                try:
-                    rfunc()
-                except Exception: # really all. errors are handled within rfunc
-                    module.log.error(formatException())
+                module.pollOne(pname)
                 due = lastdue + min(self.maxwait, module.pollinterval * factor)
                 # in python 3 comparing tuples need some care, as not all objects
                 # are comparable. Inserting a unique idx solves the problem.
-                queue[idx] = (due, lastdue, (idx, module, pobj, rfunc, factor))
+                queue[idx] = (due, lastdue, (idx, module, pobj, pname, factor))
             heapify(queue)
         started_callback() # signal end of startup
         nregular = len(self.queues[REGULAR])
