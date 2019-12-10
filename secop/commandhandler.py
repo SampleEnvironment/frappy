@@ -20,12 +20,36 @@
 # *****************************************************************************
 """command handler
 
-utility class for cases, where multiple parameters are treated with a common command.
+Utility class for cases, where multiple parameters are treated with a common command.
 The support for LakeShore and similar protocols is already included.
+
+For read, instead of the methods read_<parameter> we write one method analyze_<group>
+for all parameters with the same handler. Before analyze_<group> is called, the
+reply is parsed and converted to values, which are then given as arguments.
+
+def analyze_<group>(self, value1, value2, ...):
+    # <here> we have to calculate parameters from the values (value1, value2 ...)
+    # and assign them to self.<parameter>
+    # no return value is expected
+
+For write, instead of the methods write_<parameter>" we write one method change_<group>
+for all parameters with the same handler.
+
+def change_<group>(self, new, value1, value2, ...):
+    # <new> is a wrapper object around the module, containing already the new values.
+    # if READ_BEFORE_WRITE is True (the default), the additional arguments (value1, ...)
+    # must be in the argument list. They contain the values read from the hardware.
+    # If they are not needed, set READ_BEFORE_WRITE to False, or declare them as '*args'.
+    # The expression ('<parameter>' in new) returns a boolean indicating, whether
+    # this parameter is subject to change.
+    # The return value must be either a sequence of values to be written to the hardware,
+    # which will be formatted by the handler, or None. The latter is used only in some
+    # special cases, when nothing has to be written.
 """
 import re
 
 from secop.metaclass import Done
+from secop.errors import ProgrammingError
 
 
 
@@ -113,34 +137,38 @@ class CmdParser:
 
 
 class ChangeWrapper:
-    """store parameter changes before they are applied"""
+    """Wrapper around a module
 
-    def __init__(self, module, pname, value):
+    A ChangeWrapper instance is used as the 'new' argument for the change_<group> message.
+    new.<parameter> is either the new, changed value or the old value from the module.
+    In addition '<parameter>' indicates, whether <parameter> is to be changed.
+    setting new.<parameter> does not yet set the value on the module.
+    """
+    def __init__(self, module, valuedict):
         self._module = module
-        setattr(self, pname, value)
+        for pname, value in valuedict.items():
+            setattr(self, pname, value)
 
     def __getattr__(self, key):
-        """get values from module for unknown keys"""
+        """get current values from _module for unchanged parameters"""
         return getattr(self._module, key)
 
-    def apply(self, module):
-        """set only changed values"""
-        for k, v in self.__dict__.items():
-            if k != '_module' and v != getattr(module, k):
-                setattr(module, k, v)
-
-    def __repr__(self):
-        return ', '.join('%s=%r' % (k, v) for k, v in self.__dict__.items() if k != '_module')
-
+    def __contains__(self, pname):
+        """check whether a specific parameter is to be changed"""
+        return pname in self.__dict__
 
 
 class CmdHandlerBase:
     """generic command handler"""
+    READ_BEFORE_WRITE = True
+    # if READ_BEFORE_WRITE is True, a read is performed before a write, and the parsed
+    # additional parameters are added to the argument list of change_<group>.
 
     def __init__(self, group):
         # group is used for calling the proper analyze_<group> and change_<group> methods
         self.group = group
-        self.parameters = {}
+        self.parameters = set()
+        self._module_class = None
 
     def parse_reply(self, reply):
         """return values from a raw reply"""
@@ -179,11 +207,11 @@ class CmdHandlerBase:
 
         and registers the parameter in this handler
         """
-        if not modclass in self.parameters:
-            self.parameters[modclass] = []
-        # Make sure that parameters from different module classes are not mixed
-        # (not sure if this might happen)
-        self.parameters[modclass].append(pname)
+        self._module_class = self._module_class or modclass
+        if self._module_class != modclass:
+            raise ProgrammingError("the handler '%s' for '%s.%s' is already used in module '%s'"
+                    % (self.group, modclass.__name__, pname, self._module_class.__name__))
+        self.parameters.add(pname)
         return self.read
 
     def read(self, module):
@@ -196,14 +224,15 @@ class CmdHandlerBase:
             reply = self.send_command(module)
             # convert them to parameters
             getattr(module, 'analyze_' + self.group)(*reply)
-            for pname in self.parameters[module.__class__]:
+            assert module.__class__ == self._module_class
+            for pname in self.parameters:
                 if module.parameters[pname].readerror:
                     # clear errors on parameters, which were not updated.
                     # this will also inform all activated clients
                     setattr(module, pname, getattr(module, pname))
         except Exception as e:
             # set all parameters of this handler to error
-            for pname in self.parameters[module.__class__]:
+            for pname in self.parameters:
                 module.setError(pname, e)
             raise
         return Done # parameters should be updated already
@@ -215,22 +244,34 @@ class CmdHandlerBase:
         """
 
         def wfunc(module, value, cmd=self, pname=pname):
-            # do a read of the current hw values
-            values = cmd.send_command(module)
-            # convert them to parameters
-            analyze = getattr(module, 'analyze_' + cmd.group)
-            analyze(*values)
-            # create wrapper object 'new' with changed parameter 'pname'
-            new = ChangeWrapper(module, pname, value)
-            # call change_* for calculation new hw values
-            values = getattr(module, 'change_' + cmd.group)(new, *values)
-            # send the change command and a query command
-            analyze(*cmd.send_change(module, *values))
-            # update only changed values
-            new.apply(module)
-            return Done # parameter 'pname' should be changed already
+            cmd.write(module, {pname: value})
+            return Done
 
         return wfunc
+
+    def write(self, module, valuedict, force_read=False):
+        """write values to the module
+
+        When called from write_<param>, valuedict contains only one item:
+        the parameter to be changed.
+        When called from initialization, valuedict may have more items.
+        """
+        analyze = getattr(module, 'analyze_' + self.group)
+        if self.READ_BEFORE_WRITE or force_read:
+            # do a read of the current hw values
+            values = self.send_command(module)
+            # convert them to parameters
+            analyze(*values)
+        if not self.READ_BEFORE_WRITE:
+            values = ()
+        # create wrapper object 'new' with changed parameter 'pname'
+        new = ChangeWrapper(module, valuedict)
+        # call change_* for calculation new hw values
+        values = getattr(module, 'change_' + self.group)(new, *values)
+        if values is None: # this indicates that nothing has to be written
+            return
+        # send the change command and a query command
+        analyze(*self.send_change(module, *values))
 
 
 class CmdHandler(CmdHandlerBase):

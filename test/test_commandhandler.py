@@ -26,6 +26,7 @@ import pytest
 from secop.commandhandler import CmdParser, CmdHandler
 from secop.modules import Module, Parameter
 from secop.datatypes import FloatRange, StringType, IntRange, Property
+from secop.errors import ProgrammingError
 
 @pytest.mark.parametrize('fmt, text, values, text2', [
         ('%d,%d', '2,3', [2,3], None),
@@ -99,7 +100,7 @@ def test_CmdHandler():
     group2 = Hdl('group2', 'CMD?%(channel)d', '%g,%s,%d')
 
 
-    class TestModule(Module):
+    class Module1(Module):
         properties = {
             'channel': Property('the channel', IntRange(), default=3),
             'loop': Property('the loop', IntRange(), default=2),
@@ -130,7 +131,8 @@ def test_CmdHandler():
 
     data = Data()
     updates = {}
-    module = TestModule('mymodule', LoggerStub(), {'.description': ''}, ServerStub(updates))
+    module = Module1('mymodule', LoggerStub(), {'.description': ''}, ServerStub(updates))
+    print(updates)
     updates.clear() # get rid of updates from initialisation
 
     # for sendRecv
@@ -182,3 +184,10 @@ def test_CmdHandler():
     assert module.real == updates.pop('real')  == 12.3
     assert data.empty()
     assert not updates
+
+    with pytest.raises(ProgrammingError): # can not use a handler for different modules
+        # pylint: disable=unused-variable
+        class Module2(Module):
+            parameters = {
+                'simple': Parameter('a readonly', FloatRange(), default=0.77, handler=group1),
+            }

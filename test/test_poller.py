@@ -157,8 +157,10 @@ class Module:
     def isBusy(self):
         return self.is_busy
 
-    def pollOne(self, pname):
+    def pollOneParam(self, pname):
         getattr(self, 'read_' + pname)()
+
+    writeOrPoll = pollOneParam
 
     def __repr__(self):
         rdict = self.__dict__.copy()

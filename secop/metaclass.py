@@ -119,7 +119,6 @@ class ModuleMeta(PropertyMeta):
                                            "and read_%s" % (pname, pname))
                 rfunc = handler
             else:
-                rfunc = attrs.get('read_' + pname, None)
                 for base in bases:
                     if rfunc is not None:
                         break

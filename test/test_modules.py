@@ -17,6 +17,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """test data types."""
@@ -25,93 +26,119 @@
 #import pytest
 
 import threading
-from secop.datatypes import BoolType, EnumType, FloatRange
-from secop.metaclass import ModuleMeta
+from secop.datatypes import BoolType, FloatRange, StringType
 from secop.modules import Communicator, Drivable, Module
 from secop.params import Command, Override, Parameter
+from secop.poller import BasicPoller
+
+
+class DispatcherStub:
+    def __init__(self, updates):
+        self.updates = updates
+
+    def announce_update(self, moduleobj, pname, pobj):
+        self.updates.setdefault(moduleobj.name, {})
+        self.updates[moduleobj.name][pname] = pobj.value
+
+    def announce_update_error(self, moduleobj, pname, pobj, err):
+        self.updates['error', moduleobj.name, pname] = str(err)
+
+
+class LoggerStub:
+    def debug(self, *args):
+        print(*args)
+    info = exception = debug
+
+
+class ServerStub:
+    def __init__(self, updates):
+        self.dispatcher = DispatcherStub(updates)
 
 
 def test_Communicator():
-    logger = type('LoggerStub', (object,), dict(
-        debug = lambda self, *a: print(*a),
-        info = lambda self, *a: print(*a),
-    ))()
-
-    dispatcher = type('DispatcherStub', (object,), dict(
-        announce_update = lambda self, m, pn, pv: print('%s:%s=%r' % (m.name, pn, pv)),
-    ))()
-
-    srv = type('ServerStub', (object,), dict(
-        dispatcher = dispatcher,
-    ))()
-
-    o = Communicator('communicator',logger, {'.description':''}, srv)
+    o = Communicator('communicator', LoggerStub(), {'.description':''}, ServerStub({}))
     o.earlyInit()
     o.initModule()
     event = threading.Event()
     o.startModule(event.set)
     assert event.is_set() # event should be set immediately
 
+
 def test_ModuleMeta():
-    # pylint: disable=too-many-function-args
-    newclass1 = ModuleMeta.__new__(ModuleMeta, 'TestDrivable', (Drivable,), {
-        "parameters" : {
+    class Newclass1(Drivable):
+        parameters = {
             'pollinterval': Override(reorder=True),
             'param1' : Parameter('param1', datatype=BoolType(), default=False),
             'param2': Parameter('param2', datatype=FloatRange(unit='Ohm'), default=True),
             "cmd": Command('stuff', argument=BoolType(), result=BoolType())
-        },
-        "commands": {
+        }
+        commands = {
             # intermixing parameters with commands is not recommended,
             # but acceptable for influencing the order
             'a1': Parameter('a1', datatype=BoolType(), default=False),
             'a2': Parameter('a2', datatype=BoolType(), default=True),
-            'value': Override(datatype=BoolType(), default=True),
+            'value': Override(datatype=StringType(), default='first'),
             'cmd2': Command('another stuff', argument=BoolType(), result=BoolType()),
-        },
-        "do_cmd": lambda self, arg: not arg,
-        "do_cmd2": lambda self, arg: not arg,
-        "read_param1": lambda self, *args: True,
-        "read_param2": lambda self, *args: False,
-        "read_a1": lambda self, *args: True,
-        "read_a2": lambda self, *args: False,
-        "read_value": lambda self, *args: True,
-        "init": lambda self, *args: [None for self.accessibles['value'].datatype in [EnumType('value', OK=1, Bad=2)]],
-    })
+        }
+        pollerClass = BasicPoller
+
+        def do_cmd(self, arg):
+            return not arg
+
+        def do_cmd2(self, arg):
+            return not arg
+
+        def read_param1(self):
+            return True
+
+        def read_param2(self):
+            return False
+
+        def read_a1(self):
+            return True
+
+        def read_a2(self):
+            return True
+
+        def read_value(self):
+            return 'second'
+
+
     # first inherited accessibles, then Overrides with reorder=True and new accessibles
     sortcheck1 = ['value', 'status', 'target', 'pollinterval',
                  'param1', 'param2', 'cmd', 'a1', 'a2', 'cmd2']
 
-    # pylint: disable=too-many-function-args
-    newclass2 = ModuleMeta.__new__(ModuleMeta, 'UpperClass', (newclass1,), {
-        "parameters": {
+    class Newclass2(Newclass1):
+        parameters = {
             'cmd2': Override('another stuff'),
             'value': Override(datatype=FloatRange(unit='deg'), reorder=True),
-            'a1': Override(datatype=FloatRange(unit='$/s'), reorder=True),
-            'b2': Parameter('a2', datatype=BoolType(), default=True),
-        },
-    })
+            'a1': Override(datatype=FloatRange(unit='$/s'), reorder=True, readonly=False),
+            'b2': Parameter('<b2>', datatype=BoolType(), default=True,
+                            poll=True, readonly=False, initwrite=True),
+        }
+
+        def write_a1(self, value):
+            self._a1_written = value
+            return value
+
+        def write_b2(self, value):
+            self._b2_written = value
+            return value
+
+        def read_value(self):
+            return 0
+
     sortcheck2 = ['value', 'status', 'target', 'pollinterval',
                  'param1', 'param2', 'cmd', 'a2', 'cmd2', 'a1', 'b2']
 
-    logger = type('LoggerStub', (object,), dict(
-        debug = lambda self, *a: print(*a),
-        info = lambda self, *a: print(*a),
-        exception = lambda self, *a: print(*a),
-    ))()
-
-    dispatcher = type('DispatcherStub', (object,), dict(
-        announce_update = lambda self, m, pn, po: print('%s:%s=%r' % (m.name, pn, po.value)),
-    ))()
-
-    srv = type('ServerStub', (object,), dict(
-        dispatcher = dispatcher,
-    ))()
+    logger = LoggerStub()
+    updates = {}
+    srv = ServerStub(updates)
 
     params_found = set() # set of instance accessibles
     objects = []
 
-    for newclass, sortcheck in [(newclass1, sortcheck1), (newclass2, sortcheck2)]:
+    for newclass, sortcheck in [(Newclass1, sortcheck1), (Newclass2, sortcheck2)]:
         o1 = newclass('o1', logger, {'.description':''}, srv)
         o2 = newclass('o2', logger, {'.description':''}, srv)
         for obj in [o1, o2]:
@@ -127,16 +154,48 @@ def test_ModuleMeta():
             # HACK: atm. disabled to fix all other problems first.
             assert check_order + sorted(check_order)
 
-    o1 = newclass1('o1', logger, {'.description':''}, srv)
-    o2 = newclass2('o2', logger, {'.description':''}, srv)
+    # check for inital updates working properly
+    o1 = Newclass1('o1', logger, {'.description':''}, srv)
+    expectedBeforeStart = {'target': 0.0, 'status': [Drivable.Status.IDLE, ''],
+            'param1': False, 'param2': 1.0, 'a1': 0.0, 'a2': True, 'pollinterval': 5.0,
+            'value': 'first'}
+    assert updates.pop('o1') == expectedBeforeStart
+    o1.earlyInit()
+    event = threading.Event()
+    o1.startModule(event.set)
+    event.wait()
+    # should contain polled values
+    expectedAfterStart = {'status': [Drivable.Status.IDLE, ''],
+            'value': 'second'}
+    assert updates.pop('o1') == expectedAfterStart
+
+    # check in addition if parameters are written
+    o2 = Newclass2('o2', logger, {'.description':'', 'a1': 2.7}, srv)
+    # no update for b2, as this has to be written
+    expectedBeforeStart['a1'] = 2.7
+    assert updates.pop('o2') == expectedBeforeStart
+    o2.earlyInit()
+    event = threading.Event()
+    o2.startModule(event.set)
+    event.wait()
+    # value has changed type, b2 and a1 are written
+    expectedAfterStart.update(value=0, b2=True, a1=2.7)
+    assert updates.pop('o2') == expectedAfterStart
+    assert o2._a1_written == 2.7
+    assert o2._b2_written is True
+
+    assert not updates
+
+    o1 = Newclass1('o1', logger, {'.description':''}, srv)
+    o2 = Newclass2('o2', logger, {'.description':''}, srv)
     assert o2.parameters['a1'].datatype.unit == 'deg/s'
-    o2 = newclass2('o2', logger, {'.description':'', 'value.unit':'mm', 'param2.unit':'mm'}, srv)
+    o2 = Newclass2('o2', logger, {'.description':'', 'value.unit':'mm', 'param2.unit':'mm'}, srv)
     # check datatype is not shared
     assert o1.parameters['param2'].datatype.unit == 'Ohm'
     assert o2.parameters['param2'].datatype.unit == 'mm'
     # check '$' in unit works properly
     assert o2.parameters['a1'].datatype.unit == 'mm/s'
-    cfg = newclass2.configurables
+    cfg = Newclass2.configurables
     assert set(cfg.keys()) == {'export', 'group', 'description',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'b2', 'cmd2', 'value',
@@ -147,8 +206,8 @@ def test_ModuleMeta():
         'description'}
 
     # check on the level of classes
-    # this checks newclass1 too, as it is inherited by newclass2
-    for baseclass in newclass2.__mro__:
+    # this checks Newclass1 too, as it is inherited by Newclass2
+    for baseclass in Newclass2.__mro__:
         # every cmd/param has to be collected to accessibles
         acs = getattr(baseclass, 'accessibles', None)
         if issubclass(baseclass, Module):

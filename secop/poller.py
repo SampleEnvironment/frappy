@@ -186,7 +186,7 @@ class Poller(PollerBase):
                 mininterval = interval
             due = max(lastdue + interval, pobj.timestamp + interval * 0.5)
             if now >= due:
-                module.pollOne(pname)
+                module.pollOneParam(pname)
                 done = True
                 lastdue = due
                 due = max(lastdue + mininterval, now + min(self.maxwait, mininterval * 0.5))
@@ -214,7 +214,7 @@ class Poller(PollerBase):
         for _, queue in sorted(self.queues.items()): # do SLOW polls first
             for idx, (_, _, (_, module, pobj, pname, factor)) in enumerate(queue):
                 lastdue = time.time()
-                module.pollOne(pname)
+                module.writeOrPoll(pname)
                 due = lastdue + min(self.maxwait, module.pollinterval * factor)
                 # in python 3 comparing tuples need some care, as not all objects
                 # are comparable. Inserting a unique idx solves the problem.

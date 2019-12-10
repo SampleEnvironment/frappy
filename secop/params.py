@@ -26,7 +26,7 @@ from collections import OrderedDict
 
 from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType, \
     NoneOr, TextType, IntRange
-from secop.errors import ProgrammingError
+from secop.errors import ProgrammingError, BadValueError
 from secop.properties import HasProperties, Property
 
 
@@ -114,6 +114,8 @@ class Parameter(Accessible):
                                  settable=False, default=False),
         'handler':     Property('[internal] overload the standard read and write functions',
                                  ValueType(), export=False, default=None, mandatory=False, settable=False),
+        'initwrite':   Property('[internal] write this parameter on initialization (default None: write if given in config)',
+                                 NoneOr(BoolType()), export=False, default=None, mandatory=False, settable=False),
     }
 
     def __init__(self, description, datatype, ctr=None, unit=None, **kwds):
@@ -126,7 +128,7 @@ class Parameter(Accessible):
                 # goodie: make an instance from a class (forgotten ()???)
                 datatype = datatype()
             else:
-                raise ValueError(
+                raise ProgrammingError(
                     'datatype MUST be derived from class DataType!')
 
         kwds['description'] = description
@@ -138,6 +140,9 @@ class Parameter(Accessible):
 
         if self.handler and not self.poll:
             self.properties['poll'] = True
+
+        if self.readonly and self.initwrite:
+            raise ProgrammingError('can not have both readonly and initwrite!')
 
         if self.constant is not None:
             self.properties['readonly'] = True
@@ -233,6 +238,12 @@ class Override(CountedObj):
                     constant = obj.datatype(self.kwds.pop('constant'))
                     self.kwds['constant'] = obj.datatype.export_value(constant)
                     self.kwds['readonly'] = True
+                if 'datatype' in self.kwds and 'default' not in self.kwds:
+                    try:
+                        self.kwds['datatype'](obj.default)
+                    except BadValueError:
+                        # clear default, if it does not match datatype
+                        props['default'] = None
             props.update(self.kwds)
 
             if self.reorder:

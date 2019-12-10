@@ -28,7 +28,7 @@ from collections import OrderedDict
 
 from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
     StringType, TupleOf, get_datatype, ArrayOf, TextType
-from secop.errors import ConfigError, ProgrammingError, SECoPError
+from secop.errors import ConfigError, ProgrammingError, SECoPError, BadValueError
 from secop.lib import formatException, formatExtendedStack, mkthread
 from secop.lib.enum import Enum
 from secop.metaclass import ModuleMeta
@@ -178,9 +178,18 @@ class Module(HasProperties, metaclass=ModuleMeta):
                     (self.name, k, ', '.join(self.parameters.keys())))
 
         # 4) complain if a Parameter entry has no default value and
-        #    is not specified in cfgdict
+        #    is not specified in cfgdict and deal with parameters to be written.
+        self.writeDict = {} # values of parameters to be written
         for pname, pobj in self.parameters.items():
-            if pname not in cfgdict:
+            if pname in cfgdict:
+                if not pobj.readonly and not pobj.initwrite is False:
+                    # parameters given in cfgdict have to call write_<pname>
+                    try:
+                        pobj.value = pobj.datatype(cfgdict[pname])
+                    except BadValueError as e:
+                        raise ConfigError('%s.%s: %s' % (name, pname, e))
+                    self.writeDict[pname] = pobj.value
+            else:
                 if pobj.default is None:
                     if not pobj.poll:
                         raise ConfigError('Module %s: Parameter %r has no default '
@@ -193,7 +202,18 @@ class Module(HasProperties, metaclass=ModuleMeta):
                     # when not all hardware parameters are read because of startup timeout
                     pobj.value = pobj.datatype(pobj.datatype.default)
                 else:
-                    cfgdict[pname] = pobj.default
+                    try:
+                        value = pobj.datatype(pobj.default)
+                    except BadValueError as e:
+                        raise ProgrammingError('bad default for %s.%s: %s'
+                                    % (name, pname, e))
+                    if pobj.initwrite:
+                        # we will need to call write_<pname>
+                        # if this is not desired, the default must not be given
+                        pobj.value = value
+                        self.writeDict[pname] = value
+                    else:
+                        cfgdict[pname] = value
 
         # 5) 'apply' config:
         #    pass values through the datatypes and store as attributes
@@ -258,10 +278,36 @@ class Module(HasProperties, metaclass=ModuleMeta):
         self.log.debug('empty %s.startModule()' % self.__class__.__name__)
         started_callback()
 
-    def pollOne(self, pname):
-        """call read function and handle error logging"""
+    def pollOneParam(self, pname):
+        """poll parameter <pname> with proper error handling"""
         try:
-            getattr(self, 'read_' + pname)()
+            return getattr(self, 'read_'+ pname)()
+        except SECoPError as e:
+            self.log.error(str(e))
+        except Exception as e:
+            self.log.error(formatException())
+
+    def writeOrPoll(self, pname):
+        """write configured value for a parameter, if any, else poll
+
+        with proper error handling
+        """
+        try:
+            pobj = self.parameters[pname]
+            if pobj.handler:
+                pnames = pobj.handler.parameters
+                valuedict = {n: self.writeDict.pop(n) for n in pnames if n in self.writeDict}
+                if valuedict:
+                    self.log.info('write parameters %r', valuedict)
+                    pobj.handler.write(self, valuedict, force_read=True)
+                    return
+                pobj.handler.read(self)
+            else:
+                if pname in self.writeDict:
+                    self.log.info('write parameter %s', pname)
+                    getattr(self, 'write_'+ pname)(self.writeDict.pop(pname))
+                else:
+                    getattr(self, 'read_'+ pname)()
         except SECoPError as e:
             self.log.error(str(e))
         except Exception as e:
@@ -285,7 +331,7 @@ class Readable(Module):
                  )
     parameters = {
         'value':        Parameter('current value of the Module', readonly=True,
-                                  default=0., datatype=FloatRange(),
+                                  datatype=FloatRange(),
                                   poll=True,
                                  ),
         'pollinterval': Parameter('sleeptime between polls', default=5,
@@ -320,6 +366,8 @@ class Readable(Module):
 
     def __pollThread_inner(self, started_callback):
         """super simple and super stupid per-module polling thread"""
+        for pname in list(self.writeDict):
+            self.writeOrPoll(pname)
         i = 0
         fastpoll = self.pollParams(i)
         started_callback()
@@ -339,7 +387,7 @@ class Readable(Module):
                 continue
             if nr % abs(int(pobj.poll)) == 0:
                 # pollParams every 'pobj.pollParams' iteration
-                self.pollOne(pname)
+                self.pollOneParam(pname)
         return False
 
 
@@ -350,7 +398,7 @@ class Writable(Readable):
     """
     parameters = {
         'target': Parameter('target value of the Module',
-                            default=0., readonly=False, datatype=FloatRange(),
+                            default=0, readonly=False, datatype=FloatRange(),
                            ),
     }
 
@@ -395,7 +443,7 @@ class Drivable(Writable):
                     nr % abs(int(pobj.poll))) == 0:
                 # poll always if pobj.poll is negative and fastpoll (i.e. Module is busy)
                 # otherwise poll every 'pobj.poll' iteration
-                self.pollOne(pname)
+                self.pollOneParam(pname)
         return fastpoll
 
     def do_stop(self):

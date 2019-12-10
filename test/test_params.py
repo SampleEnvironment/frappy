@@ -27,6 +27,7 @@ import pytest
 
 from secop.datatypes import BoolType, IntRange
 from secop.params import Command, Override, Parameter, Parameters
+from secop.errors import ProgrammingError
 
 
 def test_Command():
@@ -55,7 +56,7 @@ def test_Parameter():
     p2 = Parameter('description2', datatype=IntRange(), constant=1)
     assert p1 != p2
     assert p1.ctr != p2.ctr
-    with pytest.raises(ValueError):
+    with pytest.raises(ProgrammingError):
         Parameter(None, datatype=float)
     p3 = p1.copy()
     assert p1.ctr != p3.ctr
