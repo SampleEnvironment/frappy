@@ -24,7 +24,7 @@
 
 from collections import OrderedDict
 
-from secop.errors import ProgrammingError, ConfigError
+from secop.errors import ProgrammingError, ConfigError, BadValueError
 
 
 # storage for 'properties of a property'
@@ -52,8 +52,9 @@ class Property:
         self.settable = settable or mandatory  # settable means settable from the cfg file
 
     def __repr__(self):
-        return 'Property(%r, %s, default=%r, extname=%r, export=%r, mandatory=%r)' % (
-            self.description, self.datatype, self.default, self.extname, self.export, self.mandatory)
+        return 'Property(%r, %s, default=%r, extname=%r, export=%r, mandatory=%r, settable=%r)' % (
+            self.description, self.datatype, self.default, self.extname, self.export,
+            self.mandatory, self.settable)
 
 
 class Properties(OrderedDict):
@@ -100,7 +101,8 @@ class PropertyMeta(type):
         for base in reversed(bases):
             properties.update(getattr(base, "properties", {}))
         # update with properties from new class
-        properties.update(attrs.get('properties', {}))
+        aprops = attrs.get('properties', {})
+        properties.update(aprops)
         newtype.properties = properties
 
         # generate getters
@@ -108,9 +110,23 @@ class PropertyMeta(type):
             def getter(self, pname=k):
                 val = self.__class__.properties[pname].default
                 return self.properties.get(pname, val)
-            if k in attrs:
-                if not isinstance(attrs[k], property):
-                    raise ProgrammingError('Name collision with property %r' % k)
+            if k in attrs and not isinstance(attrs[k], property):
+                if callable(attrs[k]):
+                    raise ProgrammingError('%r: property %r collides with method'
+                                        % (newtype, k))
+                if k in aprops:
+                    # this property was defined in the same class
+                    raise ProgrammingError('%r: name collision with property %r'
+                                        % (newtype, k))
+                # assume the attribute value should be assigned to the property
+                try:
+                    # make a copy first!
+                    prop = Property(**newtype.properties[k].__dict__)
+                    prop.default = prop.datatype(attrs[k])
+                    newtype.properties[k] = prop
+                except BadValueError:
+                    raise ProgrammingError('%r: property %r can not be set to %r'
+                                            % (newtype, k, attrs[k]))
             setattr(newtype, k, property(getter))
         return newtype
 

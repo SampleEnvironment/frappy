@@ -114,6 +114,36 @@ def test_Property_checks():
     o.checkProperties()
     o = cl()
     o.checkProperties()
+    # test for min/max check
     o.setProperty('maxabc', 1)
     with pytest.raises(ConfigError):
         o.checkProperties()
+
+def test_Property_override():
+    o1 = c()
+    class co(c):
+        a = 3
+    o2 = co()
+    assert o1.a == 1
+    assert o2.a == 3
+
+    with pytest.raises(ProgrammingError) as e:
+        class cx(c): # pylint: disable=unused-variable
+            def a(self):
+                pass
+    assert 'collides with method' in str(e.value)
+
+    with pytest.raises(ProgrammingError) as e:
+        class cy(c): # pylint: disable=unused-variable
+            properties = {
+                'b' : Property('', FloatRange(), 3.14),
+            }
+            b = 1.5
+
+    assert 'name collision with property' in str(e.value)
+
+    with pytest.raises(ProgrammingError) as e:
+        class cz(c): # pylint: disable=unused-variable
+            a = 's'
+
+    assert 'can not be set to' in str(e.value)
