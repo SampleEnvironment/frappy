@@ -73,12 +73,14 @@ class StringIO(Communicator):
                 argument=ArrayOf(StringType()), result= ArrayOf(StringType()))
     }
 
+    _reconnectCallbacks = None
+
     def earlyInit(self):
         self._stream = None
         self._lock = threading.RLock()
         self._end_of_line = self.end_of_line.encode(self.encoding)
         self._connect_error = None
-        self._last_error = 'not connected'
+        self._last_error = None
 
     def createConnection(self):
         """create connection
@@ -111,7 +113,7 @@ class StringIO(Communicator):
         if timeout is None or timeout < 0:
             raise ValueError('illegal timeout %r' % timeout)
         if not self.is_connected:
-            raise CommunicationSilentError(self._last_error)
+            raise CommunicationSilentError(self._last_error or 'not connected')
         self._stream.settimeout(timeout)
         try:
             reply = self._stream.recv(4096)
@@ -164,6 +166,7 @@ class StringIO(Communicator):
             if self._last_error:
                 self.log.info('connected')
                 self._last_error = 'connected'
+                self.callCallbacks()
                 return Done
         except Exception as e:
             if str(e) == self._last_error:
@@ -191,6 +194,26 @@ class StringIO(Communicator):
                     self.closeConnection()
                     raise CommunicationFailedError('bad response: %s does not match %s' %
                         (reply, regexp))
+
+    def registerReconnectCallback(self, name, func):
+        """register reconnect callback
+
+        if the callback fails or returns False, it is cleared
+        """
+        if self._reconnectCallbacks is None:
+            self._reconnectCallbacks = {name: func}
+        else:
+            self._reconnectCallbacks[name] = func
+
+    def callCallbacks(self):
+        for key, cb in list(self._reconnectCallbacks.items()):
+            try:
+                removeme = not cb()
+            except Exception as e:
+                self.log.error('callback: %s' % e)
+                removeme = True
+            if removeme:
+                self._reconnectCallbacks.pop(key)
 
     def do_communicate(self, command):
         '''send a command and receive a reply

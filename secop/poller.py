@@ -113,7 +113,8 @@ class Poller(PollerBase):
     def __init__(self, name):
         '''create a poller'''
         self.queues = {polltype: [] for polltype in self.DEFAULT_FACTORS}
-        self._stopped = Event()
+        self._event = Event()
+        self._stopped = False
         self.maxwait = 3600
         self.name = name
 
@@ -142,6 +143,11 @@ class Poller(PollerBase):
             if not hasattr(module, 'pollinterval'):
                 raise ProgrammingError("module %s must have a pollinterval"
                                        % module.name)
+            if pname == 'is_connected':
+                if hasattr(module, 'registerReconnectCallback'):
+                    module.registerReconnectCallback(self.name, self.trigger_all)
+                else:
+                    module.log.warning("%r has 'is_connected' but no 'registerReconnectCallback'" % module)
             if polltype == AUTO: # covers also pobj.poll == True
                 if pname in ('value', 'status'):
                     polltype = DYNAMIC
@@ -184,7 +190,10 @@ class Poller(PollerBase):
             else:
                 interval = module.pollinterval * factor
                 mininterval = interval
-            due = max(lastdue + interval, pobj.timestamp + interval * 0.5)
+            if due == 0:
+                due = now # do not look at timestamp after trigger_all
+            else:
+                due = max(lastdue + interval, pobj.timestamp + interval * 0.5)
             if now >= due:
                 module.pollOneParam(pname)
                 done = True
@@ -193,6 +202,13 @@ class Poller(PollerBase):
             # replace due, lastdue with new values and sort in
             heapreplace(queue, (due, lastdue, pollitem))
         return 0
+
+    def trigger_all(self):
+        for _, queue in sorted(self.queues.items()):
+            for idx, (_, lastdue, pollitem) in enumerate(queue):
+                queue[idx] = (0, lastdue, pollitem)
+        self._event.set()
+        return True
 
     def run(self, started_callback):
         '''start poll loop
@@ -222,7 +238,7 @@ class Poller(PollerBase):
             heapify(queue)
         started_callback() # signal end of startup
         nregular = len(self.queues[REGULAR])
-        while not self._stopped.is_set():
+        while not self._stopped:
             due = float('inf')
             for _ in range(nregular):
                 due = min(self.poll_next(DYNAMIC), self.poll_next(REGULAR))
@@ -231,10 +247,12 @@ class Poller(PollerBase):
             due = min(due, self.poll_next(DYNAMIC), self.poll_next(SLOW))
             delay = due - time.time()
             if delay > 0:
-                self._stopped.wait(delay)
+                self._event.wait(delay)
+                self._event.clear()
 
     def stop(self):
-        self._stopped.set()
+        self._event.set()
+        self._stopped = True
 
     def __bool__(self):
         '''is there any poll item?'''

@@ -73,7 +73,10 @@ class Event:
         artime.sleep(max(0,timeout))
 
     def set(self):
-        self.flag=True
+        self.flag = True
+
+    def clear(self):
+        self.flag = False
 
     def is_set(self):
         return self.flag
@@ -198,7 +201,7 @@ def test_Poller(modules):
         assert len(pollTable) == 1
         poller = pollTable[(Poller, 'common_iodev')]
         artime.stop = poller.stop
-        poller._stopped = Event() # patch Event.wait
+        poller._event = Event() # patch Event.wait
 
         assert (sum(count.values()) > 0) == bool(poller)
 
@@ -233,6 +236,7 @@ def test_Poller(modules):
             for module in modules:
                 for pobj in module.parameters.values():
                     if pobj.poll:
+                        assert pobj.cnt > 0
                         assert pobj.maxspan <= maxspan[pobj.polltype] * 1.1
                         assert (pobj.cnt + 1) * pobj.interval >= total * 0.99
                         assert abs(pobj.span - pobj.interval) < 0.01
