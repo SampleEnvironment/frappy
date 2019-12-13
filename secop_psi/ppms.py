@@ -39,7 +39,6 @@ settings and target would do a useless cycle of ramping up leads, heating switch
 
 import time
 import threading
-import json
 
 from secop.modules import Module, Readable, Drivable, Parameter, Override,\
     Communicator, Property, Attached
@@ -48,6 +47,9 @@ from secop.datatypes import EnumType, FloatRange, IntRange, StringType,\
 from secop.lib.enum import Enum
 from secop.errors import HardwareError
 from secop.poller import Poller
+import secop.commandhandler
+from secop.stringio import HasIodev
+from secop.metaclass import Done
 
 try:
     import secop_psi.ppmswindows as ppmshw
@@ -55,9 +57,15 @@ except ImportError:
     import secop_psi.ppmssim as ppmshw
 
 
-def isDriving(status):
-    """moving towards target"""
-    return 300 <= status[0] < 390
+class CmdHandler(secop.commandhandler.CmdHandler):
+    CMDARGS = ['no']
+    CMDSEPARATOR = None # no command chaining
+    READ_BEFORE_WRITE = False
+
+    def __init__(self, name, querycmd, replyfmt):
+        changecmd = querycmd.split('?')[0] + ' '
+        super().__init__(name, querycmd, replyfmt, changecmd)
+
 
 class Main(Communicator):
     """general ppms dummy module"""
@@ -122,82 +130,41 @@ class Main(Communicator):
         return data # return data as string
 
 
-class PpmsMixin(Module):
+class PpmsMixin(HasIodev, Module):
     properties = {
-        'iodev': Attached('_main'),
-    }
-    parameters = {
-        'settings':
-            Parameter('internal', export=False, poll=True, readonly=False,
-                      default="", datatype=StringType()),
+        'iodev': Attached(),
     }
 
     pollerClass = Poller
     enabled = True # default, if no parameter enable is defined
-    STATUS_MAP = {} # a mapping converting ppms status codes into SECoP status values
-    _settingnames = [] # names of the parameters in the settings command
-    _last_target_change = 0
+    # STATUS_MAP = {} # a mapping converting ppms status codes into SECoP status values
+    _last_target_change = 0 # used by several modules
+    _last_settings = None # used by several modules
     slow_pollfactor = 1
 
     def initModule(self):
-        self._main.register(self)
+        self._iodev.register(self)
 
     def startModule(self, started_callback):
         # no polls except on main module
         started_callback()
 
-    def send_cmd(self, writecmd, argdict):
-        self._main.do_communicate(writecmd + ' ' +
-                                  ','.join('%.7g' % argdict[key] for key in self._settingnames))
-
-    def get_reply(self, settings, query):
-        """return a dict with the values get from the reply
-
-        if the reply has not changed, an empty dict is returned
-        """
-        reply = self._main.do_communicate(query)
-        if getattr(self, settings) == reply:
-            return {}
-        setattr(self, settings, reply)
-        return dict(zip(self._settingnames, json.loads('[%s]' % reply)))
-
-    def apply_reply(self, reply, pname):
-        """apply reply dict to the parameters
-
-        except for reply[pname], which is returned
-        """
-        returnvalue = getattr(self, pname)
-        for key, value in reply.items():
-            if key == pname:
-                returnvalue = value
-            else:
-                setattr(self, key, value)
-        return returnvalue
-
-    def make_argdict(self, pname, value):
-        """make a dict from the parameters self._settingnames
-
-        but result[pname] replaced by value
-        """
-        return {key: value if key == pname else getattr(self, key) for key in self._settingnames}
-
-    def read_settings(self):
-        return self.get_settings('settings')
-
     def read_value(self):
-        """not very useful, as values are updated fast enough
-
-        note: this will update all values, and the value of this module twice
-        """
-        self._main.read_data()
+        """effective polling is done by the main module"""
+        if not self.enabled:
+            return Done
+        if self.parameters['value'].timestamp == 0:
+             # make sure that the value is read at least after init
+            self._iodev.read_data()
         return self.value
 
     def read_status(self):
-        """not very useful, as status is updated fast enough
-
-        note: this will update the status of all modules, and this module twice
-        """
-        self._main.read_data()
+        """effective polling is done by the main module"""
+        if not self.enabled:
+            return Done
+        if self.parameters['value'].timestamp == 0:
+            # make sure that the value is read at least after init
+            self._iodev.read_data()
         return self.status
 
     def update_value_status(self, value, packed_status):
@@ -214,12 +181,11 @@ class PpmsMixin(Module):
             self.value = value
             self.status = [self.Status.IDLE, '']
 
+
 class Channel(PpmsMixin, Readable):
     parameters = {
         'value':
-            Override('main value of channels', poll=False, default=0),
-        'status':
-            Override(poll=False),
+            Override('main value of channels', poll=True),
         'enabled':
             Parameter('is this channel used?', readonly=False, poll=False,
                       datatype=BoolType(), default=False),
@@ -243,6 +209,7 @@ class Channel(PpmsMixin, Readable):
     def get_settings(self, pname):
         return ''
 
+
 class UserChannel(Channel):
     parameters = {
         'pollinterval':
@@ -256,169 +223,86 @@ class UserChannel(Channel):
 
 
 class DriverChannel(Channel):
+    drvout = CmdHandler('drvout', 'DRVOUT? %(no)d', '%d,%g,%g')
+
     parameters = {
         'current':
-            Parameter('driver current', readonly=False, poll=False,
-                      datatype=FloatRange(0., 5000., unit='uA'), default=0),
+            Parameter('driver current', readonly=False, handler=drvout,
+                      datatype=FloatRange(0., 5000., unit='uA')),
         'powerlimit':
-            Parameter('power limit', readonly=False, poll=False,
-                      datatype=FloatRange(0., 1000., unit='uW'), default=0),
+            Parameter('power limit', readonly=False, handler=drvout,
+                      datatype=FloatRange(0., 1000., unit='uW')),
         'pollinterval':
             Override(visibility=3),
     }
 
-    _settingnames = ['no', 'current', 'powerlimit']
+    def analyze_drvout(self, no, current, powerlimit):
+        if self.no != no:
+            raise HardwareError('DRVOUT command: channel number in reply does not match')
+        self.current = current
+        self.powerlimit = powerlimit
 
-    def get_settings(self, pname):
-        """read settings
-
-        return the value for <pname> and update all other parameters
-        """
-        reply = self.get_reply('settings', 'DRVOUT? %d' % self.no)
-        if reply:
-            if self.no != reply.pop('no'):
-                raise HardwareError('DRVOUT command: channel number in reply does not match')
-        return self.apply_reply(reply, pname)
-
-    def put_settings(self, value, pname):
-        """write settings, combining <pname>=<value> and current attributes
-
-        and request updated settings
-        """
-        self.send_cmd('DRVOUT', self.make_argdict(pname, value))
-        return self.get_settings(pname)
-
-    def read_current(self):
-        return self.get_settings('current')
-
-    def read_powerlimit(self):
-        return self.get_settings('powerlimit')
-
-    def write_settings(self):
-        return self.get_settings('settings')
-
-    def write_current(self, value):
-        return self.put_settings(value, 'current')
-
-    def write_powerlimit(self, value):
-        return self.put_settings(value, 'powerlimit')
+    def change_drvout(self, new):
+        return new.current, new.powerlimit
 
 
 class BridgeChannel(Channel):
+    bridge = CmdHandler('bridge', 'BRIDGE? %(no)d', '%d,%g,%g,%d,%d,%g')
     # pylint: disable=invalid-name
     ReadingMode = Enum('ReadingMode', standard=0, fast=1, highres=2)
     parameters = {
+        'enabled':
+            Override(handler=bridge),
         'excitation':
-            Parameter('excitation current', readonly=False, poll=False,
-                      datatype=FloatRange(0.01, 5000., unit='uA'), default=0.01),
+            Parameter('excitation current', readonly=False, handler=bridge,
+                      datatype=FloatRange(0.01, 5000., unit='uA')),
         'powerlimit':
-            Parameter('power limit', readonly=False, poll=False,
-                      datatype=FloatRange(0.001, 1000., unit='uW'), default=0.001),
+            Parameter('power limit', readonly=False, handler=bridge,
+                      datatype=FloatRange(0.001, 1000., unit='uW')),
         'dcflag':
-            Parameter('True when excitation is DC (else AC)', readonly=False, poll=False,
-                      datatype=BoolType(), default=False),
+            Parameter('True when excitation is DC (else AC)', readonly=False, handler=bridge,
+                      datatype=BoolType()),
         'readingmode':
-            Parameter('reading mode', readonly=False, poll=False,
-                      datatype=EnumType(ReadingMode), default=ReadingMode.standard),
+            Parameter('reading mode', readonly=False, handler=bridge,
+                      datatype=EnumType(ReadingMode)),
         'voltagelimit':
-            Parameter('voltage limit', readonly=False, poll=False,
-                      datatype=FloatRange(0.0001, 100., unit='mV'), default=0.0001),
+            Parameter('voltage limit', readonly=False, handler=bridge,
+                      datatype=FloatRange(0.0001, 100., unit='mV')),
         'pollinterval':
             Override(visibility=3),
     }
 
     _settingnames = ['no', 'excitation', 'powerlimit', 'dcflag', 'readingmode', 'voltagelimit']
 
-    def get_settings(self, pname):
-        """read settings
+    def analyze_bridge(self, no, excitation, powerlimit, dcflag, readingmode, voltagelimit):
+        if self.no != no:
+            raise HardwareError('DRVOUT command: channel number in reply does not match')
+        self.enabled = excitation != 0 and powerlimit != 0 and voltagelimit != 0
+        self.excitation = excitation or self.excitation
+        self.powerlimit = powerlimit or self.powerlimit
+        self.dcflag = dcflag
+        self.readingmode = readingmode
+        self.voltagelimit = voltagelimit or self.voltagelimit
 
-        return the value for <pname> and update all other parameters
-        """
-        reply = self.get_reply('settings', 'BRIDGE? %d' % self.no)
-        if reply:
-            if self.no != reply['no']:
-                raise HardwareError('BRIDGE command: channel number in reply does not match')
-            reply['enabled'] = 1
-            if reply['excitation'] == 0:
-                reply['excitation'] = self.excitation
-                reply['enabled'] = 0
-            if reply['powerlimit'] == 0:
-                reply['powerlimit'] = self.powerlimit
-                reply['enabled'] = 0
-            if reply['voltagelimit'] == 0:
-                reply['voltagelimit'] = self.voltagelimit
-                reply['enabled'] = 0
-            del reply['no']
-        returnvalue = self.apply_reply(reply, pname)
-        return returnvalue
-
-    def put_settings(self, value, pname):
-        """write settings, combining <pname>=<value> and current attributes
-
-        and request updated settings
-        """
-        argdict = self.make_argdict(pname, value)
-        enabled = value if pname == 'enabled' else self.enabled
-        if not enabled:
-            argdict['excitation'] = 0
-            argdict['powerlimit'] = 0
-            argdict['voltagelimit'] = 0
-        self.send_cmd('BRIDGE', argdict)
-        returnvalue = self.get_settings(pname)
-        return returnvalue
-
-    def read_enabled(self):
-        return self.get_settings('enabled')
-
-    def read_excitation(self):
-        return self.get_settings('excitation')
-
-    def read_powerlimit(self):
-        return self.get_settings('powerlimit')
-
-    def read_dcflag(self):
-        return self.get_settings('dcflag')
-
-    def read_readingmode(self):
-        return self.get_settings('readingmode')
-
-    def read_voltagelimit(self):
-        return self.get_settings('voltagelimit')
-
-    def write_settings(self):
-        return self.get_settings('settings')
-
-    def write_enabled(self, value):
-        return self.put_settings(value, 'enabled')
-
-    def write_excitation(self, value):
-        return self.put_settings(value, 'excitation')
-
-    def write_powerlimit(self, value):
-        return self.put_settings(value, 'powerlimit')
-
-    def write_dcflag(self, value):
-        return self.put_settings(value, 'dcflag')
-
-    def write_readingmode(self, value):
-        return self.put_settings(value, 'readingmode')
-
-    def write_voltagelimit(self, value):
-        return self.put_settings(value, 'voltagelimit')
+    def change_bridge(self, new):
+        if new.enabled:
+            return self.no, new.excitation, new.powerlimit, new.dcflag, new.readingmode, new.voltagelimit
+        return self.no, 0, 0, new.dcflag, new.readingmode, 0
 
 
 class Level(PpmsMixin, Readable):
     """helium level"""
 
+    level = CmdHandler('level', 'LEVEL?', '%g,%d')
+
     parameters = {
-        'value':  Override(datatype=FloatRange(unit='%'), poll=False, default=0),
-        'status': Override(poll=False),
+        'value':  Override(datatype=FloatRange(unit='%'), handler=level),
+        'status': Override(handler=level),
         'pollinterval':
             Override(visibility=3),
     }
 
     channel = 'level'
-    _settingnames = ['value', 'status']
 
     def update_value_status(self, value, packed_status):
         """must be a no-op
@@ -427,24 +311,12 @@ class Level(PpmsMixin, Readable):
         value and status is polled via settings
         """
 
-    def get_settings(self, pname):
-        """read settings
-
-        return the value for <pname> and update all other parameters
-        """
-        reply = self.get_reply('settings', 'LEVEL?')
-        if reply:
-            if reply['status']:
-                reply['status'] = [self.Status.IDLE, '']
-            else:
-                reply['status'] = [self.Status.ERROR, 'old reading']
-        return self.apply_reply(reply, pname)
-
-    def read_value(self):
-        return self.get_settings('value')
-
-    def read_status(self):
-        return self.get_settings('status')
+    def analyze_level(self, level, status):
+        if status:
+            self.status = [self.Status.IDLE, '']
+        else:
+            self.status = [self.Status.ERROR, 'old reading']
+        self.value = level
 
 
 class Chamber(PpmsMixin, Drivable):
@@ -453,6 +325,7 @@ class Chamber(PpmsMixin, Drivable):
     value is an Enum, which is redundant with the status text
     """
 
+    chamber = CmdHandler('chamber', 'CHAMBER?', '%d')
     Status = Drivable.Status
     # pylint: disable=invalid-name
     Operation = Enum(
@@ -481,13 +354,11 @@ class Chamber(PpmsMixin, Drivable):
     )
     parameters = {
         'value':
-            Override(description='chamber state', poll=False,
-                     datatype=EnumType(StatusCode), default='unknown'),
-        'status':
-            Override(poll=False),
+            Override(description='chamber state', handler=chamber,
+                     datatype=EnumType(StatusCode)),
         'target':
-            Override(description='chamber command', poll=True,
-                     datatype=EnumType(Operation), default=Operation.noop),
+            Override(description='chamber command', handler=chamber,
+                     datatype=EnumType(Operation)),
         'pollinterval':
             Override(visibility=3),
     }
@@ -513,34 +384,23 @@ class Chamber(PpmsMixin, Drivable):
         self.value = (packed_status >> 8) & 0xf
         self.status = self.STATUS_MAP[self.value]
 
-    def get_settings(self, pname):
-        """read settings
+    def analyze_chamber(self, target):
+        self.target = target
 
-        return the value for <pname> and update all other parameters
-        """
-        reply = self.get_reply('settings', 'CHAMBER?')
-        return self.apply_reply(reply, pname)
-
-    def put_settings(self, value, pname):
+    def change_chamber(self, new):
         """write settings, combining <pname>=<value> and current attributes
 
         and request updated settings
         """
-        self.send_cmd('CHAMBER', self.make_argdict(pname, value))
-        return self.get_settings(pname)
-
-    def read_target(self):
-        return self.get_settings('target')
-
-    def write_target(self, value):
-        if value == self.Operation.noop:
-            return value
-        return self.put_settings(value, 'target')
+        if new.target == self.Operation.noop:
+            return None
+        return (new.target,)
 
 
 class Temp(PpmsMixin, Drivable):
     """temperature"""
 
+    temp = CmdHandler('temp', 'TEMP?', '%g,%g,%d')
     Status = Enum(Drivable.Status,
         RAMPING = 370,
         STABILIZING = 380,
@@ -549,17 +409,17 @@ class Temp(PpmsMixin, Drivable):
     ApproachMode = Enum('ApproachMode', fast_settle=0, no_overshoot=1)
     parameters = {
         'value':
-            Override(datatype=FloatRange(unit='K'), poll=False, default=0),
+            Override(datatype=FloatRange(unit='K'), poll=True),
         'status':
-            Override(poll=False, datatype=StatusType(Status)),
+            Override(datatype=StatusType(Status), poll=True),
         'target':
-            Override(datatype=FloatRange(1.7, 402.0, unit='K'), default=295, poll=False),
+            Override(datatype=FloatRange(1.7, 402.0, unit='K'), handler=temp),
         'ramp':
-            Parameter('ramping speed', readonly=False, poll=False,
-                      datatype=FloatRange(0, 20, unit='K/min'), default=0.1),
+            Parameter('ramping speed', readonly=False, handler=temp,
+                      datatype=FloatRange(0, 20, unit='K/min')),
         'approachmode':
-            Parameter('how to approach target!', readonly=False, poll=False,
-                      datatype=EnumType(ApproachMode), default=0),
+            Parameter('how to approach target!', readonly=False, handler=temp,
+                      datatype=EnumType(ApproachMode)),
         'pollinterval':
             Override(visibility=3),
         'timeout':
@@ -621,7 +481,7 @@ class Temp(PpmsMixin, Drivable):
                 self.status = [self.Status.IDLE, 'stopped(%s)' % status[1]]
                 return
         if self._last_change: # there was a change, which is not yet confirmed by hw
-            if isDriving(status):
+            if self.isDriving(status):
                 if now > self._last_change + 15 or status != self._status_before_change:
                     self._last_change = 0
                     self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
@@ -632,71 +492,50 @@ class Temp(PpmsMixin, Drivable):
                     status = [self.Status.WARN, 'temperature status (%r) does not change to BUSY' % status]
         if self._expected_target:
             # handle timeout
-            if isDriving(status):
+            if self.isDriving(status):
                 if now > self._expected_target + self.timeout:
-                    self.status = [self.Status.WARN, 'timeout while %s' % status[1]]
-                    return
+                    status = [self.Status.WARN, 'timeout while %s' % status[1]]
             else:
                 self._expected_target = 0
         self.status = status
 
-    def get_settings(self, pname):
-        """read settings
+    def analyze_temp(self, target, ramp, approachmode):
+        if (target, ramp, approachmode) != self._last_settings:
+            # we update parameters only on change, as 'approachmode'
+            # is not always sent to the hardware
+            self._last_settings = target, ramp, approachmode
+            self.target = target
+            self.ramp =ramp
+            self.approachmode = approachmode
 
-        return the value for <pname> and update all other parameters
-        """
-        return self.apply_reply(self.get_reply('settings', 'TEMP?'), pname)
+    def change_temp(self, new):
+        self.calc_expected(new.target, self.ramp)
+        return new.target, new.ramp, new.approachmode
 
-    def put_settings(self, value, pname):
-        """write settings, combining <pname>=<value> and current attributes
+    def write_target(self, target):
+        self._stopped = False
+        if abs(self.target - self.value) < 2e-5 and target == self.target:
+            return None
+        self._status_before_change = self.status
+        self.status = [self.Status.BUSY, 'changed_target']
+        self._last_change = time.time()
+        return target
 
-        and request updated settings
-        """
-        self.send_cmd('TEMP', self.make_argdict(pname, value))
-        return self.get_settings(pname)
+    def write_approachmode(self, value):
+        if self.isDriving():
+            return value
+        return None # change_temp will not be called, as this would trigger an unnecessary T change
 
-    def read_target(self):
-        return self.get_settings('target')
-
-    def read_ramp(self):
-        return self.get_settings('ramp')
-
-    def read_approachmode(self):
-        return self.get_settings('approachmode')
-
-    def write_settings(self):
-        return self.get_settings('settings')
+    def write_ramp(self, value):
+        if self.isDriving():
+            return value
+        return None # change_temp will not be called, as this would trigger an unnecessary T change
 
     def calc_expected(self, target, ramp):
         self._expected_target = time.time() + abs(target - self.value) * 60.0 / max(0.1, ramp)
 
-    def write_target(self, target):
-        self._stopped = False
-        if abs(self.value - target) < 2e-5 and target == self.target:
-            return target # no action needed
-        self._status_before_change = self.status
-        self.status = [self.Status.BUSY, 'changed_target']
-        self._last_change = time.time()
-        newtarget = self.put_settings(target, 'target')
-        self.calc_expected(target, self.ramp)
-        return newtarget
-
-    def write_ramp(self, value):
-        if not isDriving(self.status):
-            # do not yet write settings, as this may change the status to busy
-            return value
-        if time.time() < self._expected_target: # recalc expected target
-            self.calc_expected(self.target, value)
-        return self.put_settings(value, 'ramp')
-
-    def write_approachmode(self, value):
-        if not isDriving(self.status):
-            # do not yet write settings, as this may change the status to busy
-            return value
-        return self.put_settings(value, 'approachmode')
-
     def do_stop(self):
-        if not isDriving(self.status):
+        if self.isDriving():
             return
         if self.status[0] == self.Status.STABILIZING:
             # we are already near target
@@ -712,6 +551,7 @@ class Temp(PpmsMixin, Drivable):
 class Field(PpmsMixin, Drivable):
     """magnetic field"""
 
+    field = CmdHandler('field', 'FIELD?', '%g,%g,%d,%d')
     Status = Enum(Drivable.Status,
         PREPARED = 150,
         PREPARING = 340,
@@ -724,20 +564,20 @@ class Field(PpmsMixin, Drivable):
 
     parameters = {
         'value':
-            Override(datatype=FloatRange(unit='T'), poll=False, default=0),
+            Override(datatype=FloatRange(unit='T'), poll=True),
         'status':
-            Override(poll=False, datatype=StatusType(Status)),
+            Override(datatype=StatusType(Status), poll=True),
         'target':
-            Override(datatype=FloatRange(-15,15,unit='T'), poll=False),
+            Override(datatype=FloatRange(-15,15,unit='T'), handler=field),
         'ramp':
-            Parameter('ramping speed', readonly=False, poll=False,
-                      datatype=FloatRange(0.064, 1.19, unit='T/min'), default=0.064),
+            Parameter('ramping speed', readonly=False, handler=field,
+                      datatype=FloatRange(0.064, 1.19, unit='T/min')),
         'approachmode':
-            Parameter('how to approach target', readonly=False, poll=False,
-                      datatype=EnumType(ApproachMode), default=0),
+            Parameter('how to approach target', readonly=False, handler=field,
+                      datatype=EnumType(ApproachMode)),
         'persistentmode':
-            Parameter('what to do after changing field', readonly=False, poll=False,
-                      datatype=EnumType(PersistentMode), default=0),
+            Parameter('what to do after changing field', readonly=False, handler=field,
+                      datatype=EnumType(PersistentMode)),
         'pollinterval':
             Override(visibility=3),
     }
@@ -756,7 +596,6 @@ class Field(PpmsMixin, Drivable):
     }
 
     channel = 'field'
-    _settingnames = ['target', 'ramp', 'approachmode', 'persistentmode']
     _stopped = False
     _last_target = 0
     _last_change= 0 # means no target change is pending
@@ -784,7 +623,7 @@ class Field(PpmsMixin, Drivable):
                     status = [self.Status.PREPARING, 'ramping leads']
                 else:
                     status = [self.Status.WARN, 'timeout when ramping leads']
-            elif isDriving(status):
+            elif self.isDriving(status):
                 if now > self._last_change + 5 or status != self._status_before_change:
                     self._last_change = 0
                     self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
@@ -793,82 +632,34 @@ class Field(PpmsMixin, Drivable):
                     status = [self.Status.BUSY, 'changed target while %s' % status[1]]
                 else:
                     status = [self.Status.WARN, 'field status (%r) does not change to BUSY' % status]
-
-
         self.status = status
 
-    def _start(self):
-        """common code for change target and change persistentmode"""
-        self._last_change = time.time()
-        self._status_before_change = list(self.status)
+    def analyze_field(self, target, ramp, approachmode, persistentmode):
+        if (target, ramp, approachmode, persistentmode) != self._last_settings:
+            # we update parameters only on change, as 'ramp' and 'approachmode' are
+            # not always sent to the hardware
+            self._last_settings = target, ramp, approachmode, persistentmode
+            self.target = target * 1e-4
+            self.ramp = ramp * 6e-3
+            self.approachmode = approachmode
+            self.persistentmode = persistentmode
 
-    def get_settings(self, pname):
-        """read settings
-
-        return the value for <pname> and update all other parameters
-        """
-        reply = self.get_reply('settings', 'FIELD?')
-        if reply:
-            reply['target'] *= 1e-4
-            reply['ramp'] *= 6e-3
-        return self.apply_reply(reply, pname)
-
-    def put_settings(self, value, pname):
-        """write settings, combining <pname>=<value> and current attributes
-
-        and request updated settings
-        """
-        argdict = self.make_argdict(pname, value)
-        argdict['target'] *= 1e+4
-        argdict['ramp'] /= 6e-3
-        self.send_cmd('FIELD', argdict)
-        return self.get_settings(pname)
-
-    def read_target(self):
-        return self.get_settings('target')
-
-    def read_ramp(self):
-        return self.get_settings('ramp')
-
-    def read_approachmode(self):
-        return self.get_settings('approachmode')
-
-    def read_persistentmode(self):
-        return self.get_settings('persistentmode')
-
-    def write_settings(self):
-        return self.get_settings('settings')
-
-    def write_target(self, target):
-        self._last_target = self.target # save for stop command
-        self._stopped = False
-        if abs(self.value - target) < 2e-5 and target == self.target:
-            return target # no action needed
-        self._start()
-        result = self.put_settings(target, 'target')
-        self._main.read_data() # update status
-        return result
-
-    def write_ramp(self, value):
-        if not isDriving(self.status):
-            # do not yet write settings, as this will trigger a ramp up of leads current
-            return value
-        return self.put_settings(value, 'ramp')
-
-    def write_approachmode(self, value):
-        if not isDriving(self.status):
-            # do not yet write settings, as this will trigger a ramp up of leads current
-            return value
-        return self.put_settings(value, 'approachmode')
-
-    def write_persistentmode(self, value):
-        if self.persistentmode == value:
-            return value # no action needed
-        self._start()
-        return self.put_settings(value, 'persistentmode')
+    def change_field(self, new):
+        if 'target' in new or 'persistentmode' in new:
+             # changed target or persistentmode
+            if 'target' in new:
+                self._last_target = self.target  # save for stop command
+            self._stopped = False
+            self._last_change = time.time()
+            self._status_before_change = list(self.status)
+        else:
+            # changed ramp or approachmode
+            if not self.isDriving():
+                return None # nothing to be written, as this would trigger a ramp up of leads current
+        return new.target * 1e+4, new.ramp / 6e-3, new.approachmode, new.persistentmode
 
     def do_stop(self):
-        if not isDriving(self.status):
+        if not self.isDriving():
             return
         self.status = [self.Status.IDLE, '_stopped']
         self._stopped = True
@@ -884,20 +675,19 @@ class Field(PpmsMixin, Drivable):
 class Position(PpmsMixin, Drivable):
     """rotator position"""
 
+    move = CmdHandler('move', 'MOVE?', '%g,%g,%g')
     Status = Drivable.Status
     parameters = {
         'value':
-            Override(datatype=FloatRange(unit='deg'), poll=False, default=0),
-        'status':
-            Override(poll=False),
+            Override(datatype=FloatRange(unit='deg'), poll=True),
         'target':
-            Override(datatype=FloatRange(-720., 720., unit='deg'), default=0., poll=False),
+            Override(datatype=FloatRange(-720., 720., unit='deg'), handler=move),
         'enabled':
             Parameter('is this channel used?', readonly=False, poll=False,
                       datatype=BoolType(), default=True),
         'speed':
-            Parameter('motor speed', readonly=False, poll=False,
-                      datatype=FloatRange(0.8, 12, unit='deg/sec'), default=12.0),
+            Parameter('motor speed', readonly=False, handler=move,
+                      datatype=FloatRange(0.8, 12, unit='deg/sec')),
         'pollinterval':
             Override(visibility=3),
     }
@@ -915,7 +705,6 @@ class Position(PpmsMixin, Drivable):
     _stopped = False
     _last_target = 0
     _last_change = 0 # means no target change is pending
-    mode = 0 # always use normal mode
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
@@ -935,7 +724,7 @@ class Position(PpmsMixin, Drivable):
                 status = [self.Status.IDLE, 'stopped(%s)' % status[1]]
         if self._last_change: # there was a change, which is not yet confirmed by hw
             now = time.time()
-            if isDriving(status):
+            if self.isDriving():
                 if now > self._last_change + 15 or status != self._status_before_change:
                     self._last_change = 0
                     self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
@@ -946,50 +735,32 @@ class Position(PpmsMixin, Drivable):
                     status = [self.Status.WARN, 'temperature status (%r) does not change to BUSY' % status]
         self.status = status
 
-    def get_settings(self, pname):
-        """read settings
+    def analyze_move(self, target, mode, speed):
+        if (target, speed) != self._last_settings:
+            # we update parameters only on change, as 'speed' is
+            # not always sent to the hardware
+            self._last_settings = target, speed
+            self.target = target
+            self.speed = (15 - speed) * 0.8
 
-        return the value for <pname> and update all other parameters
-        """
-        reply = self.get_reply('settings', 'MOVE?')
-        if reply:
-            reply['speed'] = (15 - reply['speed']) * 0.8
-            reply.pop('mode', None)
-        return self.apply_reply(reply, pname)
+    def change_move(self, new):
+        speed = int(round(min(14, max(0, 15 - new.speed / 0.8)), 0))
+        return new.target, 0, speed
 
-    def put_settings(self, value, pname):
-        """write settings, combining <pname>=<value> and current attributes
-
-        and request updated settings
-        """
-        argdict = self.make_argdict(pname, value)
-        argdict['speed'] = int(round(min(14, max(0, 15 - argdict['speed'] / 0.8)), 0))
-        self.send_cmd('MOVE', argdict)
-        return self.get_settings(pname)
-
-    def read_target(self):
-        return self.get_settings('target')
-
-    def read_speed(self):
-        return self.get_settings('speed')
-
-    def write_settings(self):
-        return self.get_settings('settings')
-
-    def write_target(self, value):
+    def write_target(self, target):
         self._last_target = self.target # save for stop command
         self._stopped = False
         self._last_change = 0
         self._status_before_change = self.status
-        return self.put_settings(value, 'target')
+        return target
 
     def write_speed(self, value):
-        if not isDriving(self.status):
+        if self.isDriving():
             return value
-        return self.put_settings(value, 'speed')
+        return None # change_move not called: as this would trigger an unnecessary move
 
     def do_stop(self):
-        if not isDriving(self.status):
+        if not self.isDriving():
             return
         self.status = [self.Status.BUSY, '_stopped']
         self._stopped = True

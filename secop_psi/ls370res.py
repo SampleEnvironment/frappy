@@ -36,6 +36,13 @@ class CmdHandler(secop.commandhandler.CmdHandler):
     CMDARGS = ['channel']
     CMDSEPARATOR = ';'
 
+    def __init__(self, name, querycmd, replyfmt):
+        changecmd = querycmd.replace('?', ' ')
+        if not querycmd.endswith('?'):
+            changecmd += ','
+        super().__init__(name, querycmd, replyfmt, changecmd)
+
+
 rdgrng = CmdHandler('rdgrng', 'RDGRNG?%(channel)d', '%d,%d,%d,%d,%d')
 inset = CmdHandler('inset', 'INSET?%(channel)d', '%d,%d,%d,%d,%d')
 filterhdl = CmdHandler('filt', 'FILTER?%(channel)d', '%d,%d,%d')

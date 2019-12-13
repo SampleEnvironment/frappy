@@ -96,6 +96,12 @@ def test_CmdHandler():
         CMDARGS = ['channel', 'loop']
         CMDSEPARATOR ='|'
 
+        def __init__(self, name, querycmd, replyfmt):
+            changecmd = querycmd.replace('?', ' ')
+            if not querycmd.endswith('?'):
+                changecmd += ','
+            super().__init__(name, querycmd, replyfmt, changecmd)
+
     group1 = Hdl('group1', 'SIMPLE?', '%g')
     group2 = Hdl('group2', 'CMD?%(channel)d', '%g,%s,%d')
 

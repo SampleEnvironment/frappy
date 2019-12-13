@@ -112,12 +112,12 @@ class ModuleMeta(PropertyMeta):
                 # skip commands for now
                 continue
             rfunc = attrs.get('read_' + pname, None)
-            handler = pobj.handler.get_read_func(newtype, pname) if pobj.handler else None
-            if handler:
+            rfunc_handler = pobj.handler.get_read_func(newtype, pname) if pobj.handler else None
+            if rfunc_handler:
                 if rfunc:
                     raise ProgrammingError("parameter '%s' can not have a handler "
                                            "and read_%s" % (pname, pname))
-                rfunc = handler
+                rfunc = rfunc_handler
             else:
                 for base in bases:
                     if rfunc is not None:
@@ -151,17 +151,13 @@ class ModuleMeta(PropertyMeta):
 
             if not pobj.readonly:
                 wfunc = attrs.get('write_' + pname, None)
-                handler = pobj.handler.get_write_func(pname) if pobj.handler else None
-                if handler:
-                    if wfunc:
-                        raise ProgrammingError("parameter '%s' can not have a handler "
-                                               "and write_%s" % (pname, pname))
-                    wfunc = handler
-                else:
-                    for base in bases:
-                        if wfunc is not None:
-                            break
-                        wfunc = getattr(base, 'write_' + pname, None)
+                # if a handler and write_<param> is present, wfunc will be called
+                # by the handler first
+                wfunc = pobj.handler.get_write_func(pname, wfunc) if pobj.handler else wfunc
+                for base in bases:
+                    if wfunc is not None:
+                        break
+                    wfunc = getattr(base, 'write_' + pname, None)
 
                 if wfunc is None or getattr(wfunc, '__wrapped__', False) is False:
 

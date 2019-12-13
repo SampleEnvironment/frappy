@@ -136,22 +136,26 @@ class CmdParser:
         return [c(v) for c, v in zip(self.casts, match.groups())]
 
 
-class ChangeWrapper:
-    """Wrapper around a module
+class Change:
+    """contains new values for the call to change_<group>
 
-    A ChangeWrapper instance is used as the 'new' argument for the change_<group> message.
+    A Change instance is used as the 'new' argument for the change_<group> method.
     new.<parameter> is either the new, changed value or the old value from the module.
-    In addition '<parameter>' indicates, whether <parameter> is to be changed.
-    setting new.<parameter> does not yet set the value on the module.
+    In addition '<parameter>' in new indicates, whether <parameter> is to be changed.
+    new.<parameter> can not be changed
     """
-    def __init__(self, module, valuedict):
-        self._module = module
-        for pname, value in valuedict.items():
-            setattr(self, pname, value)
+    def __init__(self, module, parameters, valuedict):
+        self.__dict__.update(valuedict, _module=module, _parameters=parameters)
 
-    def __getattr__(self, key):
+    def __getattr__(self, pname):
         """get current values from _module for unchanged parameters"""
-        return getattr(self._module, key)
+        if not pname in self._parameters:
+            raise AttributeError("parameter '%s' is not within the handlers group"
+                                 % pname)
+        return getattr(self._module, pname)
+
+    def __setattr__(self, pname, value):
+        raise AttributeError("can't set attribute ")
 
     def __contains__(self, pname):
         """check whether a specific parameter is to be changed"""
@@ -237,41 +241,62 @@ class CmdHandlerBase:
             raise
         return Done # parameters should be updated already
 
-    def get_write_func(self, pname):
+    def get_write_func(self, pname, wfunc):
         """returns the write function passed to the metaclass
 
-        return None if not used.
+        may be overriden to return None, if not used
         """
 
-        def wfunc(module, value, cmd=self, pname=pname):
-            cmd.write(module, {pname: value})
-            return Done
+        if wfunc:
+            def new_wfunc(module, value, cmd=self, pname=pname, wfunc=wfunc):
+                value = wfunc(module, value)
+                if value is None or value is Done:
+                    return value
+                cmd.write(module, {pname: value})
+                return Done
+        else:
+            def new_wfunc(module, value, cmd=self, pname=pname):
+                cmd.write(module, {pname: value})
+                return Done
 
-        return wfunc
+        return new_wfunc
 
     def write(self, module, valuedict, force_read=False):
         """write values to the module
 
-        When called from write_<param>, valuedict contains only one item:
-        the parameter to be changed.
-        When called from initialization, valuedict may have more items.
+        When called from write_<param>, valuedict contains only one item,
+        the single parameter to be changed.
+        If called directly, valuedict may have more items.
         """
         analyze = getattr(module, 'analyze_' + self.group)
+        if module.writeDict: # collect other parameters to be written
+            valuedict = dict(valuedict)
+            for p in self.parameters:
+                if p in self.writeDict:
+                    valuedict[p] = self.writeDict.pop(p)
+                elif p not in valuedict:
+                    force_read = True
         if self.READ_BEFORE_WRITE or force_read:
             # do a read of the current hw values
             values = self.send_command(module)
             # convert them to parameters
             analyze(*values)
         if not self.READ_BEFORE_WRITE:
-            values = ()
-        # create wrapper object 'new' with changed parameter 'pname'
-        new = ChangeWrapper(module, valuedict)
+            values = () # values are not expected for change_<group>
+        new = Change(module, self.parameters, valuedict)
         # call change_* for calculation new hw values
         values = getattr(module, 'change_' + self.group)(new, *values)
         if values is None: # this indicates that nothing has to be written
             return
         # send the change command and a query command
         analyze(*self.send_change(module, *values))
+
+    def change(self, module, *values):
+        """write  and read back values
+
+        might be called from a write method, if change_<group> is not implemented
+        """
+        getattr(module, 'analyze_' + self.group)(*self.send_change(module, *values))
 
 
 class CmdHandler(CmdHandlerBase):
@@ -290,16 +315,19 @@ class CmdHandler(CmdHandlerBase):
                            # the given separator
 
 
-    def __init__(self, group, querycmd, replyfmt):
+    def __init__(self, group, querycmd, replyfmt, changecmd=None):
         """initialize the command handler
 
         group:     the handler group (used for analyze_<group> and change_<group>)
         querycmd:  the command for a query, may contain named formats for cmdargs
         replyfmt:  the format for reading the reply with some scanf like behaviour
+        changecmd: the first part of the change command (without values), may be
+                   omitted if no write happens
         """
         super().__init__(group)
         self.querycmd = querycmd
         self.replyfmt = CmdParser(replyfmt)
+        self.changecmd = changecmd
 
     def parse_reply(self, reply):
         """return values from a raw reply"""
@@ -310,11 +338,8 @@ class CmdHandler(CmdHandlerBase):
         return self.querycmd % {k: getattr(module, k, None) for k in self.CMDARGS}
 
     def make_change(self, module, *values):
-        """make a change command from a query command"""
-        changecmd = self.querycmd.replace('?', ' ')
-        if not self.querycmd.endswith('?'):
-            changecmd += ','
-        changecmd %= {k: getattr(module, k, None) for k in self.CMDARGS}
+        """make a change command"""
+        changecmd = self.changecmd % {k: getattr(module, k, None) for k in self.CMDARGS}
         return changecmd + self.replyfmt.format(*values)
 
     def send_change(self, module, *values):

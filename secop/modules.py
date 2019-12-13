@@ -255,7 +255,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
         pobj = self.parameters[pname]
         self.DISPATCHER.announce_update_error(self, pname, pobj, exception)
 
-    def isBusy(self):
+    def isBusy(self, status=None):
         '''helper function for treating substates of BUSY correctly'''
         # defined even for non drivable (used for dynamic polling)
         return False
@@ -295,21 +295,11 @@ class Module(HasProperties, metaclass=ModuleMeta):
         with proper error handling
         """
         try:
-            pobj = self.parameters[pname]
-            if pobj.handler:
-                pnames = pobj.handler.parameters
-                valuedict = {n: self.writeDict.pop(n) for n in pnames if n in self.writeDict}
-                if valuedict:
-                    self.log.debug('write parameters %r', valuedict)
-                    pobj.handler.write(self, valuedict, force_read=True)
-                    return
-                pobj.handler.read(self)
+            if pname in self.writeDict:
+                self.log.debug('write parameter %s', pname)
+                getattr(self, 'write_'+ pname)(self.writeDict.pop(pname))
             else:
-                if pname in self.writeDict:
-                    self.log.debug('write parameter %s', pname)
-                    getattr(self, 'write_'+ pname)(self.writeDict.pop(pname))
-                else:
-                    getattr(self, 'read_'+ pname)()
+                getattr(self, 'read_'+ pname)()
         except SilentError as e:
             pass
         except SECoPError as e:
@@ -428,9 +418,13 @@ class Drivable(Writable):
         'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
     }
 
-    def isBusy(self):
+    def isBusy(self, status=None):
         '''helper function for treating substates of BUSY correctly'''
-        return 300 <= self.status[0] < 400
+        return 300 <= (status or self.status)[0] < 400
+
+    def isDriving(self, status=None):
+        '''helper function (finalize is busy, not driving)'''
+        return 300 <= (status or self.status)[0] < 380
 
     # improved polling: may poll faster if module is BUSY
     def pollParams(self, nr=0):
