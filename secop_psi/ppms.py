@@ -29,12 +29,6 @@ The PPMS hardware has some special requirements:
 
 Polling of value and status is done commonly for all modules. For each registered module
 <module>.update_value_status() is called in order to update their value and status.
-Polling of module settings is using the same poller (secop.Poller is checking iodev).
-Only the hidden (not exported) parameter 'settings' is polled, all the others are updated
-by read_settings. The modules parameters related to the settings are updated only on change.
-This allows for example for the field module to buffer ramp and approachmode until the
-next target or persistent_mode change happens, because sending the common command for
-settings and target would do a useless cycle of ramping up leads, heating switch etc.
 """
 
 import time
@@ -137,7 +131,6 @@ class PpmsMixin(HasIodev, Module):
 
     pollerClass = Poller
     enabled = True # default, if no parameter enable is defined
-    # STATUS_MAP = {} # a mapping converting ppms status codes into SECoP status values
     _last_target_change = 0 # used by several modules
     _last_settings = None # used by several modules
     slow_pollfactor = 1
@@ -150,22 +143,19 @@ class PpmsMixin(HasIodev, Module):
         started_callback()
 
     def read_value(self):
-        """effective polling is done by the main module"""
-        if not self.enabled:
-            return Done
-        if self.parameters['value'].timestamp == 0:
-             # make sure that the value is read at least after init
-            self._iodev.read_data()
-        return self.value
+        """polling is done by the main module
+
+        and PPMS does not deliver really more fresh values when polled more often
+        """
+        return Done
 
     def read_status(self):
-        """effective polling is done by the main module"""
-        if not self.enabled:
-            return Done
-        if self.parameters['value'].timestamp == 0:
-            # make sure that the value is read at least after init
-            self._iodev.read_data()
-        return self.status
+        """polling is done by the main module
+
+        and PPMS does not deliver really fresh status values anyway: the status is not
+        changed immediately after a target change!
+        """
+        return Done
 
     def update_value_status(self, value, packed_status):
         """update value and status
@@ -239,11 +229,11 @@ class DriverChannel(Channel):
     def analyze_drvout(self, no, current, powerlimit):
         if self.no != no:
             raise HardwareError('DRVOUT command: channel number in reply does not match')
-        self.current = current
-        self.powerlimit = powerlimit
+        return dict(current=current, powerlimit=powerlimit)
 
-    def change_drvout(self, new):
-        return new.current, new.powerlimit
+    def change_drvout(self, change):
+        self.readValues()
+        return change.current, change.powerlimit
 
 
 class BridgeChannel(Channel):
@@ -272,22 +262,23 @@ class BridgeChannel(Channel):
             Override(visibility=3),
     }
 
-    _settingnames = ['no', 'excitation', 'powerlimit', 'dcflag', 'readingmode', 'voltagelimit']
-
     def analyze_bridge(self, no, excitation, powerlimit, dcflag, readingmode, voltagelimit):
         if self.no != no:
             raise HardwareError('DRVOUT command: channel number in reply does not match')
-        self.enabled = excitation != 0 and powerlimit != 0 and voltagelimit != 0
-        self.excitation = excitation or self.excitation
-        self.powerlimit = powerlimit or self.powerlimit
-        self.dcflag = dcflag
-        self.readingmode = readingmode
-        self.voltagelimit = voltagelimit or self.voltagelimit
+        return dict(
+                enabled=excitation != 0 and powerlimit != 0 and voltagelimit != 0,
+                excitation=excitation or self.excitation,
+                powerlimit=powerlimit or self.powerlimit,
+                dcflag=dcflag,
+                readingmode=readingmode,
+                voltagelimit=voltagelimit or self.voltagelimit,
+            )
 
-    def change_bridge(self, new):
-        if new.enabled:
-            return self.no, new.excitation, new.powerlimit, new.dcflag, new.readingmode, new.voltagelimit
-        return self.no, 0, 0, new.dcflag, new.readingmode, 0
+    def change_bridge(self, change):
+        self.readValues()
+        if change.enabled:
+            return self.no, change.excitation, change.powerlimit, change.dcflag, change.readingmode, change.voltagelimit
+        return self.no, 0, 0, change.dcflag, change.readingmode, 0
 
 
 class Level(PpmsMixin, Readable):
@@ -316,7 +307,7 @@ class Level(PpmsMixin, Readable):
             self.status = [self.Status.IDLE, '']
         else:
             self.status = [self.Status.ERROR, 'old reading']
-        self.value = level
+        return dict(value = level)
 
 
 class Chamber(PpmsMixin, Drivable):
@@ -377,7 +368,6 @@ class Chamber(PpmsMixin, Drivable):
     }
 
     channel = 'chamber'
-    _settingnames = ['target']
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
@@ -385,16 +375,16 @@ class Chamber(PpmsMixin, Drivable):
         self.status = self.STATUS_MAP[self.value]
 
     def analyze_chamber(self, target):
-        self.target = target
+        return dict(target=target)
 
-    def change_chamber(self, new):
+    def change_chamber(self, change):
         """write settings, combining <pname>=<value> and current attributes
 
         and request updated settings
         """
-        if new.target == self.Operation.noop:
+        if change.target == self.Operation.noop:
             return None
-        return (new.target,)
+        return (change.target,)
 
 
 class Temp(PpmsMixin, Drivable):
@@ -446,7 +436,7 @@ class Temp(PpmsMixin, Drivable):
     STATUS_MAP = {
         0: [Status.ERROR, 'unknown'],
         1: [Status.IDLE, 'stable at target'],
-        2: [Status.RAMPING, 'changing'],
+        2: [Status.RAMPING, 'ramping'],
         5: [Status.STABILIZING, 'within tolerance'],
         6: [Status.STABILIZING, 'outside tolerance'],
         10: [Status.WARN, 'standby'],
@@ -456,7 +446,6 @@ class Temp(PpmsMixin, Drivable):
     }
 
     channel = 'temp'
-    _settingnames = ['target', 'ramp', 'approachmode']
     _stopped = False
     _expected_target = 0
     _last_change = 0 # 0 means no target change is pending
@@ -481,15 +470,13 @@ class Temp(PpmsMixin, Drivable):
                 self.status = [self.Status.IDLE, 'stopped(%s)' % status[1]]
                 return
         if self._last_change: # there was a change, which is not yet confirmed by hw
-            if self.isDriving(status):
-                if now > self._last_change + 15 or status != self._status_before_change:
-                    self._last_change = 0
-                    self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
+            if now > self._last_change + 5:
+                self._last_change = 0  # give up waiting for busy
+            elif self.isDriving(status) and status != self._status_before_change:
+                self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
+                self._last_change = 0
             else:
-                if now < self._last_change + 15:
-                    status = [self.Status.BUSY, 'changed target while %s' % status[1]]
-                else:
-                    status = [self.Status.WARN, 'temperature status (%r) does not change to BUSY' % status]
+                status = [self.Status.BUSY, 'changed target']
         if self._expected_target:
             # handle timeout
             if self.isDriving(status):
@@ -500,24 +487,23 @@ class Temp(PpmsMixin, Drivable):
         self.status = status
 
     def analyze_temp(self, target, ramp, approachmode):
-        if (target, ramp, approachmode) != self._last_settings:
+        if (target, ramp, approachmode) == self._last_settings:
             # we update parameters only on change, as 'approachmode'
             # is not always sent to the hardware
-            self._last_settings = target, ramp, approachmode
-            self.target = target
-            self.ramp =ramp
-            self.approachmode = approachmode
+            return {}
+        self._last_settings = target, ramp, approachmode
+        return dict(target=target, ramp=ramp, approachmode=approachmode)
 
-    def change_temp(self, new):
-        self.calc_expected(new.target, self.ramp)
-        return new.target, new.ramp, new.approachmode
+    def change_temp(self, change):
+        self.calc_expected(change.target, self.ramp)
+        return change.target, change.ramp, change.approachmode
 
     def write_target(self, target):
         self._stopped = False
         if abs(self.target - self.value) < 2e-5 and target == self.target:
             return None
         self._status_before_change = self.status
-        self.status = [self.Status.BUSY, 'changed_target']
+        self.status = [self.Status.BUSY, 'changed target']
         self._last_change = time.time()
         return target
 
@@ -623,31 +609,27 @@ class Field(PpmsMixin, Drivable):
                     status = [self.Status.PREPARING, 'ramping leads']
                 else:
                     status = [self.Status.WARN, 'timeout when ramping leads']
-            elif self.isDriving(status):
-                if now > self._last_change + 5 or status != self._status_before_change:
-                    self._last_change = 0
-                    self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
+            elif now > self._last_change + 5:
+                self._last_change = 0 # give up waiting for driving
+            elif self.isDriving(status) and status != self._status_before_change:
+                self._last_change = 0
+                self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
             else:
-                if now < self._last_change + 5:
-                    status = [self.Status.BUSY, 'changed target while %s' % status[1]]
-                else:
-                    status = [self.Status.WARN, 'field status (%r) does not change to BUSY' % status]
+                status = [self.Status.BUSY, 'changed target']
         self.status = status
 
     def analyze_field(self, target, ramp, approachmode, persistentmode):
-        if (target, ramp, approachmode, persistentmode) != self._last_settings:
+        if (target, ramp, approachmode, persistentmode) == self._last_settings:
             # we update parameters only on change, as 'ramp' and 'approachmode' are
             # not always sent to the hardware
-            self._last_settings = target, ramp, approachmode, persistentmode
-            self.target = target * 1e-4
-            self.ramp = ramp * 6e-3
-            self.approachmode = approachmode
-            self.persistentmode = persistentmode
+            return {}
+        self._last_settings = target, ramp, approachmode, persistentmode
+        return dict(target=target * 1e-4, ramp=ramp * 6e-3, approachmode=approachmode,
+                    persistentmode=persistentmode)
 
-    def change_field(self, new):
-        if 'target' in new or 'persistentmode' in new:
-             # changed target or persistentmode
-            if 'target' in new:
+    def change_field(self, change):
+        if change.doesInclude('target', 'persistentmode'):
+            if change.doesInclude('target'):
                 self._last_target = self.target  # save for stop command
             self._stopped = False
             self._last_change = time.time()
@@ -656,7 +638,7 @@ class Field(PpmsMixin, Drivable):
             # changed ramp or approachmode
             if not self.isDriving():
                 return None # nothing to be written, as this would trigger a ramp up of leads current
-        return new.target * 1e+4, new.ramp / 6e-3, new.approachmode, new.persistentmode
+        return change.target * 1e+4, change.ramp / 6e-3, change.approachmode, change.persistentmode
 
     def do_stop(self):
         if not self.isDriving():
@@ -701,7 +683,6 @@ class Position(PpmsMixin, Drivable):
     }
 
     channel = 'position'
-    _settingnames = ['target', 'mode', 'speed']
     _stopped = False
     _last_target = 0
     _last_change = 0 # means no target change is pending
@@ -724,28 +705,26 @@ class Position(PpmsMixin, Drivable):
                 status = [self.Status.IDLE, 'stopped(%s)' % status[1]]
         if self._last_change: # there was a change, which is not yet confirmed by hw
             now = time.time()
-            if self.isDriving():
-                if now > self._last_change + 15 or status != self._status_before_change:
-                    self._last_change = 0
-                    self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
+            if now > self._last_change + 5:
+                self._last_change = 0 # give up waiting for busy
+            elif self.isDriving() and status != self._status_before_change:
+                self._last_change = 0
+                self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
             else:
-                if now < self._last_change + 15:
-                    status = [self.Status.BUSY, 'changed target while %s' % status[1]]
-                else:
-                    status = [self.Status.WARN, 'temperature status (%r) does not change to BUSY' % status]
+                status = [self.Status.BUSY, 'changed target']
         self.status = status
 
     def analyze_move(self, target, mode, speed):
-        if (target, speed) != self._last_settings:
+        if (target, speed) == self._last_settings:
             # we update parameters only on change, as 'speed' is
             # not always sent to the hardware
-            self._last_settings = target, speed
-            self.target = target
-            self.speed = (15 - speed) * 0.8
+            return {}
+        self._last_settings = target, speed
+        return dict(target=target, speed=(15 - speed) * 0.8)
 
-    def change_move(self, new):
-        speed = int(round(min(14, max(0, 15 - new.speed / 0.8)), 0))
-        return new.target, 0, speed
+    def change_move(self, change):
+        speed = int(round(min(14, max(0, 15 - change.speed / 0.8)), 0))
+        return change.target, 0, speed
 
     def write_target(self, target):
         self._last_target = self.target # save for stop command

@@ -45,7 +45,7 @@ class CmdHandler(secop.commandhandler.CmdHandler):
 
 rdgrng = CmdHandler('rdgrng', 'RDGRNG?%(channel)d', '%d,%d,%d,%d,%d')
 inset = CmdHandler('inset', 'INSET?%(channel)d', '%d,%d,%d,%d,%d')
-filterhdl = CmdHandler('filt', 'FILTER?%(channel)d', '%d,%d,%d')
+filterhdl = CmdHandler('filter', 'FILTER?%(channel)d', '%d,%d,%d')
 scan = CmdHandler('scan', 'SCAN?', '%d,%d')
 
 
@@ -74,10 +74,11 @@ class Main(HasIodev, Module):
     pollerClass = Poller
 
     def analyze_scan(self, channel, autoscan):
-        self.channel, self.autoscan = channel, autoscan
+        return dict(channel=channel, autoscan=autoscan)
 
-    def change_scan(self, new, *args):
-        return new.channel, new.autoscan
+    def change_scan(self, change):
+        change.readValues()
+        return change.channel, change.autoscan
 
 
 class ResChannel(HasIodev, Readable):
@@ -121,7 +122,7 @@ class ResChannel(HasIodev, Readable):
             Parameter('current excitation', datatype=EnumType(off=0, **CUR_RANGE), readonly=False, handler=rdgrng),
         'vexc':
             Parameter('voltage excitation', datatype=EnumType(off=0, **VOLT_RANGE), readonly=False, handler=rdgrng),
-        'enable':
+        'enabled':
             Parameter('is this channel enabled?', datatype=BoolType(), readonly=False, handler=inset),
         'pause':
             Parameter('pause after channel change', datatype=IntRange(), readonly=False, handler=inset),
@@ -138,6 +139,9 @@ class ResChannel(HasIodev, Readable):
 
     def read_value(self):
         if self.channel != self._main.channel:
+            return Done
+        if not self.enabled:
+            self.status = [self.Status.DISABLED, 'disabled']
             return Done
         result = self.sendRecv('RDGR?%d' % self.channel)
         result = float(result)
@@ -172,6 +176,8 @@ class ResChannel(HasIodev, Readable):
     def read_status(self):
         if self.channel != self._main.channel:
             return Done
+        if not self.enabled:
+            return [self.Status.DISABLED, 'disabled']
         result = int(self.sendRecv('RDGST?%d' % self.channel))
         result &= 0x37 # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistivities)
         statustext = STATUS_TEXT[result]
@@ -180,54 +186,56 @@ class ResChannel(HasIodev, Readable):
         return [self.Status.IDLE, '']
 
     def analyze_rdgrng(self, iscur, exc, rng, autorange, excoff):
-        if excoff:
-            self.iexc, self.vexc = 0,0
-        elif iscur:
-            self.iexc, self.vexc = exc, 0
-        else:
-            self.iexc, self.vexc = 0, exc
+        result = dict(range=rng)
         if autorange:
-            self.autorange = 'hard'
+            result['auotrange'] = 'hard'
+        elif self.autorange == 'hard':
+            result['autorange'] = 'soft'
+        # else: do not change autorange
+        if excoff:
+            result.update(iexc=0, vexc=0)
+        elif iscur:
+            result.update(iexc=exc, vexc=0)
         else:
-            if self.autorange == 'hard':
-                self.autorange = 'soft'
-            else:
-                self.autorange = self.autorange
-        self.range = rng
+            result.update(iexc=0, vexc=exc)
+        return result
 
-    def change_rdgrng(self, new, iscur, exc, rng, autorange, excoff):
-        if new.vexc != self.vexc: # in case vext is changed, do not consider iexc
-            new.iexc = 0
-        if new.iexc != 0: # we need '!= 0' here, as bool(enum) is always True!
+    def change_rdgrng(self, change):
+        iscur, exc, rng, autorange, excoff = change.readValues()
+        if change.doesInclude('vexc'): # in case vext is changed, do not consider iexc
+            change.iexc = 0
+        if change.iexc != 0: # we need '!= 0' here, as bool(enum) is always True!
             iscur = 1
-            exc = new.iexc
+            exc = change.iexc
             excoff = 0
-        elif new.vexc != 0: # we need '!= 0' here, as bool(enum) is always True!
+        elif change.vexc != 0: # we need '!= 0' here, as bool(enum) is always True!
             iscur = 0
-            exc = new.vexc
+            exc = change.vexc
             excoff = 0
         else:
             excoff = 1
-        rng = new.range
-        if new.autorange == 'hard':
+        rng = change.range
+        if change.autorange == 'hard':
             autorange = 1
         else:
             autorange = 0
-            if new.autorange == 'soft':
-                if rng < new.minrange:
-                    rng = new.minrange
+            if change.autorange == 'soft':
+                if rng < self.minrange:
+                    rng = self.minrange
         return iscur, exc, rng, autorange, excoff
 
     def analyze_inset(self, on, dwell, pause, curve, tempco):
-        self.enabled, self.dwell, self.pause = on, dwell, pause
+        return dict(enabled=on, dwell=dwell, pause=pause)
 
-    def change_inset(self, new, on, dwell, pause, curve, tempco):
-        return new.enable, new.dwell, new.pause, curve, tempco
+    def change_inset(self, change):
+        _, _, _, curve, tempco = change.readValues()
+        return change.enabled, change.dwell, change.pause, curve, tempco
 
-    def analyze_filt(self, on, settle, window):
-        self.filter = settle if on else 0
+    def analyze_filter(self, on, settle, window):
+        return dict(filter=settle if on else 0)
 
-    def change_filt(self, new, on, settle, window):
-        if new.filter:
-            return 1, new.filter, 80 # always use 80% filter
+    def change_filter(self, change):
+        _, settle, window = change.readValues()
+        if change.filter:
+            return 1, change.filter, 80 # always use 80% filter
         return 0, settle, window

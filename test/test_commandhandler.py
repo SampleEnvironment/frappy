@@ -62,7 +62,7 @@ class Data:
         tag, data = self.data.pop(0)
         print('pop(%s) %r' % (tag, data))
         if tag != expected:
-            raise ValueError('expected tag %s' % expected)
+            raise ValueError('expected tag %s, not %s' % (expected, tag))
         return data
 
     def empty(self):
@@ -123,16 +123,18 @@ def test_CmdHandler():
 
         def analyze_group1(self, val):
             assert data.pop('val') == val
-            self.simple = data.pop('simple')
+            return dict(simple=data.pop('simple'))
 
         def analyze_group2(self, gval, sval, dval):
             assert data.pop('gsv') == (gval, sval, dval)
-            self.real, self.text = data.pop('rt')
+            real, text = data.pop('rt')
+            return dict(real=real, text=text)
 
-        def change_group2(self, new, gval, sval, dval):
+        def change_group2(self, change):
+            gval, sval, dval = change.readValues()
             assert data.pop('old') == (gval, sval, dval)
             assert data.pop('self') == (self.real, self.text)
-            assert data.pop('new') == (new.real, new.text)
+            assert data.pop('new') == (change.real, change.text)
             return data.pop('changed')
 
     data = Data()

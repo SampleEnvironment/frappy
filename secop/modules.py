@@ -424,7 +424,7 @@ class Drivable(Writable):
 
     def isDriving(self, status=None):
         '''helper function (finalize is busy, not driving)'''
-        return 300 <= (status or self.status)[0] < 380
+        return 300 <= (status or self.status)[0] < 390
 
     # improved polling: may poll faster if module is BUSY
     def pollParams(self, nr=0):

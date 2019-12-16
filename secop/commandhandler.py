@@ -28,23 +28,29 @@ for all parameters with the same handler. Before analyze_<group> is called, the
 reply is parsed and converted to values, which are then given as arguments.
 
 def analyze_<group>(self, value1, value2, ...):
-    # <here> we have to calculate parameters from the values (value1, value2 ...)
-    # and assign them to self.<parameter>
-    # no return value is expected
+    # here we have to calculate parameters from the values (value1, value2 ...)
+    # and return a dict with parameter names as keys and new values.
+
+It is an error to have a read_<parameter> method implemented on a parameter with a
+handler.
 
 For write, instead of the methods write_<parameter>" we write one method change_<group>
 for all parameters with the same handler.
 
-def change_<group>(self, new, value1, value2, ...):
-    # <new> is a wrapper object around the module, containing already the new values.
-    # if READ_BEFORE_WRITE is True (the default), the additional arguments (value1, ...)
-    # must be in the argument list. They contain the values read from the hardware.
-    # If they are not needed, set READ_BEFORE_WRITE to False, or declare them as '*args'.
-    # The expression ('<parameter>' in new) returns a boolean indicating, whether
-    # this parameter is subject to change.
+def change_<group>(self, change):
+    # Change contains the to be changed parameters as attributes, and also the unchanged
+    # parameters taking part to the handler group. If the method needs the current values
+    # from the hardware, it can read them with change.getValues(). This call does also
+    # update the values of the attributes of change, which are not subject to change.
+    # In addtion, the method may call change.toBeChanged(<parameter name>) to determine,
+    # whether a specific parameter is subject to change.
     # The return value must be either a sequence of values to be written to the hardware,
     # which will be formatted by the handler, or None. The latter is used only in some
     # special cases, when nothing has to be written.
+
+A write_<parameter> method may be implemented in addition. In that case, it is executed
+before change_<group>. write_<parameters> may return None or Done, in these cases
+change_<group> is not called.
 """
 import re
 
@@ -56,8 +62,8 @@ from secop.errors import ProgrammingError
 class CmdParser:
     """helper for parsing replies
 
-    using a subset of old style python formatting
-    the same format can be used or formatting command arguments
+    using a subset of old style python formatting.
+    The same format can be used or formatting command arguments
     """
 
     # make a map of cast functions
@@ -139,34 +145,43 @@ class CmdParser:
 class Change:
     """contains new values for the call to change_<group>
 
-    A Change instance is used as the 'new' argument for the change_<group> method.
-    new.<parameter> is either the new, changed value or the old value from the module.
-    In addition '<parameter>' in new indicates, whether <parameter> is to be changed.
-    new.<parameter> can not be changed
+    A Change instance is used as an argument for the change_<group> method.
+    Getting the value of change.<parameter> returns either the new, changed value or the
+    current one from the module, if there is no new value.
     """
-    def __init__(self, module, parameters, valuedict):
-        self.__dict__.update(valuedict, _module=module, _parameters=parameters)
+    def __init__(self, handler, module, valuedict):
+        self._handler = handler
+        self._module = module
+        self._valuedict = valuedict
+        self._to_be_changed = set(self._valuedict)
+        self._do_read = True
 
-    def __getattr__(self, pname):
-        """get current values from _module for unchanged parameters"""
-        if not pname in self._parameters:
-            raise AttributeError("parameter '%s' is not within the handlers group"
-                                 % pname)
-        return getattr(self._module, pname)
+    def __getattr__(self, key):
+        """return attribute from module key is not in self._valuedict"""
+        if key in self._valuedict:
+            return self._valuedict[key]
+        return getattr(self._module, key)
 
-    def __setattr__(self, pname, value):
-        raise AttributeError("can't set attribute ")
+    def doesInclude(self, *args):
+        """check whether one of the specified parameters is to be changed"""
+        return bool(set(args) & self._to_be_changed)
 
-    def __contains__(self, pname):
-        """check whether a specific parameter is to be changed"""
-        return pname in self.__dict__
+    def readValues(self):
+        """read values from the hardware
+
+        and update our parameter attributes accordingly (i.e. do not touch the new values)
+        """
+        if self._do_read:
+            self._do_read = False
+            self._reply = self._handler.send_command(self._module)
+            result = self._handler.analyze(self._module, *self._reply)
+            result.update(self._valuedict)
+            self._valuedict.update(result)
+        return self._reply
 
 
 class CmdHandlerBase:
     """generic command handler"""
-    READ_BEFORE_WRITE = True
-    # if READ_BEFORE_WRITE is True, a read is performed before a write, and the parsed
-    # additional parameters are added to the argument list of change_<group>.
 
     def __init__(self, group):
         # group is used for calling the proper analyze_<group> and change_<group> methods
@@ -216,19 +231,19 @@ class CmdHandlerBase:
             raise ProgrammingError("the handler '%s' for '%s.%s' is already used in module '%s'"
                     % (self.group, modclass.__name__, pname, self._module_class.__name__))
         self.parameters.add(pname)
+        self.analyze = getattr(modclass, 'analyze_' + self.group)
         return self.read
 
     def read(self, module):
-        """the read function passed to the metaclass
-
-        overwrite with None if not used
-        """
+        """write values from module"""
+        assert module.__class__ == self._module_class
         try:
             # do a read of the current hw values
             reply = self.send_command(module)
             # convert them to parameters
-            getattr(module, 'analyze_' + self.group)(*reply)
-            assert module.__class__ == self._module_class
+            result = self.analyze(module, *reply)
+            for pname, value in result.items():
+                setattr(module, pname, value)
             for pname in self.parameters:
                 if module.parameters[pname].readerror:
                     # clear errors on parameters, which were not updated.
@@ -239,72 +254,62 @@ class CmdHandlerBase:
             for pname in self.parameters:
                 module.setError(pname, e)
             raise
-        return Done # parameters should be updated already
+        return Done
 
-    def get_write_func(self, pname, wfunc):
+    def get_write_func(self, pname, pre_wfunc=None):
         """returns the write function passed to the metaclass
 
-        may be overriden to return None, if not used
+        If pre_wfunc is given, it is to be called before change_<group>.
+        May be overriden to return None, if not used
         """
+        self.change = getattr(self._module_class, 'change_' + self.group)
 
-        if wfunc:
-            def new_wfunc(module, value, cmd=self, pname=pname, wfunc=wfunc):
+        if pre_wfunc:
+
+            def wfunc(module, value, hdl=self, pname=pname, wfunc=pre_wfunc):
                 value = wfunc(module, value)
                 if value is None or value is Done:
                     return value
-                cmd.write(module, {pname: value})
+                hdl.write(module, pname, value)
                 return Done
+
         else:
-            def new_wfunc(module, value, cmd=self, pname=pname):
-                cmd.write(module, {pname: value})
+
+            def wfunc(module, value, hdl=self, pname=pname):
+                hdl.write(module, pname, value)
                 return Done
 
-        return new_wfunc
+        return wfunc
 
-    def write(self, module, valuedict, force_read=False):
-        """write values to the module
-
-        When called from write_<param>, valuedict contains only one item,
-        the single parameter to be changed.
-        If called directly, valuedict may have more items.
-        """
-        analyze = getattr(module, 'analyze_' + self.group)
+    def write(self, module, pname, value):
+        """write value to the module"""
+        assert module.__class__ == self._module_class
+        force_read = False
+        valuedict = {pname: value}
         if module.writeDict: # collect other parameters to be written
-            valuedict = dict(valuedict)
             for p in self.parameters:
-                if p in self.writeDict:
-                    valuedict[p] = self.writeDict.pop(p)
+                if p in module.writeDict:
+                    valuedict[p] = module.writeDict.pop(p)
                 elif p not in valuedict:
                     force_read = True
-        if self.READ_BEFORE_WRITE or force_read:
-            # do a read of the current hw values
-            values = self.send_command(module)
-            # convert them to parameters
-            analyze(*values)
-        if not self.READ_BEFORE_WRITE:
-            values = () # values are not expected for change_<group>
-        new = Change(module, self.parameters, valuedict)
-        # call change_* for calculation new hw values
-        values = getattr(module, 'change_' + self.group)(new, *values)
+        change = Change(self, module, valuedict)
+        if force_read:
+            change.readValues()
+        values = self.change(module, change)
         if values is None: # this indicates that nothing has to be written
             return
         # send the change command and a query command
-        analyze(*self.send_change(module, *values))
-
-    def change(self, module, *values):
-        """write  and read back values
-
-        might be called from a write method, if change_<group> is not implemented
-        """
-        getattr(module, 'analyze_' + self.group)(*self.send_change(module, *values))
+        reply = self.send_change(module, *values)
+        result = self.analyze(module, *reply)
+        for k, v in result.items():
+            setattr(module, k, v)
 
 
 class CmdHandler(CmdHandlerBase):
     """more evolved command handler
 
-    this command handler works for a syntax, where the change command syntax can be
-    build from the query command syntax, with the to be changed items at the second
-    part of the command, using the same format as for the reply.
+    This command handler works for a syntax, where the reply of a query command has
+    the same format as the arguments for the change command.
     Examples: devices from LakeShore, PPMS
 
     implementing classes have to define/override the following:
