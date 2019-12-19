@@ -100,6 +100,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
         # 2) check and apply properties specified in cfgdict
         #    specified as '.<propertyname> = <propertyvalue>'
+        #    (this is for legacy config files only)
         for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if k[0] == '.':
                 if k[1:] in self.__class__.properties:
@@ -107,6 +108,12 @@ class Module(HasProperties, metaclass=ModuleMeta):
                 else:
                     raise ConfigError('Module %r has no property %r' %
                                       (self.name, k[1:]))
+
+        # 3) check and apply properties specified in cfgdict as
+        #    '<propertyname> = <propertyvalue>' (without '.' prefix)
+        for k in self.__class__.properties:
+            if k in cfgdict:
+                self.setProperty(k, cfgdict.pop(k))
 
         # 4) set automatic properties
         mycls = self.__class__
@@ -175,7 +182,8 @@ class Module(HasProperties, metaclass=ModuleMeta):
                 raise ConfigError(
                     'Module %s:config Parameter %r '
                     'not understood! (use one of %s)' %
-                    (self.name, k, ', '.join(self.parameters.keys())))
+                    (self.name, k, ', '.join(list(self.parameters) +
+                                             list(self.__class__.properties))))
 
         # 4) complain if a Parameter entry has no default value and
         #    is not specified in cfgdict and deal with parameters to be written.

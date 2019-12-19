@@ -25,7 +25,7 @@
 import time
 from collections import OrderedDict
 
-from secop.errors import ProgrammingError
+from secop.errors import ProgrammingError, BadValueError
 from secop.params import Command, Override, Parameter
 from secop.datatypes import EnumType
 from secop.properties import PropertyMeta
@@ -102,6 +102,16 @@ class ModuleMeta(PropertyMeta):
         # 1) for inheritance (see above)
         # 2) for the describing message
         newtype.accessibles = OrderedDict(sorted(accessibles.items(), key=lambda item: item[1].ctr))
+
+        # check for attributes overriding parameter values
+        for pname, pobj in newtype.accessibles.items():
+            if pname in attrs:
+                try:
+                    value = pobj.datatype(attrs[pname])
+                except BadValueError:
+                    raise ProgrammingError('parameter %s can not be set to %r'
+                                            % (pname, attrs[pname]))
+                newtype.accessibles[pname] = Override(default=value).apply(pobj)
 
         # check validity of Parameter entries
         for pname, pobj in newtype.accessibles.items():
