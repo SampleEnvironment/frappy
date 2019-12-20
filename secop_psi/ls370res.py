@@ -57,6 +57,7 @@ for bit, text in enumerate('CS_OVL VCM_OVL VMIX_OVL R_OVER R_UNDER T_OVER T_UNDE
 
 class StringIO(secop.stringio.StringIO):
     identification = [('*IDN?', 'LSCI,MODEL370,.*')]
+    wait_before = 0.05
 
 
 class Main(HasIodev, Module):
@@ -72,6 +73,7 @@ class Main(HasIodev, Module):
     }
 
     pollerClass = Poller
+    iodevClass = StringIO
 
     def analyze_scan(self, channel, autoscan):
         return dict(channel=channel, autoscan=autoscan)
@@ -96,6 +98,7 @@ class ResChannel(HasIodev, Readable):
             for val in [2, 6.32, 20, 63.2, 200, 632]))}
 
     pollerClass = Poller
+    iodevClass = StringIO
 
     properties = {
         'channel':

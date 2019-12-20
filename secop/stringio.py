@@ -59,7 +59,7 @@ class StringIO(Communicator):
     }
     parameters = {
         'timeout':
-            Parameter('timeout', datatype=FloatRange(0), default=1),
+            Parameter('timeout', datatype=FloatRange(0), default=2),
         'wait_before':
             Parameter('wait time before sending', datatype=FloatRange(), default=0),
         'is_connected':
@@ -236,7 +236,7 @@ class StringIO(Communicator):
                     if self.wait_before:
                         time.sleep(self.wait_before)
                     if garbage is None: # read garbage only once
-                        garbage = ''
+                        garbage = b''
                         data = self.readWithTimeout(0)
                         while data:
                             garbage += data
@@ -276,12 +276,23 @@ class HasIodev(Module):
     """Mixin for modules using a communicator"""
     properties = {
         'iodev': Attached(),
+        'uri': Property('uri for auto creation of iodev', StringType(), default=''),
     }
+
+    def __init__(self, name, logger, opts, srv):
+        super().__init__(name, logger, opts, srv)
+        if self.uri:
+            opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
+                    'export': False}
+            ioname = name + '_iodev'
+            iodev = self.iodevClass(ioname, self.log.getChild(ioname), opts, srv)
+            srv.modules[ioname] = iodev
+            self.setProperty('iodev', ioname)
 
     def initModule(self):
         try:
             self._iodev.read_is_connected()
-        except CommunicationFailedError:
+        except (CommunicationFailedError, AttributeError):
             pass
         super().initModule()
 
