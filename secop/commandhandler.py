@@ -58,7 +58,6 @@ from secop.metaclass import Done
 from secop.errors import ProgrammingError
 
 
-
 class CmdParser:
     """helper for parsing replies
 
@@ -68,14 +67,13 @@ class CmdParser:
 
     # make a map of cast functions
     CAST_MAP = {letter: cast
-            for letters, cast in (
-                ('d', int),
-                ('s', str), # 'c' is treated separately
-                ('o', lambda x:int(x, 8)),
-                ('xX', lambda x:int(x, 16)),
-                ('eEfFgG', float),
-            ) for letter in letters
-        }
+                for letters, cast in (
+                    ('d', int),
+                    ('s', str),  # 'c' is treated separately
+                    ('o', lambda x: int(x, 8)),
+                    ('xX', lambda x: int(x, 16)),
+                    ('eEfFgG', float),
+                ) for letter in letters}
     # pattern for chacaters to be escaped
     ESC_PAT = re.compile('([\\%s])' % '\\'.join('|^$-.+*?()[]{}<>'))
     # format pattern
@@ -94,13 +92,13 @@ class CmdParser:
         casts = []
         # the first item in spl is just plain text
         pat = [escaped(next(spl_iter))]
-        todofmt = None # format set aside to be treated in next loop
+        todofmt = None  # format set aside to be treated in next loop
 
         # loop over found formats and separators
-        for fmt, sep in zip(spl_iter,spl_iter):
+        for fmt, sep in zip(spl_iter, spl_iter):
             if fmt == '%%':
                 if todofmt is None:
-                    pat.append('%' + escaped(sep)) # plain text
+                    pat.append('%' + escaped(sep))  # plain text
                     continue
                 fmt = todofmt
                 todofmt = None
@@ -108,7 +106,7 @@ class CmdParser:
             elif todofmt:
                 raise ValueError("a separator must follow '%s'" % todofmt)
             cast = self.CAST_MAP.get(fmt[-1], None)
-            if cast is None: # special or unknown case
+            if cast is None:  # special or unknown case
                 if fmt != '%c':
                     raise ValueError("unsupported format: '%s'" % fmt)
                 # we do not need a separator after %c
@@ -116,7 +114,7 @@ class CmdParser:
                 casts.append(str)
                 pat.append(escaped(sep))
                 continue
-            if sep == '': # missing separator. postpone handling for '%%' case or end of pattern
+            if sep == '':  # missing separator. postpone handling for '%%' case or end of pattern
                 todofmt = fmt
                 continue
             casts.append(cast)
@@ -128,7 +126,7 @@ class CmdParser:
         self.casts = casts
         self.pat = re.compile(''.join(pat))
         try:
-            argformat % ((0,) * len(casts)) # validate argformat
+            argformat % ((0,) * len(casts))  # validate argformat
         except ValueError as e:
             raise ValueError("%s in %r" % (e, argformat))
 
@@ -154,7 +152,7 @@ class Change:
         self._module = module
         self._valuedict = valuedict
         self._to_be_changed = set(self._valuedict)
-        self._do_read = True
+        self._reply = None
 
     def __getattr__(self, key):
         """return attribute from module key is not in self._valuedict"""
@@ -171,8 +169,7 @@ class Change:
 
         and update our parameter attributes accordingly (i.e. do not touch the new values)
         """
-        if self._do_read:
-            self._do_read = False
+        if self._reply is None:
             self._reply = self._handler.send_command(self._module)
             result = self._handler.analyze(self._module, *self._reply)
             result.update(self._valuedict)
@@ -218,7 +215,7 @@ class CmdHandlerBase:
         a reply.
         """
         changecmd = self.make_change(module, *values)
-        module.sendRecv(changecmd) # ignore result
+        module.sendRecv(changecmd)  # ignore result
         return self.send_command(module)
 
     def get_read_func(self, modclass, pname):
@@ -229,7 +226,7 @@ class CmdHandlerBase:
         self._module_class = self._module_class or modclass
         if self._module_class != modclass:
             raise ProgrammingError("the handler '%s' for '%s.%s' is already used in module '%s'"
-                    % (self.group, modclass.__name__, pname, self._module_class.__name__))
+                                   % (self.group, modclass.__name__, pname, self._module_class.__name__))
         self.parameters.add(pname)
         self.analyze = getattr(modclass, 'analyze_' + self.group)
         return self.read
@@ -286,7 +283,7 @@ class CmdHandlerBase:
         assert module.__class__ == self._module_class
         force_read = False
         valuedict = {pname: value}
-        if module.writeDict: # collect other parameters to be written
+        if module.writeDict:  # collect other parameters to be written
             for p in self.parameters:
                 if p in module.writeDict:
                     valuedict[p] = module.writeDict.pop(p)
@@ -296,7 +293,7 @@ class CmdHandlerBase:
         if force_read:
             change.readValues()
         values = self.change(module, change)
-        if values is None: # this indicates that nothing has to be written
+        if values is None:  # this indicates that nothing has to be written
             return
         # send the change command and a query command
         reply = self.send_change(module, *values)
@@ -314,11 +311,8 @@ class CmdHandler(CmdHandlerBase):
 
     implementing classes have to define/override the following:
     """
-    CMDARGS = []  # list of properties or parameters to be used for building
-                  # some of the the query and change commands
-    CMDSEPARATOR = ';'     # if given, it is valid to join a command a a query with
-                           # the given separator
-
+    CMDARGS = []  # list of properties or parameters to be used for building some of the the query and change commands
+    CMDSEPARATOR = ';'  # if given, it is valid to join a command a a query with the given separator
 
     def __init__(self, group, querycmd, replyfmt, changecmd=None):
         """initialize the command handler

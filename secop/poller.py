@@ -19,7 +19,7 @@
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
-'''general, advanced frappy poller
+"""general, advanced frappy poller
 
 Usage examples:
     any Module which want to be polled with a specific Poller must define
@@ -31,7 +31,7 @@ Usage examples:
         ...
 
     modules having a parameter 'iodev' with the same value will share the same poller
-'''
+"""
 
 import time
 from threading import Event
@@ -40,24 +40,25 @@ from secop.lib import mkthread
 from secop.errors import ProgrammingError
 
 # poll types:
-AUTO = 1 # equivalent to True, converted to REGULAR, SLOW or DYNAMIC
+AUTO = 1  # equivalent to True, converted to REGULAR, SLOW or DYNAMIC
 SLOW = 2
 REGULAR = 3
 DYNAMIC = 4
 
+
 class PollerBase:
 
-    startup_timeout = 30 # default timeout for startup
-    name = 'unknown' # to be overridden in implementors __init__ method
+    startup_timeout = 30  # default timeout for startup
+    name = 'unknown'  # to be overridden in implementors __init__ method
 
     @classmethod
     def add_to_table(cls, table, module):
-        '''sort module into poller table
+        """sort module into poller table
 
         table is a dict, with (<pollerClass>, <name>) as the key, and the
         poller as value.
         <name> is module.iodev or module.name, if iodev is not present
-        '''
+        """
         # for modules with the same iodev, a common poller is used,
         # modules without iodev all get their own poller
         name = getattr(module, 'iodev', module.name)
@@ -68,26 +69,26 @@ class PollerBase:
         poller.add_to_poller(module)
 
     def start(self, started_callback):
-        '''start poller thread
+        """start poller thread
 
         started_callback to be called after all poll items were read at least once
-        '''
+        """
         mkthread(self.run, started_callback)
         return self.startup_timeout
 
     def run(self, started_callback):
-        '''poller thread function
+        """poller thread function
 
         started_callback to be called after all poll items were read at least once
-        '''
+        """
         raise NotImplementedError
 
     def stop(self):
-        '''stop polling'''
+        """stop polling"""
         raise NotImplementedError
 
     def __bool__(self):
-        '''is there any poll item?'''
+        """is there any poll item?"""
         raise NotImplementedError
 
     def __repr__(self):
@@ -95,7 +96,7 @@ class PollerBase:
 
 
 class Poller(PollerBase):
-    '''a standard poller
+    """a standard poller
 
     parameters may have the following polltypes:
 
@@ -106,12 +107,12 @@ class Poller(PollerBase):
             Scheduled to poll every slowfactor * module.pollinterval
     - DYNAMIC: by default used for 'value' and 'status'
             When busy, scheduled to poll every fastfactor * module.pollinterval
-    '''
+    """
 
     DEFAULT_FACTORS = {SLOW: 4, DYNAMIC: 0.25, REGULAR: 1}
 
     def __init__(self, name):
-        '''create a poller'''
+        """create a poller"""
         self.queues = {polltype: [] for polltype in self.DEFAULT_FACTORS}
         self._event = Event()
         self._stopped = False
@@ -148,34 +149,34 @@ class Poller(PollerBase):
                     module.registerReconnectCallback(self.name, self.trigger_all)
                 else:
                     module.log.warning("%r has 'is_connected' but no 'registerReconnectCallback'" % module)
-            if polltype == AUTO: # covers also pobj.poll == True
+            if polltype == AUTO:  # covers also pobj.poll == True
                 if pname in ('value', 'status'):
                     polltype = DYNAMIC
                 elif pobj.readonly:
                     polltype = REGULAR
                 else:
                     polltype = SLOW
-            if not polltype in factors:
+            if polltype not in factors:
                 raise ProgrammingError("unknown poll type %r for parameter '%s'"
                                        % (polltype, pname))
             if pobj.handler:
                 if pobj.handler in handlers:
-                    continue # only one poller per handler
+                    continue  # only one poller per handler
                 handlers.add(pobj.handler)
             # placeholders 0 are used for due, lastdue and idx
             self.queues[polltype].append((0, 0,
                 (0, module, pobj, pname, factors[polltype])))
 
     def poll_next(self, polltype):
-        '''try to poll next item
+        """try to poll next item
 
         advance in queue until
         - an item is found which is really due to poll. return 0 in this case
         - or until the next item is not yet due. return next due time in this case
-        '''
+        """
         queue = self.queues[polltype]
         if not queue:
-            return float('inf') # queue is empty
+            return float('inf')  # queue is empty
         now = time.time()
         done = False
         while not done:
@@ -191,7 +192,7 @@ class Poller(PollerBase):
                 interval = module.pollinterval * factor
                 mininterval = interval
             if due == 0:
-                due = now # do not look at timestamp after trigger_all
+                due = now  # do not look at timestamp after trigger_all
             else:
                 due = max(lastdue + interval, pobj.timestamp + interval * 0.5)
             if now >= due:
@@ -211,7 +212,7 @@ class Poller(PollerBase):
         return True
 
     def run(self, started_callback):
-        '''start poll loop
+        """start poll loop
 
         To be called as a thread. After all parameters are polled once first,
         started_callback is called. To be called in Module.start_module.
@@ -221,13 +222,13 @@ class Poller(PollerBase):
         If more polls are scheduled than time permits, at least every second poll is a
         dynamic poll. After every n regular polls, one slow poll is done, if due
         (where n is the number of regular parameters).
-        '''
+        """
         if not self:
             # nothing to do (else we might call time.sleep(float('inf')) below
             started_callback()
             return
         # do all polls once and, at the same time, insert due info
-        for _, queue in sorted(self.queues.items()): # do SLOW polls first
+        for _, queue in sorted(self.queues.items()):  # do SLOW polls first
             for idx, (_, _, (_, module, pobj, pname, factor)) in enumerate(queue):
                 lastdue = time.time()
                 module.writeOrPoll(pname)
@@ -236,14 +237,14 @@ class Poller(PollerBase):
                 # are comparable. Inserting a unique idx solves the problem.
                 queue[idx] = (due, lastdue, (idx, module, pobj, pname, factor))
             heapify(queue)
-        started_callback() # signal end of startup
+        started_callback()  # signal end of startup
         nregular = len(self.queues[REGULAR])
         while not self._stopped:
             due = float('inf')
             for _ in range(nregular):
                 due = min(self.poll_next(DYNAMIC), self.poll_next(REGULAR))
                 if due:
-                    break # no dynamic or regular polls due
+                    break  # no dynamic or regular polls due
             due = min(due, self.poll_next(DYNAMIC), self.poll_next(SLOW))
             delay = due - time.time()
             if delay > 0:
@@ -255,7 +256,7 @@ class Poller(PollerBase):
         self._stopped = True
 
     def __bool__(self):
-        '''is there any poll item?'''
+        """is there any poll item?"""
         return any(self.queues.values())
 
 

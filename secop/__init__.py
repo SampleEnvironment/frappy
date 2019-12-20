@@ -19,8 +19,18 @@
 # Module authors:
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
+
+# allow to import the most important classes from 'secop'
+from secop.datatypes import *
+from secop.modules import Module, Readable, Writable, Drivable, Communicator, Attached
+from secop.params import Parameter, Command, Override
+from secop.metaclass import Done
+from secop.commandhandler import CmdHandler, CmdHandlerBase
+from secop.stringio import StringIO, HasIodev
+
 
 try:
     import sip

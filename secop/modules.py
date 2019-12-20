@@ -17,6 +17,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """Define Baseclasses for real Modules implemented in the server"""
@@ -187,10 +188,10 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
         # 4) complain if a Parameter entry has no default value and
         #    is not specified in cfgdict and deal with parameters to be written.
-        self.writeDict = {} # values of parameters to be written
+        self.writeDict = {}  # values of parameters to be written
         for pname, pobj in self.parameters.items():
             if pname in cfgdict:
-                if not pobj.readonly and not pobj.initwrite is False:
+                if not pobj.readonly and pobj.initwrite is not False:
                     # parameters given in cfgdict have to call write_<pname>
                     try:
                         pobj.value = pobj.datatype(cfgdict[pname])
@@ -214,7 +215,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
                         value = pobj.datatype(pobj.default)
                     except BadValueError as e:
                         raise ProgrammingError('bad default for %s.%s: %s'
-                                    % (name, pname, e))
+                                               % (name, pname, e))
                     if pobj.initwrite:
                         # we will need to call write_<pname>
                         # if this is not desired, the default must not be given
@@ -264,7 +265,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
         self.DISPATCHER.announce_update_error(self, pname, pobj, exception)
 
     def isBusy(self, status=None):
-        '''helper function for treating substates of BUSY correctly'''
+        """helper function for treating substates of BUSY correctly"""
         # defined even for non drivable (used for dynamic polling)
         return False
 
@@ -276,25 +277,24 @@ class Module(HasProperties, metaclass=ModuleMeta):
         self.log.debug('empty %s.initModule()' % self.__class__.__name__)
 
     def startModule(self, started_callback):
-        '''runs after init of all modules
+        """runs after init of all modules
 
         started_callback to be called when thread spawned by late_init
         or, if not implemented, immediately
         might return a timeout value, if different from default
-        '''
-
+        """
         self.log.debug('empty %s.startModule()' % self.__class__.__name__)
         started_callback()
 
     def pollOneParam(self, pname):
         """poll parameter <pname> with proper error handling"""
         try:
-            return getattr(self, 'read_'+ pname)()
-        except SilentError as e:
+            return getattr(self, 'read_' + pname)()
+        except SilentError:
             pass
         except SECoPError as e:
             self.log.error(str(e))
-        except Exception as e:
+        except Exception:
             self.log.error(formatException())
 
     def writeOrPoll(self, pname):
@@ -305,14 +305,14 @@ class Module(HasProperties, metaclass=ModuleMeta):
         try:
             if pname in self.writeDict:
                 self.log.debug('write parameter %s', pname)
-                getattr(self, 'write_'+ pname)(self.writeDict.pop(pname))
+                getattr(self, 'write_' + pname)(self.writeDict.pop(pname))
             else:
-                getattr(self, 'read_'+ pname)()
-        except SilentError as e:
+                getattr(self, 'read_' + pname)()
+        except SilentError:
             pass
         except SECoPError as e:
             self.log.error(str(e))
-        except Exception as e:
+        except Exception:
             self.log.error(formatException())
 
 
@@ -348,7 +348,7 @@ class Readable(Module):
     }
 
     def startModule(self, started_callback):
-        '''start basic polling thread'''
+        """start basic polling thread"""
         if issubclass(self.pollerClass, BasicPoller):
             # use basic poller for legacy code
             mkthread(self.__pollThread, started_callback)
@@ -423,15 +423,15 @@ class Drivable(Writable):
     }
 
     overrides = {
-        'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
+        'status': Override(datatype=TupleOf(EnumType(Status), StringType())),
     }
 
     def isBusy(self, status=None):
-        '''helper function for treating substates of BUSY correctly'''
+        """helper function for treating substates of BUSY correctly"""
         return 300 <= (status or self.status)[0] < 400
 
     def isDriving(self, status=None):
-        '''helper function (finalize is busy, not driving)'''
+        """helper function (finalize is busy, not driving)"""
         return 300 <= (status or self.status)[0] < 390
 
     # improved polling: may poll faster if module is BUSY
@@ -470,7 +470,6 @@ class Communicator(Module):
                             result=StringType()
                            ),
     }
-
 
 
 class Attached(Property):

@@ -53,7 +53,7 @@ except ImportError:
 
 class CmdHandler(secop.commandhandler.CmdHandler):
     CMDARGS = ['no']
-    CMDSEPARATOR = None # no command chaining
+    CMDSEPARATOR = None  # no command chaining
     READ_BEFORE_WRITE = False
 
     def __init__(self, name, querycmd, replyfmt):
@@ -68,7 +68,7 @@ class Main(Communicator):
         'pollinterval': Parameter('poll interval', readonly=False,
                                   datatype=FloatRange(), default=2),
         'communicate':  Override('GBIP command'),
-        'data':         Parameter('internal', poll=True, export=True, # export for test only
+        'data':         Parameter('internal', poll=True, export=True,  # export for test only
                                   default="", readonly=True, datatype=StringType()),
     }
     properties = {
@@ -100,7 +100,7 @@ class Main(Communicator):
             return reply
 
     def read_data(self):
-        mask = 1 # always get packed_status
+        mask = 1  # always get packed_status
         for channelname, channel in self.modules.items():
             if channel.enabled:
                 mask |= 1 << self._channel_to_index.get(channelname, 0)
@@ -108,7 +108,7 @@ class Main(Communicator):
         data = self.do_communicate('GETDAT? %d' % mask)
         reply = data.split(',')
         mask = int(reply.pop(0))
-        reply.pop(0) # pop timestamp
+        reply.pop(0)  # pop timestamp
         result = {}
         for bitpos, channelname in enumerate(self._channel_names):
             if mask & (1 << bitpos):
@@ -118,10 +118,10 @@ class Main(Communicator):
         if 'ts' in result:
             result['temp'] = result['ts']
         packed_status = int(result['packed_status'])
-        result['chamber'] = None # 'chamber' must be in result for status, but value is ignored
+        result['chamber'] = None  # 'chamber' must be in result for status, but value is ignored
         for channelname, channel in self.modules.items():
             channel.update_value_status(result.get(channelname, None), packed_status)
-        return data # return data as string
+        return data  # return data as string
 
 
 class PpmsMixin(HasIodev, Module):
@@ -130,9 +130,9 @@ class PpmsMixin(HasIodev, Module):
     }
 
     pollerClass = Poller
-    enabled = True # default, if no parameter enable is defined
-    _last_target_change = 0 # used by several modules
-    _last_settings = None # used by several modules
+    enabled = True  # default, if no parameter enable is defined
+    _last_target_change = 0  # used by several modules
+    _last_settings = None  # used by several modules
     slow_pollfactor = 1
 
     def initModule(self):
@@ -188,7 +188,7 @@ class Channel(PpmsMixin, Readable):
                      datatype=StringType(), export=False, default=''),
         'no':
             Property('channel number',
-                      datatype=IntRange(1, 4), export=False),
+                     datatype=IntRange(1, 4), export=False),
     }
 
     def earlyInit(self):
@@ -208,7 +208,7 @@ class UserChannel(Channel):
     properties = {
         'no':
             Property('channel number',
-                      datatype=IntRange(0, 0), export=False, default=0),
+                     datatype=IntRange(0, 0), export=False, default=0),
     }
 
 
@@ -307,7 +307,7 @@ class Level(PpmsMixin, Readable):
             self.status = [self.Status.IDLE, '']
         else:
             self.status = [self.Status.ERROR, 'old reading']
-        return dict(value = level)
+        return dict(value=level)
 
 
 class Chamber(PpmsMixin, Drivable):
@@ -448,7 +448,7 @@ class Temp(PpmsMixin, Drivable):
     channel = 'temp'
     _stopped = False
     _expected_target = 0
-    _last_change = 0 # 0 means no target change is pending
+    _last_change = 0  # 0 means no target change is pending
 
     def earlyInit(self):
         self.setProperty('general_stop', False)
@@ -469,7 +469,7 @@ class Temp(PpmsMixin, Drivable):
             else:
                 self.status = [self.Status.IDLE, 'stopped(%s)' % status[1]]
                 return
-        if self._last_change: # there was a change, which is not yet confirmed by hw
+        if self._last_change:  # there was a change, which is not yet confirmed by hw
             if now > self._last_change + 5:
                 self._last_change = 0  # give up waiting for busy
             elif self.isDriving(status) and status != self._status_before_change:
@@ -510,12 +510,12 @@ class Temp(PpmsMixin, Drivable):
     def write_approachmode(self, value):
         if self.isDriving():
             return value
-        return None # change_temp will not be called, as this would trigger an unnecessary T change
+        return None  # change_temp will not be called, as this would trigger an unnecessary T change
 
     def write_ramp(self, value):
         if self.isDriving():
             return value
-        return None # change_temp will not be called, as this would trigger an unnecessary T change
+        return None  # change_temp will not be called, as this would trigger an unnecessary T change
 
     def calc_expected(self, target, ramp):
         self._expected_target = time.time() + abs(target - self.value) * 60.0 / max(0.1, ramp)
@@ -545,7 +545,7 @@ class Field(PpmsMixin, Drivable):
         FINALIZING = 390,
     )
     # pylint: disable=invalid-name
-    PersistentMode = Enum('PersistentMode', persistent = 0, driven = 1)
+    PersistentMode = Enum('PersistentMode', persistent=0, driven=1)
     ApproachMode = Enum('ApproachMode', linear=0, no_overshoot=1, oscillate=2)
 
     parameters = {
@@ -554,7 +554,7 @@ class Field(PpmsMixin, Drivable):
         'status':
             Override(datatype=StatusType(Status), poll=True),
         'target':
-            Override(datatype=FloatRange(-15,15,unit='T'), handler=field),
+            Override(datatype=FloatRange(-15, 15, unit='T'), handler=field),
         'ramp':
             Parameter('ramping speed', readonly=False, handler=field,
                       datatype=FloatRange(0.064, 1.19, unit='T/min')),
@@ -584,7 +584,7 @@ class Field(PpmsMixin, Drivable):
     channel = 'field'
     _stopped = False
     _last_target = 0
-    _last_change= 0 # means no target change is pending
+    _last_change = 0  # means no target change is pending
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
@@ -602,8 +602,8 @@ class Field(PpmsMixin, Drivable):
             else:
                 self.status = [status[0], 'stopped (%s)' % status[1]]
                 return
-        elif self._last_change: # there was a change, which is not yet confirmed by hw
-            if status_code == 1: # persistent mode
+        elif self._last_change:  # there was a change, which is not yet confirmed by hw
+            if status_code == 1:  # persistent mode
                 # leads are ramping (ppms has no extra status code for this!)
                 if now < self._last_change + 30:
                     status = [self.Status.PREPARING, 'ramping leads']
@@ -637,7 +637,7 @@ class Field(PpmsMixin, Drivable):
         else:
             # changed ramp or approachmode
             if not self.isDriving():
-                return None # nothing to be written, as this would trigger a ramp up of leads current
+                return None  # nothing to be written, as this would trigger a ramp up of leads current
         return change.target * 1e+4, change.ramp / 6e-3, change.approachmode, change.persistentmode
 
     def do_stop(self):
@@ -685,7 +685,7 @@ class Position(PpmsMixin, Drivable):
     channel = 'position'
     _stopped = False
     _last_target = 0
-    _last_change = 0 # means no target change is pending
+    _last_change = 0  # means no target change is pending
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
@@ -703,10 +703,10 @@ class Position(PpmsMixin, Drivable):
                 self._stopped = False
             else:
                 status = [self.Status.IDLE, 'stopped(%s)' % status[1]]
-        if self._last_change: # there was a change, which is not yet confirmed by hw
+        if self._last_change:  # there was a change, which is not yet confirmed by hw
             now = time.time()
             if now > self._last_change + 5:
-                self._last_change = 0 # give up waiting for busy
+                self._last_change = 0  # give up waiting for busy
             elif self.isDriving() and status != self._status_before_change:
                 self._last_change = 0
                 self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
@@ -727,7 +727,7 @@ class Position(PpmsMixin, Drivable):
         return change.target, 0, speed
 
     def write_target(self, target):
-        self._last_target = self.target # save for stop command
+        self._last_target = self.target  # save for stop command
         self._stopped = False
         self._last_change = 0
         self._status_before_change = self.status
@@ -736,7 +736,7 @@ class Position(PpmsMixin, Drivable):
     def write_speed(self, value):
         if self.isDriving():
             return value
-        return None # change_move not called: as this would trigger an unnecessary move
+        return None  # change_move not called: as this would trigger an unnecessary move
 
     def do_stop(self):
         if not self.isDriving():

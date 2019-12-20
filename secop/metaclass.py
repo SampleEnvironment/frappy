@@ -17,6 +17,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """Define Metaclass for Modules/Features"""
@@ -30,13 +31,14 @@ from secop.params import Command, Override, Parameter
 from secop.datatypes import EnumType
 from secop.properties import PropertyMeta
 
-
 EVENT_ONLY_ON_CHANGED_VALUES = False
+
 
 class Done:
     """a special return value for a read/write function
 
     indicating that the setter is triggered already"""
+
 
 # warning: MAGIC!
 
@@ -68,7 +70,7 @@ class ModuleMeta(PropertyMeta):
                 accessibles_list.append(base.accessibles)
         for accessibles in [parameters, commands, overrides]:
             accessibles_list.append(accessibles)
-        accessibles = {} # unordered dict of accessibles, will be sorted later
+        accessibles = {}  # unordered dict of accessibles, will be sorted later
         for accessibles_dict in accessibles_list:
             for key, obj in accessibles_dict.items():
                 if isinstance(obj, Override):
@@ -110,7 +112,7 @@ class ModuleMeta(PropertyMeta):
                     value = pobj.datatype(attrs[pname])
                 except BadValueError:
                     raise ProgrammingError('parameter %s can not be set to %r'
-                                            % (pname, attrs[pname]))
+                                           % (pname, attrs[pname]))
                 newtype.accessibles[pname] = Override(default=value).apply(pobj)
 
         # check validity of Parameter entries
@@ -142,7 +144,7 @@ class ModuleMeta(PropertyMeta):
                         try:
                             value = rfunc(self)
                             self.log.debug("rfunc(%s) returned %r" % (pname, value))
-                            if value is Done: # the setter is already triggered
+                            if value is Done:  # the setter is already triggered
                                 return getattr(self, pname)
                         except Exception as e:
                             self.log.debug("rfunc(%s) failed %r" % (pname, e))

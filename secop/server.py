@@ -18,6 +18,7 @@
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """Define helpers"""
@@ -56,12 +57,13 @@ class Server:
         ('module', None, None),
         ('interface', "tcp", {"tcp": "protocol.interface.tcp.TCPServer"}),
     ]
+
     def __init__(self, name, parent_logger=None):
         cfg = getGeneralConfig()
 
         # also handle absolut paths
         if os.path.abspath(name) == name and os.path.exists(name) and \
-            name.endswith('.cfg'):
+                name.endswith('.cfg'):
             self._cfgfile = name
             self._pidfile = os.path.join(cfg['piddir'],
                                          name[:-4].replace(os.path.sep, '_') + '.pid')
@@ -120,14 +122,12 @@ class Server:
     def _processCfg(self):
         self.log.debug('Parse config file %s ...' % self._cfgfile)
 
-        parser = configparser.SafeConfigParser()
+        parser = configparser.ConfigParser()
         parser.optionxform = str
 
         if not parser.read([self._cfgfile]):
             self.log.error('Couldn\'t read cfg file !')
             raise ConfigError('Couldn\'t read cfg file %r' % self._cfgfile)
-
-
 
         for kind, devtype, classmapping in self.CFGSECTIONS:
             kinds = '%ss' % kind
@@ -180,12 +180,12 @@ class Server:
                 raise ConfigError('cfgfile %r: needs exactly one node section!' % self._cfgfile)
             self.dispatcher, = tuple(self.nodes.values())
 
-        pollTable = dict()
+        poll_table = dict()
         # all objs created, now start them up and interconnect
         for modname, modobj in self.modules.items():
             self.log.info('registering module %r' % modname)
             self.dispatcher.register_module(modobj, modname, modobj.properties['export'])
-            modobj.pollerClass.add_to_table(pollTable, modobj)
+            modobj.pollerClass.add_to_table(poll_table, modobj)
             # also call earlyInit on the modules
             modobj.earlyInit()
 
@@ -205,7 +205,7 @@ class Server:
             # startModule must return either a timeout value or None (default 30 sec)
             timeout = modobj.startModule(started_callback=event.set) or 30
             start_events.append((time.time() + timeout, 'module %s' % modname, event))
-        for poller in pollTable.values():
+        for poller in poll_table.values():
             event = threading.Event()
             # poller.start must return either a timeout value or None (default 30 sec)
             timeout = poller.start(started_callback=event.set) or 30

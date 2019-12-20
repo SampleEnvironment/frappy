@@ -27,8 +27,10 @@ except ImportError:
     print("This Module only works with a pythoncom module on a MS Windows OS")
     raise
 
+
 class Error(Exception):
     pass
+
 
 class QDevice:
     def __init__(self, classid):
@@ -44,19 +46,20 @@ class QDevice:
             self.threadlocal.mvu = mvu
         args = [
             win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_BSTR, command),
-            win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_BSTR, ""), # reply
-            win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_BSTR, ""), # error
-            win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0), # ?
-            win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0)] # ?
+            win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_BSTR, ""),  # reply
+            win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_BSTR, ""),  # error
+            win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0),  # ?
+            win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0)]  # ?
         err = mvu.SendPpmsCommand(*args)
         # win32com does invert the order of results!
         if err == 0:
-            #print '<', args[3].value
+            # print '<', args[3].value
             return args[3].value
         if err == 1:
-            #print '<done'
+            # print '<done'
             return "OK"
         raise Error(args[2].value.replace('\n', ' '))
 
-if __name__ == "__main__": # test only
+
+if __name__ == "__main__":  # test only
     print(QDevice('QD.MULTIVU.PPMS.1').send('LEVEL?'))

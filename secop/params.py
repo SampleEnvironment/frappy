@@ -17,6 +17,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """Define classes for Parameters/Commands and Overriding them"""

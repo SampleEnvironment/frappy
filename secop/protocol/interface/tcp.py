@@ -16,6 +16,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """provides tcp interface to the SECoP Server"""
@@ -45,12 +46,13 @@ SPACE = b' '
 class OutputBufferOverflow(Exception):
     pass
 
+
 class TCPRequestHandler(socketserver.BaseRequestHandler):
 
     def setup(self):
         self.log = self.server.log
         # Queue of msgObjects to send
-        self._queue = collections.deque() # do not use maxlen, as items might get lost
+        self._queue = collections.deque()  # do not use maxlen, as items might get lost
 #        self.framing = self.server.framingCLS()
 #        self.encoding = self.server.encodingCLS()
 
@@ -80,9 +82,9 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 # send bytestring
                 outmsg = self._queue.popleft()
                 if not outmsg:
-                    outmsg = ('error','InternalError', ['<unknown origin>', 'trying to send none-data', {}])
+                    outmsg = ('error', 'InternalError', ['<unknown origin>', 'trying to send none-data', {}])
                 if len(outmsg) > 3:
-                    outmsg = ('error', 'InternalError', ['<unknown origin>', 'bad message format', {'msg':outmsg}])
+                    outmsg = ('error', 'InternalError', ['<unknown origin>', 'bad message format', {'msg': outmsg}])
                 outdata = encode_msg_frame(*outmsg)
                 try:
                     mysocket.sendall(outdata)
@@ -97,7 +99,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                     # no timeout error, but no new data -> connection closed
                     return
                 data = data + newdata
-            except socket.timeout as e:
+            except socket.timeout:
                 continue
             except socket.error as e:
                 self.log.exception(e)
@@ -118,13 +120,12 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                     for idx, line in enumerate(HelpMessage.splitlines()):
                         self.queue_async_reply((HELPREPLY, '%d' % (idx+1), line))
                     continue
-                result = None
                 try:
                     msg = decode_msg(origin)
                 except Exception as err:
                     # we have to decode 'origin' here
                     # use latin-1, as utf-8 or ascii may lead to encoding errors
-                    msg = origin.decode('latin-1').split(' ', 3) + [None] # make sure len(msg) > 1
+                    msg = origin.decode('latin-1').split(' ', 3) + [None]  # make sure len(msg) > 1
                     result = (ERRORPREFIX + msg[0], msg[1], ['InternalError', str(err),
                                                              {'exception': formatException(),
                                                               'traceback': formatExtendedStack()}])
@@ -191,10 +192,10 @@ class TCPServer(HasProperties, socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
     properties = {
-        'bindto' : Property('hostname or ip address for binding',StringType(),
-                            default='localhost:%d' % DEF_PORT, export=False),
-        'bindport' : Property('port number to bind',IntRange(1,65535),
-                              default=DEF_PORT, export=False),
+        'bindto': Property('hostname or ip address for binding', StringType(),
+                           default='localhost:%d' % DEF_PORT, export=False),
+        'bindport': Property('port number to bind', IntRange(1, 65535),
+                             default=DEF_PORT, export=False),
         'detailed_errors': Property('Flag to enable detailed Errorreporting.', BoolType(),
                                     default=False, export=False),
     }
@@ -202,7 +203,7 @@ class TCPServer(HasProperties, socketserver.ThreadingTCPServer):
     # XXX: create configurables from Metaclass!
     configurables = properties
 
-    def __init__(self, name, logger, options, srv): # pylint: disable=super-init-not-called
+    def __init__(self, name, logger, options, srv):  # pylint: disable=super-init-not-called
         self.dispatcher = srv.dispatcher
         self.name = name
         self.log = logger

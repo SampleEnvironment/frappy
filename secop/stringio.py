@@ -193,7 +193,7 @@ class StringIO(Communicator):
                 if not re.match(regexp, reply):
                     self.closeConnection()
                     raise CommunicationFailedError('bad response: %s does not match %s' %
-                        (reply, regexp))
+                                                   (reply, regexp))
 
     def registerReconnectCallback(self, name, func):
         """register reconnect callback
@@ -216,14 +216,14 @@ class StringIO(Communicator):
                 self._reconnectCallbacks.pop(key)
 
     def do_communicate(self, command):
-        '''send a command and receive a reply
+        """send a command and receive a reply
 
         using end_of_line, encoding and self._lock
         for commands without reply, join it with a query command,
         wait_before is respected for end_of_lines within a command.
-        '''
+        """
         if not self.is_connected:
-            self.read_is_connected() # try to reconnect
+            self.read_is_connected()  # try to reconnect
         try:
             with self._lock:
                 # read garbage and wait before send
@@ -235,7 +235,7 @@ class StringIO(Communicator):
                 for cmd in cmds:
                     if self.wait_before:
                         time.sleep(self.wait_before)
-                    if garbage is None: # read garbage only once
+                    if garbage is None:  # read garbage only once
                         garbage = b''
                         data = self.readWithTimeout(0)
                         while data:

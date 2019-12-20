@@ -17,6 +17,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """Dispatcher for SECoP Messages
@@ -48,7 +49,6 @@ from secop.params import Parameter
 from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
     HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY
-
 
 
 def make_update(modulename, pobj):
@@ -116,9 +116,9 @@ class Dispatcher:
         if not isinstance(err, SECoPError):
             err = InternalError(err)
         if str(err) == str(pobj.readerror):
-            return # do not send updates for repeated errors
+            return  # do not send updates for repeated errors
         pobj.readerror = err
-        pobj.timestamp = currenttime() # indicates the first time this error appeared
+        pobj.timestamp = currenttime()  # indicates the first time this error appeared
         self.broadcast_event(make_update(moduleobj.name, pobj))
 
     def subscribe(self, conn, eventname):
@@ -272,7 +272,7 @@ class Dispatcher:
         pobj = moduleobj.parameters[pname]
         if pobj.constant is not None:
             # really needed? we could just construct a readreply instead....
-            #raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
+            # raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
             return pobj.datatype.export_value(pobj.constant)
 
         readfunc = getattr(moduleobj, 'read_%s' % pname, None)

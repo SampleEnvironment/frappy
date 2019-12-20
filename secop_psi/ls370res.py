@@ -84,12 +84,12 @@ class Main(HasIodev, Module):
 
 
 class ResChannel(HasIodev, Readable):
-    '''temperature channel on Lakeshore 336'''
+    """temperature channel on Lakeshore 336"""
 
     RES_RANGE = {key: i+1 for i, key in list(
         enumerate(mag % val for mag in ['%gmOhm', '%gOhm', '%gkOhm', '%gMOhm']
             for val in [2, 6.32, 20, 63.2, 200, 632]))[:-2]}
-    RES_SCALE = [2 * 10 ** (0.5 * i) for i in range(-7,16)] # RES_SCALE[0] is not used
+    RES_SCALE = [2 * 10 ** (0.5 * i) for i in range(-7, 16)]  # RES_SCALE[0] is not used
     CUR_RANGE = {key: i + 1 for i, key in list(
         enumerate(mag % val for mag in ['%gpA', '%gnA', '%guA', '%gmA']
             for val in [1, 3.16, 10, 31.6, 100, 316]))[:-2]}
@@ -162,7 +162,7 @@ class ResChannel(HasIodev, Readable):
                         lim = 0.2
                         while rng > self.minrange and abs(result) < lim * self.RES_SCALE[rng]:
                             rng -= 1
-                            lim -= 0.05 # not more than 4 steps at once
+                            lim -= 0.05  # not more than 4 steps at once
                         # effectively: <0.16 %: 4 steps, <1%: 3 steps, <5%: 2 steps, <20%: 1 step
                         if lim != 0.2:
                             self.log.info('chan %d: lowered range to %.3g' %
@@ -182,7 +182,7 @@ class ResChannel(HasIodev, Readable):
         if not self.enabled:
             return [self.Status.DISABLED, 'disabled']
         result = int(self.sendRecv('RDGST?%d' % self.channel))
-        result &= 0x37 # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistivities)
+        result &= 0x37  # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistivities)
         statustext = STATUS_TEXT[result]
         if statustext:
             return [self.Status.ERROR, statustext]
@@ -205,13 +205,13 @@ class ResChannel(HasIodev, Readable):
 
     def change_rdgrng(self, change):
         iscur, exc, rng, autorange, excoff = change.readValues()
-        if change.doesInclude('vexc'): # in case vext is changed, do not consider iexc
+        if change.doesInclude('vexc'):  # in case vext is changed, do not consider iexc
             change.iexc = 0
-        if change.iexc != 0: # we need '!= 0' here, as bool(enum) is always True!
+        if change.iexc != 0:  # we need '!= 0' here, as bool(enum) is always True!
             iscur = 1
             exc = change.iexc
             excoff = 0
-        elif change.vexc != 0: # we need '!= 0' here, as bool(enum) is always True!
+        elif change.vexc != 0:  # we need '!= 0' here, as bool(enum) is always True!
             iscur = 0
             exc = change.vexc
             excoff = 0
@@ -240,5 +240,5 @@ class ResChannel(HasIodev, Readable):
     def change_filter(self, change):
         _, settle, window = change.readValues()
         if change.filter:
-            return 1, change.filter, 80 # always use 80% filter
+            return 1, change.filter, 80  # always use 80% filter
         return 0, settle, window
