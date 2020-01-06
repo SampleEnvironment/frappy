@@ -41,7 +41,7 @@ from secop.datatypes import EnumType, FloatRange, IntRange, StringType,\
 from secop.lib.enum import Enum
 from secop.errors import HardwareError
 from secop.poller import Poller
-import secop.commandhandler
+import secop.iohandler
 from secop.stringio import HasIodev
 from secop.metaclass import Done
 
@@ -51,7 +51,7 @@ except ImportError:
     import secop_psi.ppmssim as ppmshw
 
 
-class CmdHandler(secop.commandhandler.CmdHandler):
+class IOHandler(secop.iohandler.IOHandler):
     CMDARGS = ['no']
     CMDSEPARATOR = None  # no command chaining
     READ_BEFORE_WRITE = False
@@ -213,7 +213,7 @@ class UserChannel(Channel):
 
 
 class DriverChannel(Channel):
-    drvout = CmdHandler('drvout', 'DRVOUT? %(no)d', '%d,%g,%g')
+    drvout = IOHandler('drvout', 'DRVOUT? %(no)d', '%d,%g,%g')
 
     parameters = {
         'current':
@@ -237,7 +237,7 @@ class DriverChannel(Channel):
 
 
 class BridgeChannel(Channel):
-    bridge = CmdHandler('bridge', 'BRIDGE? %(no)d', '%d,%g,%g,%d,%d,%g')
+    bridge = IOHandler('bridge', 'BRIDGE? %(no)d', '%d,%g,%g,%d,%d,%g')
     # pylint: disable=invalid-name
     ReadingMode = Enum('ReadingMode', standard=0, fast=1, highres=2)
     parameters = {
@@ -284,7 +284,7 @@ class BridgeChannel(Channel):
 class Level(PpmsMixin, Readable):
     """helium level"""
 
-    level = CmdHandler('level', 'LEVEL?', '%g,%d')
+    level = IOHandler('level', 'LEVEL?', '%g,%d')
 
     parameters = {
         'value':  Override(datatype=FloatRange(unit='%'), handler=level),
@@ -316,7 +316,7 @@ class Chamber(PpmsMixin, Drivable):
     value is an Enum, which is redundant with the status text
     """
 
-    chamber = CmdHandler('chamber', 'CHAMBER?', '%d')
+    chamber = IOHandler('chamber', 'CHAMBER?', '%d')
     Status = Drivable.Status
     # pylint: disable=invalid-name
     Operation = Enum(
@@ -390,7 +390,7 @@ class Chamber(PpmsMixin, Drivable):
 class Temp(PpmsMixin, Drivable):
     """temperature"""
 
-    temp = CmdHandler('temp', 'TEMP?', '%g,%g,%d')
+    temp = IOHandler('temp', 'TEMP?', '%g,%g,%d')
     Status = Enum(Drivable.Status,
         RAMPING = 370,
         STABILIZING = 380,
@@ -537,7 +537,7 @@ class Temp(PpmsMixin, Drivable):
 class Field(PpmsMixin, Drivable):
     """magnetic field"""
 
-    field = CmdHandler('field', 'FIELD?', '%g,%g,%d,%d')
+    field = IOHandler('field', 'FIELD?', '%g,%g,%d,%d')
     Status = Enum(Drivable.Status,
         PREPARED = 150,
         PREPARING = 340,
@@ -657,7 +657,7 @@ class Field(PpmsMixin, Drivable):
 class Position(PpmsMixin, Drivable):
     """rotator position"""
 
-    move = CmdHandler('move', 'MOVE?', '%g,%g,%g')
+    move = IOHandler('move', 'MOVE?', '%g,%g,%g')
     Status = Drivable.Status
     parameters = {
         'value':

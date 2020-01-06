@@ -23,7 +23,7 @@
 
 import pytest
 
-from secop.commandhandler import CmdParser, CmdHandler
+from secop.iohandler import CmdParser, IOHandler
 from secop.modules import Module, Parameter
 from secop.datatypes import FloatRange, StringType, IntRange, Property
 from secop.errors import ProgrammingError
@@ -91,8 +91,8 @@ class ServerStub:
         self.dispatcher = DispatcherStub(updates)
 
 
-def test_CmdHandler():
-    class Hdl(CmdHandler):
+def test_IOHandler():
+    class Hdl(IOHandler):
         CMDARGS = ['channel', 'loop']
         CMDSEPARATOR ='|'
 

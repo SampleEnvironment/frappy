@@ -28,7 +28,7 @@ from secop.datatypes import *
 from secop.modules import Module, Readable, Writable, Drivable, Communicator, Attached
 from secop.params import Parameter, Command, Override
 from secop.metaclass import Done
-from secop.commandhandler import CmdHandler, CmdHandlerBase
+from secop.iohandler import IOHandler, IOHandlerBase
 from secop.stringio import StringIO, HasIodev
 
 

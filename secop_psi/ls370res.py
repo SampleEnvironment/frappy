@@ -27,12 +27,12 @@ from secop.metaclass import Done
 from secop.datatypes import FloatRange, IntRange, EnumType, BoolType
 from secop.stringio import HasIodev
 from secop.poller import Poller, REGULAR
-import secop.commandhandler
+import secop.iohandler
 
 Status = Drivable.Status
 
 
-class CmdHandler(secop.commandhandler.CmdHandler):
+class IOHandler(secop.iohandler.IOHandler):
     CMDARGS = ['channel']
     CMDSEPARATOR = ';'
 
@@ -43,10 +43,10 @@ class CmdHandler(secop.commandhandler.CmdHandler):
         super().__init__(name, querycmd, replyfmt, changecmd)
 
 
-rdgrng = CmdHandler('rdgrng', 'RDGRNG?%(channel)d', '%d,%d,%d,%d,%d')
-inset = CmdHandler('inset', 'INSET?%(channel)d', '%d,%d,%d,%d,%d')
-filterhdl = CmdHandler('filter', 'FILTER?%(channel)d', '%d,%d,%d')
-scan = CmdHandler('scan', 'SCAN?', '%d,%d')
+rdgrng = IOHandler('rdgrng', 'RDGRNG?%(channel)d', '%d,%d,%d,%d,%d')
+inset = IOHandler('inset', 'INSET?%(channel)d', '%d,%d,%d,%d,%d')
+filterhdl = IOHandler('filter', 'FILTER?%(channel)d', '%d,%d,%d')
+scan = IOHandler('scan', 'SCAN?', '%d,%d')
 
 
 STATUS_TEXT = {0: ''}

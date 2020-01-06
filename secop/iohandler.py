@@ -18,7 +18,7 @@
 # Module authors:
 #   Markus Zolliker <markus.zolliker@psi.ch>
 # *****************************************************************************
-"""command handler
+"""IO handler
 
 Utility class for cases, where multiple parameters are treated with a common command.
 The support for LakeShore and similar protocols is already included.
@@ -177,7 +177,7 @@ class Change:
         return self._reply
 
 
-class CmdHandlerBase:
+class IOHandlerBase:
     """generic command handler"""
 
     def __init__(self, group):
@@ -302,7 +302,7 @@ class CmdHandlerBase:
             setattr(module, k, v)
 
 
-class CmdHandler(CmdHandlerBase):
+class IOHandler(IOHandlerBase):
     """more evolved command handler
 
     This command handler works for a syntax, where the reply of a query command has
