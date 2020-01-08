@@ -20,7 +20,8 @@
 # *****************************************************************************
 """IO handler
 
-Utility class for cases, where multiple parameters are treated with a common command.
+Utility class for cases, where multiple parameters are treated with a common command,
+or in cases, where IO can be parametrized.
 The support for LakeShore and similar protocols is already included.
 
 For read, instead of the methods read_<parameter> we write one method analyze_<group>
@@ -62,7 +63,7 @@ class CmdParser:
     """helper for parsing replies
 
     using a subset of old style python formatting.
-    The same format can be used or formatting command arguments
+    The same format can be used for formatting command arguments
     """
 
     # make a map of cast functions
@@ -74,14 +75,12 @@ class CmdParser:
                     ('xX', lambda x: int(x, 16)),
                     ('eEfFgG', float),
                 ) for letter in letters}
-    # pattern for chacaters to be escaped
-    ESC_PAT = re.compile('([\\%s])' % '\\'.join('|^$-.+*?()[]{}<>'))
+    # pattern for characters to be escaped
+    ESC_PAT = re.compile(r'([\|\^\$\-\.\+\*\?\(\)\[\]\{\}\<\>])')
     # format pattern
     FMT_PAT = re.compile('(%%|%[^diouxXfFgGeEcrsa]*(?:.|$))')
 
     def __init__(self, argformat):
-        # replace named patterns
-
         self.fmt = argformat
         spl = self.FMT_PAT.split(argformat)
         spl_iter = iter(spl)
@@ -178,30 +177,66 @@ class Change:
 
 
 class IOHandlerBase:
-    """generic command handler"""
+    """abstract IO handler
 
-    def __init__(self, group):
-        # group is used for calling the proper analyze_<group> and change_<group> methods
+    IO handlers for parametrized access should inherit from this
+    """
+
+    def get_read_func(self, modclass, pname):
+        """get the read function for parameter pname"""
+        raise NotImplementedError
+
+    def get_write_func(self, pname):
+        """get the write function for parameter pname"""
+        raise NotImplementedError
+
+
+class IOHandler(IOHandlerBase):
+    """IO handler for cases, where multiple parameters are treated with a common command
+
+    This IO handler works for a syntax, where the reply of a query command has
+    the same format as the arguments for the change command.
+    Examples: devices from LakeShore, PPMS
+
+    implementing classes may override the following class variables
+    """
+    CMDARGS = []  # list of properties or parameters to be used for building some of the the query and change commands
+    CMDSEPARATOR = None  # if not None, it is possible to join a command and a query with the given separator
+
+    def __init__(self, group, querycmd, replyfmt, changecmd=None):
+        """initialize the IO handler
+
+        group:     the handler group (used for analyze_<group> and change_<group>)
+        querycmd:  the command for a query, may contain named formats for cmdargs
+        replyfmt:  the format for reading the reply with some scanf like behaviour
+        changecmd: the first part of the change command (without values), may be
+                   omitted if no write happens
+        """
         self.group = group
         self.parameters = set()
         self._module_class = None
+        self.querycmd = querycmd
+        self.replyfmt = CmdParser(replyfmt)
+        self.changecmd = changecmd
 
     def parse_reply(self, reply):
         """return values from a raw reply"""
-        raise NotImplementedError
+        return self.replyfmt.parse(reply)
 
     def make_query(self, module):
         """make a query"""
-        raise NotImplementedError
+        return self.querycmd % {k: getattr(module, k, None) for k in self.CMDARGS}
 
     def make_change(self, module, *values):
-        """make a change command from values"""
-        raise NotImplementedError
+        """make a change command"""
+        changecmd = self.changecmd % {k: getattr(module, k, None) for k in self.CMDARGS}
+        return changecmd + self.replyfmt.format(*values)
 
     def send_command(self, module, changecmd=''):
         """send a command (query or change+query) and parse the reply into a list
 
-        If changecmd is given, it is prepended before the query.
+        If changecmd is given, it is prepended before the query. changecmd must
+        contain the command separator at the end.
         """
         querycmd = self.make_query(module)
         reply = module.sendRecv(changecmd + querycmd)
@@ -210,13 +245,14 @@ class IOHandlerBase:
     def send_change(self, module, *values):
         """compose and send a command from values
 
-        and send a query afterwards. This method might be overriden, if the change command
-        can be combined with a query command, or if the change command already includes
-        a reply.
+        and send a query afterwards, or combine with a query command.
+        Override this method, if the change command already includes a reply.
         """
         changecmd = self.make_change(module, *values)
-        module.sendRecv(changecmd)  # ignore result
-        return self.send_command(module)
+        if self.CMDSEPARATOR is None:
+            module.sendRecv(changecmd)  # ignore result
+            return self.send_command(module)
+        return self.send_command(module, changecmd + self.CMDSEPARATOR)
 
     def get_read_func(self, modclass, pname):
         """returns the read function passed to the metaclass
@@ -253,7 +289,7 @@ class IOHandlerBase:
             raise
         return Done
 
-    def get_write_func(self, pname, pre_wfunc=None):
+    def get_write_func(self, pname):
         """returns the write function passed to the metaclass
 
         If pre_wfunc is given, it is to be called before change_<group>.
@@ -261,20 +297,9 @@ class IOHandlerBase:
         """
         self.change = getattr(self._module_class, 'change_' + self.group)
 
-        if pre_wfunc:
-
-            def wfunc(module, value, hdl=self, pname=pname, wfunc=pre_wfunc):
-                value = wfunc(module, value)
-                if value is None or value is Done:
-                    return value
-                hdl.write(module, pname, value)
-                return Done
-
-        else:
-
-            def wfunc(module, value, hdl=self, pname=pname):
-                hdl.write(module, pname, value)
-                return Done
+        def wfunc(module, value, hdl=self, pname=pname):
+            hdl.write(module, pname, value)
+            return Done
 
         return wfunc
 
@@ -300,49 +325,3 @@ class IOHandlerBase:
         result = self.analyze(module, *reply)
         for k, v in result.items():
             setattr(module, k, v)
-
-
-class IOHandler(IOHandlerBase):
-    """more evolved command handler
-
-    This command handler works for a syntax, where the reply of a query command has
-    the same format as the arguments for the change command.
-    Examples: devices from LakeShore, PPMS
-
-    implementing classes have to define/override the following:
-    """
-    CMDARGS = []  # list of properties or parameters to be used for building some of the the query and change commands
-    CMDSEPARATOR = ';'  # if given, it is valid to join a command a a query with the given separator
-
-    def __init__(self, group, querycmd, replyfmt, changecmd=None):
-        """initialize the command handler
-
-        group:     the handler group (used for analyze_<group> and change_<group>)
-        querycmd:  the command for a query, may contain named formats for cmdargs
-        replyfmt:  the format for reading the reply with some scanf like behaviour
-        changecmd: the first part of the change command (without values), may be
-                   omitted if no write happens
-        """
-        super().__init__(group)
-        self.querycmd = querycmd
-        self.replyfmt = CmdParser(replyfmt)
-        self.changecmd = changecmd
-
-    def parse_reply(self, reply):
-        """return values from a raw reply"""
-        return self.replyfmt.parse(reply)
-
-    def make_query(self, module):
-        """make a query"""
-        return self.querycmd % {k: getattr(module, k, None) for k in self.CMDARGS}
-
-    def make_change(self, module, *values):
-        """make a change command"""
-        changecmd = self.changecmd % {k: getattr(module, k, None) for k in self.CMDARGS}
-        return changecmd + self.replyfmt.format(*values)
-
-    def send_change(self, module, *values):
-        """join change and query commands"""
-        if self.CMDSEPARATOR is None:
-            return super().send_change(module, *values)
-        return self.send_command(module, self.make_change(module, *values) + self.CMDSEPARATOR)

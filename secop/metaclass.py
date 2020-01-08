@@ -136,6 +136,7 @@ class ModuleMeta(PropertyMeta):
                         break
                     rfunc = getattr(base, 'read_' + pname, None)
 
+            # create wrapper except when read function is already wrapped
             if rfunc is None or getattr(rfunc, '__wrapped__', False) is False:
 
                 def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
@@ -157,37 +158,41 @@ class ModuleMeta(PropertyMeta):
                     setattr(self, pname, value)  # important! trigger the setter
                     return value
 
-                wrapped_rfunc.__doc__ = rfunc.__doc__
+                if rfunc:
+                    wrapped_rfunc.__doc__ = rfunc.__doc__
                 setattr(newtype, 'read_' + pname, wrapped_rfunc)
                 wrapped_rfunc.__wrapped__ = True
 
             if not pobj.readonly:
                 wfunc = attrs.get('write_' + pname, None)
-                # if a handler and write_<param> is present, wfunc will be called
-                # by the handler first
-                wfunc = pobj.handler.get_write_func(pname, wfunc) if pobj.handler else wfunc
                 for base in bases:
                     if wfunc is not None:
                         break
                     wfunc = getattr(base, 'write_' + pname, None)
 
+                # create wrapper except when write function is already wrapped
                 if wfunc is None or getattr(wfunc, '__wrapped__', False) is False:
 
-                    def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
+                    # append write function from handler, to be called after wfunc
+                    wfuncs = (wfunc, pobj.handler.get_write_func(pname) if pobj.handler else None)
+
+                    def wrapped_wfunc(self, value, pname=pname, wfuncs=wfuncs):
                         self.log.debug("check validity of %s = %r" % (pname, value))
                         pobj = self.accessibles[pname]
                         value = pobj.datatype(value)
-                        if wfunc:
-                            self.log.debug('calling %r(%r)' % (wfunc, value))
+                        for wfunc in filter(None, wfuncs):
+                            self.log.debug('calling %s %r(%r)' % (wfunc.__name__, wfunc, value))
                             returned_value = wfunc(self, value)
                             if returned_value is Done:  # the setter is already triggered
                                 return getattr(self, pname)
-                            if returned_value is not None:
-                                value = returned_value
+                            if returned_value is None:  # goodie: accept missing return value
+                                break  # handler is not called in this case
+                            value = returned_value
                         setattr(self, pname, value)
                         return value
 
-                    wrapped_wfunc.__doc__ = wfunc.__doc__
+                    if wfunc:
+                        wrapped_wfunc.__doc__ = wfunc.__doc__
                     setattr(newtype, 'write_' + pname, wrapped_wfunc)
                     wrapped_wfunc.__wrapped__ = True
 
