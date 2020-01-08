@@ -33,18 +33,17 @@ class Capacitance(HasIodev, Readable):
         'value': Override('capacitance', FloatRange(unit='pF'), poll=True),
         'freq': Parameter('frequency', FloatRange(unit='Hz'), readonly=False, default=0),
         'voltage': Parameter('voltage', FloatRange(unit='V'), readonly=False, default=0),
-        'loss': Parameter('loss', FloatRange(unit='deg'), readonly=False, default=0),
+        'loss': Parameter('loss', FloatRange(unit='deg'), default=0),
     }
     iodevClass = Ah2700IO
 
-    def read_value(self):
-        reply = self.sendRecv('SI')  # single trigger
+    def parse_reply(self, reply):
         if reply.startswith('SI'):  # this is an echo
             self.sendRecv('SERIAL ECHO OFF')
             reply = self.sendRecv('SI')
         if not reply.startswith('F='):  # this is probably an error message like "LOSS TOO HIGH"
             self.status = [self.Status.ERROR, reply]
-            return Done
+            return
         self.status = [self.Status.IDLE, '']
         # examples of replies:
         # 'F= 1000.0  HZ C= 0.000001    PF L> 0.0         DS V= 15.0     V'
@@ -65,6 +64,9 @@ class Capacitance(HasIodev, Readable):
                 self.loss = reply[7]
             except IndexError:
                 pass  # don't worry, loss will be updated next time
+
+    def read_value(self):
+        self.parse_reply(self.sendRecv('SI'))  # SI = single trigger
         return Done
 
     def read_freq(self):
@@ -77,4 +79,12 @@ class Capacitance(HasIodev, Readable):
 
     def read_volt(self):
         self.read_value()
+        return Done
+
+    def write_freq(self, value):
+        self.parse_reply(self.sendRecv('FR %g;SI' % value))
+        return Done
+
+    def write_volt(self, value):
+        self.parse_reply(self.sendRecv('V %g;SI' % value))
         return Done
