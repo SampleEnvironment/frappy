@@ -81,7 +81,7 @@ def clamp(_min, value, _max):
     """return the median of 3 values,
 
     i.e. value if min <= value <= max, else min or max depending on which side
-    value lies outside the [min..max] interval
+    value lies outside the [min..max] interval. This works even when min > max!
     """
     # return median, i.e. clamp the the value between min and max
     return sorted([_min, value, _max])[1]

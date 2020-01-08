@@ -39,6 +39,7 @@ from secop.modules import Module, Readable, Drivable, Parameter, Override,\
 from secop.datatypes import EnumType, FloatRange, IntRange, StringType,\
     BoolType, StatusType
 from secop.lib.enum import Enum
+from secop.lib import clamp
 from secop.errors import HardwareError
 from secop.poller import Poller
 import secop.iohandler
@@ -54,7 +55,6 @@ except ImportError:
 class IOHandler(secop.iohandler.IOHandler):
     CMDARGS = ['no']
     CMDSEPARATOR = None  # no command chaining
-    READ_BEFORE_WRITE = False
 
     def __init__(self, name, querycmd, replyfmt):
         changecmd = querycmd.split('?')[0] + ' '
@@ -127,11 +127,12 @@ class Main(Communicator):
 class PpmsMixin(HasIodev, Module):
     properties = {
         'iodev': Attached(),
+        'general_stop': Property('respect general stop', datatype=BoolType(),
+                                 export=True, default=True)
     }
 
     pollerClass = Poller
     enabled = True  # default, if no parameter enable is defined
-    _last_target_change = 0  # used by several modules
     _last_settings = None  # used by several modules
     slow_pollfactor = 1
 
@@ -303,11 +304,9 @@ class Level(PpmsMixin, Readable):
         """
 
     def analyze_level(self, level, status):
-        if status:
-            self.status = [self.Status.IDLE, '']
-        else:
-            self.status = [self.Status.ERROR, 'old reading']
-        return dict(value=level)
+        # ignore 'old reading' state of the flag, as this happens only for a short time
+        # during measuring
+        return dict(value=level, status=[self.Status.IDLE, ''])
 
 
 class Chamber(PpmsMixin, Drivable):
@@ -416,10 +415,6 @@ class Temp(PpmsMixin, Drivable):
             Parameter('drive timeout, in addition to ramp time', readonly=False,
                       datatype=FloatRange(0, unit='sec'), default=3600),
     }
-    properties = {
-        'general_stop': Property('respect general stop', datatype=BoolType(),
-                                 export=True, default=True)
-    }
     # pylint: disable=invalid-name
     TempStatus = Enum(
         'TempStatus',
@@ -447,12 +442,10 @@ class Temp(PpmsMixin, Drivable):
 
     channel = 'temp'
     _stopped = False
-    _expected_target = 0
+    _expected_target_time = 0
     _last_change = 0  # 0 means no target change is pending
-
-    def earlyInit(self):
-        self.setProperty('general_stop', False)
-        super().earlyInit()
+    _last_target = None  # last reached target
+    general_stop = False
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
@@ -462,13 +455,6 @@ class Temp(PpmsMixin, Drivable):
         self.value = value
         status = self.STATUS_MAP[packed_status & 0xf]
         now = time.time()
-        if self._stopped:
-            # combine 'stopped' with current status text
-            if status[0] == self.Status.IDLE:
-                self._stopped = False
-            else:
-                self.status = [self.Status.IDLE, 'stopped(%s)' % status[1]]
-                return
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             if now > self._last_change + 5:
                 self._last_change = 0  # give up waiting for busy
@@ -477,13 +463,23 @@ class Temp(PpmsMixin, Drivable):
                 self._last_change = 0
             else:
                 status = [self.Status.BUSY, 'changed target']
-        if self._expected_target:
+        if abs(self.value - self.target) < self.target * 0.01:
+            self._last_target = self.target
+        elif self._last_target is None:
+            self._last_target = self.value
+        if self._stopped:
+            # combine 'stopped' with current status text
+            if status[0] == self.Status.IDLE:
+                status = [status[0], 'stopped']
+            else:
+                status = [status[0], 'stopping (%s)' % status[1]]
+        if self._expected_target_time:
             # handle timeout
             if self.isDriving(status):
-                if now > self._expected_target + self.timeout:
+                if now > self._expected_target_time + self.timeout:
                     status = [self.Status.WARN, 'timeout while %s' % status[1]]
             else:
-                self._expected_target = 0
+                self._expected_target_time = 0
         self.status = status
 
     def analyze_temp(self, target, ramp, approachmode):
@@ -500,7 +496,7 @@ class Temp(PpmsMixin, Drivable):
 
     def write_target(self, target):
         self._stopped = False
-        if abs(self.target - self.value) < 2e-5 and target == self.target:
+        if abs(self.target - self.value) <= 2e-5 * target and target == self.target:
             return None
         self._status_before_change = self.status
         self.status = [self.Status.BUSY, 'changed target']
@@ -518,19 +514,18 @@ class Temp(PpmsMixin, Drivable):
         return None  # change_temp will not be called, as this would trigger an unnecessary T change
 
     def calc_expected(self, target, ramp):
-        self._expected_target = time.time() + abs(target - self.value) * 60.0 / max(0.1, ramp)
+        self._expected_target_time = time.time() + abs(target - self.value) * 60.0 / max(0.1, ramp)
 
     def do_stop(self):
-        if self.isDriving():
+        if not self.isDriving():
             return
-        if self.status[0] == self.Status.STABILIZING:
-            # we are already near target
-            newtarget = self.target
-        else:
-            newtarget = self.value
-        self.log.info('stop at %s K', newtarget)
-        self.write_target(newtarget)
-        self.status = [self.Status.IDLE, 'stopped']
+        if self.status[0] != self.Status.STABILIZING:
+            # we are not near target
+            newtarget = clamp(self._last_target, self.value, self.target)
+            if newtarget != self.target:
+                self.log.debug('stop at %s K', newtarget)
+                self.write_target(newtarget)
+        self.status = [self.status[0], 'stopping (%s)' % self.status[1]]
         self._stopped = True
 
 
@@ -583,7 +578,7 @@ class Field(PpmsMixin, Drivable):
 
     channel = 'field'
     _stopped = False
-    _last_target = 0
+    _last_target = None  # last reached target
     _last_change = 0  # means no target change is pending
 
     def update_value_status(self, value, packed_status):
@@ -595,14 +590,7 @@ class Field(PpmsMixin, Drivable):
         status_code = (packed_status >> 4) & 0xf
         status = self.STATUS_MAP[status_code]
         now = time.time()
-        if self._stopped:
-            # combine 'stopped' with current status text
-            if status[0] == self.Status.IDLE:
-                self._stopped = False
-            else:
-                self.status = [status[0], 'stopped (%s)' % status[1]]
-                return
-        elif self._last_change:  # there was a change, which is not yet confirmed by hw
+        if self._last_change:  # there was a change, which is not yet confirmed by hw
             if status_code == 1:  # persistent mode
                 # leads are ramping (ppms has no extra status code for this!)
                 if now < self._last_change + 30:
@@ -616,6 +604,16 @@ class Field(PpmsMixin, Drivable):
                 self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
             else:
                 status = [self.Status.BUSY, 'changed target']
+        if abs(self.target - self.value) <= 1e-4:
+            self._last_target = self.target
+        elif self._last_target is None:
+            self._last_target = self.value
+        if self._stopped:
+            # combine 'stopped' with current status text
+            if status[0] == self.Status.IDLE:
+                status = [status[0], 'stopped']
+            else:
+                status = [status[0], 'stopping (%s)' % status[1]]
         self.status = status
 
     def analyze_field(self, target, ramp, approachmode, persistentmode):
@@ -624,34 +622,49 @@ class Field(PpmsMixin, Drivable):
             # not always sent to the hardware
             return {}
         self._last_settings = target, ramp, approachmode, persistentmode
-        return dict(target=target * 1e-4, ramp=ramp * 6e-3, approachmode=approachmode,
+        return dict(target=round(target * 1e-4, 7), ramp=ramp * 6e-3, approachmode=approachmode,
                     persistentmode=persistentmode)
 
     def change_field(self, change):
-        if change.doesInclude('target', 'persistentmode'):
-            if change.doesInclude('target'):
-                self._last_target = self.target  # save for stop command
-            self._stopped = False
-            self._last_change = time.time()
-            self._status_before_change = list(self.status)
-        else:
-            # changed ramp or approachmode
-            if not self.isDriving():
-                return None  # nothing to be written, as this would trigger a ramp up of leads current
         return change.target * 1e+4, change.ramp / 6e-3, change.approachmode, change.persistentmode
+
+    def write_target(self, target):
+        if abs(self.target - self.value) <= 2e-5 and target == self.target:
+            return None  # avoid ramping leads
+        self._status_before_change = list(self.status)
+        self._stopped = False
+        self._last_change = time.time()
+        self.status = [self.Status.BUSY, 'changed target']
+        return target
+
+    def write_persistentmode(self, mode):
+        if abs(self.target - self.value) <= 2e-5 and mode == self.persistentmode:
+            return None  # avoid ramping leads
+        self._last_change = time.time()
+        self._status_before_change = list(self.status)
+        self._stopped = False
+        self.status = [self.Status.BUSY, 'changed persistent mode']
+        return mode
+
+    def write_ramp(self, value):
+        if self.isDriving():
+            return value
+        return None  # change_field will not be called, as this would trigger a ramp up of leads current
+
+    def write_approachmode(self, value):
+        if self.isDriving():
+            return value
+        return None  # change_temp will not be called, as this would trigger a ramp up of leads current
 
     def do_stop(self):
         if not self.isDriving():
             return
-        self.status = [self.Status.IDLE, '_stopped']
+        newtarget = clamp(self._last_target, self.value, self.target)
+        if newtarget != self.target:
+            self.log.debug('stop at %s T', newtarget)
+            self.write_target(newtarget)
+        self.status = [self.status[0], 'stopping (%s)' % self.status[1]]
         self._stopped = True
-        if abs(self.value - self.target) > 1e-4:
-            # ramping is not yet at end
-            if abs(self.value - self._last_target) < 1e-4:
-                # ramping has not started yet, use more precise last target instead of current value
-                self.target = self.put_settings(self._last_target, 'target')
-            else:
-                self.target = self.put_settings(self.value, 'target')
 
 
 class Position(PpmsMixin, Drivable):
@@ -684,7 +697,7 @@ class Position(PpmsMixin, Drivable):
 
     channel = 'position'
     _stopped = False
-    _last_target = 0
+    _last_target = None  # last reached target
     _last_change = 0  # means no target change is pending
 
     def update_value_status(self, value, packed_status):
@@ -697,12 +710,6 @@ class Position(PpmsMixin, Drivable):
             return
         self.value = value
         status = self.STATUS_MAP[(packed_status >> 12) & 0xf]
-        if self._stopped:
-            # combine 'stopped' with current status text
-            if status[0] == self.Status.IDLE:
-                self._stopped = False
-            else:
-                status = [self.Status.IDLE, 'stopped(%s)' % status[1]]
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             now = time.time()
             if now > self._last_change + 5:
@@ -712,6 +719,16 @@ class Position(PpmsMixin, Drivable):
                 self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
             else:
                 status = [self.Status.BUSY, 'changed target']
+        if abs(self.value - self.target) < 0.1:
+            self._last_target = self.target
+        elif self._last_target is None:
+            self._last_target = self.value
+        if self._stopped:
+            # combine 'stopped' with current status text
+            if status[0] == self.Status.IDLE:
+                status = [status[0], 'stopped']
+            else:
+                status = [status[0], 'stopping (%s)' % status[1]]
         self.status = status
 
     def analyze_move(self, target, mode, speed):
@@ -727,7 +744,6 @@ class Position(PpmsMixin, Drivable):
         return change.target, 0, speed
 
     def write_target(self, target):
-        self._last_target = self.target  # save for stop command
         self._stopped = False
         self._last_change = 0
         self._status_before_change = self.status
@@ -736,17 +752,14 @@ class Position(PpmsMixin, Drivable):
     def write_speed(self, value):
         if self.isDriving():
             return value
-        return None  # change_move not called: as this would trigger an unnecessary move
+        return None  # change_move not called as this would trigger an unnecessary move
 
     def do_stop(self):
         if not self.isDriving():
             return
-        self.status = [self.Status.BUSY, '_stopped']
+        newtarget = clamp(self._last_target, self.value, self.target)
+        if newtarget != self.target:
+            self.log.debug('stop at %s T', newtarget)
+            self.write_target(newtarget)
+        self.status = [self.status[0], 'stopping (%s)' % self.status[1]]
         self._stopped = True
-        if abs(self.value - self.target) > 1e-2:
-            # moving is not yet at end
-            if abs(self.value - self._last_target) < 1e-2:
-                # moving has not started yet, use more precise last target instead of current value
-                self.target = self.write_target(self._last_target)
-            else:
-                self.target = self.write_target(self.value)
