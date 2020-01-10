@@ -37,7 +37,7 @@ class Property:
     otherwise, this is optional in which case the default value is applied.
     All values MUST pass the datatype.
     '''
-    # note: this is inteded to be used on base classes.
+    # note: this is intended to be used on base classes.
     #       the VALUES of the properties are on the instances!
     def __init__(self, description, datatype, default=None, extname='', export=False, mandatory=None, settable=True):
         if not callable(datatype):
@@ -102,29 +102,24 @@ class PropertyMeta(type):
         for base in reversed(bases):
             properties.update(getattr(base, "properties", {}))
         # update with properties from new class
-        aprops = attrs.get('properties', {})
-        properties.update(aprops)
+        properties.update(attrs.get('properties', {}))
         newtype.properties = properties
 
         # generate getters
-        for k in properties:
+        for k, po in properties.items():
+
             def getter(self, pname=k):
                 val = self.__class__.properties[pname].default
                 return self.properties.get(pname, val)
+
             if k in attrs and not isinstance(attrs[k], property):
                 if callable(attrs[k]):
                     raise ProgrammingError('%r: property %r collides with method'
                                         % (newtype, k))
-                if k in aprops:
-                    # this property was defined in the same class
-                    raise ProgrammingError('%r: name collision with property %r'
-                                        % (newtype, k))
-                # assume the attribute value should be assigned to the property
+                # store the attribute value for putting on the instance later
                 try:
-                    # make a copy first!
-                    prop = Property(**newtype.properties[k].__dict__)
-                    prop.default = prop.datatype(attrs[k])
-                    newtype.properties[k] = prop
+                    # for inheritance reasons, it seems best to store it as a renamed attribute
+                    setattr(newtype, '_initProp_' + k, po.datatype(attrs[k]))
                 except BadValueError:
                     raise ProgrammingError('%r: property %r can not be set to %r'
                                             % (newtype, k, attrs[k]))
@@ -144,7 +139,10 @@ class HasProperties(metaclass=PropertyMeta):
         self.properties = {}
         # pre-init with properties default value (if any)
         for pn, po in self.__class__.properties.items():
-            if not po.mandatory:
+            value = getattr(self, '_initProp_' + pn, self)
+            if value is not self:  # property value was given as attribute
+                self.properties[pn] = value
+            elif not po.mandatory:
                 self.properties[pn] = po.default
 
     def checkProperties(self):

@@ -127,8 +127,6 @@ class Main(Communicator):
 class PpmsMixin(HasIodev, Module):
     properties = {
         'iodev': Attached(),
-        'general_stop': Property('respect general stop', datatype=BoolType(),
-                                 export=True, default=True)
     }
 
     pollerClass = Poller
@@ -438,6 +436,11 @@ class Temp(PpmsMixin, Drivable):
         13: [Status.WARN, 'control disabled'],
         14: [Status.ERROR, 'can not complete'],
         15: [Status.ERROR, 'general failure'],
+    }
+    properties = {
+        'iodev': Attached(),
+        'general_stop': Property('respect general stop', datatype=BoolType(),
+                                 export=True, default=True)
     }
 
     channel = 'temp'

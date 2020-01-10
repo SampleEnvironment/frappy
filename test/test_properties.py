@@ -134,15 +134,6 @@ def test_Property_override():
     assert 'collides with method' in str(e.value)
 
     with pytest.raises(ProgrammingError) as e:
-        class cy(c): # pylint: disable=unused-variable
-            properties = {
-                'b' : Property('', FloatRange(), 3.14),
-            }
-            b = 1.5
-
-    assert 'name collision with property' in str(e.value)
-
-    with pytest.raises(ProgrammingError) as e:
         class cz(c): # pylint: disable=unused-variable
             a = 's'
 
