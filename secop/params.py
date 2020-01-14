@@ -162,7 +162,9 @@ class Parameter(Accessible):
 
     def getProperties(self):
         """get also properties of datatype"""
-        return {**super().getProperties(), **self.datatype.getProperties()}
+        superProp = super().getProperties().copy()
+        superProp.update(self.datatype.getProperties())
+        return superProp
 
     def setProperty(self, key, value):
         """set also properties of datatype"""

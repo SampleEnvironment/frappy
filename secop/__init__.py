@@ -30,11 +30,3 @@ from secop.params import Parameter, Command, Override
 from secop.metaclass import Done
 from secop.iohandler import IOHandler, IOHandlerBase
 from secop.stringio import StringIO, HasIodev
-
-
-try:
-    import sip
-    sip.setapi('QString', 2)
-    sip.setapi('QVariant', 2)
-except ImportError:
-    pass

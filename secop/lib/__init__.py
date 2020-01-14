@@ -42,12 +42,21 @@ CONFIG = {
     'logdir': os.path.join(repodir, 'log'),
     'confdir': os.path.join(repodir, 'cfg'),
     'basedir': repodir,
-} if os.path.exists(os.path.join(repodir, '.git')) else {
-    'piddir': '/var/run/secop',
-    'logdir': '/var/log',
-    'confdir': '/etc/secop',
-    'basedir': repodir,
 }
+if path.splitext(sys.executable)[1] == ".exe":
+    CONFIG = {
+        'piddir': './',
+        'logdir': './log',
+        'confdir': './',
+        'basedir': path.dirname(sys.executable),
+    }
+elif not os.path.exists(os.path.join(repodir, '.git')):
+    CONFIG =  {
+        'piddir': '/var/run/secop',
+        'logdir': '/var/log',
+        'confdir': '/etc/secop',
+        'basedir': repodir,
+    }
 
 
 unset_value = object()

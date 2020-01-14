@@ -19,3 +19,6 @@ doc/_build
 .cache
 .coverage
 ._*
+
+# pyinstaller
+dist/
