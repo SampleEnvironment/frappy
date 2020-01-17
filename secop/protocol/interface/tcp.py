@@ -38,10 +38,7 @@ from secop.protocol.messages import ERRORPREFIX, \
 
 DEF_PORT = 10767
 MESSAGE_READ_SIZE = 1024
-
-CR = b'\r'
-SPACE = b' '
-
+HELP = HELPREQUEST.encode()
 
 class OutputBufferOverflow(Exception):
     pass
@@ -116,9 +113,12 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 if origin is None:
                     break  # no more messages to process
                 origin = origin.strip()
-                if origin in (HELPREQUEST, ''):  # empty string -> send help message
+                if origin in (HELP, b''):  # empty string -> send help message
                     for idx, line in enumerate(HelpMessage.splitlines()):
-                        self.queue_async_reply((HELPREPLY, '%d' % (idx+1), line))
+                        # not sending HELPREPLY here, as there should be only one reply for every request
+                        self.queue_async_reply(('_', '%d' % (idx+1), line))
+                    # ident matches request
+                    self.queue_async_reply((HELPREPLY, None, None))
                     continue
                 try:
                     msg = decode_msg(origin)

@@ -37,7 +37,7 @@ sys.path[0] = basepath
 
 # do not move above!
 import mlzlog
-from secop.client import ClientConsole
+from secop.client.console import ClientConsole
 
 
 def parseArgv(argv):

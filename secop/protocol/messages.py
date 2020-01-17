@@ -25,7 +25,8 @@
 
 IDENTREQUEST = '*IDN?'  # literal
 # literal! first part is fixed!
-IDENTREPLY = 'SINE2020&ISSE,SECoP,V2019-08-20,v1.0 RC2'
+IDENTPREFIX = 'SINE2020&ISSE,SECoP,'
+IDENTREPLY = IDENTPREFIX + 'V2019-08-20,v1.0 RC2'
 
 DESCRIPTIONREQUEST = 'describe'  # literal
 DESCRIPTIONREPLY = 'describing'  # +<id> +json
@@ -65,8 +66,8 @@ HELPREQUEST = 'help'  # literal
 HELPREPLY = 'helping'  # +line number +json_text
 
 # helper mapping to find the REPLY for a REQUEST
+# do not put IDENTREQUEST/IDENTREPLY here, as this needs anyway extra treatment
 REQUEST2REPLY = {
-    IDENTREQUEST:         IDENTREPLY,
     DESCRIPTIONREQUEST:   DESCRIPTIONREPLY,
     ENABLEEVENTSREQUEST:  ENABLEEVENTSREPLY,
     DISABLEEVENTSREQUEST: DISABLEEVENTSREPLY,
