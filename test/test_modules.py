@@ -203,7 +203,7 @@ def test_ModuleMeta():
     assert set(cfg['value'].keys()) == {'group', 'export', 'relative_resolution',
         'visibility', 'unit', 'default', 'datatype', 'fmtstr',
         'absolute_resolution', 'poll', 'max', 'min', 'readonly', 'constant',
-        'description'}
+        'description', 'needscfg'}
 
     # check on the level of classes
     # this checks Newclass1 too, as it is inherited by Newclass2

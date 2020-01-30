@@ -609,3 +609,44 @@ def test_get_datatype():
         get_datatype({'type': 'struct', 'members': {}})
     with pytest.raises(ValueError):
         get_datatype({'type': 'struct', 'members':[1,2,3]})
+
+
+@pytest.mark.parametrize('dt, contained_in', [
+    (FloatRange(-10, 10), FloatRange()),
+    (IntRange(-10, 10), FloatRange()),
+    (IntRange(-10, 10), IntRange(-20, 10)),
+    (StringType(), StringType(isUTF8=True)),
+    (StringType(10, 10), StringType()),
+    (ArrayOf(StringType(), 3, 5), ArrayOf(StringType(), 3, 6)),
+    (TupleOf(StringType(), BoolType()), TupleOf(StringType(), IntRange())),
+    (StructOf(a=FloatRange(-1,1)), StructOf(a=FloatRange(), b=BoolType(), optional=['b'])),
+])
+def test_oneway_compatible(dt, contained_in):
+    dt.compatible(contained_in)
+    with pytest.raises(ValueError):
+        contained_in.compatible(dt)
+
+@pytest.mark.parametrize('dt1, dt2', [
+    (FloatRange(-5.5, 5.5), ScaledInteger(10, -5.5, 5.5)),
+    (IntRange(0,1), BoolType()),
+    (IntRange(-10, 10), IntRange(-10, 10)),
+])
+def test_twoway_compatible(dt1, dt2):
+    dt1.compatible(dt1)
+    dt2.compatible(dt2)
+
+@pytest.mark.parametrize('dt1, dt2', [
+    (StringType(), FloatRange()),
+    (IntRange(-10, 10), StringType()),
+    (StructOf(a=BoolType(), b=BoolType()), ArrayOf(StringType(), 2)),
+    (ArrayOf(BoolType(), 2), TupleOf(BoolType(), StringType())),
+    (TupleOf(BoolType(), BoolType()), StructOf(a=BoolType(), b=BoolType())),
+    (ArrayOf(StringType(), 3), ArrayOf(BoolType(), 3)),
+    (TupleOf(StringType(), BoolType()), TupleOf(BoolType(), BoolType())),
+    (StructOf(a=FloatRange(-1, 1), b=StringType()), StructOf(a=FloatRange(), b=BoolType())),
+])
+def test_incompatible(dt1, dt2):
+    with pytest.raises(ValueError):
+        dt1.compatible(dt2)
+    with pytest.raises(ValueError):
+        dt2.compatible(dt1)

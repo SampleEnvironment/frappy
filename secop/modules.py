@@ -140,6 +140,13 @@ class Module(HasProperties, metaclass=ModuleMeta):
         for aname, aobj in self.accessibles.items():
             # make a copy of the Parameter/Command object
             aobj = aobj.copy()
+            if isinstance(aobj, Parameter):
+                # fix default properties poll and needscfg
+                if aobj.poll is None:
+                    aobj.properties['poll'] = bool(aobj.handler)
+                if aobj.needscfg is None:
+                    aobj.properties['needscfg'] = not aobj.poll
+
             if aobj.export:
                 if aobj.export is True:
                     predefined_obj = PREDEFINED_ACCESSIBLES.get(aname, None)
@@ -200,7 +207,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
                     self.writeDict[pname] = pobj.value
             else:
                 if pobj.default is None:
-                    if not pobj.poll:
+                    if pobj.needscfg:
                         raise ConfigError('Module %s: Parameter %r has no default '
                                           'value and was not given in config!' %
                                           (self.name, pname))
@@ -349,7 +356,7 @@ class Readable(Module):
 
     def startModule(self, started_callback):
         """start basic polling thread"""
-        if issubclass(self.pollerClass, BasicPoller):
+        if self.pollerClass and issubclass(self.pollerClass, BasicPoller):
             # use basic poller for legacy code
             mkthread(self.__pollThread, started_callback)
         else:
@@ -479,4 +486,4 @@ class Attached(Property):
         super().__init__('attached module', StringType())
 
     def __repr__(self):
-        return 'Attached(%r)' % self.description
+        return 'Attached(%s)' % (repr(self.attrname) if self.attrname else '')

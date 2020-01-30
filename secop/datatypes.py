@@ -26,6 +26,7 @@
 
 
 import sys
+import math
 from base64 import b64decode, b64encode
 
 from secop.errors import ProgrammingError, ProtocolError, BadValueError, ConfigError
@@ -36,8 +37,8 @@ from secop.properties import HasProperties, Property
 
 # Only export these classes for 'from secop.datatypes import *'
 __all__ = [
-    'DataType',
-    'FloatRange', 'IntRange',
+    'DataType', 'get_datatype',
+    'FloatRange', 'IntRange', 'ScaledInteger',
     'BoolType', 'EnumType',
     'BLOBType', 'StringType',
     'TupleOf', 'ArrayOf', 'StructOf',
@@ -50,6 +51,7 @@ DEFAULT_MAX_INT = 16777216
 UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for any datatype size
 
 Parser = Parser()
+
 
 # base class for all DataTypes
 class DataType(HasProperties):
@@ -115,6 +117,14 @@ class DataType(HasProperties):
 
         # looks like the simplest way to make a deep copy
         return get_datatype(self.export_datatype())
+
+    def compatible(self, other):
+        """check other for compatibility
+
+        raise an exception if <other> is not compatible, i.e. there
+        exists a value which is valid for ourselfs, but not for <other>
+        """
+        raise NotImplementedError
 
 
 class Stub(DataType):
@@ -182,6 +192,9 @@ class FloatRange(DataType):
             value = float(value)
         except Exception:
             raise BadValueError('Can not __call__ %r to float' % value)
+        if math.isinf(value):
+            raise BadValueError('FloatRange does not accept infinity')
+
         prec = max(abs(value * self.relative_resolution), self.absolute_resolution)
         if self.min - prec <= value <= self.max + prec:
             return min(max(value, self.min), self.max)
@@ -215,6 +228,12 @@ class FloatRange(DataType):
             return ' '.join([self.fmtstr % value, unit])
         return self.fmtstr % value
 
+    def compatible(self, other):
+        if not isinstance(other, (FloatRange, ScaledInteger)):
+            raise BadValueError('incompatible datatypes')
+        # avoid infinity
+        other(max(sys.float_info.min, self.min))
+        other(min(sys.float_info.max, self.max))
 
 
 class IntRange(DataType):
@@ -265,6 +284,15 @@ class IntRange(DataType):
 
     def format_value(self, value, unit=None):
         return '%d' % value
+
+    def compatible(self, other):
+        if isinstance(other, IntRange):
+            other(self.min)
+            other(self.max)
+            return
+        # this will accept some EnumType, BoolType
+        for i in range(self.min, self.max + 1):
+            other(i)
 
 
 class ScaledInteger(DataType):
@@ -365,6 +393,12 @@ class ScaledInteger(DataType):
             return ' '.join([self.fmtstr % value, unit])
         return self.fmtstr % value
 
+    def compatible(self, other):
+        if not isinstance(other, (FloatRange, ScaledInteger)):
+            raise BadValueError('incompatible datatypes')
+        other(self.min)
+        other(self.max)
+
 
 class EnumType(DataType):
 
@@ -408,6 +442,10 @@ class EnumType(DataType):
     def format_value(self, value, unit=None):
         return '%s<%s>' % (self._enum[value].name, self._enum[value].value)
 
+    def compatible(self, other):
+        for m in self._enum.members:
+            other(m)
+
 
 class BLOBType(DataType):
     properties = {
@@ -438,7 +476,7 @@ class BLOBType(DataType):
     def __call__(self, value):
         """return the validated (internal) value or raise"""
         if not isinstance(value, bytes):
-            raise BadValueError('%r has the wrong type!' % value)
+            raise BadValueError('%s has the wrong type!' % repr(value))
         size = len(value)
         if size < self.minbytes:
             raise BadValueError(
@@ -463,6 +501,13 @@ class BLOBType(DataType):
 
     def format_value(self, value, unit=None):
         return repr(value)
+
+    def compatible(self, other):
+        try:
+            if self.minbytes < other.minbytes or self.maxbytes > other.maxbytes:
+                raise BadValueError('incompatible datatypes')
+        except AttributeError:
+            raise BadValueError('incompatible datatypes')
 
 
 class StringType(DataType):
@@ -494,7 +539,7 @@ class StringType(DataType):
     def __call__(self, value):
         """return the validated (internal) value or raise"""
         if not isinstance(value, str):
-            raise BadValueError('%r has the wrong type!' % value)
+            raise BadValueError('%s has the wrong type!' % repr(value))
         if not self.isUTF8:
             try:
                 value.encode('ascii')
@@ -526,6 +571,14 @@ class StringType(DataType):
 
     def format_value(self, value, unit=None):
         return repr(value)
+
+    def compatible(self, other):
+        try:
+            if self.minchars < other.minchars or self.maxchars > other.maxchars or \
+                    self.isUTF8 > other.isUTF8:
+                raise BadValueError('incompatible datatypes')
+        except AttributeError:
+            raise BadValueError('incompatible datatypes')
 
 
 # TextType is a special StringType intended for longer texts (i.e. embedding \n),
@@ -577,6 +630,11 @@ class BoolType(DataType):
 
     def format_value(self, value, unit=None):
         return repr(bool(value))
+
+    def compatible(self, other):
+        other(False)
+        other(True)
+
 
 Stub.fix_datatypes()
 
@@ -673,6 +731,14 @@ class ArrayOf(DataType):
             return ' '.join([res, unit])
         return res
 
+    def compatible(self, other):
+        try:
+            if self.minlen < other.minlen or self.maxlen > other.maxlen:
+                raise BadValueError('incompatible datatypes')
+            self.members.compatible(other.members)
+        except AttributeError:
+            raise BadValueError('incompatible datatypes')
+
 
 class TupleOf(DataType):
 
@@ -729,6 +795,15 @@ class TupleOf(DataType):
         return '(%s)' % (', '.join([sub.format_value(elem)
                                      for sub, elem in zip(self.members, value)]))
 
+    def compatible(self, other):
+        if not isinstance(other, TupleOf):
+            raise BadValueError('incompatible datatypes')
+        if len(self.members) != len(other.members) :
+            raise BadValueError('incompatible datatypes')
+        for a, b in zip(self.members, other.members):
+            a.compatible(b)
+
+
 
 class StructOf(DataType):
 
@@ -763,7 +838,7 @@ class StructOf(DataType):
         return res
 
     def __repr__(self):
-        opt = self.optional if self.optional else ''
+        opt = ', optional=%r' % self.optional if self.optional else ''
         return 'StructOf(%s%s)' % (', '.join(
             ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
@@ -807,6 +882,17 @@ class StructOf(DataType):
 
     def format_value(self, value, unit=None):
         return '{%s}' % (', '.join(['%s=%s' % (k, self.members[k].format_value(v)) for k, v in sorted(value.items())]))
+
+    def compatible(self, other):
+        try:
+            mandatory = set(other.members) - set(other.optional)
+            for k, m in self.members.items():
+                m.compatible(other.members[k])
+                mandatory.discard(k)
+            if mandatory:
+                raise BadValueError('incompatible datatypes')
+        except (AttributeError, TypeError, KeyError):
+            raise BadValueError('incompatible datatypes')
 
 
 class CommandType(DataType):
@@ -857,6 +943,16 @@ class CommandType(DataType):
     def format_value(self, value, unit=None):
         # actually I have no idea what to do here!
         raise NotImplementedError
+
+    def compatible(self, other):
+        try:
+            if self.argument != other.argument:  # not both are None
+                self.argument.compatible(other.argument)
+            if self.result != other.result:  # not both are None
+                other.result.compatible(self.result)
+        except AttributeError:
+            raise BadValueError('incompatible datatypes')
+
 
 
 # internally used datatypes (i.e. only for programming the SEC-node)

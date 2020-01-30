@@ -70,6 +70,11 @@ class NoSuchModuleError(SECoPError):
     name = 'NoSuchModule'
 
 
+# pylint: disable=redefined-builtin
+class NotImplementedError(NotImplementedError, SECoPError):
+    pass
+
+
 class NoSuchParameterError(SECoPError):
     pass
 
@@ -122,6 +127,16 @@ class HardwareError(SECoPError):
     pass
 
 
+def make_secop_error(name, text):
+    errcls = EXCEPTIONS.get(name, InternalError)
+    return errcls(text)
+
+
+def secop_error(exception):
+    if isinstance(exception, SECoPError):
+        return exception
+    return InternalError(repr(exception))
+
 
 EXCEPTIONS = dict(
     NoSuchModule=NoSuchModuleError,
@@ -137,8 +152,9 @@ EXCEPTIONS = dict(
     IsError=IsErrorError,
     Disabled=DisabledError,
     SyntaxError=ProtocolError,
+    NotImplementedError=NotImplementedError,
     InternalError=InternalError,
-# internal short versions (candidates for spec)
+    # internal short versions (candidates for spec)
     Protocol=ProtocolError,
     Internal=InternalError,
 )

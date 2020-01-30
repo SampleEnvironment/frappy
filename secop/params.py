@@ -83,10 +83,16 @@ class Parameter(Accessible):
     from the config file if specified there
 
     poll can be:
-    - False or 0 (never poll this parameter), this is the default
-    - True or 1  (poll this parameter)
-    - for any other integer, the meaning depends on the used poller
-      meaning for the default simple poller:
+    - None: will be converted to True/False if handler is/is not None
+    - False or 0 (never poll this parameter)
+    - True or > 0  (poll this parameter)
+    - the exact meaning depends on the used poller
+      meaning for secop.poller.Poller:
+        - 1 or True (AUTO), converted to SLOW (readonly=False), DYNAMIC('status' and 'value') or REGULAR(else)
+        - 2 (SLOW), polled with lower priority and a multiple of pollperiod
+        - 3 (REGULAR), polled with pollperiod
+        - 4 (DYNAMIC), polled with pollperiod, if not BUSY, else with a fraction of pollperiod
+      meaning for the basicPoller:
         - True or 1 (poll this every pollinterval)
         - positive int  (poll every N(th) pollinterval)
         - negative int  (normally poll every N(th) pollinterval, if module is busy, poll every pollinterval)
@@ -110,7 +116,8 @@ class Parameter(Accessible):
                                  ValueType(), export=False, default=None, mandatory=False),
         'export':      Property('Is this parameter accessible via SECoP? (vs. internal parameter)',
                                  OrType(BoolType(), StringType()), export=False, default=True),
-        'poll':        Property('Polling indicator', IntRange(), export=False, default=False),
+        'poll':        Property('Polling indicator', NoneOr(IntRange()), export=False, default=None),
+        'needscfg':    Property('needs value in config', NoneOr(BoolType()), export=False, default=None),
         'optional':    Property('[Internal] is this parameter optional?', BoolType(), export=False,
                                  settable=False, default=False),
         'handler':     Property('[internal] overload the standard read and write functions',
@@ -138,9 +145,6 @@ class Parameter(Accessible):
         if unit is not None: # for legacy code only
             datatype.setProperty('unit', unit)
         super(Parameter, self).__init__(**kwds)
-
-        if self.handler and not self.poll:
-            self.properties['poll'] = True
 
         if self.readonly and self.initwrite:
             raise ProgrammingError('can not have both readonly and initwrite!')
@@ -181,6 +185,7 @@ class Parameter(Accessible):
 class UnusedClass:
     # do not derive anything from this!
     pass
+
 
 class Parameters(OrderedDict):
     """class storage for Parameters"""

@@ -68,7 +68,7 @@ class Parser:
     def parse_string(self, orgtext):
         # handle quoted and unquoted strings correctly
         text = orgtext.strip()
-        if text[0] in ('"', u"'"):
+        if text[0] in ('"', "'"):
             # quoted string
             quote = text[0]
             idx = 0
@@ -160,7 +160,6 @@ class Parser:
         return self.parse_string(orgtext)
 
     def parse(self, orgtext):
-        print("parsing %r" % orgtext)
         res, rem = self.parse_sub(orgtext)
         if rem and rem[0] in ',;':
             return self.parse_sub('[%s]' % orgtext)
