@@ -43,7 +43,7 @@ CONFIG = {
     'confdir': os.path.join(repodir, 'cfg'),
     'basedir': repodir,
 }
-if path.splitext(sys.executable)[1] == ".exe":
+if path.splitext(sys.executable)[1] == ".exe" and os.path.basename(sys.executable) != 'python.exe':
     CONFIG = {
         'piddir': './',
         'logdir': './log',
