@@ -24,13 +24,14 @@
 
 import sys
 
-from secop.client.baseclient import Client as SECNode
+import secop.client
 from secop.gui.modulectrl import ModuleCtrl
 from secop.gui.nodectrl import NodeCtrl
 from secop.gui.paramview import ParameterView
 from secop.gui.qt import QInputDialog, QMainWindow, QMessageBox, \
-    QObject, QTreeWidgetItem, pyqtSignal, pyqtSlot
-from secop.gui.util import loadUi
+    QObject, QTreeWidgetItem, pyqtSignal, pyqtSlot, QBrush, QColor
+from secop.gui.util import loadUi, Value
+from secop.lib import formatExtendedTraceback
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
 ITEM_TYPE_GROUP = QTreeWidgetItem.UserType + 2
@@ -38,34 +39,78 @@ ITEM_TYPE_MODULE = QTreeWidgetItem.UserType + 3
 ITEM_TYPE_PARAMETER = QTreeWidgetItem.UserType + 4
 
 
-class QSECNode(SECNode, QObject):
+class QSECNode(QObject):
     newData = pyqtSignal(str, str, object)  # module, parameter, data
+    stateChange = pyqtSignal(str, bool, str)  # node name, online, connection state
+    unhandledMsg = pyqtSignal(str)  # message
+    logEntry = pyqtSignal(str)
 
-    def __init__(self, opts, autoconnect=False, parent=None):
-        SECNode.__init__(self, opts, autoconnect)
+    def __init__(self, uri, parent=None):
         QObject.__init__(self, parent)
+        self.conn = conn = secop.client.SecopClient(uri)
+        conn.validate_data = True
+        self.log = conn.log
+        self.contactPoint = conn.uri
+        conn.connect()
+        self.equipmentId = conn.properties['equipment_id']
+        self.nodename = '%s (%s)' % (self.equipmentId, conn.uri)
+        self.modules = conn.modules
+        self.properties = self.conn.properties
+        self.protocolVersion = conn.secop_version
+        conn.register(None, self)  # generic callback
 
-        self.startup(True)
-        self._subscribeCallbacks()
+    # provide methods from old baseclient for making other gui code work
 
-    def _subscribeCallbacks(self):
-        for module in self.modules:
-            self._subscribeModuleCallback(module)
+    def getParameters(self, module):
+        return self.modules[module]['parameters']
 
-    def _subscribeModuleCallback(self, module):
-        for parameter in self.getParameters(module):
-            self._subscribeParameterCallback(module, parameter)
+    def getCommands(self, module):
+        return self.modules[module]['commands']
 
-    def _subscribeParameterCallback(self, module, parameter):
-        self.register_callback(module, parameter, self._newDataReceived)
+    def getModuleProperties(self, module):
+        return self.modules[module]['properties']
 
-    def _newDataReceived(self, module, parameter, data):
-        self.newData.emit(module, parameter, data)
+    def getProperties(self, module, parameter):
+        props = self.modules[module]['parameters'][parameter]
+        if 'unit' in props['datainfo']:
+            props['unit'] = props['datainfo']['unit']
+        return self.modules[module]['parameters'][parameter]
+
+    def setParameter(self, module, parameter, value):
+        self.conn.setParameter(module, parameter, value)
+
+    def getParameter(self, module, parameter):
+        return self.conn.getParameter(module, parameter, True)
+
+    def execCommand(self, module, command, arg):
+        return self.conn.execCommand(module, command, arg)
+
+    def queryCache(self, module):
+        return {k: Value(*self.conn.cache[(module, k)])
+                  for k in self.modules[module]['parameters']}
+
+    def syncCommunicate(self, action, ident='', data=None):
+        reply = self.conn.request(action, ident, data)
+        return secop.client.encode_msg_frame(*reply).decode('utf-8')
+
+    def decode_message(self, msg):
+        # decode_msg needs bytes as input
+        return secop.client.decode_msg(msg.encode('utf-8'))
+
+    def _getDescribingParameterData(self, module, parameter):
+        return self.modules[module]['parameters'][parameter]
+
+    def updateEvent(self, module, parameter, value, timestamp, readerror):
+        self.newData.emit(module, parameter, Value(value, timestamp, readerror))
+
+    def nodeStateChange(self, online, state):
+        self.stateChange.emit(self.nodename, online, state)
+
+    def unhandledMessage(self, *msg):
+        self.unhandledMsg.emit('%s %s %r' % msg)
 
 
 class MainWindow(QMainWindow):
-    askReopenSignal = pyqtSignal(str, str)
-
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
 
@@ -83,7 +128,6 @@ class MainWindow(QMainWindow):
         self._paramCtrls = {}
         self._topItems = {}
         self._currentWidget = self.splitter.widget(1).layout().takeAt(0)
-        self.askReopenSignal.connect(self.askReopen)
 
         # add localhost (if available) and SEC nodes given as arguments
         args = sys.argv[1:]
@@ -95,7 +139,8 @@ class MainWindow(QMainWindow):
             try:
                 self._addNode(host)
             except Exception as e:
-                print(e)
+                print(formatExtendedTraceback())
+                print('error in addNode: %r' % e)
 
     @pyqtSlot()
     def on_actionAdd_SEC_node_triggered(self):
@@ -132,32 +177,24 @@ class MainWindow(QMainWindow):
     def _removeSubTree(self, toplevel_item):
         self.treeWidget.invisibleRootItem().removeChild(toplevel_item)
 
-    def _nodeDisconnected_callback(self, nodename, host):
+    def _set_node_state(self, nodename, online, state):
         node = self._nodes[nodename]
-        self._removeSubTree(self._topItems[node])
-        del self._topItems[node]
-        node.quit()
-        self.askReopenSignal.emit(nodename, host)
-
-    def askReopen(self, nodename, host):
-        result = QMessageBox.question(self.parent(), 'connection closed',
-            'connection to %s closed, reopen?' % nodename)
-        if result == QMessageBox.Yes:
-            self._addNode(host)
+        if online:
+            self._topItems[node].setBackground(0, QBrush(QColor('white')))
+        else:
+            self._topItems[node].setBackground(0, QBrush(QColor('orange')))
+        # TODO: make connection state be a separate row
+        node.contactPoint = '%s (%s)' % (node.conn.uri, state)
+        if nodename in self._nodeCtrls:
+            self._nodeCtrls[nodename].contactPointLabel.setText(node.contactPoint)
 
     def _addNode(self, host):
 
         # create client
-        port = 10767
-        if ':' in host:
-            host, port = host.split(':', 1)
-            port = int(port)
-        node = QSECNode({'host': host, 'port': port}, parent=self)
-        host = '%s:%d' % (host, port)
+        node = QSECNode(host, parent=self)
+        nodename = node.nodename
 
-        nodename = '%s (%s)' % (node.equipmentId, host)
         self._nodes[nodename] = node
-        node.register_shutdown_callback(self._nodeDisconnected_callback, nodename, host)
 
         # fill tree
         nodeItem = QTreeWidgetItem(None, [nodename], ITEM_TYPE_NODE)
@@ -171,11 +208,13 @@ class MainWindow(QMainWindow):
 
         self.treeWidget.addTopLevelItem(nodeItem)
         self._topItems[node] = nodeItem
+        node.stateChange.connect(self._set_node_state)
 
     def _displayNode(self, node):
         ctrl = self._nodeCtrls.get(node, None)
         if ctrl is None:
             ctrl = self._nodeCtrls[node] = NodeCtrl(self._nodes[node])
+            self._nodes[node].unhandledMsg.connect(ctrl._addLogEntry)
 
         self._replaceCtrlWidget(ctrl)
 

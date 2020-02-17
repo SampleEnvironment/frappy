@@ -31,3 +31,23 @@ uipath = path.dirname(__file__)
 
 def loadUi(widget, uiname, subdir='ui'):
     uic.loadUi(path.join(uipath, subdir, uiname), widget)
+
+class Value:
+    def __init__(self, value, timestamp=None, readerror=None):
+        self.value = value
+        self.timestamp = timestamp
+        self.readerror = readerror
+
+    def __str__(self):
+        """for display"""
+        if self.readerror:
+            return str('!!' + str(self.readerror) + '!!')
+        return str(self.value)
+
+    def __repr__(self):
+        args = (self.value,)
+        if self.timestamp:
+            args += (self.timestamp,)
+        if self.readerror:
+            args += (self.readerror,)
+        return 'Value%s' % repr(args)

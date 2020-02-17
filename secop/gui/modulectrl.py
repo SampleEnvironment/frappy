@@ -65,8 +65,7 @@ class CommandDialog(QDialog):
 
 def showCommandResultDialog(command, args, result, extras=''):
     m = QMessageBox()
-    if not args:
-        args = ''
+    args = '' if args is None else repr(args)
     m.setText('calling: %s(%s)\nyielded: %r\nqualifiers: %s' %
               (command, args, result, extras))
     m.exec_()
@@ -159,8 +158,6 @@ class ModuleCtrl(QWidget):
         self._node.newData.connect(self._updateValue)
 
     def _execCommand(self, command, args=None):
-        if not args:
-            args = tuple()
         try:
             result, qualifiers = self._node.execCommand(
                 self._module, command, args)
@@ -222,7 +219,7 @@ class ModuleCtrl(QWidget):
                         'datatype', None)
                     # yes: create a widget for this as well
                     labelstr, buttons = self._makeEntry(
-                        group, initValues[param].value, datatype=datatype, nolabel=True, checkbox=checkbox, invert=True)
+                        group, initValues[param], datatype=datatype, nolabel=True, checkbox=checkbox, invert=True)
                     checkbox.setText(labelstr)
 
                     # add to Layout (yes: ignore the label!)
@@ -240,7 +237,7 @@ class ModuleCtrl(QWidget):
                         initval = None
                         print("Warning: %r not in initValues!" % param_)
                     else:
-                        initval = initValues[param_].value
+                        initval = initValues[param_]
                     datatype = self._node.getProperties(
                         self._module, param_).get(
                         'datatype', None)
@@ -261,7 +258,7 @@ class ModuleCtrl(QWidget):
                         self._module, param).get(
                         'datatype', None)
                     label, buttons = self._makeEntry(
-                        param, initValues[param].value, datatype=datatype)
+                        param, initValues[param], datatype=datatype)
 
                     # add to Layout
                     self.paramGroupBox.layout().addWidget(label, row, 0)
@@ -359,7 +356,7 @@ class ModuleCtrl(QWidget):
     def _updateValue(self, module, parameter, value):
         if module != self._module:
             return
-        # value is [data, qualifiers]
+        # value is is type secop.gui.mainwindow.Value
         # note: update subwidgets with the data portion only
         # note: paramwidgets[..][1] is a ParameterView from secop.gui.params
-        self._paramWidgets[parameter][1].updateValue(value[0])
+        self._paramWidgets[parameter][1].updateValue(value)

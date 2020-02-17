@@ -79,8 +79,6 @@ class GenericParameterWidget(ParameterWidget):
                                self.setLineEdit.text())
 
     def updateValue(self, value):
-        if self._datatype:
-            value = self._datatype.import_value(value)
         self.currentLineEdit.setText(str(value))
 
 
@@ -113,12 +111,7 @@ class EnumParameterWidget(GenericParameterWidget):
         self.setRequested.emit(self._module, self._paramcmd, member)
 
     def updateValue(self, value):
-        try:
-            member = self._map[self._revmap[int(value)]]
-            self.currentLineEdit.setText('%s.%s (%d)' % (member.enum.name, member.name, member.value))
-        except Exception:
-            self.currentLineEdit.setText('undefined Value: %r' % value)
-            print(formatExtendedStack())
+        self.currentLineEdit.setText(str(value))
 
 
 class GenericCmdWidget(ParameterWidget):

@@ -31,7 +31,8 @@ from secop.datatypes import EnumType, StringType
 from secop.errors import SECoPError
 from secop.gui.qt import QFont, QFontMetrics, QLabel, \
     QMessageBox, QTextCursor, QWidget, pyqtSlot, toHtmlEscaped
-from secop.gui.util import loadUi
+from secop.gui.util import loadUi, Value
+import secop.lib
 
 
 class NodeCtrl(QWidget):
@@ -45,12 +46,14 @@ class NodeCtrl(QWidget):
         self.contactPointLabel.setText(self._node.contactPoint)
         self.equipmentIdLabel.setText(self._node.equipmentId)
         self.protocolVersionLabel.setText(self._node.protocolVersion)
-        self.nodeDescriptionLabel.setText(self._node.describingData['properties'].get(
-            'description', 'no description available'))
+        self.nodeDescriptionLabel.setText(self._node.properties.get('description',
+                                                                    'no description available'))
         self._clearLog()
 
         # now populate modules tab
         self._init_modules_tab()
+
+        node.logEntry.connect(self._addLogEntry)
 
     @pyqtSlot()
     def on_sendPushButton_clicked(self):
@@ -72,12 +75,19 @@ class NodeCtrl(QWidget):
                     stuff, indent=2, separators=(',', ':'), sort_keys=True))
                 self._addLogEntry(reply, newline=True, pretty=False)
             else:
-                self._addLogEntry(reply, newline=True, pretty=True)
+                self._addLogEntry(reply, newline=True, pretty=False)
         except SECoPError as e:
+            einfo = e.args[0] if len(e.args) == 1 else json.dumps(e.args)
             self._addLogEntry(
-                'error %s %s' % (e.name, json.dumps(e.args)),
+                '%s: %s' % (e.name, einfo),
                 newline=True,
-                pretty=True,
+                pretty=False,
+                error=True)
+        except Exception as e:
+            self._addLogEntry(
+                'error when sending %r: %r' % (msg, e),
+                newline=True,
+                pretty=False,
                 error=True)
 
     @pyqtSlot()
@@ -154,6 +164,7 @@ class NodeCtrl(QWidget):
                 else:
                     widget = QLabel('Unsupported Interfaceclass %r' % interfaces)
             except Exception as e:
+                print(secop.lib.formatExtendedTraceback())
                 widget = QLabel('Bad configured Module %s! (%s)' % (modname, e))
 
 
@@ -184,16 +195,19 @@ class ReadableWidget(QWidget):
 
         # XXX: avoid a nasty race condition, mainly biting on M$
         for i in range(15):
-            if 'status' in self._node.describing_data['modules'][module]['accessibles']:
+            if 'status' in self._node.modules[module]['parameters']:
                 break
             sleep(0.01*i)
 
         self._status_type = self._node.getProperties(
             self._module, 'status').get('datatype')
 
-        params = self._node.getProperties(self._module, 'value')
-        datatype = params.get('datatype', StringType())
-        self._is_enum = isinstance(datatype, EnumType)
+        try:
+            props = self._node.getProperties(self._module, 'target')
+            datatype = props.get('datatype', StringType())
+            self._is_enum = isinstance(datatype, EnumType)
+        except KeyError:
+            self._is_enum = False
 
         loadUi(self, 'modulebuttons.ui')
 
@@ -214,37 +228,26 @@ class ReadableWidget(QWidget):
         self._node.newData.connect(self._updateValue)
 
     def _get(self, pname, fallback=Ellipsis):
-        params = self._node.queryCache(self._module)
-        if pname in params:
-            return params[pname].value
         try:
-            # if queried, we get the qualifiers as well, but don't want them
-            # here
+            return Value(*self._node.getParameter(self._module, pname))
+        except Exception as e:
+            # happens only, if there is no response form read request
             mlzlog.getLogger('cached values').warn(
-                'no cached value for %s:%s' % (self._module, pname))
-            val = self._node.getParameter(self._module, pname)[0]
-            return val
-        except Exception:
-            self._node.log.exception()
-            if fallback is not Ellipsis:
-                return fallback
-            raise
+                'no cached value for %s:%s %r' % (self._module, pname, e))
+            return Value(fallback)
 
     def _init_status_widgets(self):
-        self.update_status(self._get('status', (999, '<not supported>')), {})
+        self.update_status(self._get('status', (400, '<not supported>')))
         # XXX: also connect update_status signal to LineEdit ??
 
-    def update_status(self, status, qualifiers=None):
-        display_string = self._status_type.members[0]._enum[status[0]].name
-        if status[1]:
-            display_string += ':' + status[1]
-        self.statusLineEdit.setText(display_string)
+    def update_status(self, status):
+        self.statusLineEdit.setText(str(status))
         # may change meaning of cmdPushButton
 
     def _init_current_widgets(self):
-        self.update_current(self._get('value', ''), {})
+        self.update_current(self._get('value', ''))
 
-    def update_current(self, value, qualifiers=None):
+    def update_current(self, value):
         self.currentLineEdit.setText(str(value))
 
     def _init_target_widgets(self):
@@ -253,18 +256,18 @@ class ReadableWidget(QWidget):
         self.targetComboBox.setHidden(True)
         self.cmdPushButton.setHidden(True)
 
-    def update_target(self, target, qualifiers=None):
+    def update_target(self, target):
         pass
 
     def _updateValue(self, module, parameter, value):
         if module != self._module:
             return
         if parameter == 'status':
-            self.update_status(*value)
+            self.update_status(value)
         elif parameter == 'value':
-            self.update_current(*value)
+            self.update_current(value)
         elif parameter == 'target':
-            self.update_target(*value)
+            self.update_target(value)
 
 
 class DrivableWidget(ReadableWidget):
@@ -278,28 +281,30 @@ class DrivableWidget(ReadableWidget):
             # normal types: disable Combobox
             self.targetComboBox.setHidden(True)
             target = self._get('target', None)
-            if target:
-                if isinstance(target, list) and isinstance(target[1], dict):
-                    self.update_target(target[0])
+            if target.value is not None:
+                if isinstance(target.value, list) and isinstance(target.value[1], dict):
+                    self.update_target(Value(target.value[0]))
                 else:
                     self.update_target(target)
 
-    def update_current(self, value, qualifiers=None):
-        if self._is_enum:
-            member = self._map[self._revmap[value]]
-            self.currentLineEdit.setText('%s.%s (%d)' % (member.enum.name, member.name, member.value))
-        else:
-            self.currentLineEdit.setText(str(value))
+    def update_current(self, value):
+        self.currentLineEdit.setText(str(value))
+        #elif self._is_enum:
+        #    member = self._map[self._revmap[value.value]]
+        #    self.currentLineEdit.setText('%s.%s (%d)' % (member.enum.name, member.name, member.value))
 
-    def update_target(self, target, qualifiers=None):
+    def update_target(self, target):
         if self._is_enum:
+            if target.readerror:
+                return
             # update selected item
-            if target in self._revmap:
-                self.targetComboBox.setCurrentIndex(self._revmap[target])
+            value = target.value
+            if value in self._revmap:
+                self.targetComboBox.setCurrentIndex(self._revmap[value])
             else:
                 print(
                     "%s: Got invalid target value %r!" %
-                    (self._module, target))
+                    (self._module, value))
         else:
             self.targetLineEdit.setText(str(target))
 
