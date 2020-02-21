@@ -22,8 +22,6 @@
 # *****************************************************************************
 
 
-import sys
-
 import secop.client
 from secop.gui.modulectrl import ModuleCtrl
 from secop.gui.nodectrl import NodeCtrl
@@ -111,7 +109,7 @@ class QSECNode(QObject):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, parent=None):
+    def __init__(self, hosts, parent=None):
         super(MainWindow, self).__init__(parent)
 
         loadUi(self, 'mainwindow.ui')
@@ -130,12 +128,7 @@ class MainWindow(QMainWindow):
         self._currentWidget = self.splitter.widget(1).layout().takeAt(0)
 
         # add localhost (if available) and SEC nodes given as arguments
-        args = sys.argv[1:]
-        if '-d' in args:
-            args.remove('-d')
-        if not args:
-            args = ['localhost']
-        for host in args:
+        for host in hosts:
             try:
                 self._addNode(host)
             except Exception as e:

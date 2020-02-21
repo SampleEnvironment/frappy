@@ -58,7 +58,10 @@ def main(argv=None):
 
     app = QApplication(argv)
 
-    win = MainWindow()
+    hosts = [host for host in argv[1:] if not host.startswith('-')]
+    if not hosts:
+        hosts = ['localhost:10767']
+    win = MainWindow(hosts)
     win.show()
 
     return app.exec_()
