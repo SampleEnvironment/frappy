@@ -42,9 +42,9 @@ import threading
 from collections import OrderedDict
 from time import time as currenttime
 
-from secop.errors import SECoPServerError as InternalError
 from secop.errors import BadValueError, NoSuchCommandError, NoSuchModuleError, \
-    NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPError
+    NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPServerError, InternalError,\
+    SECoPError
 from secop.params import Parameter
 from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
@@ -82,6 +82,7 @@ class Dispatcher:
         # eventname is <modulename> or <modulename>:<parametername>
         self._subscriptions = {}
         self._lock = threading.RLock()
+        self.restart = srv.restart
 
     def broadcast_event(self, msg, reallyall=False):
         """broadcasts a msg to all active connections
@@ -157,7 +158,7 @@ class Dispatcher:
             return self._modules[modulename]
         if modulename in list(self._modules.values()):
             return modulename
-        raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+        raise NoSuchModuleError('Module %r does not exist on this SEC-Node!' % modulename)
 
     def remove_module(self, modulename_or_obj):
         moduleobj = self.get_module(modulename_or_obj)
@@ -209,17 +210,17 @@ class Dispatcher:
     def _execute_command(self, modulename, exportedname, argument=None):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError('Module %r does not exist' % modulename)
 
         cmdname = moduleobj.commands.exported.get(exportedname, None)
         if cmdname is None:
-            raise NoSuchCommandError('Module has no command %r on this SEC-Node!' % exportedname)
+            raise NoSuchCommandError('Module %r has no command %r' % (modulename, exportedname))
         cmdspec = moduleobj.commands[cmdname]
         if argument is None and cmdspec.datatype.argument is not None:
-            raise BadValueError('Command needs an argument!')
+            raise BadValueError("Command '%s:%s' needs an argument" % (modulename, cmdname))
 
         if argument is not None and cmdspec.datatype.argument is None:
-            raise BadValueError('Command takes no argument!')
+            raise BadValueError("Command '%s:%s' takes no argument" % (modulename, cmdname))
 
         if cmdspec.datatype.argument:
             # validate!
@@ -239,16 +240,18 @@ class Dispatcher:
     def _setParameterValue(self, modulename, exportedname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError('Module %r does not exist' % modulename)
 
         pname = moduleobj.parameters.exported.get(exportedname, None)
         if pname is None:
-            raise NoSuchParameterError('Module has no parameter %r on this SEC-Node!' % exportedname)
+            raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, exportedname))
         pobj = moduleobj.parameters[pname]
         if pobj.constant is not None:
-            raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
+            raise ReadOnlyError("Parameter %s:%s is constant and can not be changed remotely"
+                                % (modulename, pname))
         if pobj.readonly:
-            raise ReadOnlyError('This parameter can not be changed remotely.')
+            raise ReadOnlyError("Parameter %s:%s can not be changed remotely"
+                                % (modulename, pname))
 
         # validate!
         value = pobj.datatype(value)
@@ -264,11 +267,11 @@ class Dispatcher:
     def _getParameterValue(self, modulename, exportedname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+            raise NoSuchModuleError('Module %r does not exist' % modulename)
 
         pname = moduleobj.parameters.exported.get(exportedname, None)
         if pname is None:
-            raise NoSuchParameterError('Module has no parameter %r on this SEC-Node!' % exportedname)
+            raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, exportedname))
         pobj = moduleobj.parameters[pname]
         if pobj.constant is not None:
             # really needed? we could just construct a readreply instead....
@@ -306,7 +309,7 @@ class Dispatcher:
 
             if handler:
                 return handler(conn, specifier, data)
-            raise InternalError('unhandled message!')
+            raise SECoPServerError('unhandled message: %s' % repr(msg))
 
     # now the (defined) handlers for the different requests
     def handle_help(self, conn, specifier, data):
@@ -328,7 +331,7 @@ class Dispatcher:
         return (READREPLY, specifier, list(self._getParameterValue(modulename, pname)))
 
     def handle_change(self, conn, specifier, data):
-        modulename, pname = specifier, 'value'
+        modulename, pname = specifier, 'target'
         if ':' in specifier:
             modulename, pname = specifier.split(':', 1)
         return (WRITEREPLY, specifier, list(self._setParameterValue(modulename, pname, data)))
@@ -352,13 +355,13 @@ class Dispatcher:
             if ':' in specifier:
                 modulename, exportedname = specifier.split(':', 1)
             if modulename not in self._export:
-                raise NoSuchModuleError('Module does not exist on this SEC-Node!')
+                raise NoSuchModuleError('Module %r does not exist' % modulename)
             moduleobj = self.get_module(modulename)
             if exportedname is not None:
                 pname = moduleobj.accessiblename2attr.get(exportedname, True)
                 if pname and pname not in moduleobj.accessibles:
                     # what if we try to subscribe a command here ???
-                    raise NoSuchParameterError('Module has no such parameter on this SEC-Node!')
+                    raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, pname))
                 modules = [(modulename, pname)]
             else:
                 modules = [(modulename, None)]

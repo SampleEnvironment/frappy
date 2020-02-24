@@ -221,6 +221,7 @@ class TCPServer(HasProperties, socketserver.ThreadingTCPServer):
         self.setProperty('detailed_errors', detailed_errors)
         self.checkProperties()
 
+        self.allow_reuse_address = True
         self.log.info("TCPServer %s binding to %s:%d" % (name, self.bindto, self.bindport))
         socketserver.ThreadingTCPServer.__init__(
             self, (self.bindto, self.bindport), TCPRequestHandler, bind_and_activate=True)

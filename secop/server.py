@@ -40,7 +40,7 @@ except ImportError:
     DaemonContext = None
 
 from secop.errors import ConfigError
-from secop.lib import formatException, get_class, getGeneralConfig
+from secop.lib import formatException, get_class, getGeneralConfig, mkthread
 from secop.modules import Attached
 
 
@@ -53,10 +53,12 @@ class Server:
     # IMPORTANT: keep he order! (node MUST be first, as the others are referencing it!)
     CFGSECTIONS = [
         # section_prefix, default type, mapping of selectable classes
-        ('node', None, {None: "protocol.dispatcher.Dispatcher"}),
+        ('node', 'std', {'std': "protocol.dispatcher.Dispatcher",
+                         'router': 'protocol.router.Router'}),
         ('module', None, None),
         ('interface', "tcp", {"tcp": "protocol.interface.tcp.TCPServer"}),
     ]
+    _restart = True
 
     def __init__(self, name, parent_logger=None):
         cfg = getGeneralConfig()
@@ -78,6 +80,7 @@ class Server:
 
         self._dispatcher = None
         self._interface = None
+        self._restart_event = threading.Event()
 
     def start(self):
         if not DaemonContext:
@@ -96,28 +99,29 @@ class Server:
             self.run()
 
     def run(self):
-        try:
-            self._processCfg()
-        except Exception:
-            print(formatException(verbose=True))
-            raise
+        while self._restart:
+            self._restart = False
+            try:
+                self._processCfg()
+            except Exception:
+                print(formatException(verbose=True))
+                raise
 
-        self.log.info('startup done, handling transport messages')
-        self._threads = set()
-        for ifname, ifobj in self.interfaces.items():
-            self.log.debug('starting thread for interface %r' % ifname)
-            t = threading.Thread(target=ifobj.serve_forever)
-            t.daemon = True
-            t.start()
-            self._threads.add(t)
-        while self._threads:
-            time.sleep(1)
-            for t in self._threads:
-                if not t.is_alive():
-                    self.log.debug('thread %r died (%d still running)' %
-                                   (t, len(self._threads)))
-                    t.join()
-                    self._threads.discard(t)
+            self.log.info('startup done, handling transport messages')
+            threads = []
+            for ifname, ifobj in self.interfaces.items():
+                self.log.debug('starting thread for interface %r' % ifname)
+                threads.append((ifname, mkthread(ifobj.serve_forever)))
+            for ifname, t in threads:
+                t.join()
+                self.log.debug('thread for %r died' % ifname)
+
+    def restart(self):
+        if not self._restart:
+            self._restart = True
+            for ifobj in self.interfaces.values():
+                ifobj.shutdown()
+                ifobj.server_close()
 
     def _processCfg(self):
         self.log.debug('Parse config file %s ...' % self._cfgfile)
@@ -129,7 +133,7 @@ class Server:
             self.log.error('Couldn\'t read cfg file !')
             raise ConfigError('Couldn\'t read cfg file %r' % self._cfgfile)
 
-        for kind, devtype, classmapping in self.CFGSECTIONS:
+        for kind, default_type, classmapping in self.CFGSECTIONS:
             kinds = '%ss' % kind
             objs = OrderedDict()
             self.__dict__[kinds] = objs
@@ -145,7 +149,7 @@ class Server:
                             self.log.error('%s %s needs a class option!' % (kind.title(), name))
                             raise ConfigError('cfgfile %r: %s %s needs a class option!' %
                                               (self._cfgfile, kind.title(), name))
-                        type_ = opts.pop('type', devtype)
+                        type_ = opts.pop('type', default_type)
                         cls = classmapping.get(type_, None)
                         if not cls:
                             self.log.error('%s %s needs a type option (select one of %s)!' %
@@ -185,7 +189,9 @@ class Server:
         for modname, modobj in self.modules.items():
             self.log.info('registering module %r' % modname)
             self.dispatcher.register_module(modobj, modname, modobj.properties['export'])
-            modobj.pollerClass.add_to_table(poll_table, modobj)
+            if modobj.pollerClass is not None:
+                # a module might be explicitly excluded from polling by setting pollerClass to None
+                modobj.pollerClass.add_to_table(poll_table, modobj)
             # also call earlyInit on the modules
             modobj.earlyInit()
 
