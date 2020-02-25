@@ -30,7 +30,7 @@ from collections import defaultdict
 
 from secop.lib import mkthread, formatExtendedTraceback, formatExtendedStack
 from secop.lib.asynconn import AsynConn, ConnectionClosed
-from secop.datatypes import get_datatype
+from secop.datatypes import get_datatype, EnumType
 from secop.protocol.interface import encode_msg_frame, decode_msg
 from secop.protocol.messages import REQUEST2REPLY, ERRORPREFIX, EVENTREPLY, WRITEREQUEST, WRITEREPLY, \
     READREQUEST, READREPLY, IDENTREQUEST, IDENTPREFIX, ENABLEEVENTSREQUEST, COMMANDREQUEST, DESCRIPTIONREQUEST
@@ -428,12 +428,13 @@ class SecopClient(ProxyClient):
             commands = {}
             accessibles = moddescr['accessibles']
             for aname, aentry in accessibles.items():
-                aentry = dict(aentry, datatype=get_datatype(aentry['datainfo']))
                 iname = self.internalize_name(aname)
+                datatype = get_datatype(aentry['datainfo'], iname)
+                aentry = dict(aentry, datatype=datatype)
                 ident = '%s:%s' % (modname, aname)
                 self.identifier[modname, iname] = ident
                 self.internal[ident] = modname, iname
-                if aentry['datainfo']['type'] == 'command':
+                if datatype.IS_COMMAND:
                     commands[iname] = aentry
                 else:
                     parameters[iname] = aentry

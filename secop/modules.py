@@ -176,7 +176,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
                 # paramobj might also be a command (not sure if this is needed)
                 if paramobj:
                     if propname == 'datatype':
-                        paramobj.setProperty('datatype', get_datatype(cfgdict.pop(k)))
+                        paramobj.setProperty('datatype', get_datatype(cfgdict.pop(k), k))
                     elif propname in paramobj.getProperties():
                         paramobj.setProperty(propname, cfgdict.pop(k))
                     else:

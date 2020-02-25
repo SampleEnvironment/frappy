@@ -1066,41 +1066,72 @@ class StatusType(TupleOf):
         return TupleOf.__getattr__(self, key)
 
 
+def floatargs(kwds):
+    return {k: v for k, v in kwds.items() if k in
+            {'unit', 'fmtstr', 'absolute_resolution', 'relative_resolution'}}
+
+
 # argumentnames to lambda from spec!
+# **kwds at the end are for must-ignore policy
 DATATYPES = dict(
-    bool    =BoolType,
-    int     =lambda min, max, **kwds: IntRange(minval=min, maxval=max, **kwds),
-    scaled  =lambda scale, min, max, **kwds: ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **kwds),
-    double  =lambda min=None, max=None, **kwds: FloatRange(minval=min, maxval=max, **kwds),
-    blob    =lambda maxbytes, minbytes=0: BLOBType(minbytes=minbytes, maxbytes=maxbytes),
-    string  =lambda minchars=0, maxchars=None, isUTF8=False: StringType(minchars=minchars, maxchars=maxchars, isUTF8=isUTF8),
-    array   =lambda maxlen, members, minlen=0: ArrayOf(get_datatype(members), minlen=minlen, maxlen=maxlen),
-    tuple   =lambda members: TupleOf(*tuple(map(get_datatype, members))),
-    enum    =lambda members: EnumType('', members=members),
-    struct  =lambda members, optional=None: StructOf(optional,
-        **dict((n, get_datatype(t)) for n, t in list(members.items()))),
-    command = lambda argument=None, result=None: CommandType(get_datatype(argument), get_datatype(result)),
-    limit   = lambda members: LimitsType(get_datatype(members)),
+    bool    = lambda **kwds:
+        BoolType(),
+
+    int     = lambda min, max, **kwds:
+        IntRange(minval=min, maxval=max),
+
+    scaled  = lambda scale, min, max, **kwds:
+        ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **floatargs(kwds)),
+
+    double  = lambda min=None, max=None, **kwds:
+        FloatRange(minval=min, maxval=max, **floatargs(kwds)),
+
+    blob    = lambda maxbytes, minbytes=0, **kwds:
+        BLOBType(minbytes=minbytes, maxbytes=maxbytes),
+
+    string  = lambda minchars=0, maxchars=None, isUTF8=False, **kwds:
+        StringType(minchars=minchars, maxchars=maxchars, isUTF8=isUTF8),
+
+    array   = lambda maxlen, members, minlen=0, pname='', **kwds:
+        ArrayOf(get_datatype(members, pname), minlen=minlen, maxlen=maxlen),
+
+    tuple   = lambda members, pname='', **kwds:
+        TupleOf(*tuple((get_datatype(t, pname) for t in members))),
+
+    enum    = lambda members, pname='', **kwds:
+        EnumType(pname, members=members),
+
+    struct  = lambda members, optional=None, pname='', **kwds:
+        StructOf(optional, **dict((n, get_datatype(t, pname)) for n, t in list(members.items()))),
+
+    command = lambda argument=None, result=None, pname='', **kwds:
+        CommandType(get_datatype(argument, pname), get_datatype(result)),
+
+    limit   = lambda members, pname='', **kwds:
+        LimitsType(get_datatype(members, pname)),
 )
 
 
 # important for getting the right datatype from formerly jsonified descr.
-def get_datatype(json):
+def get_datatype(json, pname=''):
     """returns a DataType object from description
 
     inverse of <DataType>.export_datatype()
+    the pname argument, if given, is used to name EnumTypes from the parameter name
     """
     if json is None:
         return json
     if isinstance(json, list) and len(json) == 2:
-        base, args = json # still allow old syntax
+        base, kwargs = json  # still allow old syntax
     else:
         try:
-            args = json.copy()
-            base = args.pop('type')
+            kwargs = json.copy()
+            base = kwargs.pop('type')
         except (TypeError, KeyError, AttributeError):
             raise BadValueError('a data descriptor must be a dict containing a "type" key, not %r' % json)
+
     try:
-        return DATATYPES[base](**args)
+        return DATATYPES[base](pname=pname, **kwargs)
     except Exception as e:
+        print(base, kwargs, repr(e))
         raise BadValueError('invalid data descriptor: %r (%s)' % (json, str(e)))

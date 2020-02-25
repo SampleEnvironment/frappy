@@ -98,7 +98,7 @@ class EnumMember:
 
     # be human readable (for debugging)
     def __repr__(self):
-        return '<%s.%s (%d)>' % (self.enum.name, self.name, self.value)
+        return '<%s%s (%d)>' % (self.enum.name + '.' if self.enum.name else '', self.name, self.value)
 
 
     # numeric operations: delegate to int. Do we really need any of those?
