@@ -61,7 +61,8 @@ class ProxyModule(Module):
         if not self.module:
             self.properties['module'] = self.name
         self._secnode = self._iodev.secnode
-        self._secnode.register(self.module, self)
+        self._secnode.register_callback(self.module, self.updateEvent,
+                                        self.descriptiveDataChange, self.nodeStateChange)
         super().initModule()
 
     def descriptiveDataChange(self, module, moddesc):
@@ -147,7 +148,6 @@ class SecNode(Module):
 
     def earlyInit(self):
         self.secnode = SecopClient(self.uri, self.log)
-        self.secnode.register(None, self)  # for nodeStateChange
 
     def startModule(self, started_callback):
         self.secnode.spawn_connect(started_callback)

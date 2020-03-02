@@ -107,21 +107,21 @@ class ProxyClient:
         # caches (module, parameter) = value, timestamp, readerror (internal names!)
         self.cache = {}
 
-    def register(self, key, obj=None, **kwds):
+    def register_callback(self, key, *args, **kwds):
         """register callback functions
 
-        - kwds each key must be a valid callback name defined in self.CALLBACK_NAMES
-        - kwds values are the callback functions
-        - if obj is not None, use its methods named from the callback name, if not given in kwds
         - key might be either:
             1) None: general callback (all callbacks)
             2) <module name>: callbacks related to a module (not called for 'unhandledMessage')
             3) (<module name>, <parameter name>): callback for specified parameter (only called for 'updateEvent')
+        - all the following arguments are callback functions. The callback name may be
+          given by the keyword, or, for non-keyworded arguments it is taken from the
+          __name__ attribute of the function
         """
+        for cbfunc in args:
+            kwds[cbfunc.__name__] = cbfunc
         for cbname in self.CALLBACK_NAMES:
             cbfunc = kwds.pop(cbname, None)
-            if obj and cbfunc is None:
-                cbfunc = getattr(obj, cbname, None)
             if not cbfunc:
                 continue
             cbdict = self.callbacks[cbname]

@@ -55,7 +55,7 @@ class QSECNode(QObject):
         self.modules = conn.modules
         self.properties = self.conn.properties
         self.protocolVersion = conn.secop_version
-        conn.register(None, self)  # generic callback
+        conn.register_callback(None, self.updateEvent, self.nodeStateChange, self.unhandledMessage)
 
     # provide methods from old baseclient for making other gui code work
 
@@ -81,7 +81,10 @@ class QSECNode(QObject):
         return self.conn.getParameter(module, parameter, True)
 
     def execCommand(self, module, command, arg):
-        return self.conn.execCommand(module, command, arg)
+        try:
+            return self.conn.execCommand(module, command, arg)
+        except Exception as e:
+            return 'ERROR: %r' % e, {}
 
     def queryCache(self, module):
         return {k: Value(*self.conn.cache[(module, k)])

@@ -70,10 +70,9 @@ class SecopClient(secop.client.SecopClient):
                     self.updateEvent(*key, *self.cache[key])
 
     def descriptiveDataChange(self, module, data):
-        print('CHANGE', self.nodename)
+        if module is None:
+            self.log.error('descriptive data for node %r has changed', self.nodename)
         self.dispatcher.restart()
-        #if module is None:
-        #    self.log.error('descriptive data for node %r has changed', self.nodename)
 
 
 class Router(secop.protocol.dispatcher.Dispatcher):
@@ -99,7 +98,7 @@ class Router(secop.protocol.dispatcher.Dispatcher):
             self.nodes = [SecopClient(uri, logger.getChild('routed%d' % i), self) for i, uri in enumerate(uris)]
         # register callbacks
         for node in self.nodes:
-            node.register(None, node)
+            node.register_callback(None, node.updateEvent, node.descriptiveDataChange, node.nodeStateChange)
         self.node_by_module = {}
         multievent = MultiEvent()
         for node in self.nodes:
@@ -113,7 +112,7 @@ class Router(secop.protocol.dispatcher.Dispatcher):
                 nodes.append(node)
             else:
 
-                def check_new_node(online, state, self=self, node=node):
+                def nodeStateChange(online, state, self=self, node=node):
                     if online:
                         for module in node.modules:
                             self.node_by_module[module] = node
@@ -122,7 +121,7 @@ class Router(secop.protocol.dispatcher.Dispatcher):
                         return secop.client.UNREGISTER
                     return None
 
-                node.register(None, nodeStateChange=check_new_node)
+                node.register_callback(None, nodeStateChange)
                 logger.warning('can not connect to node %r', node.nodename)
 
     def handle_describe(self, conn, specifier, data):
