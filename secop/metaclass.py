@@ -165,29 +165,27 @@ class ModuleMeta(PropertyMeta):
 
             if not pobj.readonly:
                 wfunc = attrs.get('write_' + pname, None)
-                for base in bases:
-                    if wfunc is not None:
-                        break
-                    wfunc = getattr(base, 'write_' + pname, None)
+                if wfunc is None:  # ignore the handler, if a write function is present
+                    wfunc = pobj.handler.get_write_func(pname) if pobj.handler else None
+                    for base in bases:
+                        if wfunc is not None:
+                            break
+                        wfunc = getattr(base, 'write_' + pname, None)
 
                 # create wrapper except when write function is already wrapped
                 if wfunc is None or getattr(wfunc, '__wrapped__', False) is False:
 
-                    # append write function from handler, to be called after wfunc
-                    wfuncs = (wfunc, pobj.handler.get_write_func(pname) if pobj.handler else None)
-
-                    def wrapped_wfunc(self, value, pname=pname, wfuncs=wfuncs):
+                    def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
                         self.log.debug("check validity of %s = %r" % (pname, value))
                         pobj = self.accessibles[pname]
                         value = pobj.datatype(value)
-                        for wfunc in filter(None, wfuncs):
+                        if wfunc:
                             self.log.debug('calling %s %r(%r)' % (wfunc.__name__, wfunc, value))
                             returned_value = wfunc(self, value)
                             if returned_value is Done:  # the setter is already triggered
                                 return getattr(self, pname)
-                            if returned_value is None:  # goodie: accept missing return value
-                                break  # handler is not called in this case
-                            value = returned_value
+                            if returned_value is not None:  # goodie: accept missing return value
+                                value = returned_value
                         setattr(self, pname, value)
                         return value
 

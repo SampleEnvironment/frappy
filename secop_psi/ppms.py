@@ -49,6 +49,7 @@ from secop.metaclass import Done
 try:
     import secop_psi.ppmswindows as ppmshw
 except ImportError:
+    print('use simulation instead')
     import secop_psi.ppmssim as ppmshw
 
 
@@ -231,7 +232,7 @@ class DriverChannel(Channel):
         return dict(current=current, powerlimit=powerlimit)
 
     def change_drvout(self, change):
-        self.readValues()
+        change.readValues()
         return change.current, change.powerlimit
 
 
@@ -274,7 +275,7 @@ class BridgeChannel(Channel):
             )
 
     def change_bridge(self, change):
-        self.readValues()
+        change.readValues()
         if change.enabled:
             return self.no, change.excitation, change.powerlimit, change.dcflag, change.readingmode, change.voltagelimit
         return self.no, 0, 0, change.dcflag, change.readingmode, 0
@@ -504,17 +505,20 @@ class Temp(PpmsMixin, Drivable):
         self._status_before_change = self.status
         self.status = [self.Status.BUSY, 'changed target']
         self._last_change = time.time()
-        return target
+        self.temp.write(self, 'target', target)
+        return Done
 
     def write_approachmode(self, value):
         if self.isDriving():
-            return value
-        return None  # change_temp will not be called, as this would trigger an unnecessary T change
+            self.temp.write(self, 'approachmode', value)
+            return Done
+        return None  # do not execute TEMP command, as this would trigger an unnecessary T change
 
     def write_ramp(self, value):
         if self.isDriving():
-            return value
-        return None  # change_temp will not be called, as this would trigger an unnecessary T change
+            self.temp.write(self, 'ramp', value)
+            return Done
+        return None  # do not execute TEMP command, as this would trigger an unnecessary T change
 
     def calc_expected(self, target, ramp):
         self._expected_target_time = time.time() + abs(target - self.value) * 60.0 / max(0.1, ramp)
@@ -638,7 +642,8 @@ class Field(PpmsMixin, Drivable):
         self._stopped = False
         self._last_change = time.time()
         self.status = [self.Status.BUSY, 'changed target']
-        return target
+        self.field.write(self, 'target', target)
+        return Done
 
     def write_persistentmode(self, mode):
         if abs(self.target - self.value) <= 2e-5 and mode == self.persistentmode:
@@ -647,17 +652,20 @@ class Field(PpmsMixin, Drivable):
         self._status_before_change = list(self.status)
         self._stopped = False
         self.status = [self.Status.BUSY, 'changed persistent mode']
-        return mode
+        self.field.write(self, 'persistentmode', mode)
+        return Done
 
     def write_ramp(self, value):
         if self.isDriving():
-            return value
-        return None  # change_field will not be called, as this would trigger a ramp up of leads current
+            self.field.write(self, 'ramp', value)
+            return Done
+        return None  # do not execute FIELD command, as this would trigger a ramp up of leads current
 
     def write_approachmode(self, value):
         if self.isDriving():
-            return value
-        return None  # change_temp will not be called, as this would trigger a ramp up of leads current
+            self.field.write(self, 'approachmode', value)
+            return Done
+        return None  # do not execute FIELD command, as this would trigger a ramp up of leads current
 
     def do_stop(self):
         if not self.isDriving():
@@ -750,12 +758,14 @@ class Position(PpmsMixin, Drivable):
         self._stopped = False
         self._last_change = 0
         self._status_before_change = self.status
-        return target
+        self.move.write(self, 'target', target)
+        return Done
 
     def write_speed(self, value):
         if self.isDriving():
-            return value
-        return None  # change_move not called as this would trigger an unnecessary move
+            self.move.write(self, 'speed', value)
+            return Done
+        return None  # do not execute MOVE command, as this would trigger an unnecessary move
 
     def do_stop(self):
         if not self.isDriving():

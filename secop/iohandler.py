@@ -49,9 +49,8 @@ def change_<group>(self, change):
     # which will be formatted by the handler, or None. The latter is used only in some
     # special cases, when nothing has to be written.
 
-A write_<parameter> method may be implemented in addition. In that case, it is executed
-before change_<group>. write_<parameters> may return None or Done, in these cases
-change_<group> is not called.
+A write_<parameter> method may be implemented in addition. In that case, the handlers write
+method has to be called explicitly int the write_<parameter> method, if needed.
 """
 import re
 
@@ -263,6 +262,8 @@ class IOHandler(IOHandlerBase):
         if self._module_class != modclass:
             raise ProgrammingError("the handler '%s' for '%s.%s' is already used in module '%s'"
                                    % (self.group, modclass.__name__, pname, self._module_class.__name__))
+        # self.change might be needed even when get_write_func was not called
+        self.change = getattr(self._module_class, 'change_' + self.group, None)
         self.parameters.add(pname)
         self.analyze = getattr(modclass, 'analyze_' + self.group)
         return self.read
@@ -295,7 +296,6 @@ class IOHandler(IOHandlerBase):
         If pre_wfunc is given, it is to be called before change_<group>.
         May be overriden to return None, if not used
         """
-        self.change = getattr(self._module_class, 'change_' + self.group)
 
         def wfunc(module, value, hdl=self, pname=pname):
             hdl.write(module, pname, value)
