@@ -63,15 +63,8 @@ class Accessible(HasProperties, CountedObj):
         return type(self)(**props)
 
     def for_export(self):
-        # used for serialisation only
-        # some specials:
-        # - datatype needs a special serialisation
-        # - readonly is mandatory for serialisation, but not for declaration in classes
-        r =  self.exportProperties()
-        if isinstance(self, Parameter):
-            if 'readonly' not in r:
-                r['readonly'] = self.__class__.properties['readonly'].default
-        return r
+        """prepare for serialisation"""
+        return self.exportProperties()
 
 
 class Parameter(Accessible):
@@ -180,6 +173,16 @@ class Parameter(Accessible):
     def checkProperties(self):
         super().checkProperties()
         self.datatype.checkProperties()
+
+    def for_export(self):
+        """prepare for serialisation
+
+        readonly is mandatory for serialisation, but not for declaration in classes
+        """
+        r = super().for_export()
+        if 'readonly' not in r:
+            r['readonly'] = self.__class__.properties['readonly'].default
+        return r
 
 
 class UnusedClass:
@@ -299,20 +302,6 @@ class Command(Accessible):
     @property
     def result(self):
         return self.datatype.result
-
-    def for_export(self):
-        # used for serialisation only
-        # some specials:
-        # - datatype needs a special serialisation
-        # - readonly is mandatory for serialisation, but not for declaration in classes
-        r =  self.exportProperties()
-#        if isinstance(self, Parameter):
-#            if 'readonly' not in r:
-#                r['readonly'] = self.__class__.properties['readonly'].default
-#        if 'datatype' in r:
-#            _d = r['datatype']
-#            print(formatExtendedStack())  # for debug
-        return r
 
 
 # list of predefined accessibles with their type
