@@ -171,15 +171,6 @@ class ProxyClient:
         self.callback(module, 'updateEvent', module, param, value, timestamp, readerror)
         self.callback((module, param), 'updateEvent', module, param, value, timestamp, readerror)
 
-    def getParameter(self, module, parameter, trycache=False):
-        if trycache:
-            cached = self.cache.get((module, parameter), None)
-            if cached:
-                return cached
-        if self.online:
-            self.readParameter(module, parameter)
-        return self.cache[module, parameter]
-
 
 class SecopClient(ProxyClient):
     """a general SECoP client"""
@@ -508,6 +499,15 @@ class SecopClient(ProxyClient):
             # error reply message is already stored as readerror in cache
             pass
         return self.cache.get((module, parameter), None)
+
+    def getParameter(self, module, parameter, trycache=False):
+        if trycache:
+            cached = self.cache.get((module, parameter), None)
+            if cached:
+                return cached
+        if self.online:
+            self.readParameter(module, parameter)
+        return self.cache[module, parameter]
 
     def setParameter(self, module, parameter, value):
         self.connect()  # make sure we are connected
