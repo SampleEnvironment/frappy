@@ -109,8 +109,13 @@ def test_IntRange():
         dt('XX')
     with pytest.raises(ValueError):
         dt([19, 'X'])
+    with pytest.raises(ValueError):
+        dt(1.3)
+    with pytest.raises(ValueError):
+        dt('1.3')
     dt(1)
     dt(0)
+    dt('1')
     with pytest.raises(ProgrammingError):
         IntRange('xc', 'Yx')
 

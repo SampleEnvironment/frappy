@@ -259,10 +259,11 @@ class IntRange(DataType):
 
     def __call__(self, value):
         try:
+            fvalue = float(value)
             value = int(value)
-            if not (self.min <= value <= self.max) or int(value) != value:
+            if not self.min <= value <= self.max or round(fvalue) != fvalue:
                 raise BadValueError('%r should be an int between %d and %d' %
-                                 (value, self.min, self.max))
+                                    (value, self.min, self.max))
             return value
         except Exception:
             raise BadValueError('Can not convert %r to int' % value)
