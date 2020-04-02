@@ -147,6 +147,8 @@ class Module(HasProperties, metaclass=ModuleMeta):
                 if aobj.needscfg is None:
                     aobj.properties['needscfg'] = not aobj.poll
 
+            if not self.export:  # do not export parameters of a module not exported
+                aobj.properties['export'] = False
             if aobj.export:
                 if aobj.export is True:
                     predefined_obj = PREDEFINED_ACCESSIBLES.get(aname, None)
@@ -269,7 +271,8 @@ class Module(HasProperties, metaclass=ModuleMeta):
         the error will be cleared when the parameter is set
         """
         pobj = self.parameters[pname]
-        self.DISPATCHER.announce_update_error(self, pname, pobj, exception)
+        if pobj.export:
+            self.DISPATCHER.announce_update_error(self, pname, pobj, exception)
 
     def isBusy(self, status=None):
         """helper function for treating substates of BUSY correctly"""
