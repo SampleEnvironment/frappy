@@ -145,6 +145,21 @@ class ProxyClient:
         if kwds:
             raise TypeError('unknown callback: %s' % (', '.join(kwds)))
 
+    def unregister_callback(self, key, *args, **kwds):
+        """unregister a callback
+
+        for the arguments see register_callback
+        """
+        for cbfunc in args:
+            kwds[cbfunc.__name__] = cbfunc
+        for cbname, func in kwds.items():
+            cblist = self.callbacks[cbname][key]
+            if func in cblist:
+                cblist.remove(func)
+            if not cblist:
+                self.callbacks[cbname].pop(key)
+
+
     def callback(self, key, cbname, *args):
         """perform callbacks
 
@@ -332,6 +347,8 @@ class SecopClient(ProxyClient):
 
         self._rxthread = None
         self.disconnect(False)
+        if self._shutdown:
+            return
         if self.activate:
             self.log.info('try to reconnect to %s', self.uri)
             self._connthread = mkthread(self._reconnect)
@@ -440,10 +457,11 @@ class SecopClient(ProxyClient):
             self.modules[modname] = dict(accessibles=accessibles, parameters=parameters,
                                          commands=commands, properties=properties)
         if changed_modules is not None:
-            done = self.callback(None, 'descriptiveDataChange', None, self)
+            done = done_main = self.callback(None, 'descriptiveDataChange', None, self)
             for mname in changed_modules:
                 if not self.callback(mname, 'descriptiveDataChange', mname, self):
-                    self.log.warning('descriptive data changed on module %r', mname)
+                    if not done_main:
+                        self.log.warning('descriptive data changed on module %r', mname)
                     done = True
             if not done:
                 self.log.warning('descriptive data of %r changed', self.nodename)

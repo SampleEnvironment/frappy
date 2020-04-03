@@ -23,8 +23,9 @@
 """asynchronous connections
 
 generic class for byte oriented communication
-includes implementation for TCP connections
-support for asynchronous communication, but may be used also for StringIO
+includes implementation for TCP and Serial connections
+support for asynchronous communication, but may be used also for
+synchronous IO (see secop.stringio.StringIO)
 """
 
 import socket
@@ -34,7 +35,7 @@ import ast
 from serial import Serial
 
 from secop.lib import parseHostPort, tcpSocket, closeSocket
-from secop.errors import ConfigError
+from secop.errors import ConfigError, CommunicationFailedError
 
 
 class ConnectionClosed(ConnectionError):
@@ -133,7 +134,11 @@ class AsynTcp(AsynConn):
         if uri.startswith('tcp://'):
             # should be the case always
             uri = uri[6:]
-        self.connection = tcpSocket(uri, self.defaultport, self.timeout)
+        try:
+            self.connection = tcpSocket(uri, self.defaultport, self.timeout)
+        except (ConnectionRefusedError, socket.gaierror) as e:
+            # indicate that retrying might make sense
+            raise CommunicationFailedError(str(e))
 
     def disconnect(self):
         if self.connection:
@@ -215,6 +220,7 @@ class AsynSerial(AsynConn):
             self.connection = Serial(dev, **options)
         except ValueError as e:
             raise ConfigError(e)
+        # TODO: turn exceptions into ConnectionFailedError, where a retry makes sense
 
     def disconnect(self):
         if self.connection:

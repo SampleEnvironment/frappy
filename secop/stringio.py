@@ -74,19 +74,13 @@ class StringIO(Communicator):
         self._conn = None
         self._lock = threading.RLock()
         self._end_of_line = self.end_of_line.encode(self.encoding)
-        self._connect_error = None
         self._last_error = None
 
     def connectStart(self):
         if not self.is_connected:
             uri = self.uri
-            try:
-                self._conn = AsynConn(uri, self._end_of_line)
-                self.is_connected = True
-            except Exception as e:
-                # this is really bad, do not try again
-                self._connect_error = e
-                raise
+            self._conn = AsynConn(uri, self._end_of_line)
+            self.is_connected = True
             for command, regexp in self.identification:
                 reply = self.do_communicate(command)
                 if not re.match(regexp, reply):
@@ -157,7 +151,7 @@ class StringIO(Communicator):
         """send a command and receive a reply
 
         using end_of_line, encoding and self._lock
-        for commands without reply, join it with a query command,
+        for commands without reply, the command must be joined with a query command,
         wait_before is respected for end_of_lines within a command.
         """
         if not self.is_connected:
@@ -170,17 +164,18 @@ class StringIO(Communicator):
                 else:
                     cmds = [command]
                 garbage = None
-                for cmd in cmds:
-                    if self.wait_before:
-                        time.sleep(self.wait_before)
-                    if garbage is None:  # read garbage only once
-                        garbage = self._conn.flush_recv()
-                        if garbage:
-                            self.log.debug('garbage: %s', garbage.decode(self.encoding))
-                    self._conn.send((cmd + self.end_of_line).encode(self.encoding))
                 try:
+                    for cmd in cmds:
+                        if self.wait_before:
+                            time.sleep(self.wait_before)
+                        if garbage is None:  # read garbage only once
+                            garbage = self._conn.flush_recv()
+                            if garbage:
+                                self.log.debug('garbage: %s', garbage.decode(self.encoding))
+                        self._conn.send((cmd + self.end_of_line).encode(self.encoding))
                     reply = self._conn.readline(self.timeout)
                 except ConnectionClosed:
+                    self.closeConnection()
                     raise CommunicationFailedError('disconnected')
                 reply = reply.decode(self.encoding)
                 self.log.debug('recv: %s', reply)
@@ -221,6 +216,7 @@ class HasIodev(Module):
         try:
             self._iodev.read_is_connected()
         except (CommunicationFailedError, AttributeError):
+            # AttributeError: for missing _iodev?
             pass
         super().initModule()
 
