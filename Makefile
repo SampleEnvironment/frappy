@@ -58,3 +58,5 @@ release:
 	ssh jenkinsng.admin.frm2 -p 29417 build -v -s -p GERRIT_PROJECT=$(shell git config --get remote.origin.url | rev | cut -d '/' -f -3 | rev) -p ARCH=all -p MODE=$(MODE) ReleasePipeline
 
 
+build-pkg:
+	debocker build --image jenkinsng.admin.frm2:5000/mlzbase/buster
