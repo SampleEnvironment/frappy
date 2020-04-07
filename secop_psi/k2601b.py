@@ -22,7 +22,7 @@
 
 not tested yet"""
 
-from secop import Writable, Module, Parameter, Override, Attached,\
+from secop.core import Writable, Module, Parameter, Override, Attached,\
     BoolType, FloatRange, EnumType, HasIodev, StringIO
 
 
