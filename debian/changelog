@@ -1,3 +1,15 @@
+secop-core (0.11.2) xenial; urgency=medium
+
+  [ Markus Zolliker ]
+  * improve ls370res driver
+
+  [ Enrico Faulhaber ]
+  * fix debain *.install files
+
+  [ Markus Zolliker ]
+
+ -- Markus Zolliker <jenkins@jenkinsng.admin.frm2.tum.de>  Tue, 07 Apr 2020 15:48:12 +0200
+
 secop-core (0.11.1) unstable; urgency=medium
 
   * fix py2/py3 incompat für pkgbuilding
