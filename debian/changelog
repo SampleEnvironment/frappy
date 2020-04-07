@@ -1,3 +1,70 @@
+secop-core (0.11.0) xenial; urgency=medium
+
+  [ Enrico Faulhaber ]
+  * move ppms.cfg to right place
+
+  [ Markus Zolliker ]
+  * fix config path
+  * bug fixes in ppms
+
+  [ Enrico Faulhaber ]
+  * Adapt sim_* cfg's to current syntax
+
+  [ Markus Zolliker ]
+  * bug fix in secop_psi.ppms.Level
+  * improve ppms simulation
+  * configurables must contain only settable properties
+  * secop-gui: ask for reconnect
+  * introduced attached modules
+  * allow server.run without python-daemon
+  * make secop.poller.Poller default
+  * introduce command handlers
+  * parameters with a handler are polled by default
+  * improve error handling
+  * write configured parameters to the hardware
+  * simple possiblity for overriding properties
+  * introduced StringIO
+  * poll all parameters after reconnect
+  * driver for Lakeshore Model 370 resistivity measurement
+  * ppms driver now uses command handlers
+  * improved commandhandler
+  * accept module properties without leading '.' in config files
+  * autogeneration of iodevs
+  * make most important classes available from secop
+  * drivers for AH700 and K2601B
+  * renamed commandhandler to iohandler
+  * added missing write methods to AH2700 driver
+  * changed/fixed behaviour of stop commands in PPMS
+  * moved some code from iohandler.py to metaclass.py
+
+  [ cermak ]
+  * Compatibility with Python 3.4
+
+  [ Markus Zolliker ]
+  * allow to set exported properties in code
+  * add test for message encode/decode
+  * new generic secop client
+  * implement SECoP proxy modules
+  * fix configured path on windows
+  * secop-gui based on secop.client.Client
+  * move argument handling from mainwindow.py to bin/secop-gui
+  * add multiplexer/router
+  * moved naming of enum types
+  * stringio now works with serial connections
+  * fix again configuration paths on windows
+  * adjustments on client.SecopClient
+  * change to secop.client.ProxyClient.register_callback
+  * adjust mechanism of write function with iohandler
+  * clean up Parameter/Command.for_export
+  * move getParameter method from ProxyClient to SecopClient
+  * int datatype must not accept fractional floats
+  * do not update exported parameters of unexported modules
+  * improvements on secop.client.Client
+
+  [ Enrico Faulhaber ]
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Tue, 07 Apr 2020 10:46:57 +0200
+
 secop-core (0.10.5) unstable; urgency=low
 
   [ Markus Zolliker ]
