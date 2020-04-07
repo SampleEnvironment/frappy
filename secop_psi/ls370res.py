@@ -102,7 +102,7 @@ class ResChannel(HasIodev, Readable):
 
     properties = {
         'channel':
-            Property('the Lakeshore channel', datatype=IntRange(), export=False),
+            Property('the Lakeshore channel', datatype=IntRange(1, 16), export=False),
         'main':
             Attached()
     }
@@ -128,11 +128,11 @@ class ResChannel(HasIodev, Readable):
         'enabled':
             Parameter('is this channel enabled?', datatype=BoolType(), readonly=False, handler=inset),
         'pause':
-            Parameter('pause after channel change', datatype=IntRange(), readonly=False, handler=inset),
+            Parameter('pause after channel change', datatype=FloatRange(3, 60), readonly=False, handler=inset),
         'dwell':
-            Parameter('dwell time with autoscan', datatype=IntRange(), readonly=False, handler=inset),
+            Parameter('dwell time with autoscan', datatype=FloatRange(1, 200), readonly=False, handler=inset),
         'filter':
-            Parameter('filter time', datatype=IntRange(), readonly=False, handler=filterhdl),
+            Parameter('filter time', datatype=FloatRange(1, 200), readonly=False, handler=filterhdl),
     }
 
     def startModule(self, started_callback):
