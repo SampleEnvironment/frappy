@@ -1,11 +1,11 @@
-secop-core (0.11.1) xenial; urgency=medium
+secop-core (0.11.1) unstable; urgency=medium
 
   * fix py2/py3 incompat für pkgbuilding
   * introduce secop.core for easy imports
 
  -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Tue, 07 Apr 2020 12:21:43 +0200
 
-secop-core (0.11.0) xenial; urgency=medium
+secop-core (0.11.0) unstable; urgency=medium
 
   [ Enrico Faulhaber ]
   * move ppms.cfg to right place
