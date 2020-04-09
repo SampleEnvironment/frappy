@@ -16,6 +16,7 @@ Build-Depends: debhelper (>= 11~),
  python3-psutil (>= 0.4),
  python3-pytest,
  python3-serial,
+ python3-systemd,
  git,
  markdown,
  python3-daemon

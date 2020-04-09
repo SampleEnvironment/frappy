@@ -43,6 +43,11 @@ from secop.errors import ConfigError
 from secop.lib import formatException, get_class, getGeneralConfig, mkthread
 from secop.modules import Attached
 
+try:
+    import systemd.daemon
+except ImportError:
+    systemd = None
+
 
 
 class Server:
@@ -102,6 +107,8 @@ class Server:
         while self._restart:
             self._restart = False
             try:
+                if systemd:
+                    systemd.daemon.notify("STATUS=initializing")
                 self._processCfg()
             except Exception:
                 print(formatException(verbose=True))
@@ -112,6 +119,8 @@ class Server:
             for ifname, ifobj in self.interfaces.items():
                 self.log.debug('starting thread for interface %r' % ifname)
                 threads.append((ifname, mkthread(ifobj.serve_forever)))
+            if systemd:
+                systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
             for ifname, t in threads:
                 t.join()
                 self.log.debug('thread for %r died' % ifname)
