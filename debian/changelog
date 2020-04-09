@@ -1,3 +1,10 @@
+secop-core (0.11.5) unstable; urgency=medium
+
+  * basic systemd integration
+  * add UNKNOWN status code
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Thu, 09 Apr 2020 16:05:17 +0200
+
 secop-core (0.11.4) unstable; urgency=medium
 
   * [MLZ] fix entangle integration
