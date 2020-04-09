@@ -36,7 +36,7 @@ from time import sleep
 import PyTango
 
 from secop.datatypes import ArrayOf, EnumType, \
-    FloatRange, IntRange, StringType, TupleOf
+    FloatRange, IntRange, StringType, TupleOf, LimitsType
 from secop.errors import CommunicationFailedError, \
     ConfigError, HardwareError, ProgrammingError
 from secop.lib import lazy_property
@@ -429,30 +429,26 @@ class AnalogOutput(PyTangoDevice, Drivable):
 
     parameters = {
         'userlimits': Parameter('User defined limits of device value',
-                            datatype=TupleOf(FloatRange(), FloatRange()),
+                            datatype=LimitsType(FloatRange(unit='$')),
                             default=(float('-Inf'), float('+Inf')),
-                            unit='main', readonly=False, poll=10,
+                            readonly=False, poll=10,
                             ),
         'abslimits': Parameter('Absolute limits of device value',
-                           datatype=TupleOf(FloatRange(), FloatRange()),
-                           unit='main',
+                           datatype=LimitsType(FloatRange(unit='$')),
                            ),
         'precision': Parameter('Precision of the device value (allowed deviation '
                            'of stable values from target)',
-                           unit='main', datatype=FloatRange(1e-38),
+                           datatype=FloatRange(1e-38, unit='$'),
                            readonly=False, group='stability',
                            ),
         'window': Parameter('Time window for checking stabilization if > 0',
-                        unit='s', default=60.0, readonly=False,
-                        datatype=FloatRange(0, 900), group='stability',
-                        ),
+                            default=60.0, readonly=False,
+                            datatype=FloatRange(0, 900, unit='s'), group='stability',
+                           ),
         'timeout': Parameter('Timeout for waiting for a stable value (if > 0)',
-                         unit='s', default=60.0, readonly=False,
-                         datatype=FloatRange(0, 900), group='stability',
-                         ),
-    }
-    commands = {
-        'stop': Command('Stops current movement.', argument=None, result=None),
+                             default=60.0, readonly=False,
+                             datatype=FloatRange(0, 900, unit='s'), group='stability',
+                           ),
     }
     _history = ()
     _timeout = None
@@ -607,12 +603,12 @@ class Actuator(AnalogOutput):
 
     parameters = {
         'speed': Parameter('The speed of changing the value',
-                       unit='main/s', readonly=False, datatype=FloatRange(0),
+                       readonly=False, datatype=FloatRange(0, unit='$/s'),
                        ),
         'ramp': Parameter('The speed of changing the value',
-                      unit='main/min', readonly=False, datatype=FloatRange(0),
-                      poll=30,
-                      ),
+                       readonly=False, datatype=FloatRange(0, unit='$/s'),
+                       poll=30,
+                       ),
     }
 
     commands = {
@@ -647,13 +643,13 @@ class Motor(Actuator):
 
     parameters = {
         'refpos': Parameter('Reference position',
-                        datatype=FloatRange(), unit='main',
+                        datatype=FloatRange(unit='$'),
                         ),
         'accel': Parameter('Acceleration',
-                       datatype=FloatRange(), readonly=False, unit='main/s^2',
+                       datatype=FloatRange(unit='$/s^2'), readonly=False,
                        ),
         'decel': Parameter('Deceleration',
-                       datatype=FloatRange(), readonly=False, unit='main/s^2',
+                       datatype=FloatRange(unit='$/s^2'), readonly=False,
                        ),
     }
 
@@ -699,18 +695,17 @@ class TemperatureController(Actuator):
                      datatype=TupleOf(FloatRange(), FloatRange(), FloatRange()),
                      readonly=False, group='pid', poll=30,
                      ),
-        'setpoint': Parameter('Current setpoint', datatype=FloatRange(), poll=1,
+        'setpoint': Parameter('Current setpoint', datatype=FloatRange(unit='$'), poll=1,
                           ),
         'heateroutput': Parameter('Heater output', datatype=FloatRange(), poll=1,
                               ),
-        'ramp': Parameter('Temperature ramp', unit='main/min',
-                      datatype=FloatRange(), readonly=False, poll=30),
     }
 
     overrides = {
         # We want this to be freely user-settable, and not produce a warning
         # on startup, so select a usually sensible default.
         'precision': Override(default=0.1),
+	'ramp': Override(description='Temperature ramp'),
     }
 
     def read_ramp(self):
@@ -761,12 +756,13 @@ class PowerSupply(Actuator):
     """
 
     parameters = {
-        'ramp': Parameter('Current/voltage ramp', unit='main/min',
-                      datatype=FloatRange(), readonly=False, poll=30,),
-        'voltage': Parameter('Actual voltage', unit='V',
-                         datatype=FloatRange(), poll=-5),
-        'current': Parameter('Actual current', unit='A',
-                         datatype=FloatRange(), poll=-5),
+        'voltage': Parameter('Actual voltage',
+                         datatype=FloatRange(unit='V'), poll=-5),
+        'current': Parameter('Actual current',
+                         datatype=FloatRange(unit='A'), poll=-5),
+    }
+    overrides = {
+	'ramp': Override(description='Current/voltage ramp'),
     }
 
     def read_ramp(self):
@@ -807,7 +803,11 @@ class NamedDigitalInput(DigitalInput):
         super(NamedDigitalInput, self).initModule()
         try:
             # pylint: disable=eval-used
-            self.accessibles['value'].datatype = EnumType('value', **eval(self.mapping))
+            mapping = eval(self.mapping.replace('\n', ' '))
+            if isinstance(mapping, str):
+                # pylint: disable=eval-used
+                mapping = eval(mapping)
+            self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
@@ -874,9 +874,12 @@ class NamedDigitalOutput(DigitalOutput):
         super(NamedDigitalOutput, self).initModule()
         try:
             # pylint: disable=eval-used
-            self.accessibles['value'].datatype = EnumType('value', **eval(self.mapping))
-            # pylint: disable=eval-used
-            self.accessibles['target'].datatype = EnumType('target', **eval(self.mapping))
+            mapping = eval(self.mapping.replace('\n', ' '))
+            if isinstance(mapping, str):
+                # pylint: disable=eval-used
+                mapping = eval(mapping)
+            self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
+            self.accessibles['target'].setProperty('datatype', EnumType('target', **mapping))
         except Exception as e:
             raise ValueError('Illegal Value for mapping: %r' % e)
 
@@ -924,8 +927,8 @@ class StringIO(PyTangoDevice, Module):
 
     parameters = {
         'bustimeout': Parameter('Communication timeout',
-                            datatype=FloatRange(), readonly=False,
-                            unit='s', group='communication'),
+                            datatype=FloatRange(unit='s'), readonly=False,
+                            group='communication'),
         'endofline': Parameter('End of line',
                            datatype=StringType(), readonly=False,
                            group='communication'),

@@ -26,10 +26,10 @@
 
 
 import sys
-import math
 from base64 import b64decode, b64encode
 
 from secop.errors import ProgrammingError, ProtocolError, BadValueError, ConfigError
+from secop.lib import clamp
 from secop.lib.enum import Enum
 from secop.parse import Parser
 from secop.properties import HasProperties, Property
@@ -160,8 +160,8 @@ class Stub(DataType):
 class FloatRange(DataType):
     """Restricted float type"""
     properties = {
-        'min': Property('low limit', Stub('FloatRange'), extname='min', default=float('-inf')),
-        'max': Property('high limit', Stub('FloatRange'), extname='max', default=float('+inf')),
+        'min': Property('low limit', Stub('FloatRange'), extname='min', default=-sys.float_info.max),
+        'max': Property('high limit', Stub('FloatRange'), extname='max', default=sys.float_info.max),
         'unit': Property('physical unit', Stub('StringType'), extname='unit', default=''),
         'fmtstr': Property('format string', Stub('StringType'), extname='fmtstr', default='%g'),
         'absolute_resolution': Property('absolute resolution', Stub('FloatRange', 0),
@@ -172,10 +172,8 @@ class FloatRange(DataType):
 
     def __init__(self, minval=None, maxval=None, **kwds):
         super().__init__()
-        if minval is not None:
-            kwds['min'] = minval
-        if maxval is not None:
-            kwds['max'] = maxval
+        kwds['min'] = minval if minval is not None else -sys.float_info.max
+        kwds['max'] = maxval if maxval is not None else sys.float_info.max
         self.set_properties(**kwds)
 
     def checkProperties(self):
@@ -192,9 +190,10 @@ class FloatRange(DataType):
             value = float(value)
         except Exception:
             raise BadValueError('Can not __call__ %r to float' % value)
-        if math.isinf(value):
-            raise BadValueError('FloatRange does not accept infinity')
+        # map +/-infty to +/-max possible number
+        value = clamp(-sys.float_info.max, value, sys.float_info.max)
 
+        # now check the limits
         prec = max(abs(value * self.relative_resolution), self.absolute_resolution)
         if self.min - prec <= value <= self.max + prec:
             return min(max(value, self.min), self.max)
