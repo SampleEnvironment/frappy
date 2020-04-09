@@ -1,3 +1,9 @@
+secop-core (0.11.4) unstable; urgency=medium
+
+  * [MLZ] fix entangle integration
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Thu, 09 Apr 2020 14:44:33 +0200
+
 secop-core (0.11.3) unstable; urgency=medium
 
   * provide make target for pkg-building
