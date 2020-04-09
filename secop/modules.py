@@ -28,7 +28,7 @@ import time
 from collections import OrderedDict
 
 from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
-    StringType, TupleOf, get_datatype, ArrayOf, TextType
+    StringType, TupleOf, get_datatype, ArrayOf, TextType, StatusType
 from secop.errors import ConfigError, ProgrammingError, SECoPError, BadValueError, SilentError
 from secop.lib import formatException, formatExtendedStack, mkthread
 from secop.lib.enum import Enum
@@ -340,6 +340,7 @@ class Readable(Module):
                   UNSTABLE = 270,
                   ERROR = 400,
                   DISABLED = 0,
+                  UNKNOWN = 401,
                  )
     parameters = {
         'value':        Parameter('current value of the Module', readonly=True,
@@ -433,7 +434,7 @@ class Drivable(Writable):
     }
 
     overrides = {
-        'status': Override(datatype=TupleOf(EnumType(Status), StringType())),
+        'status': Override(datatype=StatusType(Status)),
     }
 
     def isBusy(self, status=None):
