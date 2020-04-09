@@ -1,4 +1,4 @@
-secop-core (0.11.2) xenial; urgency=medium
+secop-core (0.11.2) unstable; urgency=medium
 
   [ Markus Zolliker ]
   * improve ls370res driver

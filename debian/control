@@ -78,7 +78,7 @@ Architecture: all
 Depends: secop-core,
  ${misc:Depends},
  ${python3:Depends},
- python-pytango (>=9)
+ python3-tango (>=9)
 Recommends: secop-gui
 Description: SECoP mlz files
  Modules specific for MLZ
