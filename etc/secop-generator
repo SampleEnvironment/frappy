@@ -46,6 +46,9 @@ def main():
     for srv in all_servers:
         symlink = '%s/secop@%s.service' % (normal_dir, srv)
         os.symlink(secop_unit, symlink)
+        if not path.isdir(wants_dir):
+            os.mkdir(wants_dir)
+        os.symlink(symlink, '%s/%s' % (wants_dir, path.basename(symlink)))
 
     # the stamp file signals successful run of the generator
     open(normal_dir + '/secop.stamp', 'w').close()

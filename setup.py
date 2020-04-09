@@ -48,7 +48,8 @@ setup(
     data_files=[
         ('/lib/systemd/system-generators', ['etc/secop-generator']),
         ('/lib/systemd/system', ['etc/secop@.service',
-                                 'etc/secop.target']),
+                                 'etc/secop.target',
+                                ]),
         ('/var/log/secop', []),
     ],
     scripts=scripts,

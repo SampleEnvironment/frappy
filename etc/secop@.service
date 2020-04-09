@@ -1,7 +1,6 @@
 [Unit]
 Description=SECoP SEC-node: %i
 After=network-online.service
-Documentation=
 
 [Service]
 Type=notify
