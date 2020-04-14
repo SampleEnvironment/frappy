@@ -46,14 +46,31 @@ def parseArgv(argv):
                           action='store_true', default=False)
     parser.add_argument("name",
                         type=str,
-                        help="Name of the instance.\n"
-                        " Uses etc/name.cfg for configuration\n",)
+                        help="Name of the instance.\n",)
     parser.add_argument('-d',
                         '--daemonize',
                         action='store_true',
                         help='Run as daemon',
                         default=False)
-    return parser.parse_args()
+    parser.add_argument('-p',
+                        '--port',
+                        action='store',
+                        help='server port or uri',
+                        default=None)
+    parser.add_argument('-c',
+                        '--cfgfiles',
+                        action='store',
+                        help="comma separated list of cfg files\n"
+                        "defaults to <name_of_the_instance>\n"
+                        "cfgfiles given without '.cfg' extension are searched in the configuration directory,"
+                        "else they are treated as path names",
+                        default=None)
+    parser.add_argument('-t',
+                        '--test',
+                        action='store_true',
+                        help='Check cfg files only',
+                        default=False)
+    return parser.parse_args(argv)
 
 
 def main(argv=None):
@@ -65,7 +82,7 @@ def main(argv=None):
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
     mlzlog.initLogging('secop', loglevel, getGeneralConfig()['logdir'])
 
-    srv = Server(args.name, mlzlog.log)
+    srv = Server(args.name, mlzlog.log, cfgfiles=args.cfgfiles, interface=args.port, testonly=args.test)
 
     if args.daemonize:
         srv.start()

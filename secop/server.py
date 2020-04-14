@@ -29,7 +29,6 @@ import time
 import threading
 import configparser
 from collections import OrderedDict
-
 try:
     from daemon import DaemonContext
     try:
@@ -53,9 +52,9 @@ except ImportError:
 class Server:
     # list allowed section prefixes
     # if mapped dict does not exist -> section need a 'class' option
-    # otherwise a 'type' option is evaluatet and the class from the mapping dict used
+    # otherwise a 'type' option is evaluated and the class from the mapping dict used
     #
-    # IMPORTANT: keep he order! (node MUST be first, as the others are referencing it!)
+    # IMPORTANT: keep the order! (node MUST be first, as the others are referencing it!)
     CFGSECTIONS = [
         # section_prefix, default type, mapping of selectable classes
         ('node', 'std', {'std': "protocol.dispatcher.Dispatcher",
@@ -65,27 +64,71 @@ class Server:
     ]
     _restart = True
 
-    def __init__(self, name, parent_logger=None):
+    def __init__(self, name, parent_logger=None, cfgfiles=None, interface=None, testonly=False):
+        """initialize server
+
+        the configuration is taken either from <name>.cfg or from cfgfiles
+        if cfgfiles is given, also the serverport has to be given.
+        interface is either an uri or a bare serverport number (with tcp as default)
+        """
+        self._testonly = testonly
         cfg = getGeneralConfig()
 
-        # also handle absolut paths
-        if os.path.abspath(name) == name and os.path.exists(name) and \
-                name.endswith('.cfg'):
-            self._cfgfile = name
-            self._pidfile = os.path.join(cfg['piddir'],
-                                         name[:-4].replace(os.path.sep, '_') + '.pid')
-            name = os.path.basename(name[:-4])
-        else:
-            self._cfgfile = os.path.join(cfg['confdir'], name + '.cfg')
-            self._pidfile = os.path.join(cfg['piddir'], name + '.pid')
-
-        self._name = name
-
         self.log = parent_logger.getChild(name, True)
+        configuration = {k: OrderedDict() for k, _, _ in self.CFGSECTIONS}
+        if interface:
+            try:
+                typ, interface = str(interface).split('://', 1)
+            except ValueError:
+                typ = 'tcp'
+            try:
+                host, port = interface.split(':', 1)
+            except ValueError:
+                host, port = '0.0.0.0', interface
+            options = {'type': typ, 'bindto': host, 'bindport': port}
+            configuration['interface %s' % options['type']] = options
+        if not cfgfiles:
+            cfgfiles = name
+        for cfgfile in cfgfiles.split(','):
+            if cfgfile.endswith('.cfg') and os.path.exists(cfgfile):
+                filename = cfgfile
+            else:
+                filename = os.path.join(cfg['confdir'], cfgfile + '.cfg')
+            self.mergeCfgFile(configuration, filename)
+        if len(configuration['node']) > 1:
+            description = ['merged node\n']
+            for section, opt in configuration['node']:
+                description.append("--- %s:\n%s\n" % (section[5:], opt['description']))
+            configuration['node'] = {cfgfiles: {'description': '\n'.join(description)}}
+        self._configuration = configuration
+        self._cfgfile = cfgfiles  # used for reference in error messages only
+        self._pidfile = os.path.join(cfg['piddir'], name + '.pid')
 
-        self._dispatcher = None
-        self._interface = None
-        self._restart_event = threading.Event()
+    def mergeCfgFile(self, configuration, filename):
+        self.log.debug('Parse config file %s ...' % filename)
+        parser = configparser.ConfigParser()
+        parser.optionxform = str
+        if not parser.read([filename]):
+            self.log.error("Couldn't read cfg file %r!" % filename)
+            raise ConfigError("Couldn't read cfg file %r" % filename)
+        for section, options in parser.items():
+            try:
+                kind, name = section.split(' ', 1)
+                kind = kind.lower()
+                cfgdict = configuration[kind]
+            except (ValueError, KeyError):
+                if section != 'DEFAULT':
+                    self.log.warning('skip unknown section %s' % section)
+                continue
+            opt = dict(options)
+            if name in cfgdict:
+                if kind == 'interface':
+                    opt = dict(type='tcp', bindto='0.0.0.0')
+                    opt.update(options)
+                if opt != cfgdict[name]:
+                    self.log.warning('omit conflicting section %r in %s' % (section, filename))
+            else:
+                cfgdict[name] = dict(options)
 
     def start(self):
         if not DaemonContext:
@@ -110,6 +153,8 @@ class Server:
                 if systemd:
                     systemd.daemon.notify("STATUS=initializing")
                 self._processCfg()
+                if self._testonly:
+                    return
             except Exception:
                 print(formatException(verbose=True))
                 raise
@@ -135,58 +180,47 @@ class Server:
     def _processCfg(self):
         self.log.debug('Parse config file %s ...' % self._cfgfile)
 
-        parser = configparser.ConfigParser()
-        parser.optionxform = str
-
-        if not parser.read([self._cfgfile]):
-            self.log.error('Couldn\'t read cfg file !')
-            raise ConfigError('Couldn\'t read cfg file %r' % self._cfgfile)
-
         for kind, default_type, classmapping in self.CFGSECTIONS:
-            kinds = '%ss' % kind
             objs = OrderedDict()
-            self.__dict__[kinds] = objs
-            for section in parser.sections():
-                prefix = '%s ' % kind
-                if section.lower().startswith(prefix):
-                    name = section[len(prefix):]
-                    opts = dict(item for item in parser.items(section))
-                    if 'class' in opts:
-                        cls = opts.pop('class')
-                    else:
-                        if not classmapping:
-                            self.log.error('%s %s needs a class option!' % (kind.title(), name))
-                            raise ConfigError('cfgfile %r: %s %s needs a class option!' %
-                                              (self._cfgfile, kind.title(), name))
-                        type_ = opts.pop('type', default_type)
-                        cls = classmapping.get(type_, None)
-                        if not cls:
-                            self.log.error('%s %s needs a type option (select one of %s)!' %
-                                           (kind.title(), name, ', '.join(repr(r) for r in classmapping)))
-                            raise ConfigError('cfgfile %r: %s %s needs a type option (select one of %s)!' %
-                                      (self._cfgfile, kind.title(), name, ', '.join(repr(r) for r in classmapping)))
-                    # MAGIC: transform \n.\n into \n\n which are normally stripped
-                    # by the ini parser
-                    for k in opts:
-                        v = opts[k]
-                        while '\n.\n' in v:
-                            v = v.replace('\n.\n', '\n\n')
-                        try:
-                            opts[k] = ast.literal_eval(v)
-                        except Exception:
-                            opts[k] = v
+            self.__dict__['%ss' % kind] = objs
+            for name, options in self._configuration[kind].items():
+                opts = dict(options)
+                if 'class' in opts:
+                    cls = opts.pop('class')
+                else:
+                    if not classmapping:
+                        self.log.error('%s %s needs a class option!' % (kind.title(), name))
+                        raise ConfigError('cfgfile %r: %s %s needs a class option!' %
+                                          (self._cfgfile, kind.title(), name))
+                    type_ = opts.pop('type', default_type)
+                    cls = classmapping.get(type_, None)
+                    if not cls:
+                        self.log.error('%s %s needs a type option (select one of %s)!' %
+                                       (kind.title(), name, ', '.join(repr(r) for r in classmapping)))
+                        raise ConfigError('cfgfile %r: %s %s needs a type option (select one of %s)!' %
+                                  (self._cfgfile, kind.title(), name, ', '.join(repr(r) for r in classmapping)))
+                # MAGIC: transform \n.\n into \n\n which are normally stripped
+                # by the ini parser
+                for k in opts:
+                    v = opts[k]
+                    while '\n.\n' in v:
+                        v = v.replace('\n.\n', '\n\n')
+                    try:
+                        opts[k] = ast.literal_eval(v)
+                    except Exception:
+                        opts[k] = v
 
-                    # try to import the class, raise if this fails
-                    self.log.debug('Creating %s %s ...' % (kind.title(), name))
-                    # cls.__init__ should pop all used args from options!
-                    logname = 'dispatcher' if kind == 'node' else '%s_%s' % (kind, name.lower())
-                    obj = get_class(cls)(name, self.log.getChild(logname), opts, self)
-                    if opts:
-                        raise ConfigError('%s %s: class %s: don\'t know how to handle option(s): %s' %
-                                          (kind, name, cls, ', '.join(opts)))
+                # try to import the class, raise if this fails
+                self.log.debug('Creating %s %s ...' % (kind.title(), name))
+                # cls.__init__ should pop all used args from options!
+                logname = 'dispatcher' if kind == 'node' else '%s_%s' % (kind, name.lower())
+                obj = get_class(cls)(name, self.log.getChild(logname), opts, self)
+                if opts:
+                    raise ConfigError('%s %s: class %s: don\'t know how to handle option(s): %s' %
+                                      (kind, name, cls, ', '.join(opts)))
 
-                    # all went well so far
-                    objs[name] = obj
+                # all went well so far
+                objs[name] = obj
 
             # following line is the reason for 'node' beeing the first entry in CFGSECTIONS
             if len(self.nodes) != 1:
