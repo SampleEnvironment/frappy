@@ -705,7 +705,7 @@ class ArrayOf(DataType):
                 raise BadValueError(
                     'Array too big, holds at most %d elements!' % self.minlen)
             # apply subtype valiation to all elements and return as list
-            return [self.members(elem) for elem in value]
+            return tuple(self.members(elem) for elem in value)
         raise BadValueError(
             'Can not convert %s to ArrayOf DataType!' % repr(value))
 
@@ -715,7 +715,7 @@ class ArrayOf(DataType):
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        return [self.members.import_value(elem) for elem in value]
+        return tuple(self.members.import_value(elem) for elem in value)
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
@@ -772,8 +772,8 @@ class TupleOf(DataType):
                     'Illegal number of Arguments! Need %d arguments.' %
                         (len(self.members)))
             # validate elements and return as list
-            return [sub(elem)
-                    for sub, elem in zip(self.members, value)]
+            return tuple(sub(elem)
+                    for sub, elem in zip(self.members, value))
         except Exception as exc:
             raise BadValueError('Can not validate:', str(exc))
 
@@ -783,7 +783,7 @@ class TupleOf(DataType):
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        return [sub.import_value(elem) for sub, elem in zip(self.members, value)]
+        return tuple(sub.import_value(elem) for sub, elem in zip(self.members, value))
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
@@ -803,6 +803,11 @@ class TupleOf(DataType):
         for a, b in zip(self.members, other.members):
             a.compatible(b)
 
+
+class ImmutableDict(dict):
+    def _no(self, *args, **kwds):
+        raise TypeError('a struct can not be modified, please overwrite instead')
+    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = _no
 
 
 class StructOf(DataType):
@@ -843,7 +848,10 @@ class StructOf(DataType):
             ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
     def __call__(self, value):
-        """return the validated value or raise"""
+        """return the validated value or raise
+
+        in principle, we should make it some sort of frozen dict
+        """
         try:
             # XXX: handle optional elements !!!
             if len(list(value.keys())) != len(list(self.members.keys())):
@@ -851,8 +859,8 @@ class StructOf(DataType):
                     'Illegal number of Arguments! Need %d arguments.' %
                         len(list(self.members.keys())))
             # validate elements and return as dict
-            return dict((str(k), self.members[k](v))
-                        for k, v in list(value.items()))
+            return ImmutableDict((str(k), self.members[k](v))
+                                 for k, v in list(value.items()))
         except Exception as exc:
             raise BadValueError('Can not validate %s: %s' % (repr(value), str(exc)))
 
@@ -871,8 +879,8 @@ class StructOf(DataType):
             raise BadValueError(
                 'Illegal number of Arguments! Need %d arguments.' % len(
                     list(self.members.keys())))
-        return dict((str(k), self.members[k].import_value(v))
-                    for k, v in list(value.items()))
+        return ImmutableDict((str(k), self.members[k].import_value(v))
+                             for k, v in list(value.items()))
 
     def from_string(self, text):
         value, rem = Parser.parse(text)

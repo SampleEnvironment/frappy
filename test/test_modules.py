@@ -156,7 +156,7 @@ def test_ModuleMeta():
 
     # check for inital updates working properly
     o1 = Newclass1('o1', logger, {'.description':''}, srv)
-    expectedBeforeStart = {'target': 0.0, 'status': [Drivable.Status.IDLE, ''],
+    expectedBeforeStart = {'target': 0.0, 'status': (Drivable.Status.IDLE, ''),
             'param1': False, 'param2': 1.0, 'a1': 0.0, 'a2': True, 'pollinterval': 5.0,
             'value': 'first'}
     assert updates.pop('o1') == expectedBeforeStart
@@ -165,7 +165,7 @@ def test_ModuleMeta():
     o1.startModule(event.set)
     event.wait()
     # should contain polled values
-    expectedAfterStart = {'status': [Drivable.Status.IDLE, ''],
+    expectedAfterStart = {'status': (Drivable.Status.IDLE, ''),
             'value': 'second'}
     assert updates.pop('o1') == expectedAfterStart
 

@@ -163,13 +163,13 @@ class PpmsMixin(HasIodev, Module):
         to be reimplemented for modules looking at packed_status
         """
         if not self.enabled:
-            self.status = [self.Status.DISABLED, 'disabled']
+            self.status = (self.Status.DISABLED, 'disabled')
             return
         if value is None:
-            self.status = [self.Status.ERROR, 'invalid value']
+            self.status = (self.Status.ERROR, 'invalid value')
         else:
             self.value = value
-            self.status = [self.Status.IDLE, '']
+            self.status = (self.Status.IDLE, '')
 
 
 class Channel(PpmsMixin, Readable):
@@ -305,7 +305,7 @@ class Level(PpmsMixin, Readable):
     def analyze_level(self, level, status):
         # ignore 'old reading' state of the flag, as this happens only for a short time
         # during measuring
-        return dict(value=level, status=[self.Status.IDLE, ''])
+        return dict(value=level, status=(self.Status.IDLE, ''))
 
 
 class Chamber(PpmsMixin, Drivable):
@@ -352,17 +352,17 @@ class Chamber(PpmsMixin, Drivable):
             Override(visibility=3),
     }
     STATUS_MAP = {
-        StatusCode.unknown: [Status.WARN, 'unknown'],
-        StatusCode.purged_and_sealed: [Status.IDLE, 'purged and sealed'],
-        StatusCode.vented_and_sealed: [Status.IDLE, 'vented and sealed'],
-        StatusCode.sealed_unknown: [Status.WARN, 'sealed unknown'],
-        StatusCode.purge_and_seal: [Status.BUSY, 'purge and seal'],
-        StatusCode.vent_and_seal: [Status.BUSY, 'vent and seal'],
-        StatusCode.pumping_down: [Status.BUSY, 'pumping down'],
-        StatusCode.at_hi_vacuum: [Status.IDLE, 'at hi vacuum'],
-        StatusCode.pumping_continuously: [Status.IDLE, 'pumping continuously'],
-        StatusCode.venting_continuously: [Status.IDLE, 'venting continuously'],
-        StatusCode.general_failure: [Status.ERROR, 'general failure'],
+        StatusCode.unknown: (Status.WARN, 'unknown'),
+        StatusCode.purged_and_sealed: (Status.IDLE, 'purged and sealed'),
+        StatusCode.vented_and_sealed: (Status.IDLE, 'vented and sealed'),
+        StatusCode.sealed_unknown: (Status.WARN, 'sealed unknown'),
+        StatusCode.purge_and_seal: (Status.BUSY, 'purge and seal'),
+        StatusCode.vent_and_seal: (Status.BUSY, 'vent and seal'),
+        StatusCode.pumping_down: (Status.BUSY, 'pumping down'),
+        StatusCode.at_hi_vacuum: (Status.IDLE, 'at hi vacuum'),
+        StatusCode.pumping_continuously: (Status.IDLE, 'pumping continuously'),
+        StatusCode.venting_continuously: (Status.IDLE, 'venting continuously'),
+        StatusCode.general_failure: (Status.ERROR, 'general failure'),
     }
 
     channel = 'chamber'
@@ -428,15 +428,15 @@ class Temp(PpmsMixin, Drivable):
         general_failure=15,
     )
     STATUS_MAP = {
-        0: [Status.ERROR, 'unknown'],
-        1: [Status.IDLE, 'stable at target'],
-        2: [Status.RAMPING, 'ramping'],
-        5: [Status.STABILIZING, 'within tolerance'],
-        6: [Status.STABILIZING, 'outside tolerance'],
-        10: [Status.WARN, 'standby'],
-        13: [Status.WARN, 'control disabled'],
-        14: [Status.ERROR, 'can not complete'],
-        15: [Status.ERROR, 'general failure'],
+        0: (Status.ERROR, 'unknown'),
+        1: (Status.IDLE, 'stable at target'),
+        2: (Status.RAMPING, 'ramping'),
+        5: (Status.STABILIZING, 'within tolerance'),
+        6: (Status.STABILIZING, 'outside tolerance'),
+        10: (Status.WARN, 'standby'),
+        13: (Status.WARN, 'control disabled'),
+        14: (Status.ERROR, 'can not complete'),
+        15: (Status.ERROR, 'general failure'),
     }
     properties = {
         'iodev': Attached(),
@@ -454,7 +454,7 @@ class Temp(PpmsMixin, Drivable):
     def update_value_status(self, value, packed_status):
         """update value and status"""
         if value is None:
-            self.status = [self.Status.ERROR, 'invalid value']
+            self.status = (self.Status.ERROR, 'invalid value')
             return
         self.value = value
         status = self.STATUS_MAP[packed_status & 0xf]
@@ -466,7 +466,7 @@ class Temp(PpmsMixin, Drivable):
                 self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
                 self._last_change = 0
             else:
-                status = [self.Status.BUSY, 'changed target']
+                status = (self.Status.BUSY, 'changed target')
         if abs(self.value - self.target) < self.target * 0.01:
             self._last_target = self.target
         elif self._last_target is None:
@@ -474,14 +474,14 @@ class Temp(PpmsMixin, Drivable):
         if self._stopped:
             # combine 'stopped' with current status text
             if status[0] == self.Status.IDLE:
-                status = [status[0], 'stopped']
+                status = (status[0], 'stopped')
             else:
-                status = [status[0], 'stopping (%s)' % status[1]]
+                status = (status[0], 'stopping (%s)' % status[1])
         if self._expected_target_time:
             # handle timeout
             if self.isDriving(status):
                 if now > self._expected_target_time + self.timeout:
-                    status = [self.Status.WARN, 'timeout while %s' % status[1]]
+                    status = (self.Status.WARN, 'timeout while %s' % status[1])
             else:
                 self._expected_target_time = 0
         self.status = status
@@ -503,7 +503,7 @@ class Temp(PpmsMixin, Drivable):
         if abs(self.target - self.value) <= 2e-5 * target and target == self.target:
             return None
         self._status_before_change = self.status
-        self.status = [self.Status.BUSY, 'changed target']
+        self.status = (self.Status.BUSY, 'changed target')
         self._last_change = time.time()
         self.temp.write(self, 'target', target)
         return Done
@@ -532,7 +532,7 @@ class Temp(PpmsMixin, Drivable):
             if newtarget != self.target:
                 self.log.debug('stop at %s K', newtarget)
                 self.write_target(newtarget)
-        self.status = [self.status[0], 'stopping (%s)' % self.status[1]]
+        self.status = self.status[0], 'stopping (%s)' % self.status[1]
         self._stopped = True
 
 
@@ -571,16 +571,16 @@ class Field(PpmsMixin, Drivable):
     }
 
     STATUS_MAP = {
-        0: [Status.ERROR, 'unknown'],
-        1: [Status.IDLE, 'persistent mode'],
-        2: [Status.PREPARING, 'switch warming'],
-        3: [Status.FINALIZING, 'switch cooling'],
-        4: [Status.IDLE, 'driven stable'],
-        5: [Status.FINALIZING, 'driven final'],
-        6: [Status.RAMPING, 'charging'],
-        7: [Status.RAMPING, 'discharging'],
-        8: [Status.ERROR, 'current error'],
-        15: [Status.ERROR, 'general failure'],
+        0: (Status.ERROR, 'unknown'),
+        1: (Status.IDLE, 'persistent mode'),
+        2: (Status.PREPARING, 'switch warming'),
+        3: (Status.FINALIZING, 'switch cooling'),
+        4: (Status.IDLE, 'driven stable'),
+        5: (Status.FINALIZING, 'driven final'),
+        6: (Status.RAMPING, 'charging'),
+        7: (Status.RAMPING, 'discharging'),
+        8: (Status.ERROR, 'current error'),
+        15: (Status.ERROR, 'general failure'),
     }
 
     channel = 'field'
@@ -698,12 +698,12 @@ class Position(PpmsMixin, Drivable):
             Override(visibility=3),
     }
     STATUS_MAP = {
-        0: [Status.ERROR, 'unknown'],
-        1: [Status.IDLE, 'at target'],
-        5: [Status.BUSY, 'moving'],
-        8: [Status.IDLE, 'at limit'],
-        9: [Status.IDLE, 'at index'],
-        15: [Status.ERROR, 'general failure'],
+        0: (Status.ERROR, 'unknown'),
+        1: (Status.IDLE, 'at target'),
+        5: (Status.BUSY, 'moving'),
+        8: (Status.IDLE, 'at limit'),
+        9: (Status.IDLE, 'at index'),
+        15: (Status.ERROR, 'general failure'),
     }
 
     channel = 'position'
@@ -714,10 +714,10 @@ class Position(PpmsMixin, Drivable):
     def update_value_status(self, value, packed_status):
         """update value and status"""
         if not self.enabled:
-            self.status = [self.Status.DISABLED, 'disabled']
+            self.status = (self.Status.DISABLED, 'disabled')
             return
         if value is None:
-            self.status = [self.Status.ERROR, 'invalid value']
+            self.status = (self.Status.ERROR, 'invalid value')
             return
         self.value = value
         status = self.STATUS_MAP[(packed_status >> 12) & 0xf]
@@ -774,5 +774,5 @@ class Position(PpmsMixin, Drivable):
         if newtarget != self.target:
             self.log.debug('stop at %s T', newtarget)
             self.write_target(newtarget)
-        self.status = [self.status[0], 'stopping (%s)' % self.status[1]]
+        self.status = (self.status[0], 'stopping (%s)' % self.status[1])
         self._stopped = True

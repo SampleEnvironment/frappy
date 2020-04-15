@@ -381,10 +381,10 @@ def test_ArrayOf():
     with pytest.raises(ValueError):
         dt('av')
 
-    assert dt([1, 2, 3]) == [1, 2, 3]
+    assert dt([1, 2, 3]) == (1, 2, 3)
 
     assert dt.export_value([1, 2, 3]) == [1, 2, 3]
-    assert dt.import_value([1, 2, 3]) == [1, 2, 3]
+    assert dt.import_value([1, 2, 3]) == (1, 2, 3)
 
     assert dt.format_value([1,2,3]) == '[1, 2, 3] Z'
     assert dt.format_value([1,2,3], '') == '[1, 2, 3]'
@@ -419,10 +419,10 @@ def test_TupleOf():
     with pytest.raises(ValueError):
         dt([99, 'X'])
 
-    assert dt([1, True]) == [1, True]
+    assert dt([1, True]) == (1, True)
 
     assert dt.export_value([1, True]) == [1, True]
-    assert dt.import_value([1, True]) == [1, True]
+    assert dt.import_value([1, True]) == (1, True)
 
     assert dt.format_value([3,0]) == "(3, False)"
 
