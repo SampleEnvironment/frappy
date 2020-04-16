@@ -21,42 +21,39 @@
 # *****************************************************************************
 """Define helpers"""
 
-import errno
-import fnmatch
 import linecache
-import os
-import re
-import signal
 import socket
-import subprocess
 import sys
 import threading
 import traceback
 import importlib
-from os import path
+from os import path, environ
 
 repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
 
-CONFIG = {
-    'piddir': os.path.join(repodir, 'pid'),
-    'logdir': os.path.join(repodir, 'log'),
-    'confdir': os.path.join(repodir, 'cfg'),
-    'basedir': repodir,
-}
-if path.splitext(sys.executable)[1] == ".exe" and not os.path.basename(sys.executable).startswith('python'):
+if path.splitext(sys.executable)[1] == ".exe" and not path.basename(sys.executable).startswith('python'):
     CONFIG = {
         'piddir': './',
         'logdir': './log',
         'confdir': './',
-        'basedir': path.dirname(sys.executable),
     }
-elif not os.path.exists(os.path.join(repodir, '.git')):
-    CONFIG =  {
+elif not path.exists(path.join(repodir, '.git')):
+    CONFIG = {
         'piddir': '/var/run/secop',
         'logdir': '/var/log',
         'confdir': '/etc/secop',
-        'basedir': repodir,
     }
+else:
+    CONFIG = {
+        'piddir': path.join(repodir, 'pid'),
+        'logdir': path.join(repodir, 'log'),
+        'confdir': path.join(repodir, 'cfg'),
+    }
+# overwrite with env variables SECOP_LOGDIR, SECOP_PIDDIR, SECOP_CONFDIR, if present
+for dirname in CONFIG:
+    CONFIG[dirname] = environ.get('SECOP_%s' % dirname.upper(), CONFIG[dirname])
+# this is not customizable
+CONFIG['basedir'] = repodir
 
 
 unset_value = object()
