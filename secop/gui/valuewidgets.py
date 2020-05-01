@@ -201,7 +201,7 @@ class ArrayWidget(QGroupBox):
 
         self.layout = QVBoxLayout()
         self.subwidgets = []
-        for _ in range(datatype.maxsize):
+        for _ in range(datatype.maxlen):
             w = get_widget(self.datatype, readonly=readonly, parent=self)
             self.layout.addWidget(w)
             self.subwidgets.append(w)
@@ -228,7 +228,7 @@ def get_widget(datatype, readonly=False, parent=None):
      StructOf: StructWidget,
      ArrayOf: ArrayWidget,
     }.get(datatype.__class__)(datatype, readonly, parent)
-
+# TODO: handle NoneOr
 
 class msg(QDialog):
     def __init__(self, stuff, parent=None):
