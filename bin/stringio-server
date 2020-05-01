@@ -37,6 +37,7 @@ import sys
 from os import path
 import asyncore
 import socket
+import ast
 
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
@@ -85,7 +86,7 @@ class LineServer(asyncore.dispatcher):
         pair = self.accept()
         if pair is not None:
             sock, addr = pair
-            print ("Incoming connection from %s" % repr(addr))
+            print("Incoming connection from %s" % repr(addr))
             self.lineHandlerClass(sock)
 
     def loop(self):
@@ -110,12 +111,11 @@ class Handler(LineHandler):
     def handle_line(self, line):
         try:
             reply = module.do_communicate(line.strip())
-            print('%-40s | %s' % (line, reply))
+            if verbose:
+                print('%-40s | %s' % (line, reply))
         except Exception:
             print(formatException(verbose=True))
         self.send_line(reply)
-
-
 
 
 class Logger:
@@ -124,18 +124,31 @@ class Logger:
     info = exception = debug
 
 
-if len(sys.argv) < 2:
-    sys.argv.append('secop_psi.ls370sim.Ls370Sim')
-if len(sys.argv) < 3:
-    sys.argv.append('4567')
-communicatorname = sys.argv[1]
-serverport = int(sys.argv[2])
-opts = {'.description':'simulator'}
-for arg in sys.argv[3:]:
-    k, v = arg.split('=',1)
+opts = {'description': 'simulator'}
+args = []
+for arg in sys.argv[1:]:
+    k, sep, v = arg.partition('=')
+    if not k:
+        args.append(v)
+    try:
+        v = ast.literal_eval(v)
+    except Exception:
+        pass
     opts[k] = v
+verbose = opts.pop('verbose', False)
+opts['cls'] = 'secop_psi.ls370sim.Ls370Sim'
+opts['port'] = 4567
+if len(args) > 2:
+    raise ValueError('do not know about: %s' % ' '.join(args[2:]))
+if len(args) == 2:
+    opts['port'] = int(args[1])
+if len(args) > 0:
+    opts['cls'] = args[0]
+    args.append(opts)
 
-srv = Server('localhost', serverport, Handler)
-module = get_class(communicatorname)(communicatorname, Logger(), opts, srv)
+cls = opts.pop('cls')
+port = opts.pop('port')
+srv = Server('localhost', int(port), Handler)
+module = get_class(cls)(cls, Logger(), opts, srv)
 module.earlyInit()
 srv.loop()
