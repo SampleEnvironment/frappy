@@ -32,8 +32,10 @@ import socket
 import select
 import time
 import ast
-from serial import Serial
-
+try:
+    from serial import Serial
+except ImportError:
+    Serial = None
 from secop.lib import parseHostPort, tcpSocket, closeSocket
 from secop.errors import ConfigError, CommunicationFailedError
 
@@ -167,6 +169,7 @@ class AsynTcp(AsynConn):
             return b''
         raise ConnectionClosed()  # marks end of connection
 
+
 AsynTcp.register_scheme('tcp')
 
 
@@ -189,6 +192,8 @@ class AsynSerial(AsynConn):
     PARITY_NAMES = {name[0]: name for name in ['NONE', 'ODD', 'EVEN', 'MASK', 'SPACE']}
 
     def __init__(self, uri, *args, **kwargs):
+        if Serial is None:
+            raise ConfigError('pyserial is not installed')
         super().__init__(uri, *args, **kwargs)
         self.uri = uri
         if uri.startswith('serial://'):
