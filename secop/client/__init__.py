@@ -25,7 +25,7 @@
 import time
 import queue
 import json
-from threading import Event, RLock
+from threading import Event, RLock, current_thread
 from collections import defaultdict
 
 from secop.lib import mkthread, formatExtendedTraceback, formatExtendedStack
@@ -375,6 +375,8 @@ class SecopClient(ProxyClient):
                 txt = str(e).split('\n', 1)[0]
                 if txt != self._last_error:
                     self._last_error = txt
+                    if 'join' in str(e):
+                        raise
                     self.log.error(str(e))
                 if time.time() > self.disconnect_time + self.reconnect_timeout:
                     if self.online:  # was recently connected
@@ -393,7 +395,10 @@ class SecopClient(ProxyClient):
         if shutdown:
             self._shutdown = True
             self._set_state(False, 'shutdown')
-            if self._connthread:  # wait for connection thread stopped
+            if self._connthread:
+                if self._connthread == current_thread():
+                    return
+                # wait for connection thread stopped
                 self._connthread.join()
                 self._connthread = None
         self.disconnect_time = time.time()
