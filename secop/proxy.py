@@ -164,7 +164,11 @@ def proxy_class(remote_class, name=None):
     remote class is <import path>.<class name> of a class used on the remote node
     if name is not given, 'Proxy' + <class name> is used
     """
-    rcls = get_class(remote_class)
+    if issubclass(remote_class, Module):
+        rcls = remote_class
+        remote_class = rcls.__name__
+    else:
+        rcls = get_class(remote_class)
     if name is None:
         name = rcls.__name__
 
