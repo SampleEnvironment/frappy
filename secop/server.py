@@ -39,7 +39,7 @@ except ImportError:
     DaemonContext = None
 
 from secop.errors import ConfigError
-from secop.lib import formatException, get_class, getGeneralConfig, mkthread
+from secop.lib import formatException, get_class, getGeneralConfig
 from secop.modules import Attached
 
 try:
@@ -48,87 +48,106 @@ except ImportError:
     systemd = None
 
 
-
 class Server:
-    # list allowed section prefixes
-    # if mapped dict does not exist -> section need a 'class' option
-    # otherwise a 'type' option is evaluated and the class from the mapping dict used
-    #
-    # IMPORTANT: keep the order! (node MUST be first, as the others are referencing it!)
-    CFGSECTIONS = [
-        # section_prefix, default type, mapping of selectable classes
-        ('node', 'std', {'std': "protocol.dispatcher.Dispatcher",
-                         'router': 'protocol.router.Router'}),
-        ('module', None, None),
-        ('interface', "tcp", {"tcp": "protocol.interface.tcp.TCPServer"}),
-    ]
+    INTERFACES = {
+        'tcp': 'protocol.interface.tcp.TCPServer',
+    }
     _restart = True
 
-    def __init__(self, name, parent_logger=None, cfgfiles=None, interface=None, testonly=False):
+    def __init__(self, name, parent_logger, cfgfiles=None, interface=None, testonly=False):
         """initialize server
 
-        the configuration is taken either from <name>.cfg or from cfgfiles
-        if cfgfiles is given, also the serverport has to be given.
-        interface is either an uri or a bare serverport number (with tcp as default)
+        Arguments:
+        - name:  the node name
+        - parent_logger: the logger to inherit from
+        - cfgfiles: if not given, defaults to name
+            may be a comma separated list of cfg files
+            items ending with .cfg are taken as paths, else .cfg is appended and
+            files are looked up in the config path retrieved from the general config
+        - interface: an uri of the from tcp://<port> or a bare port number for tcp
+            if not given, the interface is taken from the config file. In case of
+            multiple cfg files, the interface is taken from the first cfg file
+        - testonly: test mode. tries to build all modules, but the server is not started
+
+        Format of cfg file (for now, both forms are accepted):
+        old form:                  new form:
+
+        [node <equipment id>]      [NODE]
+        description=<descr>        id=<equipment id>
+                                   description=<descr>
+
+        [interface tcp]            [INTERFACE]
+        bindport=10769             uri=tcp://10769
+        bindto=0.0.0.0
+
+        [module temp]              [temp]
+        ramp=12                    ramp=12
+        ...
         """
         self._testonly = testonly
         cfg = getGeneralConfig()
 
         self.log = parent_logger.getChild(name, True)
-        configuration = {k: OrderedDict() for k, _, _ in self.CFGSECTIONS}
-        if interface:
-            try:
-                typ, interface = str(interface).split('://', 1)
-            except ValueError:
-                typ = 'tcp'
-            try:
-                host, port = interface.split(':', 1)
-            except ValueError:
-                host, port = '0.0.0.0', interface
-            options = {'type': typ, 'bindto': host, 'bindport': port}
-            configuration['interface %s' % options['type']] = options
         if not cfgfiles:
             cfgfiles = name
+        merged_cfg = OrderedDict()
+        ambiguous_sections = set()
         for cfgfile in cfgfiles.split(','):
             if cfgfile.endswith('.cfg') and os.path.exists(cfgfile):
                 filename = cfgfile
             else:
                 filename = os.path.join(cfg['confdir'], cfgfile + '.cfg')
-            self.mergeCfgFile(configuration, filename)
-        if len(configuration['node']) > 1:
-            description = ['merged node\n']
-            for section, opt in configuration['node']:
-                description.append("--- %s:\n%s\n" % (section[5:], opt['description']))
-            configuration['node'] = {cfgfiles: {'description': '\n'.join(description)}}
-        self._configuration = configuration
-        self._cfgfile = cfgfiles  # used for reference in error messages only
+            cfgdict = self.loadCfgFile(filename)
+            ambiguous_sections |= set(merged_cfg) & set(cfgdict)
+            merged_cfg.update(cfgdict)
+        self.node_cfg = merged_cfg.pop('NODE')
+        self.interface_cfg = merged_cfg.pop('INTERFACE')
+        self.module_cfg = merged_cfg
+        if interface:
+            ambiguous_sections.discard('interface')
+            ambiguous_sections.discard('node')
+            self.node_cfg['name'] = name
+            self.node_cfg['id'] = cfgfiles
+            self.interface_cfg['uri'] = str(interface)
+        if ambiguous_sections:
+            self.log.warning('ambiguous sections in %s: %r' % (cfgfiles, tuple(ambiguous_sections)))
+        self._cfgfiles = cfgfiles
         self._pidfile = os.path.join(cfg['piddir'], name + '.pid')
 
-    def mergeCfgFile(self, configuration, filename):
+    def loadCfgFile(self, filename):
         self.log.debug('Parse config file %s ...' % filename)
+        result = OrderedDict()
         parser = configparser.ConfigParser()
         parser.optionxform = str
         if not parser.read([filename]):
-            self.log.error("Couldn't read cfg file %r!" % filename)
             raise ConfigError("Couldn't read cfg file %r" % filename)
         for section, options in parser.items():
-            try:
-                kind, name = section.split(' ', 1)
-                kind = kind.lower()
-                cfgdict = configuration[kind]
-            except (ValueError, KeyError):
-                if section != 'DEFAULT':
-                    self.log.warning('skip unknown section %s' % section)
+            if section == 'DEFAULT':
                 continue
-            opt = dict(options)
-            if name in cfgdict:
-                if kind == 'interface':
-                    opt = dict(type='tcp', bindto='0.0.0.0')
-                    opt.update(options)
-                if opt != cfgdict[name]:
-                    self.log.warning('omit conflicting section %r in %s' % (section, filename))
-            else:
-                cfgdict[name] = dict(options)
+            opts = {}
+            for k, v in options.items():
+                # is the following really needed? - ConfigParser supports multiple lines!
+                while '\n.\n' in v:
+                    v = v.replace('\n.\n', '\n\n')
+                try:
+                    opts[k] = ast.literal_eval(v)
+                except Exception:
+                    opts[k] = v
+            # convert old form
+            name, _, arg = section.partition(' ')
+            if arg:
+                if name == 'node':
+                    name = 'NODE'
+                    opts['id'] = arg
+                elif name == 'interface':
+                    name = 'INTERFACE'
+                    if 'bindport' in opts:
+                        opts.pop('bindto', None)
+                        opts['uri'] = '%s://%s' % (opts.pop('type', arg), opts.pop('bindport'))
+                elif name == 'module':
+                    name = arg
+            result[name] = opts
+        return result
 
     def start(self):
         if not DaemonContext:
@@ -146,6 +165,10 @@ class Server:
                 files_preserve=self.log.getLogfileStreams()):
             self.run()
 
+    def unknown_options(self, cls, options):
+        raise ConfigError("%s class don't know how to handle option(s): %s" %
+                          (cls.__name__, ', '.join(options)))
+
     def run(self):
         while self._restart:
             self._restart = False
@@ -159,73 +182,44 @@ class Server:
                 print(formatException(verbose=True))
                 raise
 
-            self.log.info('startup done, handling transport messages')
-            threads = []
-            for ifname, ifobj in self.interfaces.items():
-                self.log.debug('starting thread for interface %r' % ifname)
-                threads.append((ifname, mkthread(ifobj.serve_forever)))
-            if systemd:
-                systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
-            for ifname, t in threads:
-                t.join()
-                self.log.debug('thread for %r died' % ifname)
+            opts = dict(self.interface_cfg)
+            scheme, _, _ = opts['uri'].rpartition('://')
+            scheme = scheme or 'tcp'
+            cls = get_class(self.INTERFACES[scheme])
+            with cls(scheme, self.log.getChild(scheme), opts, self) as self.interface:
+                if opts:
+                    self.unknown_options(cls, opts)
+                self.log.info('startup done, handling transport messages')
+                if systemd:
+                    systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
+                self.interface.serve_forever()
+                self.interface.server_close()
+            if self._restart:
+                self.restart_hook()
+                self.log.info('restart')
+            else:
+                self.log.info('shut down')
 
     def restart(self):
         if not self._restart:
             self._restart = True
-            for ifobj in self.interfaces.values():
-                ifobj.shutdown()
-                ifobj.server_close()
+            self.interface.shutdown()
 
     def _processCfg(self):
-        self.log.debug('Parse config file %s ...' % self._cfgfile)
-
-        for kind, default_type, classmapping in self.CFGSECTIONS:
-            objs = OrderedDict()
-            self.__dict__['%ss' % kind] = objs
-            for name, options in self._configuration[kind].items():
-                opts = dict(options)
-                if 'class' in opts:
-                    cls = opts.pop('class')
-                else:
-                    if not classmapping:
-                        self.log.error('%s %s needs a class option!' % (kind.title(), name))
-                        raise ConfigError('cfgfile %r: %s %s needs a class option!' %
-                                          (self._cfgfile, kind.title(), name))
-                    type_ = opts.pop('type', default_type)
-                    cls = classmapping.get(type_, None)
-                    if not cls:
-                        self.log.error('%s %s needs a type option (select one of %s)!' %
-                                       (kind.title(), name, ', '.join(repr(r) for r in classmapping)))
-                        raise ConfigError('cfgfile %r: %s %s needs a type option (select one of %s)!' %
-                                  (self._cfgfile, kind.title(), name, ', '.join(repr(r) for r in classmapping)))
-                # MAGIC: transform \n.\n into \n\n which are normally stripped
-                # by the ini parser
-                for k in opts:
-                    v = opts[k]
-                    while '\n.\n' in v:
-                        v = v.replace('\n.\n', '\n\n')
-                    try:
-                        opts[k] = ast.literal_eval(v)
-                    except Exception:
-                        opts[k] = v
-
-                # try to import the class, raise if this fails
-                self.log.debug('Creating %s %s ...' % (kind.title(), name))
-                # cls.__init__ should pop all used args from options!
-                logname = 'dispatcher' if kind == 'node' else '%s_%s' % (kind, name.lower())
-                obj = get_class(cls)(name, self.log.getChild(logname), opts, self)
-                if opts:
-                    raise ConfigError('%s %s: class %s: don\'t know how to handle option(s): %s' %
-                                      (kind, name, cls, ', '.join(opts)))
-
-                # all went well so far
-                objs[name] = obj
-
-            # following line is the reason for 'node' beeing the first entry in CFGSECTIONS
-            if len(self.nodes) != 1:
-                raise ConfigError('cfgfile %r: needs exactly one node section!' % self._cfgfile)
-            self.dispatcher, = tuple(self.nodes.values())
+        opts = dict(self.node_cfg)
+        cls = get_class(opts.pop('class', 'protocol.dispatcher.Dispatcher'))
+        self.dispatcher = cls(opts.pop('name', self._cfgfiles), self.log.getChild('dispatcher'), opts, self)
+        if opts:
+            self.unknown_options(cls, opts)
+        self.modules = OrderedDict()
+        for modname, options in self.module_cfg.items():
+            opts = dict(options)
+            cls = get_class(opts.pop('class'))
+            modobj = cls(modname, self.log.getChild(modname), opts, self)
+            # all used args should be popped from opts!
+            if opts:
+                self.unknown_options(cls, opts)
+            self.modules[modname] = modobj
 
         poll_table = dict()
         # all objs created, now start them up and interconnect

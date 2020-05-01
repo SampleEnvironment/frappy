@@ -26,11 +26,11 @@ import socket
 import collections
 import socketserver
 
-from secop.datatypes import StringType, IntRange, BoolType
+from secop.datatypes import StringType, BoolType
 from secop.errors import SECoPError
 from secop.lib import formatException, \
     formatExtendedStack, formatExtendedTraceback
-from secop.properties import HasProperties, Property
+from secop.properties import Property
 from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
 from secop.protocol.messages import ERRORPREFIX, \
     HELPREPLY, HELPREQUEST, HelpMessage
@@ -187,42 +187,27 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
             self.request.close()
 
 
-class TCPServer(HasProperties, socketserver.ThreadingTCPServer):
+class TCPServer(socketserver.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    properties = {
-        'bindto': Property('hostname or ip address for binding', StringType(),
-                           default='localhost:%d' % DEF_PORT, export=False),
-        'bindport': Property('port number to bind', IntRange(1, 65535),
-                             default=DEF_PORT, export=False),
+    # for cfg-editor
+    configurables = {
+        'uri': Property('hostname or ip address for binding', StringType(),
+                        default='tcp://%d' % DEF_PORT, export=False),
         'detailed_errors': Property('Flag to enable detailed Errorreporting.', BoolType(),
                                     default=False, export=False),
     }
-
-    # XXX: create configurables from Metaclass!
-    configurables = properties
 
     def __init__(self, name, logger, options, srv):  # pylint: disable=super-init-not-called
         self.dispatcher = srv.dispatcher
         self.name = name
         self.log = logger
-        # do not call HasProperties.__init__, as this will supercall ThreadingTCPServer
-        self.initProperties()
-        bindto = options.pop('bindto', 'localhost')
-        bindport = int(options.pop('bindport', DEF_PORT))
-        detailed_errors = options.pop('detailed_errors', False)
-        if ':' in bindto:
-            bindto, _port = bindto.rsplit(':')
-            bindport = int(_port)
-
-        self.setProperty('bindto', bindto)
-        self.setProperty('bindport', bindport)
-        self.setProperty('detailed_errors', detailed_errors)
-        self.checkProperties()
+        port = int(options.pop('uri').split('://', 1)[-1])
+        self.detailed_errors = options.pop('detailed_errors', False)
 
         self.allow_reuse_address = True
-        self.log.info("TCPServer %s binding to %s:%d" % (name, self.bindto, self.bindport))
+        self.log.info("TCPServer %s binding to port %d" % (name, port))
         socketserver.ThreadingTCPServer.__init__(
-            self, (self.bindto, self.bindport), TCPRequestHandler, bind_and_activate=True)
+            self, ('0.0.0.0', port), TCPRequestHandler, bind_and_activate=True)
         self.log.info("TCPServer initiated")
