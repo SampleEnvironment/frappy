@@ -43,7 +43,8 @@ from secop.lib.multievent import MultiEvent
 
 
 class SecopClient(secop.client.SecopClient):
-    DISCONNECTED = ('Communication failed', 'remote SEC node disconnected')
+    disconnectedExc = secop.errors.CommunicationFailedError('remote SEC node disconnected')
+    disconnectedError = (disconnectedExc.name, str(disconnectedExc))
 
     def __init__(self, uri, log, dispatcher):
         self.dispatcher = dispatcher
@@ -66,13 +67,14 @@ class SecopClient(secop.client.SecopClient):
         if not online:
             for key, (value, _, readerror) in self.cache.items():
                 if not readerror:
-                    self.cache[key] = value, t, self.DISCONNECTED
+                    self.cache[key] = value, t, self.disconnectedExc
                     self.updateEvent(*key, *self.cache[key])
 
     def descriptiveDataChange(self, module, data):
         if module is None:
-            self.log.error('descriptive data for node %r has changed', self.nodename)
-        self.dispatcher.restart()
+            self.dispatcher.restart()
+            self._shutdown = True
+            raise secop.errors.SECoPError('descriptive data for node %r has changed' % self.nodename)
 
 
 class Router(secop.protocol.dispatcher.Dispatcher):
@@ -99,6 +101,8 @@ class Router(secop.protocol.dispatcher.Dispatcher):
         # register callbacks
         for node in self.nodes:
             node.register_callback(None, node.updateEvent, node.descriptiveDataChange, node.nodeStateChange)
+
+        self.restart = srv.restart
         self.node_by_module = {}
         multievent = MultiEvent()
         for node in self.nodes:
@@ -171,7 +175,7 @@ class Router(secop.protocol.dispatcher.Dispatcher):
         node = self.node_by_module[module]
         if node.online:
             return node.request(READREQUEST, specifier, data)
-        return ERRORPREFIX + READREQUEST, specifier, SecopClient.DISCONNECTED + (dict(t=node.disconnect_time),)
+        return ERRORPREFIX + READREQUEST, specifier, SecopClient.disconnectedError + (dict(t=node.disconnect_time),)
 
     def handle_change(self, conn, specifier, data):
         module = specifier.split(':')[0]
