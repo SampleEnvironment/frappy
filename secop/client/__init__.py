@@ -30,10 +30,11 @@ from collections import defaultdict
 
 from secop.lib import mkthread, formatExtendedTraceback, formatExtendedStack
 from secop.lib.asynconn import AsynConn, ConnectionClosed
-from secop.datatypes import get_datatype, EnumType
+from secop.datatypes import get_datatype
 from secop.protocol.interface import encode_msg_frame, decode_msg
 from secop.protocol.messages import REQUEST2REPLY, ERRORPREFIX, EVENTREPLY, WRITEREQUEST, WRITEREPLY, \
-    READREQUEST, READREPLY, IDENTREQUEST, IDENTPREFIX, ENABLEEVENTSREQUEST, COMMANDREQUEST, DESCRIPTIONREQUEST
+    READREQUEST, READREPLY, IDENTREQUEST, IDENTPREFIX, ENABLEEVENTSREQUEST, COMMANDREQUEST, \
+    DESCRIPTIONREQUEST, HEARTBEATREQUEST
 import secop.errors
 import secop.params
 
@@ -290,13 +291,19 @@ class SecopClient(ProxyClient):
         self.disconnect(False)
 
     def __rxthread(self):
+        noactivity = 0
         while self._running:
             try:
                 reply = self.io.readline()
                 if reply is None:
+                    noactivity += 1
+                    if noactivity % 5 == 0:
+                        # send ping to check if the connection is still alive
+                        self.queue_request(HEARTBEATREQUEST, str(noactivity))
                     continue
             except ConnectionClosed:
                 break
+            noactivity = 0
             action, ident, data = decode_msg(reply)
             if ident == '.':
                 ident = None

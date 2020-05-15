@@ -100,8 +100,8 @@ class Server:
             cfgdict = self.loadCfgFile(filename)
             ambiguous_sections |= set(merged_cfg) & set(cfgdict)
             merged_cfg.update(cfgdict)
-        self.node_cfg = merged_cfg.pop('NODE')
-        self.interface_cfg = merged_cfg.pop('INTERFACE')
+        self.node_cfg = merged_cfg.pop('NODE', {})
+        self.interface_cfg = merged_cfg.pop('INTERFACE', {})
         self.module_cfg = merged_cfg
         if interface:
             ambiguous_sections.discard('interface')
@@ -109,6 +109,8 @@ class Server:
             self.node_cfg['name'] = name
             self.node_cfg['id'] = cfgfiles
             self.interface_cfg['uri'] = str(interface)
+        elif 'uri' not in self.interface_cfg:
+            raise ConfigError('missing interface uri')
         if ambiguous_sections:
             self.log.warning('ambiguous sections in %s: %r' % (cfgfiles, tuple(ambiguous_sections)))
         self._cfgfiles = cfgfiles

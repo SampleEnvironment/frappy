@@ -159,14 +159,20 @@ class AsynTcp(AsynConn):
         return b''.join(data)
 
     def recv(self):
-        """return bytes received within 1 sec"""
+        """return bytes in the recv buffer
+
+        or bytes received within 1 sec
+        """
         try:
             data = self.connection.recv(8192)
             if data:
                 return data
-        except socket.timeout:
+        except (socket.timeout, TimeoutError):
             # timeout while waiting
             return b''
+        # note that when no data is sent on a connection, an interruption might
+        # not be detected within a reasonable time. sending a heartbeat should
+        # help in this case.
         raise ConnectionClosed()  # marks end of connection
 
 

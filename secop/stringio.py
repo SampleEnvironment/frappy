@@ -208,7 +208,7 @@ class HasIodev(Module):
             opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
                     'export': False}
             ioname = name + '_iodev'
-            iodev = self.iodevClass(ioname, self.log.getChild(ioname), opts, srv)
+            iodev = self.iodevClass(ioname, srv.log.getChild(ioname), opts, srv)
             srv.modules[ioname] = iodev
             self.setProperty('iodev', ioname)
 

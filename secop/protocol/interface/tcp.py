@@ -145,7 +145,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                                                                   'traceback': formatExtendedStack()}])
                     except Exception as err:
                         # create Error Obj instead
-                        result = (ERRORPREFIX + msg[0], msg[1], ['InternalError', str(err),
+                        result = (ERRORPREFIX + msg[0], msg[1], ['InternalError', repr(err),
                                                                  {'exception': formatException(),
                                                                   'traceback': formatExtendedStack()}])
                         print('--------------------')
