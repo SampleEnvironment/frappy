@@ -23,15 +23,12 @@
 """Define Metaclass for Modules/Features"""
 
 
-import time
 from collections import OrderedDict
 
 from secop.errors import ProgrammingError, BadValueError
 from secop.params import Command, Override, Parameter
 from secop.datatypes import EnumType
 from secop.properties import PropertyMeta
-
-EVENT_ONLY_ON_CHANGED_VALUES = False
 
 
 class Done:
@@ -149,7 +146,7 @@ class ModuleMeta(PropertyMeta):
                                 return getattr(self, pname)
                         except Exception as e:
                             self.log.debug("rfunc(%s) failed %r" % (pname, e))
-                            self.setError(pname, e)
+                            self.announceUpdate(pname, None, e)
                             raise
                     else:
                         # return cached value
@@ -198,15 +195,7 @@ class ModuleMeta(PropertyMeta):
                 return self.accessibles[pname].value
 
             def setter(self, value, pname=pname):
-                pobj = self.accessibles[pname]
-                value = pobj.datatype(value)
-                pobj.timestamp = time.time()
-                if (not EVENT_ONLY_ON_CHANGED_VALUES) or (value != pobj.value):
-                    pobj.value = value
-                    # also send notification
-                    if pobj.export:
-                        self.log.debug('%s is now %r' % (pname, value))
-                        self.DISPATCHER.announce_update(self, pname, pobj)
+                self.announceUpdate(pname, value)
 
             setattr(newtype, pname, property(getter, setter))
 

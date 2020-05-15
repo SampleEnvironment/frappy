@@ -286,7 +286,7 @@ class IOHandler(IOHandlerBase):
         except Exception as e:
             # set all parameters of this handler to error
             for pname in self.parameters:
-                module.setError(pname, e)
+                module.announceUpdate(pname, None, e)
             raise
         return Done
 

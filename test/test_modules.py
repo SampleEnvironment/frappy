@@ -36,18 +36,18 @@ class DispatcherStub:
     def __init__(self, updates):
         self.updates = updates
 
-    def announce_update(self, moduleobj, pname, pobj):
-        self.updates.setdefault(moduleobj.name, {})
-        self.updates[moduleobj.name][pname] = pobj.value
-
-    def announce_update_error(self, moduleobj, pname, pobj, err):
-        self.updates['error', moduleobj.name, pname] = str(err)
+    def announce_update(self, modulename, pname, pobj):
+        self.updates.setdefault(modulename, {})
+        if pobj.readerror:
+            self.updates[modulename]['error', pname] = str(pobj.readerror)
+        else:
+            self.updates[modulename][pname] = pobj.value
 
 
 class LoggerStub:
     def debug(self, *args):
         print(*args)
-    info = exception = debug
+    info = warning = exception = debug
 
 
 class ServerStub:

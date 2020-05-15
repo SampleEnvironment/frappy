@@ -21,41 +21,37 @@
 # *****************************************************************************
 """SECoP proxy modules"""
 
-from secop.lib import get_class
-from secop.modules import Module, Writable, Readable, Drivable, Attached
-from secop.datatypes import StringType
-from secop.protocol.dispatcher import make_update
-from secop.properties import Property
-from secop.client import SecopClient, decode_msg, encode_msg_frame
 from secop.params import Parameter, Command
-from secop.errors import ConfigError, make_secop_error, secop_error
+from secop.modules import Module, Writable, Readable, Drivable
+from secop.datatypes import StringType
+from secop.properties import Property
+from secop.stringio import HasIodev
+from secop.lib import get_class
+from secop.client import SecopClient, decode_msg, encode_msg_frame
+from secop.errors import ConfigError, make_secop_error, CommunicationFailedError
 
 
-
-class ProxyModule(Module):
+class ProxyModule(HasIodev, Module):
     properties = {
-        'iodev': Attached(),
         'module':
             Property('remote module name', datatype=StringType(), default=''),
     }
 
+    pollerClass = None
     _consistency_check_done = False
     _secnode = None
 
+    def iodevClass(self, name, logger, opts, srv):
+        opts['description'] = 'secnode %s on %s' % (opts.get('module', name), opts['uri'])
+        return SecNode(name, logger, opts, srv)
+
     def updateEvent(self, module, parameter, value, timestamp, readerror):
-        pobj = self.parameters[parameter]
-        pobj.timestamp = timestamp
+        if parameter not in self.parameters:
+            return  # ignore unknown parameters
         # should be done here: deal with clock differences
         if readerror:
             readerror = make_secop_error(*readerror)
-        if not readerror:
-            try:
-                pobj.value = value  # store the value even in case of a validation error
-                pobj.value = pobj.datatype(value)
-            except Exception as e:
-                readerror = secop_error(e)
-        pobj.readerror = readerror
-        self.DISPATCHER.broadcast_event(make_update(self.name, pobj))
+        self.announceUpdate(parameter, value, readerror, timestamp)
 
     def initModule(self):
         if not self.module:
@@ -116,9 +112,17 @@ class ProxyModule(Module):
         # for now, the error message must be enough
 
     def nodeStateChange(self, online, state):
-        if online and not self._consistency_check_done:
-            self._check_descriptive_data()
-            self._consistency_check_done = True
+        if online:
+            if not self._consistency_check_done:
+                self._check_descriptive_data()
+                self._consistency_check_done = True
+        else:
+            newstatus = Readable.Status.ERROR, 'disconnected'
+            readerror = CommunicationFailedError('disconnected')
+            if self.status != newstatus:
+                for pname in set(self.parameters) - set(('module', 'status')):
+                    self.announceUpdate(pname, None, readerror)
+                self.announceUpdate('status', newstatus)
 
 
 class ProxyReadable(ProxyModule, Readable):
@@ -164,7 +168,7 @@ def proxy_class(remote_class, name=None):
     remote class is <import path>.<class name> of a class used on the remote node
     if name is not given, 'Proxy' + <class name> is used
     """
-    if issubclass(remote_class, Module):
+    if isinstance(remote_class, type) and issubclass(remote_class, Module):
         rcls = remote_class
         remote_class = rcls.__name__
     else:
@@ -231,4 +235,7 @@ def Proxy(name, logger, cfgdict, srv):
     title cased as it acts like a class
     """
     remote_class = cfgdict.pop('remote_class')
+    if 'description' not in cfgdict:
+        cfgdict['description'] = 'remote module %s on %s' % (
+            cfgdict.get('module', name), cfgdict.get('iodev', '?'))
     return proxy_class(remote_class)(name, logger, cfgdict, srv)

@@ -43,8 +43,7 @@ from collections import OrderedDict
 from time import time as currenttime
 
 from secop.errors import BadValueError, NoSuchCommandError, NoSuchModuleError, \
-    NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPServerError, InternalError,\
-    SECoPError
+    NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPServerError
 from secop.params import Parameter
 from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
@@ -101,26 +100,10 @@ class Dispatcher:
         for conn in listeners:
             conn.queue_async_reply(msg)
 
-    def announce_update(self, moduleobj, pname, pobj):
+    def announce_update(self, modulename, pname, pobj):
         """called by modules param setters to notify subscribers of new values
         """
-        # argument pname is no longer used here - should we remove it?
-        pobj.readerror = None
-        self.broadcast_event(make_update(moduleobj.name, pobj))
-
-    def announce_update_error(self, moduleobj, pname, pobj, err):
-        """called by modules param setters/getters to notify subscribers
-
-        of problems
-        """
-        # argument pname is no longer used here - should we remove it?
-        if not isinstance(err, SECoPError):
-            err = InternalError(err)
-        if str(err) == str(pobj.readerror):
-            return  # do not send updates for repeated errors
-        pobj.readerror = err
-        pobj.timestamp = currenttime()  # indicates the first time this error appeared
-        self.broadcast_event(make_update(moduleobj.name, pobj))
+        self.broadcast_event(make_update(modulename, pobj))
 
     def subscribe(self, conn, eventname):
         self._subscriptions.setdefault(eventname, set()).add(conn)

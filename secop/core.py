@@ -30,6 +30,7 @@ from secop.datatypes import FloatRange, IntRange, ScaledInteger, \
     BoolType, EnumType, BLOBType, StringType, TupleOf, ArrayOf, StructOf
 from secop.lib.enum import Enum
 from secop.modules import Module, Readable, Writable, Drivable, Communicator, Attached
+from secop.properties import Property
 from secop.params import Parameter, Command, Override
 from secop.metaclass import Done
 from secop.iohandler import IOHandler, IOHandlerBase

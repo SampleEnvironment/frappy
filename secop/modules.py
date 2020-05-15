@@ -29,7 +29,8 @@ from collections import OrderedDict
 
 from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
     StringType, TupleOf, get_datatype, ArrayOf, TextType, StatusType
-from secop.errors import ConfigError, ProgrammingError, SECoPError, BadValueError, SilentError
+from secop.errors import ConfigError, ProgrammingError, SECoPError, BadValueError,\
+    SilentError, InternalError, secop_error
 from secop.lib import formatException, formatExtendedStack, mkthread
 from secop.lib.enum import Enum
 from secop.metaclass import ModuleMeta
@@ -94,6 +95,8 @@ class Module(HasProperties, metaclass=ModuleMeta):
         self.DISPATCHER = srv.dispatcher
         self.log = logger
         self.name = name
+        self.valueCallbacks = {}
+        self.errorCallbacks = {}
 
         # handle module properties
         # 1) make local copies of properties
@@ -199,6 +202,9 @@ class Module(HasProperties, metaclass=ModuleMeta):
         #    is not specified in cfgdict and deal with parameters to be written.
         self.writeDict = {}  # values of parameters to be written
         for pname, pobj in self.parameters.items():
+            self.valueCallbacks[pname] = []
+            self.errorCallbacks[pname] = []
+
             if pname in cfgdict:
                 if not pobj.readonly and pobj.initwrite is not False:
                     # parameters given in cfgdict have to call write_<pname>
@@ -265,14 +271,68 @@ class Module(HasProperties, metaclass=ModuleMeta):
     def __getitem__(self, item):
         return self.accessibles.__getitem__(item)
 
-    def setError(self, pname, exception):
-        """sets a parameter to a read error state
-
-        the error will be cleared when the parameter is set
-        """
+    def announceUpdate(self, pname, value=None, err=None, timestamp=None):
+        """announce a changed value or readerror"""
         pobj = self.parameters[pname]
+        if value is not None:
+            pobj.value = value  # store the value even in case of error
+        if err:
+            if not isinstance(err, SECoPError):
+                err = InternalError(err)
+            if str(err) == str(pobj.readerror):
+                return  # do call updates for repeated errors
+        else:
+            try:
+                pobj.value = pobj.datatype(value)
+            except Exception as e:
+                err = secop_error(e)
+        pobj.timestamp = timestamp or time.time()
+        pobj.readerror = err
         if pobj.export:
-            self.DISPATCHER.announce_update_error(self, pname, pobj, exception)
+            self.DISPATCHER.announce_update(self.name, pname, pobj)
+        if err:
+            callbacks = self.errorCallbacks
+            arg = err
+        else:
+            callbacks = self.valueCallbacks
+            arg = value
+        cblist = callbacks[pname]
+        for cb in cblist:
+            try:
+                cb(arg)
+            except Exception as e:
+                # print(formatExtendedTraceback())
+                pass
+
+    def registerCallbacks(self, modobj, autoupdate=()):
+        for pname in self.parameters:
+            errfunc = getattr(modobj, 'error_update_' + pname, None)
+            if errfunc:
+                def errcb(err, p=pname, efunc=errfunc):
+                    try:
+                        efunc(err)
+                    except Exception as e:
+                        modobj.announceUpdate(p, err=e)
+                self.errorCallbacks[pname].append(errcb)
+            else:
+                def errcb(err, p=pname):
+                    modobj.announceUpdate(p, err=err)
+                if pname in autoupdate:
+                    self.errorCallbacks[pname].append(errcb)
+
+            updfunc = getattr(modobj, 'update_' + pname, None)
+            if updfunc:
+                def cb(value, ufunc=updfunc, efunc=errcb):
+                    try:
+                        ufunc(value)
+                    except Exception as e:
+                        efunc(e)
+                self.valueCallbacks[pname].append(cb)
+            elif pname in autoupdate:
+                def cb(value, p=pname):
+                    modobj.announceUpdate(p, value)
+                self.valueCallbacks[pname].append(cb)
+
 
     def isBusy(self, status=None):
         """helper function for treating substates of BUSY correctly"""
