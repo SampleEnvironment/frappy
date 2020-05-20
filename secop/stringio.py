@@ -196,20 +196,29 @@ class StringIO(Communicator):
 
 
 class HasIodev(Module):
-    """Mixin for modules using a communicator"""
+    """Mixin for modules using a communicator
+
+    not only StringIO !
+    """
     properties = {
         'iodev': Attached(),
         'uri': Property('uri for auto creation of iodev', StringType(), default=''),
     }
 
+    iodevDict = {}
+
     def __init__(self, name, logger, opts, srv):
+        iodev = opts.pop('iodev', None)
         super().__init__(name, logger, opts, srv)
         if self.uri:
             opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
                     'export': False}
-            ioname = name + '_iodev'
-            iodev = self.iodevClass(ioname, srv.log.getChild(ioname), opts, srv)
-            srv.modules[ioname] = iodev
+            ioname = self.iodevDict.get(self.uri)
+            if not ioname:
+                ioname = iodev or name + '_iodev'
+                iodev = self.iodevClass(ioname, srv.log.getChild(ioname), opts, srv)
+                srv.modules[ioname] = iodev
+                self.iodevDict[self.uri] = ioname
             self.setProperty('iodev', ioname)
 
     def initModule(self):
