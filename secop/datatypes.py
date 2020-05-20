@@ -40,7 +40,7 @@ __all__ = [
     'DataType', 'get_datatype',
     'FloatRange', 'IntRange', 'ScaledInteger',
     'BoolType', 'EnumType',
-    'BLOBType', 'StringType',
+    'BLOBType', 'StringType', 'TextType',
     'TupleOf', 'ArrayOf', 'StructOf',
     'CommandType', 'StatusType',
 ]
@@ -592,7 +592,9 @@ class TextType(StringType):
         super(TextType, self).__init__(0, maxchars)
 
     def __repr__(self):
-        return 'TextType(%d, %d)' % (self.minchars, self.maxchars)
+        if self.maxchars == UNLIMITED:
+            return 'TextType()'
+        return 'TextType(%d)' % (self.maxchars)
 
     def copy(self):
         # DataType.copy will not work, because it is exported as 'string'
