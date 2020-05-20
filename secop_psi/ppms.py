@@ -446,7 +446,6 @@ class Temp(PpmsMixin, Drivable):
         15: (Status.ERROR, 'general failure'),
     }
     properties = {
-        'iodev': Attached(),
         'general_stop': Property('respect general stop', datatype=BoolType(),
                                  export=True, default=True)
     }

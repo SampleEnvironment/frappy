@@ -208,7 +208,7 @@ class HasIodev(Module):
     iodevDict = {}
 
     def __init__(self, name, logger, opts, srv):
-        iodev = opts.pop('iodev', None)
+        iodev = opts.get('iodev')
         super().__init__(name, logger, opts, srv)
         if self.uri:
             opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
