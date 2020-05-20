@@ -352,7 +352,6 @@ class Chamber(PpmsMixin, Drivable):
             Override(visibility=3),
     }
     STATUS_MAP = {
-        StatusCode.unknown: (Status.WARN, 'unknown'),
         StatusCode.purged_and_sealed: (Status.IDLE, 'purged and sealed'),
         StatusCode.vented_and_sealed: (Status.IDLE, 'vented and sealed'),
         StatusCode.sealed_unknown: (Status.WARN, 'sealed unknown'),
@@ -369,8 +368,13 @@ class Chamber(PpmsMixin, Drivable):
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
-        self.value = (packed_status >> 8) & 0xf
-        self.status = self.STATUS_MAP[self.value]
+        status_code = (packed_status >> 8) & 0xf
+        if status_code in self.STATUS_MAP:
+            self.value = status_code
+            self.status = self.STATUS_MAP[status_code]
+        else:
+            self.value = self.StatusCode.unknown
+            self.status = (self.Status.ERROR, 'unknown status code %d' % status_code)
 
     def analyze_chamber(self, target):
         return dict(target=target)
@@ -401,9 +405,12 @@ class Temp(PpmsMixin, Drivable):
         'status':
             Override(datatype=StatusType(Status), poll=True),
         'target':
-            Override(datatype=FloatRange(1.7, 402.0, unit='K'), handler=temp),
+            Override(datatype=FloatRange(1.7, 402.0, unit='K'), poll=False, needscfg=False),
+        'setpoint':
+            Parameter('intermediate set point',
+                      datatype=FloatRange(1.7, 402.0, unit='K'), handler=temp),
         'ramp':
-            Parameter('ramping speed', readonly=False, handler=temp,
+            Parameter('ramping speed', readonly=False, handler=temp, default=0,
                       datatype=FloatRange(0, 20, unit='K/min')),
         'approachmode':
             Parameter('how to approach target!', readonly=False, handler=temp,
@@ -417,22 +424,22 @@ class Temp(PpmsMixin, Drivable):
     # pylint: disable=invalid-name
     TempStatus = Enum(
         'TempStatus',
-        unknown=0,
         stable_at_target=1,
         changing=2,
         within_tolerance=5,
         outside_tolerance=6,
+        filling_emptying_reservoir=7,
         standby=10,
         control_disabled=13,
         can_not_complete=14,
         general_failure=15,
     )
     STATUS_MAP = {
-        0: (Status.ERROR, 'unknown'),
         1: (Status.IDLE, 'stable at target'),
         2: (Status.RAMPING, 'ramping'),
         5: (Status.STABILIZING, 'within tolerance'),
         6: (Status.STABILIZING, 'outside tolerance'),
+        7: (Status.STABILIZING, 'filling/emptying reservoir'),
         10: (Status.WARN, 'standby'),
         13: (Status.WARN, 'control disabled'),
         14: (Status.ERROR, 'can not complete'),
@@ -450,6 +457,8 @@ class Temp(PpmsMixin, Drivable):
     _last_change = 0  # 0 means no target change is pending
     _last_target = None  # last reached target
     general_stop = False
+    _cool_deadline = 0
+    _wait_at10 = False
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
@@ -457,8 +466,20 @@ class Temp(PpmsMixin, Drivable):
             self.status = (self.Status.ERROR, 'invalid value')
             return
         self.value = value
-        status = self.STATUS_MAP[packed_status & 0xf]
+        status_code = packed_status & 0xf
+        status = self.STATUS_MAP.get(status_code, (self.Status.ERROR, 'unknown status code %d' % status_code))
         now = time.time()
+        if value > 11:
+            # when starting from T > 40, this will be 15 min.
+            # when starting from lower T, it will be less
+            # when ramping with 2 K/min or less, the deadline is now
+            self._cool_deadline = max(self._cool_deadline, now + min(30, value - 10) * 30)  # 30 sec / K
+        elif self._wait_at10:
+            if now > self._cool_deadline:
+                self._wait_at10 = False
+                self._last_change = now
+                self.temp.write(self, 'setpoint', self.target)
+            status = (self.Status.STABILIZING, 'waiting at 10 K')
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             if now > self._last_change + 5:
                 self._last_change = 0  # give up waiting for busy
@@ -486,17 +507,24 @@ class Temp(PpmsMixin, Drivable):
                 self._expected_target_time = 0
         self.status = status
 
-    def analyze_temp(self, target, ramp, approachmode):
-        if (target, ramp, approachmode) == self._last_settings:
-            # we update parameters only on change, as 'approachmode'
-            # is not always sent to the hardware
-            return {}
-        self._last_settings = target, ramp, approachmode
-        return dict(target=target, ramp=ramp, approachmode=approachmode)
+    def analyze_temp(self, setpoint, ramp, approachmode):
+        if setpoint != 10 or not self._wait_at10:
+            self.target = setpoint
+        result = dict(setpoint=setpoint)
+        # we update ramp and approachmode only at init
+        if self.ramp == 0:
+            result['ramp'] = ramp
+            result['approachmode'] = approachmode
+        return result
 
     def change_temp(self, change):
-        self.calc_expected(change.target, self.ramp)
-        return change.target, change.ramp, change.approachmode
+        if 10 >= self.value > change.setpoint:
+            ramp = min(2, change.ramp)
+            print('ramplimit', change.ramp, self.value, ramp)
+        else:
+            ramp = change.ramp
+        self.calc_expected(change.setpoint, ramp)
+        return change.setpoint, ramp, change.approachmode
 
     def write_target(self, target):
         self._stopped = False
@@ -505,8 +533,13 @@ class Temp(PpmsMixin, Drivable):
         self._status_before_change = self.status
         self.status = (self.Status.BUSY, 'changed target')
         self._last_change = time.time()
-        self.temp.write(self, 'target', target)
-        return Done
+        if self.value > 10 > target and self.ramp > 2:
+            self._wait_at10 = True
+            self.temp.write(self, 'setpoint', 10)
+        else:
+            self._wait_at10 = False
+            self.temp.write(self, 'setpoint', target)
+        return target
 
     def write_approachmode(self, value):
         if self.isDriving():
@@ -571,7 +604,6 @@ class Field(PpmsMixin, Drivable):
     }
 
     STATUS_MAP = {
-        0: (Status.ERROR, 'unknown'),
         1: (Status.IDLE, 'persistent mode'),
         2: (Status.PREPARING, 'switch warming'),
         3: (Status.FINALIZING, 'switch cooling'),
@@ -580,6 +612,7 @@ class Field(PpmsMixin, Drivable):
         6: (Status.RAMPING, 'charging'),
         7: (Status.RAMPING, 'discharging'),
         8: (Status.ERROR, 'current error'),
+        11: (Status.ERROR, 'probably quenched'),
         15: (Status.ERROR, 'general failure'),
     }
 
@@ -591,26 +624,26 @@ class Field(PpmsMixin, Drivable):
     def update_value_status(self, value, packed_status):
         """update value and status"""
         if value is None:
-            self.status = [self.Status.ERROR, 'invalid value']
+            self.status = (self.Status.ERROR, 'invalid value')
             return
         self.value = round(value * 1e-4, 7)
         status_code = (packed_status >> 4) & 0xf
-        status = self.STATUS_MAP[status_code]
+        status = self.STATUS_MAP.get(status_code, (self.Status.ERROR, 'unknown status code %d' % status_code))
         now = time.time()
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             if status_code == 1:  # persistent mode
                 # leads are ramping (ppms has no extra status code for this!)
                 if now < self._last_change + 30:
-                    status = [self.Status.PREPARING, 'ramping leads']
+                    status = (self.Status.PREPARING, 'ramping leads')
                 else:
-                    status = [self.Status.WARN, 'timeout when ramping leads']
+                    status = (self.Status.WARN, 'timeout when ramping leads')
             elif now > self._last_change + 5:
                 self._last_change = 0 # give up waiting for driving
             elif self.isDriving(status) and status != self._status_before_change:
                 self._last_change = 0
                 self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
             else:
-                status = [self.Status.BUSY, 'changed target']
+                status = (self.Status.BUSY, 'changed target')
         if abs(self.target - self.value) <= 1e-4:
             self._last_target = self.target
         elif self._last_target is None:
@@ -618,9 +651,9 @@ class Field(PpmsMixin, Drivable):
         if self._stopped:
             # combine 'stopped' with current status text
             if status[0] == self.Status.IDLE:
-                status = [status[0], 'stopped']
+                status = (status[0], 'stopped')
             else:
-                status = [status[0], 'stopping (%s)' % status[1]]
+                status = (status[0], 'stopping (%s)' % status[1])
         self.status = status
 
     def analyze_field(self, target, ramp, approachmode, persistentmode):
@@ -638,10 +671,10 @@ class Field(PpmsMixin, Drivable):
     def write_target(self, target):
         if abs(self.target - self.value) <= 2e-5 and target == self.target:
             return None  # avoid ramping leads
-        self._status_before_change = list(self.status)
+        self._status_before_change = self.status
         self._stopped = False
         self._last_change = time.time()
-        self.status = [self.Status.BUSY, 'changed target']
+        self.status = (self.Status.BUSY, 'changed target')
         self.field.write(self, 'target', target)
         return Done
 
@@ -649,9 +682,9 @@ class Field(PpmsMixin, Drivable):
         if abs(self.target - self.value) <= 2e-5 and mode == self.persistentmode:
             return None  # avoid ramping leads
         self._last_change = time.time()
-        self._status_before_change = list(self.status)
+        self._status_before_change = self.status
         self._stopped = False
-        self.status = [self.Status.BUSY, 'changed persistent mode']
+        self.status = (self.Status.BUSY, 'changed persistent mode')
         self.field.write(self, 'persistentmode', mode)
         return Done
 
@@ -674,7 +707,7 @@ class Field(PpmsMixin, Drivable):
         if newtarget != self.target:
             self.log.debug('stop at %s T', newtarget)
             self.write_target(newtarget)
-        self.status = [self.status[0], 'stopping (%s)' % self.status[1]]
+        self.status = (self.status[0], 'stopping (%s)' % self.status[1])
         self._stopped = True
 
 
@@ -698,7 +731,6 @@ class Position(PpmsMixin, Drivable):
             Override(visibility=3),
     }
     STATUS_MAP = {
-        0: (Status.ERROR, 'unknown'),
         1: (Status.IDLE, 'at target'),
         5: (Status.BUSY, 'moving'),
         8: (Status.IDLE, 'at limit'),
@@ -709,7 +741,8 @@ class Position(PpmsMixin, Drivable):
     channel = 'position'
     _stopped = False
     _last_target = None  # last reached target
-    _last_change = 0  # means no target change is pending
+    _last_change = 0
+    _within_target = 0  # time since we are within target
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
@@ -720,26 +753,33 @@ class Position(PpmsMixin, Drivable):
             self.status = (self.Status.ERROR, 'invalid value')
             return
         self.value = value
-        status = self.STATUS_MAP[(packed_status >> 12) & 0xf]
+        status_code = (packed_status >> 12) & 0xf
+        status = self.STATUS_MAP.get(status_code, (self.Status.ERROR, 'unknown status code %d' % status_code))
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             now = time.time()
             if now > self._last_change + 5:
                 self._last_change = 0  # give up waiting for busy
-            elif self.isDriving() and status != self._status_before_change:
-                self._last_change = 0
+            elif self.isDriving(status) and status != self._status_before_change:
                 self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
+                self._last_change = 0
             else:
-                status = [self.Status.BUSY, 'changed target']
-        if abs(self.value - self.target) < 0.1:
+                status = (self.Status.BUSY, 'changed target')
+        # BUSY can not reliably be determined from the status code, we have to do it on our own
+        if abs(value - self.target) < 0.1:
             self._last_target = self.target
-        elif self._last_target is None:
-            self._last_target = self.value
+            if not self._within_target:
+                self._within_target = time.time()
+            if time.time() > self._within_target + 1:
+                if status[0] != self.Status.IDLE:
+                    status = (self.Status.IDLE, status[1])
+        elif status[0] != self.Status.BUSY:
+            status = (self.Status.BUSY, status[1])
         if self._stopped:
             # combine 'stopped' with current status text
             if status[0] == self.Status.IDLE:
-                status = [status[0], 'stopped']
+                status = (status[0], 'stopped')
             else:
-                status = [status[0], 'stopping (%s)' % status[1]]
+                status = (status[0], 'stopping (%s)' % status[1])
         self.status = status
 
     def analyze_move(self, target, mode, speed):
@@ -758,6 +798,7 @@ class Position(PpmsMixin, Drivable):
         self._stopped = False
         self._last_change = 0
         self._status_before_change = self.status
+        self.status = (self.Status.BUSY, 'changed target')
         self.move.write(self, 'target', target)
         return Done
 

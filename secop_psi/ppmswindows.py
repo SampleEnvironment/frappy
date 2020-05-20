@@ -58,7 +58,8 @@ class QDevice:
         if err == 1:
             # print '<done'
             return "OK"
-        raise Error(args[2].value.replace('\n', ' '))
+        raise Error('%s on cmd "%s" %s' % (args[2].value.replace('\n', ' '), command,
+                                           getattr(args[2], 'value', 'noreply')))
 
 
 if __name__ == "__main__":  # test only
