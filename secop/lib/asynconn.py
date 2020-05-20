@@ -149,6 +149,7 @@ class AsynTcp(AsynConn):
 
     def send(self, data):
         """send data (bytes!)"""
+        # remark: will raise socket.timeout when output buffer is full and blocked for 1 sec
         self.connection.sendall(data)
 
     def flush_recv(self):

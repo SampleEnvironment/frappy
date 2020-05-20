@@ -25,8 +25,8 @@
 Interface to the service offering part:
 
  - 'handle_request(connectionobj, data)' handles incoming request
-   it returns the (sync) reply, and it may call 'queue_async_reply(data)'
-   on the connectionobj
+   it returns the (sync) reply, and it may call 'send_reply(data)'
+   on the connectionobj or on activated connections
  - 'add_connection(connectionobj)' registers new connection
  - 'remove_connection(connectionobj)' removes now longer functional connection
 
@@ -98,7 +98,7 @@ class Dispatcher:
             # all generic subscribers
             listeners.update(self._active_connections)
         for conn in listeners:
-            conn.queue_async_reply(msg)
+            conn.send_reply(msg)
 
     def announce_update(self, modulename, pname, pobj):
         """called by modules param setters to notify subscribers of new values
@@ -275,7 +275,8 @@ class Dispatcher:
     def handle_request(self, conn, msg):
         """handles incoming request
 
-        will call 'queue_async_reply(data)' on conn or return reply
+        will return return reply, may send replies to conn or
+        activated connections in addition
         """
         self.log.debug('Dispatcher: handling msg: %s' % repr(msg))
 
@@ -360,11 +361,11 @@ class Dispatcher:
         for modulename, pname in modules:
             moduleobj = self._modules.get(modulename, None)
             if pname:
-                conn.queue_async_reply(make_update(modulename, moduleobj.parameters[pname]))
+                conn.send_reply(make_update(modulename, moduleobj.parameters[pname]))
                 continue
             for pobj in moduleobj.accessibles.values():
                 if isinstance(pobj, Parameter) and pobj.export:
-                    conn.queue_async_reply(make_update(modulename, pobj))
+                    conn.send_reply(make_update(modulename, pobj))
         return (ENABLEEVENTSREPLY, specifier, None) if specifier else (ENABLEEVENTSREPLY, None, None)
 
     def handle_deactivate(self, conn, specifier, data):
