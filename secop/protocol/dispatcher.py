@@ -212,7 +212,7 @@ class Dispatcher:
         # now call func
         # note: exceptions are handled in handle_request, not here!
         func = getattr(moduleobj, 'do_' + cmdname)
-        res = func(argument) if argument else func()
+        res = func() if argument is None else func(argument)
 
         # pipe through cmdspec.datatype.result
         if cmdspec.datatype.result:

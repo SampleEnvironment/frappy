@@ -21,7 +21,7 @@
 # *****************************************************************************
 """parser. used for config files and the gui
 
-can't use ast.literal_eval as it can't handle enums :(
+can't use ast.literal_eval as we want less strict syntax (strings without quotes)
 
 parsing rules:
 (...) -> tuple
@@ -34,8 +34,12 @@ text -> string
 'text' -> string
 "text" -> string
 
-further convertions are done by the validator of the datatype....
+further conversions are done by the validator of the datatype....
 """
+
+# TODO: should be refactored to use Exceptions instead of None in return tuple
+#       also it would be better to use functions instead of a class
+
 
 from collections import OrderedDict
 
@@ -80,7 +84,7 @@ class Parser:
                 # check escapes!
                 if text[idx - 1] == '\\':
                     continue
-                return text[1:idx], text[idx + 1:]
+                return text[1:idx], text[idx + 1:].strip()
 
         # unquoted strings are terminated by comma or whitespace
         idx = 0
@@ -88,7 +92,7 @@ class Parser:
             if text[idx] in '\x09 ,.;:()[]{}<>-+*/\\!"§$%&=?#~+*\'´`^°|-':
                 break
             idx += 1
-        return text[:idx] or None, text[idx:]
+        return text[:idx] or None, text[idx:].strip()
 
     def parse_tuple(self, orgtext):
         text = orgtext.strip()
@@ -98,17 +102,21 @@ class Parser:
         # convert to closing bracket
         bra = ')]>'['([<'.index(bra)]
         reslist = []
-        # search for cosing bracket, collecting results
+        # search for closing bracket, collecting results
         text = text[1:]
         while text:
             if bra not in text:
                 return None, text
             res, rem = self.parse_sub(text)
             if res is None:
+                print('remtuple %r %r %r' % (rem, text, bra))
+                if rem[0] == bra:
+                    # allow trailing separator
+                    return tuple(reslist), rem[1:].strip()
                 return None, text
             reslist.append(res)
             if rem[0] == bra:
-                return tuple(reslist), rem[1:]
+                return tuple(reslist), rem[1:].strip()
             # eat separator
             if rem[0] in ',;':
                 text = rem[1:]
@@ -122,24 +130,27 @@ class Parser:
             return None, orgtext
         # keep ordering
         result = OrderedDict()
-        # search for cosing bracket, collecting results
+        # search for closing bracket, collecting results
         # watch for key=value or key:value pairs, separated by ,
         text = text[1:]
         while '}' in text:
             # first part is always a string
             key, rem = self.parse_string(text)
-            if not key:
+            if key is None:
+                if rem[0] == '}':
+                    # allow trailing separator
+                    return result, rem[1:].strip()
                 return None, orgtext
             if rem[0] not in ':=':
                 return None, rem
             # eat separator
             text = rem[1:]
             value, rem = self.parse_sub(text)
-            if not value:
+            if value is None:
                 return None, orgtext
             result[key] = value
             if rem[0] == '}':
-                return result, rem[1:]
+                return result, rem[1:].strip()
 
             if rem[0] not in ',;':
                 return None, rem

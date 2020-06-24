@@ -520,7 +520,7 @@ class SecopClient(ProxyClient):
         action, _, data = entry[2]  # pylint: disable=unpacking-non-sequence
         if action.startswith(ERRORPREFIX):
             errcls = self.error_map(data[0])
-            raise errcls(data[1])
+            raise errcls('on SEC-Node: ' + data[1])
         return entry[2]  # reply
 
     def request(self, action, ident=None, data=None):
@@ -552,7 +552,7 @@ class SecopClient(ProxyClient):
     def setParameter(self, module, parameter, value):
         self.connect()  # make sure we are connected
         datatype = self.modules[module]['parameters'][parameter]['datatype']
-        value = datatype.export_value(datatype.from_string(value))
+        value = datatype.export_value(value)
         self.request(WRITEREQUEST, self.identifier[module, parameter], value)
         return self.cache[module, parameter]
 
@@ -560,7 +560,7 @@ class SecopClient(ProxyClient):
         self.connect()  # make sure we are connected
         datatype = self.modules[module]['commands'][command]['datatype'].argument
         if datatype:
-            argument = datatype.export_value(datatype.from_string(argument))
+            argument = datatype.export_value(argument)
         else:
             if argument is not None:
                 raise secop.errors.BadValueError('command has no argument')

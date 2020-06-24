@@ -824,9 +824,6 @@ class StructOf(DataType):
             if not isinstance(subtype, DataType):
                 raise ProgrammingError(
                     'StructOf only works with named DataType objs as keyworded arguments!')
-            if not isinstance(name, str):
-                raise ProgrammingError(
-                    'StructOf only works with named DataType objs as keyworded arguments!')
         for name in self.optional:
             if name not in members:
                 raise ProgrammingError(
@@ -850,16 +847,11 @@ class StructOf(DataType):
             ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
     def __call__(self, value):
-        """return the validated value or raise
-
-        in principle, we should make it some sort of frozen dict
-        """
+        """return the validated value or raise"""
         try:
-            # XXX: handle optional elements !!!
-            if len(list(value.keys())) != len(list(self.members.keys())):
-                raise BadValueError(
-                    'Illegal number of Arguments! Need %d arguments.' %
-                        len(list(self.members.keys())))
+            missing = set(self.members) - set(value) - set(self.optional)
+            if missing:
+                raise BadValueError('missing values for keys %r' % list(missing))
             # validate elements and return as dict
             return ImmutableDict((str(k), self.members[k](v))
                                  for k, v in list(value.items()))
@@ -868,21 +860,13 @@ class StructOf(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        if len(list(value.keys())) != len(list(self.members.keys())):
-            raise BadValueError(
-                'Illegal number of Arguments! Need %d arguments.' % len(
-                    list(self.members.keys())))
+        self(value)  # check validity
         return dict((str(k), self.members[k].export_value(v))
                     for k, v in list(value.items()))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        if len(list(value.keys())) != len(list(self.members.keys())):
-            raise BadValueError(
-                'Illegal number of Arguments! Need %d arguments.' % len(
-                    list(self.members.keys())))
-        return ImmutableDict((str(k), self.members[k].import_value(v))
-                             for k, v in list(value.items()))
+        return self({str(k): self.members[k].import_value(v) for k, v in value.items()})
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
@@ -1143,5 +1127,4 @@ def get_datatype(json, pname=''):
     try:
         return DATATYPES[base](pname=pname, **kwargs)
     except Exception as e:
-        print(base, kwargs, repr(e))
         raise BadValueError('invalid data descriptor: %r (%s)' % (json, str(e)))

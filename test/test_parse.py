@@ -23,6 +23,7 @@
 
 
 from collections import OrderedDict
+from ast import literal_eval
 
 import pytest
 
@@ -46,7 +47,7 @@ def test_Parser_parse_number(parser):
 def test_Parser_parse_string(parser):
     assert parser.parse_string('%') == (None, '%')
     assert parser.parse_string('a') == ('a', '')
-    assert parser.parse_string('Hello World!') == ('Hello', ' World!')
+    assert parser.parse_string('Hello World!') == ('Hello', 'World!')
     assert parser.parse_string('Hello<World!') == ('Hello', '<World!')
     assert parser.parse_string('"Hello World!\'') == (None, '"Hello World!\'')
     assert parser.parse_string('"Hello World!\\"') == (
@@ -75,7 +76,7 @@ def test_Parser_parse(parser):
     assert parser.parse('1.23e-04:9') == (1.23e-4, ':9')
 
     assert parser.parse('%') == (None, '%')
-    assert parser.parse('Hello World!') == ('Hello', ' World!')
+    assert parser.parse('Hello World!') == ('Hello', 'World!')
     assert parser.parse('Hello<World!') == ('Hello', '<World!')
     assert parser.parse('"Hello World!\'') == (None, '"Hello World!\'')
     assert parser.parse('"Hello World!\\"') == (None, '"Hello World!\\"')
@@ -93,3 +94,18 @@ def test_Parser_parse(parser):
     assert parser.parse('1, 2,a,c') == ((1, 2, 'a', 'c'), '')
 
     assert parser.parse('"\x09 \r"') == ('\t \r', '')
+
+
+# valid python syntax must always be valid
+@pytest.mark.parametrize('string', [
+        "{'a': 0, 'b': 1}",
+        "(1,)",
+        "{'a': 'x' , 'b': 1}",
+        "{'a': 'x' , 'b': 1,}",
+        "{'a':['b' ] ,}",
+        "(1,[1] ,)",
+    ])
+def test_python_literal(parser, string):
+    literal_eval(string)  # prove str is valid
+    _, remaining = parser.parse(string)
+    assert remaining == ''
