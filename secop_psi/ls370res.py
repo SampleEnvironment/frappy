@@ -27,6 +27,7 @@ from secop.metaclass import Done
 from secop.datatypes import FloatRange, IntRange, EnumType, BoolType
 from secop.stringio import HasIodev
 from secop.poller import Poller, REGULAR
+from secop.lib import formatStatusBits
 import secop.iohandler
 
 Status = Drivable.Status
@@ -49,10 +50,7 @@ filterhdl = IOHandler('filter', 'FILTER?%(channel)d', '%d,%d,%d')
 scan = IOHandler('scan', 'SCAN?', '%d,%d')
 
 
-STATUS_TEXT = {0: ''}
-for bit, text in enumerate('CS_OVL VCM_OVL VMIX_OVL R_OVER R_UNDER T_OVER T_UNDER'.split()):
-    for i in range(1 << bit, 2 << bit):
-        STATUS_TEXT[i] = text
+STATUS_BIT_LABELS = 'CS_OVL VCM_OVL VMIX_OVL VDIF_OVL R_OVER R_UNDER T_OVER T_UNDER'.split()
 
 
 class StringIO(secop.stringio.StringIO):
@@ -177,13 +175,13 @@ class ResChannel(HasIodev, Readable):
         return result
 
     def read_status(self):
-        if self.channel != self._main.channel:
-            return Done
         if not self.enabled:
             return [self.Status.DISABLED, 'disabled']
+        if self.channel != self._main.channel:
+            return Done
         result = int(self.sendRecv('RDGST?%d' % self.channel))
         result &= 0x37  # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistivities)
-        statustext = STATUS_TEXT[result]
+        statustext = ' '.join(formatStatusBits(result, STATUS_BIT_LABELS))
         if statustext:
             return [self.Status.ERROR, statustext]
         return [self.Status.IDLE, '']
@@ -191,10 +189,11 @@ class ResChannel(HasIodev, Readable):
     def analyze_rdgrng(self, iscur, exc, rng, autorange, excoff):
         result = dict(range=rng)
         if autorange:
-            result['auotrange'] = 'hard'
-        elif self.autorange == 'hard':
-            result['autorange'] = 'soft'
+            result['autorange'] = 'hard'
+        #elif self.autorange == 'hard':
+        #    result['autorange'] = 'soft'
         # else: do not change autorange
+        self.log.info('%s range %r %r %r' % (self.name, rng, autorange, self.autorange))
         if excoff:
             result.update(iexc=0, vexc=0)
         elif iscur:
@@ -225,6 +224,7 @@ class ResChannel(HasIodev, Readable):
             if change.autorange == 'soft':
                 if rng < self.minrange:
                     rng = self.minrange
+        self.autorange = change.autorange
         return iscur, exc, rng, autorange, excoff
 
     def analyze_inset(self, on, dwell, pause, curve, tempco):

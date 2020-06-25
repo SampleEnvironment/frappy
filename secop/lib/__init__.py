@@ -247,3 +247,14 @@ def getfqdn(name=''):
 
 def getGeneralConfig():
     return CONFIG
+
+
+def formatStatusBits(sword, labels, start=0):
+    """Return a list of labels according to bit state in `sword` starting
+    with bit `start` and the first label in `labels`.
+    """
+    result = []
+    for i, lbl in enumerate(labels, start):
+        if sword & (1 << i) and lbl:
+            result.append(lbl)
+    return result

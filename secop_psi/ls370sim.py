@@ -21,7 +21,6 @@
 """a very simple simulator for a LakeShore Model 370"""
 
 from secop.modules import Communicator
-#from secop.lib import mkthread
 
 class Ls370Sim(Communicator):
     CHANNEL_COMMANDS = [
@@ -47,7 +46,7 @@ class Ls370Sim(Communicator):
         for channel in range(1,17):
             _, _, _, _, excoff = self._data['RDGRNG?%d' % channel].split(',')
             if excoff == '1':
-                self._data['RDGST?%d' % channel] = '4'
+                self._data['RDGST?%d' % channel] = '6'
             else:
                 self._data['RDGST?%d' % channel] = '0'
 
@@ -70,8 +69,3 @@ class Ls370Sim(Communicator):
         #if command.startswith('R'):
         #    print('> %s\t< %s' % (command, reply))
         return ';'.join(reply)
-
-    #def run(self):
-    #    # time dependent simulation
-    #    while True:
-    #        time.sleep(1)

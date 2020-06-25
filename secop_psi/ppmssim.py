@@ -53,7 +53,7 @@ class PpmsSim:
     def __init__(self):
         self.status = NamedList('t mf ch pos', 1, 1, 1, 1)
         self.st = 0x1111
-        self.t = 200
+        self.t = 15
         self.temp = NamedList('target ramp amode', 200., 1, 0, fast=self.t, delay=10)
         self.mf = 100
         self.field = NamedList('target ramp amode pmode', 0, 50, 0, 0)

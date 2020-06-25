@@ -209,7 +209,17 @@ class UserChannel(Channel):
         'no':
             Property('channel number',
                      datatype=IntRange(0, 0), export=False, default=0),
+        'linkenable':
+            Property('name of linked channel for enabling',
+                     datatype=StringType(), export=False, default=''),
+
     }
+
+    def write_enabled(self, enabled):
+        other = self._iodev.modules.get(self.linkenable, None)
+        if other:
+            other.enabled = enabled
+        return enabled
 
 
 class DriverChannel(Channel):
@@ -410,8 +420,11 @@ class Temp(PpmsMixin, Drivable):
             Parameter('intermediate set point',
                       datatype=FloatRange(1.7, 402.0, unit='K'), handler=temp),
         'ramp':
-            Parameter('ramping speed', readonly=False, handler=temp, default=0,
+            Parameter('ramping speed', readonly=False, default=0,
                       datatype=FloatRange(0, 20, unit='K/min')),
+        'workingramp':
+            Parameter('intermediate ramp value',
+                      datatype=FloatRange(0, 20, unit='K/min'), handler=temp),
         'approachmode':
             Parameter('how to approach target!', readonly=False, handler=temp,
                       datatype=EnumType(ApproachMode)),
@@ -458,6 +471,7 @@ class Temp(PpmsMixin, Drivable):
     general_stop = False
     _cool_deadline = 0
     _wait_at10 = False
+    _ramp_at_limit = False
 
     def update_value_status(self, value, packed_status):
         """update value and status"""
@@ -469,10 +483,10 @@ class Temp(PpmsMixin, Drivable):
         status = self.STATUS_MAP.get(status_code, (self.Status.ERROR, 'unknown status code %d' % status_code))
         now = time.time()
         if value > 11:
-            # when starting from T > 40, this will be 15 min.
+            # when starting from T > 50, this will be 15 min.
             # when starting from lower T, it will be less
             # when ramping with 2 K/min or less, the deadline is now
-            self._cool_deadline = max(self._cool_deadline, now + min(30, value - 10) * 30)  # 30 sec / K
+            self._cool_deadline = max(self._cool_deadline, now + min(40, value - 10) * 30)  # 30 sec / K
         elif self._wait_at10:
             if now > self._cool_deadline:
                 self._wait_at10 = False
@@ -506,24 +520,40 @@ class Temp(PpmsMixin, Drivable):
                 self._expected_target_time = 0
         self.status = status
 
-    def analyze_temp(self, setpoint, ramp, approachmode):
+    def analyze_temp(self, setpoint, workingramp, approachmode):
+        if (setpoint, workingramp, approachmode) == self._last_settings:
+            # update parameters only on change, as 'ramp' and 'approachmode' are
+            # not always sent to the hardware
+            return {}
+        self._last_settings = setpoint, workingramp, approachmode
         if setpoint != 10 or not self._wait_at10:
+            self.log.debug('read back target %g %r' % (setpoint, self._wait_at10))
             self.target = setpoint
-        result = dict(setpoint=setpoint)
-        # we update ramp and approachmode only at init
-        if self.ramp == 0:
-            result['ramp'] = ramp
-            result['approachmode'] = approachmode
+        if workingramp != 2 or not self._ramp_at_limit:
+            self.log.debug('read back ramp %g %r' % (workingramp, self._ramp_at_limit))
+            self.ramp = workingramp
+        result = dict(setpoint=setpoint, workingramp=workingramp)
+        self.log.debug('analyze_temp %r %r' % (result, (self.target, self.ramp)))
         return result
 
     def change_temp(self, change):
-        if 10 >= self.value > change.setpoint:
-            ramp = min(2, change.ramp)
-            print('ramplimit', change.ramp, self.value, ramp)
-        else:
-            ramp = change.ramp
-        self.calc_expected(change.setpoint, ramp)
-        return change.setpoint, ramp, change.approachmode
+        ramp = change.ramp
+        setpoint = change.setpoint
+        wait_at10 = False
+        ramp_at_limit = False
+        if self.value > 11:
+            if setpoint <= 10:
+                wait_at10 = True
+                setpoint = 10
+        elif self.value > setpoint:
+            if ramp >= 2:
+                ramp = 2
+                ramp_at_limit = True
+        self._wait_at10 = wait_at10
+        self._ramp_at_limit = ramp_at_limit
+        self.calc_expected(setpoint, ramp)
+        self.log.debug('change_temp v %r s %r r %r w %r l %r' % (self.value, setpoint, ramp, wait_at10, ramp_at_limit))
+        return setpoint, ramp, change.approachmode
 
     def write_target(self, target):
         self._stopped = False
@@ -532,24 +562,22 @@ class Temp(PpmsMixin, Drivable):
         self._status_before_change = self.status
         self.status = (self.Status.BUSY, 'changed target')
         self._last_change = time.time()
-        if self.value > 10 > target and self.ramp > 2:
-            self._wait_at10 = True
-            self.temp.write(self, 'setpoint', 10)
-        else:
-            self._wait_at10 = False
-            self.temp.write(self, 'setpoint', target)
+        self.temp.write(self, 'setpoint', target)
+        self.log.debug('write_target %s' % repr((self.setpoint, target, self._wait_at10)))
         return target
 
     def write_approachmode(self, value):
         if self.isDriving():
             self.temp.write(self, 'approachmode', value)
             return Done
+        self.approachmode = value
         return None  # do not execute TEMP command, as this would trigger an unnecessary T change
 
     def write_ramp(self, value):
         if self.isDriving():
             self.temp.write(self, 'ramp', value)
             return Done
+        # self.ramp = value
         return None  # do not execute TEMP command, as this would trigger an unnecessary T change
 
     def calc_expected(self, target, ramp):
@@ -656,6 +684,7 @@ class Field(PpmsMixin, Drivable):
         self.status = status
 
     def analyze_field(self, target, ramp, approachmode, persistentmode):
+        # print('last_settings tt %s' % repr(self._last_settings))
         if (target, ramp, approachmode, persistentmode) == self._last_settings:
             # we update parameters only on change, as 'ramp' and 'approachmode' are
             # not always sent to the hardware
@@ -669,6 +698,7 @@ class Field(PpmsMixin, Drivable):
 
     def write_target(self, target):
         if abs(self.target - self.value) <= 2e-5 and target == self.target:
+            self.target = target
             return None  # avoid ramping leads
         self._status_before_change = self.status
         self._stopped = False
@@ -679,6 +709,7 @@ class Field(PpmsMixin, Drivable):
 
     def write_persistentmode(self, mode):
         if abs(self.target - self.value) <= 2e-5 and mode == self.persistentmode:
+            self.persistentmode = mode
             return None  # avoid ramping leads
         self._last_change = time.time()
         self._status_before_change = self.status
@@ -688,6 +719,7 @@ class Field(PpmsMixin, Drivable):
         return Done
 
     def write_ramp(self, value):
+        self.ramp = value
         if self.isDriving():
             self.field.write(self, 'ramp', value)
             return Done
@@ -805,6 +837,7 @@ class Position(PpmsMixin, Drivable):
         if self.isDriving():
             self.move.write(self, 'speed', value)
             return Done
+        self.speed = value
         return None  # do not execute MOVE command, as this would trigger an unnecessary move
 
     def do_stop(self):
