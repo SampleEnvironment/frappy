@@ -28,7 +28,7 @@ import threading
 import re
 from secop.lib.asynconn import AsynConn, ConnectionClosed
 from secop.modules import Module, Communicator, Parameter, Command, Property, Attached
-from secop.datatypes import StringType, FloatRange, ArrayOf, BoolType, TupleOf
+from secop.datatypes import StringType, FloatRange, ArrayOf, BoolType, TupleOf, ValueType
 from secop.errors import CommunicationFailedError, CommunicationSilentError
 from secop.poller import REGULAR
 from secop.metaclass import Done
@@ -43,7 +43,7 @@ class StringIO(Communicator):
         'uri':
             Property('hostname:portnumber', datatype=StringType()),
         'end_of_line':
-            Property('end_of_line character', datatype=StringType(),
+            Property('end_of_line character', datatype=ValueType(),
                 default='\n', settable=True),
         'encoding':
             Property('used encoding', datatype=StringType(),
@@ -73,13 +73,32 @@ class StringIO(Communicator):
     def earlyInit(self):
         self._conn = None
         self._lock = threading.RLock()
-        self._end_of_line = self.end_of_line.encode(self.encoding)
+        eol = self.end_of_line
+        if isinstance(eol, (tuple, list)):
+            if len(eol) not in (1, 2):
+                raise ValueError('invalid end_of_line: %s' % eol)
+        else:
+            eol = [eol]
+        # eol for read and write might be distinct
+        self._eol_read = self._convert_eol(eol[0])
+        if not self._eol_read:
+            raise ValueError('end_of_line for read must not be empty')
+        self._eol_write = self._convert_eol(eol[-1])
         self._last_error = None
+
+    def _convert_eol(self, value):
+        if isinstance(value, str):
+            return value.encode(self.encoding)
+        if isinstance(value, int):
+            return bytes([value])
+        if isinstance(value, bytes):
+            return value
+        raise ValueError('invalid end_of_line: %s' % repr(value))
 
     def connectStart(self):
         if not self.is_connected:
             uri = self.uri
-            self._conn = AsynConn(uri, self._end_of_line)
+            self._conn = AsynConn(uri, self._eol_read)
             self.is_connected = True
             for command, regexp in self.identification:
                 reply = self.do_communicate(command)
@@ -159,10 +178,10 @@ class StringIO(Communicator):
         try:
             with self._lock:
                 # read garbage and wait before send
-                if self.wait_before:
-                    cmds = command.split(self.end_of_line)
+                if self.wait_before and self._eol_write:
+                    cmds = command.encode(self.encoding).split(self._eol_write)
                 else:
-                    cmds = [command]
+                    cmds = [command.encode(self.encoding)]
                 garbage = None
                 try:
                     for cmd in cmds:
@@ -171,8 +190,8 @@ class StringIO(Communicator):
                         if garbage is None:  # read garbage only once
                             garbage = self._conn.flush_recv()
                             if garbage:
-                                self.log.debug('garbage: %s', garbage.decode(self.encoding))
-                        self._conn.send((cmd + self.end_of_line).encode(self.encoding))
+                                self.log.debug('garbage: %r', garbage)
+                        self._conn.send(cmd + self._eol_write)
                     reply = self._conn.readline(self.timeout)
                 except ConnectionClosed:
                     self.closeConnection()
