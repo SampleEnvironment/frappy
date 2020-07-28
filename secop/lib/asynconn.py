@@ -125,6 +125,28 @@ class AsynConn:
                 return None
             self._rxbuffer += data
 
+    def readbytes(self, nbytes, timeout=None):
+        """read one line
+
+        return either <nbytes> bytes or None if not enough data available within 1 sec (self.timeout)
+        if a non-zero timeout is given, a timeout error is raised instead of returning None
+        the timeout effectively used will not be lower than self.timeout (1 sec)
+        """
+        if timeout:
+            end = time.time() + timeout
+        while len(self._rxbuffer) < nbytes:
+            data = self.recv()
+            if not data:
+                if timeout:
+                    if time.time() < end:
+                        continue
+                    raise TimeoutError('timeout in readbytes (%g sec)' % timeout)
+                return None
+            self._rxbuffer += data
+        line = self._rxbuffer[:nbytes]
+        self._rxbuffer = self._rxbuffer[nbytes:]
+        return line
+
     def writeline(self, line):
         self.send(line + self.end_of_line)
 
@@ -154,9 +176,10 @@ class AsynTcp(AsynConn):
 
     def flush_recv(self):
         """flush recv buffer"""
-        data = []
+        data = [self._rxbuffer]
         while select.select([self.connection], [], [], 0)[0]:
             data.append(self.recv())
+        self._rxbuffer = b''
         return b''.join(data)
 
     def recv(self):
@@ -244,7 +267,9 @@ class AsynSerial(AsynConn):
         self.connection.write(data)
 
     def flush_recv(self):
-        return self.connection.read(self.connection.in_waiting)
+        result = self._rxbuffer + self.connection.read(self.connection.in_waiting)
+        self._rxbuffer = b''
+        return result
 
     def recv(self):
         """return bytes received within 1 sec"""
