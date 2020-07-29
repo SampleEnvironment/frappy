@@ -139,8 +139,11 @@ class Parameter(Accessible):
             datatype.setProperty('unit', unit)
         super(Parameter, self).__init__(**kwds)
 
-        if self.readonly and self.initwrite:
-            raise ProgrammingError('can not have both readonly and initwrite!')
+        if self.initwrite:
+            if self.readonly:
+                raise ProgrammingError('can not have both readonly and initwrite!')
+            if not self.poll:
+                raise ProgrammingError('only polled parameters can have initwrite!')
 
         if self.constant is not None:
             self.properties['readonly'] = True
