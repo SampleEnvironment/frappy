@@ -118,8 +118,10 @@ class Poller(PollerBase):
         self._stopped = False
         self.maxwait = 3600
         self.name = name
+        self.modules = []  # used for writeInitParams only
 
     def add_to_poller(self, module):
+        self.modules.append(module)
         factors = self.DEFAULT_FACTORS.copy()
         try:
             factors[DYNAMIC] = module.fast_pollfactor
@@ -227,11 +229,13 @@ class Poller(PollerBase):
             # nothing to do (else we might call time.sleep(float('inf')) below
             started_callback()
             return
+        for module in self.modules:
+            module.writeInitParams()
         # do all polls once and, at the same time, insert due info
         for _, queue in sorted(self.queues.items()):  # do SLOW polls first
             for idx, (_, _, (_, module, pobj, pname, factor)) in enumerate(queue):
                 lastdue = time.time()
-                module.writeOrPoll(pname)
+                module.pollOneParam(pname)
                 due = lastdue + min(self.maxwait, module.pollinterval * factor)
                 # in python 3 comparing tuples need some care, as not all objects
                 # are comparable. Inserting a unique idx solves the problem.

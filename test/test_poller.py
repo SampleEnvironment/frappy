@@ -163,7 +163,8 @@ class Module:
     def pollOneParam(self, pname):
         getattr(self, 'read_' + pname)()
 
-    writeOrPoll = pollOneParam
+    def writeInitParams(self):
+        pass
 
     def __repr__(self):
         rdict = self.__dict__.copy()

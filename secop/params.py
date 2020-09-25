@@ -115,7 +115,8 @@ class Parameter(Accessible):
                                  settable=False, default=False),
         'handler':     Property('[internal] overload the standard read and write functions',
                                  ValueType(), export=False, default=None, mandatory=False, settable=False),
-        'initwrite':   Property('[internal] write this parameter on initialization (default None: write if given in config)',
+        'initwrite':   Property('[internal] write this parameter on initialization'
+                                ' (default None: write if given in config)',
                                  NoneOr(BoolType()), export=False, default=None, mandatory=False, settable=False),
     }
 
@@ -139,11 +140,8 @@ class Parameter(Accessible):
             datatype.setProperty('unit', unit)
         super(Parameter, self).__init__(**kwds)
 
-        if self.initwrite:
-            if self.readonly:
-                raise ProgrammingError('can not have both readonly and initwrite!')
-            if not self.poll:
-                raise ProgrammingError('only polled parameters can have initwrite!')
+        if self.initwrite and self.readonly:
+            raise ProgrammingError('can not have both readonly and initwrite!')
 
         if self.constant is not None:
             self.properties['readonly'] = True

@@ -346,16 +346,6 @@ class Module(HasProperties, metaclass=ModuleMeta):
     def initModule(self):
         self.log.debug('empty %s.initModule()' % self.__class__.__name__)
 
-    def startModule(self, started_callback):
-        """runs after init of all modules
-
-        started_callback to be called when thread spawned by late_init
-        or, if not implemented, immediately
-        might return a timeout value, if different from default
-        """
-        self.log.debug('empty %s.startModule()' % self.__class__.__name__)
-        started_callback()
-
     def pollOneParam(self, pname):
         """poll parameter <pname> with proper error handling"""
         try:
@@ -367,23 +357,34 @@ class Module(HasProperties, metaclass=ModuleMeta):
         except Exception:
             self.log.error(formatException())
 
-    def writeOrPoll(self, pname):
-        """write configured value for a parameter, if any, else poll
+    def writeInitParams(self, started_callback=None):
+        """write values for parameters with configured values
 
+        this must be called at the beginning of the poller thread
         with proper error handling
         """
-        try:
-            if pname in self.writeDict:
-                self.log.debug('write parameter %s', pname)
-                getattr(self, 'write_' + pname)(self.writeDict.pop(pname))
-            else:
-                getattr(self, 'read_' + pname)()
-        except SilentError:
-            pass
-        except SECoPError as e:
-            self.log.error(str(e))
-        except Exception:
-            self.log.error(formatException())
+        for pname in list(self.writeDict):
+            if pname in self.writeDict:  # this might not be true with handlers
+                try:
+                    self.log.debug('initialize parameter %s', pname)
+                    getattr(self, 'write_' + pname)(self.writeDict.pop(pname))
+                except SilentError:
+                    pass
+                except SECoPError as e:
+                    self.log.error(str(e))
+                except Exception:
+                    self.log.error(formatException())
+        if started_callback:
+            started_callback()
+
+    def startModule(self, started_callback):
+        """runs after init of all modules
+
+        started_callback to be called when the thread spawned by startModule
+        has finished its initial work
+        might return a timeout value, if different from default
+        """
+        mkthread(self.writeInitParams, started_callback)
 
 
 class Readable(Module):
@@ -424,7 +425,7 @@ class Readable(Module):
             # use basic poller for legacy code
             mkthread(self.__pollThread, started_callback)
         else:
-            started_callback()
+            super().startModule(started_callback)
 
     def __pollThread(self, started_callback):
         while True:
@@ -439,8 +440,7 @@ class Readable(Module):
 
     def __pollThread_inner(self, started_callback):
         """super simple and super stupid per-module polling thread"""
-        for pname in list(self.writeDict):
-            self.writeOrPoll(pname)
+        self.writeInitParams()
         i = 0
         fastpoll = self.pollParams(i)
         started_callback()
