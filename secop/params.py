@@ -24,6 +24,7 @@
 
 
 from collections import OrderedDict
+import itertools
 
 from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType, \
     NoneOr, TextType, IntRange
@@ -31,20 +32,16 @@ from secop.errors import ProgrammingError, BadValueError
 from secop.properties import HasProperties, Property
 
 
-class CountedObj:
-    ctr = [0]
-    def __init__(self):
-        cl = self.__class__.ctr
-        cl[0] += 1
-        self.ctr = cl[0]
+object_counter = itertools.count(1)
 
 
-class Accessible(HasProperties, CountedObj):
+class Accessible(HasProperties):
     '''base class for Parameter and Command'''
 
     properties = {}
 
-    def __init__(self, **kwds):
+    def __init__(self, ctr, **kwds):
+        self.ctr = ctr or next(object_counter)
         super(Accessible, self).__init__()
         # do not use self.properties.update here, as no invalid values should be
         # assigned to properties, even not before checkProperties
@@ -52,8 +49,9 @@ class Accessible(HasProperties, CountedObj):
             self.setProperty(k, v)
 
     def __repr__(self):
-        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ',\n\t'.join(
-            ['%s=%r' % (k, self.properties.get(k, v.default)) for k, v in sorted(self.__class__.properties.items())]))
+        return '%s(%s, ctr=%d)' % (self.__class__.__name__, ',\n\t'.join(
+            ['%s=%r' % (k, self.properties.get(k, v.default)) for k, v in sorted(self.__class__.properties.items())]),
+            self.ctr)
 
     def copy(self):
         # return a copy of ourselfs
@@ -122,9 +120,6 @@ class Parameter(Accessible):
 
     def __init__(self, description, datatype, ctr=None, unit=None, **kwds):
 
-        if ctr is not None:
-            self.ctr = ctr
-
         if not isinstance(datatype, DataType):
             if issubclass(datatype, DataType):
                 # goodie: make an instance from a class (forgotten ()???)
@@ -138,8 +133,7 @@ class Parameter(Accessible):
         kwds['readonly'] = kwds.get('readonly', True) # for frappy optional, for SECoP mandatory
         if unit is not None: # for legacy code only
             datatype.setProperty('unit', unit)
-        super(Parameter, self).__init__(**kwds)
-
+        super(Parameter, self).__init__(ctr, **kwds)
         if self.initwrite and self.readonly:
             raise ProgrammingError('can not have both readonly and initwrite!')
 
@@ -221,24 +215,22 @@ class Commands(Parameters):
     """class storage for Commands"""
 
 
-class Override(CountedObj):
+class Override:
     """Stores the overrides to be applied to a Parameter
 
     note: overrides are applied by the metaclass during class creating
     reorder= True: use position of Override instead of inherited for the order
     """
     def __init__(self, description="", reorder=False, **kwds):
-        super(Override, self).__init__()
         self.kwds = kwds
-        self.reorder = reorder
         # allow to override description without keyword
         if description:
             self.kwds['description'] = description
-        # for now, do not use the Override ctr
-        # self.kwds['ctr'] = self.ctr
+        if reorder:  # result from apply must use new ctr from Override
+            self.kwds['ctr'] = next(object_counter)
 
     def __repr__(self):
-        return '%s_%d(%s)' % (self.__class__.__name__, self.ctr, ', '.join(
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(
             ['%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
 
     def apply(self, obj):
@@ -256,12 +248,10 @@ class Override(CountedObj):
                     except BadValueError:
                         # clear default, if it does not match datatype
                         props['default'] = None
+            props['ctr'] = obj.ctr  # take ctr from inherited param except when overridden by self.kwds
             props.update(self.kwds)
-
-            if self.reorder:
-                #props['ctr'] = self.ctr
-                return type(obj)(ctr=self.ctr, **props)
             return type(obj)(**props)
+
         raise ProgrammingError(
             "Overrides can only be applied to Accessibles, %r is none!" %
             obj)
@@ -292,9 +282,7 @@ class Command(Accessible):
     def __init__(self, description, ctr=None, **kwds):
         kwds['description'] = description
         kwds['datatype'] = CommandType(kwds.get('argument', None), kwds.get('result', None))
-        super(Command, self).__init__(**kwds)
-        if ctr is not None:
-            self.ctr = ctr
+        super(Command, self).__init__(ctr, **kwds)
 
     @property
     def argument(self):

@@ -59,7 +59,7 @@ def test_Parameter():
     with pytest.raises(ProgrammingError):
         Parameter(None, datatype=float)
     p3 = p1.copy()
-    assert p1.ctr != p3.ctr
+    assert p1.ctr == p3.ctr
     p3.ctr = p1.ctr # manipulate ctr for next line
     assert repr(p1) == repr(p3)
     assert p1.datatype != p2.datatype
@@ -67,22 +67,24 @@ def test_Parameter():
 
 def test_Override():
     p = Parameter('description1', datatype=BoolType, default=False)
-    o = Override(default=True, reorder=True)
-    assert o.ctr != p.ctr
-    q = o.apply(p)
-    assert q.ctr != o.ctr  # override shall be useable to influence the order, hence copy the ctr value
-    assert q.ctr != p.ctr
-    assert o.ctr != p.ctr
-    assert q != p
 
-    p2 = Parameter('description2', datatype=BoolType, default=False)
+    o = Override(default=True, reorder=True)
+    q = o.apply(p)
+    qctr = q.ctr
+    assert q.ctr > p.ctr  # reorder=True: take ctr from override object
+    assert q != p
+    assert qctr == o.apply(p).ctr  # do not create a new ctr when applied again
+
     o2 = Override(default=True)
-    assert o2.ctr != p2.ctr
-    q2 = o2.apply(p2)
-    assert q2.ctr != o2.ctr
-    assert q2.ctr != p2.ctr  # EVERY override makes a new parameter object -> ctr++
-    assert o2.ctr != p2.ctr
-    assert q2 != p2
+    q2 = o2.apply(p)
+    assert q2.ctr == p.ctr   # reorder=False: take ctr from inherited param
+    assert q2 != p
+    assert repr(q2) != repr(p)
+
+    q3 = Override().apply(p)  # Override without change
+    assert id(q2) != id(p)  # must be a new object
+    assert repr(q3) == repr(p)  # but must be a clone
+
 
 def test_Parameters():
     ps = Parameters(dict(p1=Parameter('p1', datatype=BoolType, default=True)))

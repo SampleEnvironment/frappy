@@ -128,8 +128,8 @@ def test_ModuleMeta():
         def read_value(self):
             return 0
 
-    sortcheck2 = ['value', 'status', 'target', 'pollinterval',
-                 'param1', 'param2', 'cmd', 'a2', 'cmd2', 'a1', 'b2']
+    sortcheck2 = ['status', 'target', 'pollinterval',
+                  'param1', 'param2', 'cmd', 'a2', 'cmd2', 'value', 'a1', 'b2']
 
     logger = LoggerStub()
     updates = {}
@@ -151,8 +151,7 @@ def test_ModuleMeta():
                 assert o.ctr not in ctr_found
                 ctr_found.add(o.ctr)
                 check_order = [(obj.accessibles[n].ctr, n) for n in sortcheck]
-            # HACK: atm. disabled to fix all other problems first.
-            assert check_order + sorted(check_order)
+            assert check_order == sorted(check_order)
 
     # check for inital updates working properly
     o1 = Newclass1('o1', logger, {'.description':''}, srv)
