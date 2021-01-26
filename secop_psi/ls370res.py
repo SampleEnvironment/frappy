@@ -22,7 +22,7 @@
 
 import time
 
-from secop.modules import Module, Readable, Drivable, Parameter, Override, Property, Attached
+from secop.modules import Readable, Drivable, Parameter, Override, Property, Attached
 from secop.metaclass import Done
 from secop.datatypes import FloatRange, IntRange, EnumType, BoolType
 from secop.stringio import HasIodev
@@ -58,27 +58,69 @@ class StringIO(secop.stringio.StringIO):
     wait_before = 0.05
 
 
-class Main(HasIodev, Module):
+class Main(HasIodev, Drivable):
     parameters = {
-        'channel':
-            Parameter('the current channel', poll=REGULAR, datatype=IntRange(), readonly=False, handler=scan),
+        'value': Override('the current channel', poll=REGULAR, datatype=IntRange(0, 17)),
+        'target': Override('channel to select', datatype=IntRange(0, 17)),
         'autoscan':
-            Parameter('whether to scan automatically', datatype=BoolType(), readonly=False, handler=scan),
-        'pollinterval': Parameter('sleeptime between polls', default=5,
-                                  readonly=False,
-                                  datatype=FloatRange(0.1, 120),
-                                 ),
+            Parameter('whether to scan automatically', datatype=BoolType(), readonly=False, default=False),
+        'pollinterval': Override('sleeptime between polls', default=1),
     }
 
     pollerClass = Poller
     iodevClass = StringIO
+    _channel_changed = 0  # time of last channel change
+    _channels = None  # dict <channel no> of <module object>
 
-    def analyze_scan(self, channel, autoscan):
-        return dict(channel=channel, autoscan=autoscan)
+    def earlyInit(self):
+        self._channels = {}
 
-    def change_scan(self, change):
-        change.readValues()
-        return change.channel, change.autoscan
+    def register_channel(self, modobj):
+        self._channels[modobj.channel] = modobj
+
+    def startModule(self, started_callback):
+        started_callback()
+        for ch in range(1, 16):
+            if ch not in self._channels:
+                self.sendRecv('INSET %d,0,0,0,0,0;INSET?%d' % (ch, ch))
+
+    def read_value(self):
+        channel, auto = scan.send_command(self)
+        if channel not in self._channels:
+            return channel
+        if not self._channels[channel].enabled:
+            # channel was disabled recently, but still selected
+            nextchannel = 0
+            for ch, mobj in self._channels.items():
+                if mobj.enabled:
+                    if ch > channel:
+                        nextchannel = ch
+                        break
+                    if nextchannel == 0:
+                        nextchannel = ch
+            if nextchannel:
+                self.write_target(nextchannel)
+                return 0
+
+        now = time.time()
+        if channel != self.target:
+            self._channel_changed = now
+            self.target = channel
+        self.autoscan = int(auto)
+        if now < self._channel_changed + self._channels[channel].pause + self._channels[channel].filter:
+            self.status = [Status.BUSY, 'switching']
+            return 0
+        self.status = [Status.IDLE, '']
+        return channel
+
+    def write_target(self, channel):
+        scan.send_change(self, channel, self.autoscan)
+        # self.sendRecv('SCAN %d,%d;SCAN?' % (channel, self.autoscan))
+        if channel != self.value:
+            self.value = 0
+            self._channel_changed = time.time()
+            self.status = [Status.BUSY, 'switching']
+        return channel
 
 
 class ResChannel(HasIodev, Readable):
@@ -86,17 +128,19 @@ class ResChannel(HasIodev, Readable):
 
     RES_RANGE = {key: i+1 for i, key in list(
         enumerate(mag % val for mag in ['%gmOhm', '%gOhm', '%gkOhm', '%gMOhm']
-            for val in [2, 6.32, 20, 63.2, 200, 632]))[:-2]}
+                  for val in [2, 6.32, 20, 63.2, 200, 632]))[:-2]}
     RES_SCALE = [2 * 10 ** (0.5 * i) for i in range(-7, 16)]  # RES_SCALE[0] is not used
     CUR_RANGE = {key: i + 1 for i, key in list(
         enumerate(mag % val for mag in ['%gpA', '%gnA', '%guA', '%gmA']
-            for val in [1, 3.16, 10, 31.6, 100, 316]))[:-2]}
+                  for val in [1, 3.16, 10, 31.6, 100, 316]))[:-2]}
     VOLT_RANGE = {key: i + 1 for i, key in list(
         enumerate(mag % val for mag in ['%guV', '%gmV']
-            for val in [2, 6.32, 20, 63.2, 200, 632]))}
+                  for val in [2, 6.32, 20, 63.2, 200, 632]))}
 
     pollerClass = Poller
     iodevClass = StringIO
+    _main = None  # main module
+    _last_range_change = 0  # time of last range change
 
     properties = {
         'channel':
@@ -112,10 +156,10 @@ class ResChannel(HasIodev, Readable):
             Override(visibility=3),
         'range':
             Parameter('reading range', readonly=False,
-                       datatype=EnumType(**RES_RANGE), handler=rdgrng),
+                      datatype=EnumType(**RES_RANGE), handler=rdgrng),
         'minrange':
             Parameter('minimum range for software autorange', readonly=False, default=1,
-                       datatype=EnumType(**RES_RANGE)),
+                      datatype=EnumType(**RES_RANGE)),
         'autorange':
             Parameter('autorange', datatype=EnumType(off=0, hard=1, soft=2),
                       readonly=False, handler=rdgrng, default=2),
@@ -133,13 +177,12 @@ class ResChannel(HasIodev, Readable):
             Parameter('filter time', datatype=FloatRange(1, 200), readonly=False, handler=filterhdl),
     }
 
-    def startModule(self, started_callback):
-        self._last_range_change = 0
+    def initModule(self):
         self._main = self.DISPATCHER.get_module(self.main)
-        super().startModule(started_callback)
+        self._main.register_channel(self)
 
     def read_value(self):
-        if self.channel != self._main.channel:
+        if self.channel != self._main.value:
             return Done
         if not self.enabled:
             self.status = [self.Status.DISABLED, 'disabled']
@@ -149,7 +192,7 @@ class ResChannel(HasIodev, Readable):
         if self.autorange == 'soft':
             now = time.time()
             if now > self._last_range_change + self.pause:
-                rng = int(max(self.minrange, self.range)) # convert from enum to int
+                rng = int(max(self.minrange, self.range))  # convert from enum to int
                 if self.status[1] == '':
                     if abs(result) > self.RES_SCALE[rng]:
                         if rng < 22:
@@ -177,7 +220,7 @@ class ResChannel(HasIodev, Readable):
     def read_status(self):
         if not self.enabled:
             return [self.Status.DISABLED, 'disabled']
-        if self.channel != self._main.channel:
+        if self.channel != self._main.value:
             return Done
         result = int(self.sendRecv('RDGST?%d' % self.channel))
         result &= 0x37  # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistivities)
@@ -190,8 +233,6 @@ class ResChannel(HasIodev, Readable):
         result = dict(range=rng)
         if autorange:
             result['autorange'] = 'hard'
-        #elif self.autorange == 'hard':
-        #    result['autorange'] = 'soft'
         # else: do not change autorange
         self.log.info('%s range %r %r %r' % (self.name, rng, autorange, self.autorange))
         if excoff:
@@ -242,3 +283,9 @@ class ResChannel(HasIodev, Readable):
         if change.filter:
             return 1, change.filter, 80  # always use 80% filter
         return 0, settle, window
+
+    def write_enabled(self, value):
+        inset.write(self, 'enabled', value)
+        if value:
+            self._main.write_target(self.channel)
+        return Done
