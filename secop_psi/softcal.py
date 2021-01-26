@@ -26,7 +26,7 @@ import math
 import numpy as np
 from scipy.interpolate import splrep, splev  # pylint: disable=import-error
 
-from secop.core import Readable, Parameter, Override, Attached, StringType
+from secop.core import Readable, Parameter, Override, Attached, StringType, BoolType
 
 
 def linear(x):
@@ -51,7 +51,7 @@ class StdParser:
         self.xdata, self.ydata = [], []
 
     def parse(self, line):
-        """get numbers from a line and put them to self.output"""
+        """get numbers from a line and put them to self.xdata / self.ydata"""
         row = line.split()
         try:
             self.xdata.append(float(row[self.xcol]))
@@ -109,10 +109,14 @@ class CalCurve:
                 kind = ext if dot else None
                 break
             # then try adding all kinds as extension
-            for kind in KINDS:
-                filename = join(path.strip(), '%s.%s' % (calibname, kind))
-                if exists(filename):
-                    break
+            for nam in calibname, calibname.upper(), calibname.lower():
+                for kind in KINDS:
+                    filename = join(path.strip(), '%s.%s' % (nam, kind))
+                    if exists(filename):
+                        break
+                else:
+                    continue
+                break
             else:
                 continue
             break
@@ -151,6 +155,7 @@ class Sensor(Readable):
     }
     parameters = {
         'calib': Parameter('calibration name', datatype=StringType(), readonly=False),
+        'abs': Parameter('True: take abs(raw) before calib', datatype=BoolType(), readonly=False, default=True),
         'value': Override(unit='K'),
         'pollinterval': Override(export=False),
         'status': Override(default=(Readable.Status.ERROR, 'unintialized'))
@@ -168,10 +173,15 @@ class Sensor(Readable):
         return value
 
     def update_value(self, value):
+        if self.abs:
+            value = abs(value)
         self.value = self._calib(value)
         self._value_error = None
 
     def error_update_value(self, err):
+        if self.abs and str(err) == 'R_UNDER':  # hack: ignore R_UNDER from ls370
+            self._value_error = None
+            return None
         self._value_error = repr(err)
         raise err
 
