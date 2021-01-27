@@ -118,7 +118,7 @@ class Parameter(Accessible):
                                  NoneOr(BoolType()), export=False, default=None, mandatory=False, settable=False),
     }
 
-    def __init__(self, description, datatype, ctr=None, unit=None, **kwds):
+    def __init__(self, description, datatype, *, ctr=None, unit=None, **kwds):
 
         if not isinstance(datatype, DataType):
             if issubclass(datatype, DataType):
@@ -221,11 +221,13 @@ class Override:
     note: overrides are applied by the metaclass during class creating
     reorder= True: use position of Override instead of inherited for the order
     """
-    def __init__(self, description="", reorder=False, **kwds):
+    def __init__(self, description="", datatype=None, *, reorder=False, **kwds):
         self.kwds = kwds
-        # allow to override description without keyword
+        # allow to override description and datatype without keyword
         if description:
             self.kwds['description'] = description
+        if datatype is not None:
+            self.kwds['datatype'] = datatype
         if reorder:  # result from apply must use new ctr from Override
             self.kwds['ctr'] = next(object_counter)
 
