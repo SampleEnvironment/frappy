@@ -27,7 +27,7 @@ from collections import OrderedDict
 import itertools
 
 from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType, \
-    NoneOr, TextType, IntRange
+    NoneOr, TextType, IntRange, TupleOf
 from secop.errors import ProgrammingError, BadValueError
 from secop.properties import HasProperties, Property
 
@@ -36,9 +36,10 @@ object_counter = itertools.count(1)
 
 
 class Accessible(HasProperties):
-    '''base class for Parameter and Command'''
+    """base class for Parameter and Command"""
 
     properties = {}
+    kwds = None  # is a dict if it might be used as Override
 
     def __init__(self, ctr, **kwds):
         self.ctr = ctr or next(object_counter)
@@ -49,16 +50,31 @@ class Accessible(HasProperties):
             self.setProperty(k, v)
 
     def __repr__(self):
-        return '%s(%s, ctr=%d)' % (self.__class__.__name__, ',\n\t'.join(
-            ['%s=%r' % (k, self.properties.get(k, v.default)) for k, v in sorted(self.__class__.properties.items())]),
-            self.ctr)
+        props = []
+        for k, prop in sorted(self.__class__.properties.items()):
+            v = self.properties.get(k, prop.default)
+            if v != prop.default:
+                props.append('%s=%r' % (k, v))
+        return '%s(%s, ctr=%d)' % (self.__class__.__name__, ', '.join(props), self.ctr)
+
+    def as_dict(self):
+        return self.properties
+
+    def override(self, from_object=None, **kwds):
+        """return a copy of ourselfs, modified by <other>"""
+        props = dict(self.properties, ctr=self.ctr)
+        if from_object:
+            props.update(from_object.kwds)
+        props.update(kwds)
+        props['datatype'] = props['datatype'].copy()
+        return type(self)(inherit=False, internally_called=True, **props)
 
     def copy(self):
-        # return a copy of ourselfs
+        """return a copy of ourselfs"""
         props = dict(self.properties, ctr=self.ctr)
         # deep copy, as datatype might be altered from config
         props['datatype'] = props['datatype'].copy()
-        return type(self)(**props)
+        return type(self)(inherit=False, internally_called=True, **props)
 
     def for_export(self):
         """prepare for serialisation"""
@@ -67,6 +83,14 @@ class Accessible(HasProperties):
 
 class Parameter(Accessible):
     """storage for Parameter settings + value + qualifiers
+
+    :param description: description
+    :param datatype: the datatype
+    :param inherit: whether properties not given should be inherited.
+      defaults to True when datatype or description is missing, else to False
+    :param ctr: inherited ctr
+    :param internally_called: True when called internally, else called from a definition
+    :param kwds: optional properties
 
     if readonly is False, the value can be changed (by code, or remote)
     if no default is given, the parameter MUST be specified in the configfile
@@ -96,7 +120,7 @@ class Parameter(Accessible):
         'datatype':    Property('Datatype of the Parameter', DataTypeType(),
                                  extname='datainfo', mandatory=True),
         'readonly':    Property('Is the Parameter readonly? (vs. changeable via SECoP)', BoolType(),
-                                 extname='readonly', mandatory=True),
+                                 extname='readonly', default=True),
         'group':       Property('Optional parameter group this parameter belongs to', StringType(),
                                  extname='group', default=''),
         'visibility':  Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
@@ -118,31 +142,44 @@ class Parameter(Accessible):
                                  NoneOr(BoolType()), export=False, default=None, mandatory=False, settable=False),
     }
 
-    def __init__(self, description, datatype, *, ctr=None, unit=None, **kwds):
+    def __init__(self, description=None, datatype=None, inherit=True, *,
+                 ctr=None, internally_called=False, reorder=False, **kwds):
+        if datatype is not None:
+            if not isinstance(datatype, DataType):
+                if isinstance(datatype, type) and issubclass(datatype, DataType):
+                    # goodie: make an instance from a class (forgotten ()???)
+                    datatype = datatype()
+                else:
+                    raise ProgrammingError(
+                        'datatype MUST be derived from class DataType!')
+            kwds['datatype'] = datatype
+        if description is not None:
+            kwds['description'] = description
 
-        if not isinstance(datatype, DataType):
-            if issubclass(datatype, DataType):
-                # goodie: make an instance from a class (forgotten ()???)
-                datatype = datatype()
-            else:
-                raise ProgrammingError(
-                    'datatype MUST be derived from class DataType!')
-
-        kwds['description'] = description
-        kwds['datatype'] = datatype
-        kwds['readonly'] = kwds.get('readonly', True) # for frappy optional, for SECoP mandatory
-        if unit is not None: # for legacy code only
+        unit = kwds.pop('unit', None)
+        if unit is not None:   # for legacy code only
             datatype.setProperty('unit', unit)
-        super(Parameter, self).__init__(ctr, **kwds)
-        if self.initwrite and self.readonly:
-            raise ProgrammingError('can not have both readonly and initwrite!')
 
-        if self.constant is not None:
-            self.properties['readonly'] = True
+        constant = kwds.get('constant')
+        if constant is not None:
+            constant = datatype(constant)
             # The value of the `constant` property should be the
             # serialised version of the constant, or unset
-            constant = self.datatype(kwds['constant'])
-            self.properties['constant'] = self.datatype.export_value(constant)
+            kwds['constant'] = datatype.export_value(constant)
+            kwds['readonly'] = True
+        if internally_called:  # fixes in case datatype has changed
+            default = kwds.get('default')
+            if default is not None:
+                try:
+                    datatype(default)
+                except BadValueError:
+                    # clear default, if it does not match datatype
+                    kwds['default'] = None
+        super().__init__(ctr, **kwds)
+        if inherit:
+            if reorder:
+                kwds['ctr'] = next(object_counter)
+            self.kwds = kwds  # contains only the items which must be overwritten
 
         # internal caching: value and timestamp of last change...
         self.value = self.default
@@ -204,13 +241,6 @@ class Parameters(OrderedDict):
         return super(Parameters, self).__getitem__(self.exported.get(item, item))
 
 
-class ParamValue:
-    __slots__ = ['value', 'timestamp']
-    def __init__(self, value, timestamp=0):
-        self.value = value
-        self.timestamp = timestamp
-
-
 class Commands(Parameters):
     """class storage for Commands"""
 
@@ -236,27 +266,7 @@ class Override:
             ['%s=%r' % (k, v) for k, v in sorted(self.kwds.items())]))
 
     def apply(self, obj):
-        if isinstance(obj, Accessible):
-            props = obj.properties.copy()
-            props['datatype'] = props['datatype'].copy()
-            if isinstance(obj, Parameter):
-                if 'constant' in self.kwds:
-                    constant = obj.datatype(self.kwds.pop('constant'))
-                    self.kwds['constant'] = obj.datatype.export_value(constant)
-                    self.kwds['readonly'] = True
-                if 'datatype' in self.kwds and 'default' not in self.kwds:
-                    try:
-                        self.kwds['datatype'](obj.default)
-                    except BadValueError:
-                        # clear default, if it does not match datatype
-                        props['default'] = None
-            props['ctr'] = obj.ctr  # take ctr from inherited param except when overridden by self.kwds
-            props.update(self.kwds)
-            return type(obj)(**props)
-
-        raise ProgrammingError(
-            "Overrides can only be applied to Accessibles, %r is none!" %
-            obj)
+        return obj.override(self)
 
 
 class Command(Accessible):
@@ -281,10 +291,30 @@ class Command(Accessible):
                               NoneOr(DataTypeType()), export=False, mandatory=True),
     }
 
-    def __init__(self, description, ctr=None, **kwds):
-        kwds['description'] = description
-        kwds['datatype'] = CommandType(kwds.get('argument', None), kwds.get('result', None))
-        super(Command, self).__init__(ctr, **kwds)
+    def __init__(self, description=None, *, ctr=None, inherit=True,
+                 internally_called=False, reorder=False, **kwds):
+        if internally_called:
+            inherit = False
+        # make sure either all or no datatype info is in kwds
+        if 'argument' in kwds or 'result' in kwds:
+            datatype = CommandType(kwds.get('argument'), kwds.get('result'))
+        else:
+            datatype = kwds.get('datatype')
+        datainfo = {}
+        datainfo['datatype'] = datatype or CommandType()
+        datainfo['argument'] = datainfo['datatype'].argument
+        datainfo['result'] = datainfo['datatype'].result
+        if datatype:
+            kwds.update(datainfo)
+        if description is not None:
+            kwds['description'] = description
+        if datatype:
+            datainfo = {}
+        super(Command, self).__init__(ctr, **datainfo, **kwds)
+        if inherit:
+            if reorder:
+                kwds['ctr'] = next(object_counter)
+            self.kwds = kwds
 
     @property
     def argument(self):
@@ -293,6 +323,56 @@ class Command(Accessible):
     @property
     def result(self):
         return self.datatype.result
+
+
+class usercommand(Command):
+    """decorator to turn a method into a command"""
+
+    func = None
+
+    def __init__(self, arg0=False, result=None, inherit=True, *, internally_called=False, **kwds):
+        if result or kwds or isinstance(arg0, DataType) or not callable(arg0):
+            argument = kwds.pop('argument', arg0)  # normal case
+            self.func = None
+            if argument is False and result:
+                argument = None
+            if argument is not False:
+                if isinstance(argument, (tuple, list)):
+                    argument = TupleOf(*argument)
+                kwds['argument'] = argument
+                kwds['result'] = result
+            self.kwds = kwds
+        else:
+            # goodie: allow @usercommand instead of @usercommand()
+            self.func = arg0  # this is the wrapped method!
+            if arg0.__doc__ is not None:
+                kwds['description'] = arg0.__doc__
+            self.name = self.func.__name__
+        super().__init__(kwds.pop('description', ''), inherit=inherit, **kwds)
+
+    def override(self, from_object=None, **kwds):
+        result = super().override(from_object, **kwds)
+        func = kwds.pop('func', from_object.func if from_object else None)
+        if func:
+            result(func)  # pylint: disable=not-callable
+        return result
+
+    def __set_name__(self, owner, name):
+        self.name = name
+
+    def __get__(self, obj, owner=None):
+        if obj is None:
+            return self
+        if not self.func:
+            raise ProgrammingError('usercommand %s not properly configured' % self.name)
+        return self.func.__get__(obj, owner)
+
+    def __call__(self, fun):
+        description = self.kwds.get('description') or fun.__doc__
+        self.properties['description'] = self.kwds['description'] = description
+        self.name = fun.__name__
+        self.func = fun
+        return self
 
 
 # list of predefined accessibles with their type

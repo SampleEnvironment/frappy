@@ -244,6 +244,8 @@ class Server:
         for modname, modobj in self.modules.items():
             modobj.initModule()
 
+        if self._testonly:
+            return
         start_events = []
         for modname, modobj in self.modules.items():
             event = threading.Event()

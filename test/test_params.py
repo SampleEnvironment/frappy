@@ -57,7 +57,7 @@ def test_Parameter():
     assert p1 != p2
     assert p1.ctr != p2.ctr
     with pytest.raises(ProgrammingError):
-        Parameter(None, datatype=float)
+        Parameter(None, datatype=float, inherit=False)
     p3 = p1.copy()
     assert p1.ctr == p3.ctr
     p3.ctr = p1.ctr # manipulate ctr for next line

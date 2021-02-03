@@ -208,6 +208,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
             if pname in cfgdict:
                 if not pobj.readonly and pobj.initwrite is not False:
                     # parameters given in cfgdict have to call write_<pname>
+                    # TODO: not sure about readonly (why not a parameter which can only be written from config?)
                     try:
                         pobj.value = pobj.datatype(cfgdict[pname])
                     except BadValueError as e:
@@ -216,7 +217,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
             else:
                 if pobj.default is None:
                     if pobj.needscfg:
-                        raise ConfigError('Module %s: Parameter %r has no default '
+                        raise ConfigError('Parameter %s.%s has no default '
                                           'value and was not given in config!' %
                                           (self.name, pname))
                     # we do not want to call the setter for this parameter for now,
@@ -231,9 +232,10 @@ class Module(HasProperties, metaclass=ModuleMeta):
                     except BadValueError as e:
                         raise ProgrammingError('bad default for %s.%s: %s'
                                                % (name, pname, e))
-                    if pobj.initwrite:
+                    if pobj.initwrite and not pobj.readonly:
                         # we will need to call write_<pname>
                         # if this is not desired, the default must not be given
+                        # TODO: not sure about readonly (why not a parameter which can only be written from config?)
                         pobj.value = value
                         self.writeDict[pname] = value
                     else:
@@ -541,6 +543,14 @@ class Communicator(Module):
                             result=StringType()
                            ),
     }
+
+    def do_communicate(self, command):
+        """communicate command
+
+        :param command: the command to be sent
+        :return: the reply
+        """
+        raise NotImplementedError()
 
 
 class Attached(Property):

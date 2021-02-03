@@ -28,6 +28,23 @@ from collections import OrderedDict
 from secop.errors import ProgrammingError, ConfigError, BadValueError
 
 
+def flatten_dict(dictname, itemcls, attrs, remove=True):
+    properties = {}
+    # allow to declare properties directly as class attribute
+    # all these attributes are removed
+    for k, v in attrs.items():
+        if isinstance(v, tuple) and v and isinstance(v[0], itemcls):
+            # this might happen when migrating from old to new style
+            raise ProgrammingError('declared %r with trailing comma' % k)
+        if isinstance(v, itemcls):
+            properties[k] = v
+    if remove:
+        for k in properties:
+            attrs.pop(k)
+    properties.update(attrs.get(dictname, {}))
+    attrs[dictname] = properties
+
+
 # storage for 'properties of a property'
 class Property:
     '''base class holding info about a property
@@ -90,6 +107,7 @@ class PropertyMeta(type):
         if '__constructed__' in attrs:
             return newtype
 
+        flatten_dict('properties', Property, attrs)
         newtype = cls.__join_properties__(newtype, name, bases, attrs)
 
         attrs['__constructed__'] = True
@@ -112,7 +130,7 @@ class PropertyMeta(type):
                 val = self.__class__.properties[pname].default
                 return self.properties.get(pname, val)
 
-            if k in attrs and not isinstance(attrs[k], property):
+            if k in attrs and not isinstance(attrs[k], (property, Property)):
                 if callable(attrs[k]):
                     raise ProgrammingError('%r: property %r collides with method'
                                         % (newtype, k))
@@ -150,7 +168,7 @@ class HasProperties(metaclass=PropertyMeta):
         for pn, po in self.__class__.properties.items():
             if po.export and po.mandatory:
                 if pn not in self.properties:
-                    name = getattr(self, 'name', repr(self))
+                    name = getattr(self, 'name', self.__class__.__name__)
                     raise ConfigError('Property %r of %s needs a value of type %r!' % (pn, name, po.datatype))
                 # apply validator (which may complain further)
                 self.properties[pn] = po.datatype(self.properties[pn])

@@ -31,7 +31,7 @@ from secop.datatypes import FloatRange, IntRange, ScaledInteger, \
 from secop.lib.enum import Enum
 from secop.modules import Module, Readable, Writable, Drivable, Communicator, Attached
 from secop.properties import Property
-from secop.params import Parameter, Command, Override
+from secop.params import Parameter, Command, Override, usercommand
 from secop.metaclass import Done
 from secop.iohandler import IOHandler, IOHandlerBase
 from secop.stringio import StringIO, HasIodev

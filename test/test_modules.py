@@ -28,7 +28,7 @@
 import threading
 from secop.datatypes import BoolType, FloatRange, StringType
 from secop.modules import Communicator, Drivable, Module
-from secop.params import Command, Override, Parameter
+from secop.params import Command, Override, Parameter, usercommand
 from secop.poller import BasicPoller
 
 
@@ -130,6 +130,39 @@ def test_ModuleMeta():
 
     sortcheck2 = ['status', 'target', 'pollinterval',
                   'param1', 'param2', 'cmd', 'a2', 'cmd2', 'value', 'a1', 'b2']
+
+    # check consistency of new syntax:
+    class Testclass1(Drivable):
+        pollinterval = Parameter(reorder=True)
+        param1 = Parameter('param1', datatype=BoolType(), default=False)
+        param2 = Parameter('param2', datatype=FloatRange(unit='Ohm'), default=True)
+
+        @usercommand(BoolType(), BoolType())
+        def cmd(self, arg):
+            """stuff"""
+            return not arg
+
+        a1 = Parameter('a1', datatype=BoolType(), default=False)
+        a2 = Parameter('a2', datatype=BoolType(), default=True)
+        value = Parameter(datatype=StringType(), default='first')
+
+        @usercommand(BoolType(), BoolType())
+        def cmd2(self, arg):
+            """another stuff"""
+            return not arg
+
+    class Testclass2(Testclass1):
+        cmd2 = Command('another stuff')
+        value = Parameter(datatype=FloatRange(unit='deg'), reorder=True)
+        a1 = Parameter(datatype=FloatRange(unit='$/s'), reorder=True, readonly=False)
+        b2 = Parameter('<b2>', datatype=BoolType(), default=True,
+                       poll=True, readonly=False, initwrite=True)
+
+    for old, new in (Newclass1, Testclass1), (Newclass2, Testclass2):
+        assert len(old.accessibles) == len(new.accessibles)
+        for (oname, oobj), (nname, nobj) in zip(old.accessibles.items(), new.accessibles.items()):
+            assert oname == nname
+            assert oobj.for_export() == nobj.for_export()
 
     logger = LoggerStub()
     updates = {}

@@ -26,9 +26,9 @@
 from collections import OrderedDict
 
 from secop.errors import ProgrammingError, BadValueError
-from secop.params import Command, Override, Parameter
+from secop.params import Command, Override, Parameter, Accessible, usercommand
 from secop.datatypes import EnumType
-from secop.properties import PropertyMeta
+from secop.properties import PropertyMeta, flatten_dict, Property
 
 
 class Done:
@@ -48,7 +48,14 @@ class ModuleMeta(PropertyMeta):
     and wraps read_*/write_* methods
     (so the dispatcher will get notfied of changed values)
     """
-    def __new__(cls, name, bases, attrs):
+    def __new__(cls, name, bases, attrs):  # pylint: disable=too-many-branches
+        # allow to declare accessibles directly as class attribute
+        # all these attributes are removed
+        flatten_dict('parameters', Parameter, attrs)
+        # do not remove commands from attrs, they are kept as descriptors
+        flatten_dict('commands', usercommand, attrs, remove=False)
+        flatten_dict('properties', Property, attrs)
+
         commands = attrs.pop('commands', {})
         parameters = attrs.pop('parameters', {})
         overrides = attrs.pop('overrides', {})
@@ -77,20 +84,19 @@ class ModuleMeta(PropertyMeta):
                     obj = obj.apply(accessibles[key])
                     accessibles[key] = obj
                 else:
-                    if key in accessibles:
-                        # for now, accept redefinitions:
-                        print("WARNING: module %s: %s should not be redefined"
-                              % (name, key))
-                        # raise ProgrammingError("module %s: %s must not be redefined"
-                        #               % (name, key))
-                    if isinstance(obj, Parameter):
-                        accessibles[key] = obj
-                    elif isinstance(obj, Command):
-                        # XXX: convert to param with datatype=CommandType???
-                        accessibles[key] = obj
-                    else:
+                    aobj = accessibles.get(key)
+                    if aobj:
+                        if obj.kwds is not None:  # obj may be used for override
+                            if isinstance(obj, Command) != isinstance(obj, Command):
+                                raise ProgrammingError("module %s.%s: can not override a %s with a %s!"
+                                                       % (name, key, aobj.__class_.name, obj.__class_.name, ))
+                            obj = aobj.override(obj)
+                            accessibles[key] = obj
+                            setattr(newtype, key, obj)
+                    if not isinstance(obj, (Parameter, Command)):
                         raise ProgrammingError('%r: accessibles entry %r should be a '
                                                'Parameter or Command object!' % (name, key))
+                    accessibles[key] = obj
 
         # Correct naming of EnumTypes
         for k, v in accessibles.items():
@@ -105,12 +111,22 @@ class ModuleMeta(PropertyMeta):
         # check for attributes overriding parameter values
         for pname, pobj in newtype.accessibles.items():
             if pname in attrs:
-                try:
-                    value = pobj.datatype(attrs[pname])
-                except BadValueError:
-                    raise ProgrammingError('parameter %s can not be set to %r'
-                                           % (pname, attrs[pname]))
-                newtype.accessibles[pname] = Override(default=value).apply(pobj)
+                value = attrs[pname]
+                if isinstance(value, (Accessible, Override)):
+                    continue
+                if isinstance(pobj, Parameter):
+                    try:
+                        value = pobj.datatype(attrs[pname])
+                    except BadValueError:
+                        raise ProgrammingError('parameter %r can not be set to %r'
+                                               % (pname, attrs[pname]))
+                    newtype.accessibles[pname] = pobj.override(default=value)
+                elif isinstance(pobj, usercommand):
+                    if not callable(attrs[pname]):
+                        raise ProgrammingError('%s.%s overwrites a command'
+                                               % (newtype.__name__, pname))
+                    pobj = pobj.override(func=attrs[name])
+                    newtype.accessibles[pname] = pobj
 
         # check validity of Parameter entries
         for pname, pobj in newtype.accessibles.items():
@@ -118,7 +134,11 @@ class ModuleMeta(PropertyMeta):
 
             # wrap of reading/writing funcs
             if isinstance(pobj, Command):
-                # skip commands for now
+                if isinstance(pobj, usercommand):
+                    do_name = 'do_' + pname
+                    # create additional method do_<pname> for backwards compatibility
+                    if do_name not in attrs:
+                        setattr(newtype, do_name, pobj)
                 continue
             rfunc = attrs.get('read_' + pname, None)
             rfunc_handler = pobj.handler.get_read_func(newtype, pname) if pobj.handler else None
