@@ -49,8 +49,12 @@ class StringIO(Communicator):
             Property('used encoding', datatype=StringType(),
                 default='ascii', settable=True),
         'identification':
-            Property('a list of tuples with commands and expected responses as regexp',
-                datatype=ArrayOf(TupleOf(StringType(),StringType())), default=[], export=False),
+            Property('''
+                     identification
+                     
+                     a list of tuples with commands and expected responses as regexp,
+                     to be sent on connect''',
+                     datatype=ArrayOf(TupleOf(StringType(), StringType())), default=[], export=False),
     }
     parameters = {
         'timeout':
@@ -65,7 +69,7 @@ class StringIO(Communicator):
     commands = {
         'multicomm':
             Command('execute multiple commands in one go',
-                argument=ArrayOf(StringType()), result= ArrayOf(StringType()))
+                argument=ArrayOf(StringType()), result=ArrayOf(StringType()))
     }
 
     _reconnectCallbacks = None
@@ -221,7 +225,8 @@ class HasIodev(Module):
     """
     properties = {
         'iodev': Attached(),
-        'uri': Property('uri for auto creation of iodev', StringType(), default=''),
+        'uri': Property('uri for automatic creation of the attached communication module',
+                        StringType(), default=''),
     }
 
     iodevDict = {}

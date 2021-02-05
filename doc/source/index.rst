@@ -1,19 +1,16 @@
-Welcome to FRAPPY documentation!
-================================
+Frappy Programming Guide
+========================
 
 .. toctree::
    :maxdepth: 2
 
-   server/index
-   client/index
-   framework/index
-   gui/index
-   facility/index
-
-
-Indices and tables
-==================
+   introduction
+   tutorial
+   reference
+   secop_psi
+   secop_demo
+   secop_mlz
+   secop_ess
 
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+

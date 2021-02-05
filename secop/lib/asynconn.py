@@ -126,7 +126,7 @@ class AsynConn:
             self._rxbuffer += data
 
     def readbytes(self, nbytes, timeout=None):
-        """read one line
+        """read a fixed number of bytes
 
         return either <nbytes> bytes or None if not enough data available within 1 sec (self.timeout)
         if a non-zero timeout is given, a timeout error is raised instead of returning None

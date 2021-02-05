@@ -54,7 +54,15 @@ except ImportError:
 
 
 class IOHandler(secop.iohandler.IOHandler):
-    CMDARGS = ['no']
+    """IO handler for PPMS commands
+
+    deals with typical format:
+
+    - query command: ``<command>?``
+    - reply: ``<value1>,<value2>, ..``
+    - change command: ``<command> <value1>,<value2>,...``
+    """
+    CMDARGS = ['no']  # the channel number is needed in channel commands
     CMDSEPARATOR = None  # no command chaining
 
     def __init__(self, name, querycmd, replyfmt):
@@ -63,7 +71,7 @@ class IOHandler(secop.iohandler.IOHandler):
 
 
 class Main(Communicator):
-    """general ppms dummy module"""
+    """ppms communicator module"""
 
     parameters = {
         'pollinterval': Parameter('poll interval', readonly=False,
@@ -126,6 +134,7 @@ class Main(Communicator):
 
 
 class PpmsMixin(HasIodev, Module):
+    """common methods for ppms modules"""
     properties = {
         'iodev': Attached(),
     }
@@ -143,25 +152,19 @@ class PpmsMixin(HasIodev, Module):
         started_callback()
 
     def read_value(self):
-        """polling is done by the main module
-
-        and PPMS does not deliver really more fresh values when polled more often
-        """
+        # polling is done by the main module
+        # and PPMS does not deliver really more fresh values when polled more often
         return Done
 
     def read_status(self):
-        """polling is done by the main module
-
-        and PPMS does not deliver really fresh status values anyway: the status is not
-        changed immediately after a target change!
-        """
+        # polling is done by the main module
+        # and PPMS does not deliver really fresh status values anyway: the status is not
+        # changed immediately after a target change!
         return Done
 
     def update_value_status(self, value, packed_status):
-        """update value and status
-
-        to be reimplemented for modules looking at packed_status
-        """
+        # update value and status
+        # to be reimplemented for modules looking at packed_status
         if not self.enabled:
             self.status = (self.Status.DISABLED, 'disabled')
             return
@@ -173,6 +176,7 @@ class PpmsMixin(HasIodev, Module):
 
 
 class Channel(PpmsMixin, Readable):
+    """channel base class"""
     parameters = {
         'value':
             Override('main value of channels', poll=True),
@@ -201,6 +205,8 @@ class Channel(PpmsMixin, Readable):
 
 
 class UserChannel(Channel):
+    """user channel"""
+
     parameters = {
         'pollinterval':
             Override(visibility=3),
@@ -223,6 +229,8 @@ class UserChannel(Channel):
 
 
 class DriverChannel(Channel):
+    """driver channel"""
+
     drvout = IOHandler('drvout', 'DRVOUT? %(no)d', '%d,%g,%g')
 
     parameters = {
@@ -247,6 +255,8 @@ class DriverChannel(Channel):
 
 
 class BridgeChannel(Channel):
+    """bridge channel"""
+
     bridge = IOHandler('bridge', 'BRIDGE? %(no)d', '%d,%g,%g,%d,%d,%g')
     # pylint: disable=invalid-name
     ReadingMode = Enum('ReadingMode', standard=0, fast=1, highres=2)
@@ -306,11 +316,10 @@ class Level(PpmsMixin, Readable):
     channel = 'level'
 
     def update_value_status(self, value, packed_status):
-        """must be a no-op
-
-        when called from Main.read_data, value is always None
-        value and status is polled via settings
-        """
+        pass
+        # must be a no-op
+        # when called from Main.read_data, value is always None
+        # value and status is polled via settings
 
     def analyze_level(self, level, status):
         # ignore 'old reading' state of the flag, as this happens only for a short time
@@ -377,7 +386,6 @@ class Chamber(PpmsMixin, Drivable):
     channel = 'chamber'
 
     def update_value_status(self, value, packed_status):
-        """update value and status"""
         status_code = (packed_status >> 8) & 0xf
         if status_code in self.STATUS_MAP:
             self.value = status_code
@@ -390,10 +398,8 @@ class Chamber(PpmsMixin, Drivable):
         return dict(target=target)
 
     def change_chamber(self, change):
-        """write settings, combining <pname>=<value> and current attributes
-
-        and request updated settings
-        """
+        # write settings, combining <pname>=<value> and current attributes
+        # and request updated settings
         if change.target == self.Operation.noop:
             return None
         return (change.target,)
@@ -474,7 +480,6 @@ class Temp(PpmsMixin, Drivable):
     _ramp_at_limit = False
 
     def update_value_status(self, value, packed_status):
-        """update value and status"""
         if value is None:
             self.status = (self.Status.ERROR, 'invalid value')
             return
@@ -649,7 +654,6 @@ class Field(PpmsMixin, Drivable):
     _last_change = 0  # means no target change is pending
 
     def update_value_status(self, value, packed_status):
-        """update value and status"""
         if value is None:
             self.status = (self.Status.ERROR, 'invalid value')
             return
@@ -776,7 +780,6 @@ class Position(PpmsMixin, Drivable):
     _within_target = 0  # time since we are within target
 
     def update_value_status(self, value, packed_status):
-        """update value and status"""
         if not self.enabled:
             self.status = (self.Status.DISABLED, 'disabled')
             return

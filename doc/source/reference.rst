@@ -1,0 +1,76 @@
+Reference
+---------
+
+Module Base Classes
+...................
+
+.. autoclass:: secop.modules.Module
+    :members: earlyInit, initModule, startModule, pollerClass
+
+.. autoclass:: secop.modules.Readable
+    :members: Status
+
+.. autoclass:: secop.modules.Writable
+
+.. autoclass:: secop.modules.Drivable
+    :members: Status, isBusy, isDriving, do_stop
+
+
+Parameters, Commands and Properties
+...................................
+
+.. autoclass:: secop.params.Parameter
+.. autoclass:: secop.params.usercommand
+.. autoclass:: secop.properties.Property
+.. autoclass:: secop.modules.Attached
+    :show-inheritance:
+
+
+
+Datatypes
+.........
+
+.. autoclass:: secop.datatypes.FloatRange
+.. autoclass:: secop.datatypes.IntRange
+.. autoclass:: secop.datatypes.BoolType
+.. autoclass:: secop.datatypes.ScaledInteger
+.. autoclass:: secop.datatypes.EnumType
+.. autoclass:: secop.datatypes.StringType
+.. autoclass:: secop.datatypes.TupleOf
+.. autoclass:: secop.datatypes.ArrayOf
+.. autoclass:: secop.datatypes.StructOf
+.. autoclass:: secop.datatypes.BLOBType
+
+
+
+Communication
+.............
+
+.. autoclass:: secop.modules.Communicator
+    :show-inheritance:
+    :members: do_communicate
+
+.. autoclass:: secop.stringio.StringIO
+    :show-inheritance:
+    :members: do_communicate, do_multicomm
+
+.. autoclass:: secop.stringio.HasIodev
+    :show-inheritance:
+
+.. autoclass:: secop.iohandler.IOHandlerBase
+    :show-inheritance:
+    :members:
+
+.. autoclass:: secop.iohandler.IOHandler
+    :show-inheritance:
+    :members:
+
+
+Exception classes
+.....................--
+
+.. automodule:: secop.errors
+    :members:
+
+.. include:: server.rst
+

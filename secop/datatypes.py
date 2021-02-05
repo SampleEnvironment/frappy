@@ -55,6 +55,7 @@ Parser = Parser()
 
 # base class for all DataTypes
 class DataType(HasProperties):
+    """base class for all data types"""
     IS_COMMAND = False
     unit = ''
     default = None
@@ -158,7 +159,12 @@ class Stub(DataType):
 # SECoP types:
 
 class FloatRange(DataType):
-    """Restricted float type"""
+    """(restricted) float type
+
+    :param minval: (property **min**)
+    :param maxval: (property **max**)
+    :param kwds: any of the properties below
+    """
     properties = {
         'min': Property('low limit', Stub('FloatRange'), extname='min', default=-sys.float_info.max),
         'max': Property('high limit', Stub('FloatRange'), extname='max', default=sys.float_info.max),
@@ -236,7 +242,11 @@ class FloatRange(DataType):
 
 
 class IntRange(DataType):
-    """Restricted int type"""
+    """restricted int type
+
+    :param minval: (property **min**)
+    :param maxval: (property **max**)
+    """
     properties = {
         'min': Property('minimum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='min', mandatory=True),
         'max': Property('maximum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='max', mandatory=True),
@@ -296,10 +306,15 @@ class IntRange(DataType):
 
 
 class ScaledInteger(DataType):
-    """Scaled integer int type
+    """scaled integer (= fixed resolution float) type
 
-    note: limits are for the scaled value (i.e. the internal value)
-          the scale is only used for calculating to/from transport serialisation"""
+    :param minval: (property **min**)
+    :param maxval: (property **max**)
+    :param kwds: any of the properties below
+
+    note: limits are for the scaled float value
+          the scale is only used for calculating to/from transport serialisation
+    """
     properties = {
         'scale': Property('scale factor', FloatRange(sys.float_info.min), extname='scale', mandatory=True),
         'min': Property('low limit', FloatRange(), extname='min', mandatory=True),
@@ -401,13 +416,16 @@ class ScaledInteger(DataType):
 
 
 class EnumType(DataType):
+    """enumeration
 
-    def __init__(self, enum_or_name='', **kwds):
+    :param enum_or_name: the name of the Enum or an Enum to inherit from
+    :param members: members dict or None when using kwds only
+    :param kwds: (additional) members
+    """
+    def __init__(self, enum_or_name='', *, members=None, **kwds):
         super().__init__()
-        if 'members' in kwds:
-            kwds = dict(kwds)
-            kwds.update(kwds['members'])
-            kwds.pop('members')
+        if members is not None:
+            kwds.update(members)
         self._enum = Enum(enum_or_name, **kwds)
         self.default = self._enum[self._enum.members[0]]
 
@@ -448,6 +466,11 @@ class EnumType(DataType):
 
 
 class BLOBType(DataType):
+    """binary large object
+
+    internally treated as bytes
+    """
+
     properties = {
         'minbytes': Property('minimum number of bytes', IntRange(0), extname='minbytes',
                              default=0),
@@ -511,6 +534,10 @@ class BLOBType(DataType):
 
 
 class StringType(DataType):
+    """string
+
+    for parameters see properties below
+    """
     properties = {
         'minchars': Property('minimum number of character points', IntRange(0, UNLIMITED),
                              extname='minchars', default=0),
@@ -602,6 +629,7 @@ class TextType(StringType):
 
 
 class BoolType(DataType):
+    """boolean"""
     default = False
 
     def export_datatype(self):
@@ -646,6 +674,10 @@ Stub.fix_datatypes()
 
 
 class ArrayOf(DataType):
+    """data structure with fields of homogeneous type
+
+    :param members: the datatype of the elements
+    """
     properties = {
         'minlen': Property('minimum number of elements', IntRange(0), extname='minlen',
                            default=0),
@@ -743,7 +775,10 @@ class ArrayOf(DataType):
 
 
 class TupleOf(DataType):
+    """data structure with fields of inhomogeneous type
 
+    types are given as positional arguments
+    """
     def __init__(self, *members):
         super().__init__()
         if not members:
@@ -813,7 +848,11 @@ class ImmutableDict(dict):
 
 
 class StructOf(DataType):
+    """data structure with named fields
 
+    :param optional: a list of optional members
+    :param members: names as keys and types as values for all members
+    """
     def __init__(self, optional=None, **members):
         super().__init__()
         self.members = members
@@ -890,6 +929,10 @@ class StructOf(DataType):
 
 
 class CommandType(DataType):
+    """command
+
+    a pseudo datatype for commands with arguments and return values
+    """
     IS_COMMAND = True
 
     def __init__(self, argument=None, result=None):
@@ -1111,7 +1154,10 @@ def get_datatype(json, pname=''):
     """returns a DataType object from description
 
     inverse of <DataType>.export_datatype()
-    the pname argument, if given, is used to name EnumTypes from the parameter name
+
+    :param json: the datainfo object as returned from json.loads
+    :param pname: if given, used to name EnumTypes from the parameter name
+    :return: the datatype (instance of DataType)
     """
     if json is None:
         return json

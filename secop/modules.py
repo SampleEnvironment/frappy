@@ -46,19 +46,32 @@ from secop.poller import Poller, BasicPoller
 
 
 class Module(HasProperties, metaclass=ModuleMeta):
-    """Basic Module
+    """basic module
 
-    ALL secop Modules derive from this
+    all SECoP modules derive from this.
 
-    note: within Modules, parameters should only be addressed as self.<pname>
-    i.e. self.value, self.target etc...
-    these are accessing the cached version.
-    they can also be written to (which auto-calls self.write_<pname> and
-    generate an async update)
+    :param name: the modules name
+    :param logger: a logger instance
+    :param cfgdict: the dict from this modules section in the config file
+    :param srv: the server instance
 
-    if you want to 'update from the hardware', call self.read_<pname>() instead
-    the return value of this method will be used as the new cached value and
-    be an async update sent automatically.
+    Notes:
+
+    - the programmer normally should not need to reimplement :meth:`__init__`
+    - within modules, parameters should only be addressed as ``self.<pname>``, i.e. ``self.value``, ``self.target`` etc...
+
+      - these are accessing the cached version.
+      - they can also be written to, generating an async update
+
+    - if you want to 'update from the hardware', call ``self.read_<pname>()`` instead
+
+      - the return value of this method will be used as the new cached value and
+        be an async update sent automatically.
+
+    - if you want to 'update the hardware' call ``self.write_<pname>(<new value>)``.
+
+      - The return value of this method will also update the cache.
+
     """
     # static properties, definitions in derived classes should overwrite earlier ones.
     # note: properties don't change after startup and are usually filled
@@ -88,7 +101,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
     # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
 
-    pollerClass = Poller
+    pollerClass = Poller  #: default poller used
 
     def __init__(self, name, logger, cfgdict, srv):
         # remember the dispatcher object (for the async callbacks)
@@ -390,12 +403,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
 
 class Readable(Module):
-    """Basic readable Module
-
-    providing the readonly parameter 'value' and 'status'
-
-    Also allow configurable polling per 'pollinterval' parameter.
-    """
+    """basic readable Module"""
     # pylint: disable=invalid-name
     Status = Enum('Status',
                   IDLE = 100,
@@ -404,7 +412,7 @@ class Readable(Module):
                   ERROR = 400,
                   DISABLED = 0,
                   UNKNOWN = 401,
-                 )
+                 )  #: status codes
     parameters = {
         'value':        Parameter('current value of the Module', readonly=True,
                                   datatype=FloatRange(),
@@ -467,10 +475,7 @@ class Readable(Module):
 
 
 class Writable(Readable):
-    """Basic Writable Module
-
-    providing a settable 'target' parameter to those of a Readable
-    """
+    """basic writable module"""
     parameters = {
         'target': Parameter('target value of the Module',
                             default=0, readonly=False, datatype=FloatRange(),
@@ -479,13 +484,9 @@ class Writable(Readable):
 
 
 class Drivable(Writable):
-    """Basic Drivable Module
+    """basic drivable module"""
 
-    provides a stop command to interrupt actions.
-    Also status gets extended with a BUSY state indicating a running action.
-    """
-
-    Status = Enum(Readable.Status, BUSY=300)
+    Status = Enum(Readable.Status, BUSY=300)  #: status codes
 
     commands = {
         'stop': Command(
@@ -500,11 +501,17 @@ class Drivable(Writable):
     }
 
     def isBusy(self, status=None):
-        """helper function for treating substates of BUSY correctly"""
+        """check for busy, treating substates correctly
+
+        returns True when busy (also when finalizing)
+        """
         return 300 <= (status or self.status)[0] < 400
 
     def isDriving(self, status=None):
-        """helper function (finalize is busy, not driving)"""
+        """check for driving, treating status substates correctly
+
+        returns True when busy, but not finalizing
+        """
         return 300 <= (status or self.status)[0] < 390
 
     # improved polling: may poll faster if module is BUSY
@@ -532,10 +539,7 @@ class Drivable(Writable):
 
 
 class Communicator(Module):
-    """Basic communication Module
-
-    providing no parameters, but a 'communicate' command.
-    """
+    """basic abstract communication module"""
 
     commands = {
         "communicate": Command("provides the simplest mean to communication",
@@ -554,6 +558,14 @@ class Communicator(Module):
 
 
 class Attached(Property):
+    """a special property, defining an attached modle
+
+    assign a module name to this property in the cfg file,
+    and the server will create an attribute with this module
+
+    :param attrname: the name of the to be created attribute. if not given
+      the attribute name is the property name prepended by an underscore.
+    """
     # we can not put this to properties.py, as it needs datatypes
     def __init__(self, attrname=None):
         self.attrname = attrname

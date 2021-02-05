@@ -40,10 +40,10 @@ from secop.lib import mkthread
 from secop.errors import ProgrammingError
 
 # poll types:
-AUTO = 1  # equivalent to True, converted to REGULAR, SLOW or DYNAMIC
-SLOW = 2
-REGULAR = 3
-DYNAMIC = 4
+AUTO = 1  #: equivalent to True, converted to REGULAR, SLOW or DYNAMIC
+SLOW = 2  #: polling with low priority and increased poll interval (used by default when readonly=False)
+REGULAR = 3  #: polling with standard interval (used by default for read only parameters except status and value)
+DYNAMIC = 4  #: polling with shorter poll interval when BUSY (used by default for status and value)
 
 
 class PollerBase:

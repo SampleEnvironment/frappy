@@ -23,6 +23,7 @@
 """Define validated data types."""
 
 
+import inspect
 from collections import OrderedDict
 
 from secop.errors import ProgrammingError, ConfigError, BadValueError
@@ -47,19 +48,26 @@ def flatten_dict(dictname, itemcls, attrs, remove=True):
 
 # storage for 'properties of a property'
 class Property:
-    '''base class holding info about a property
+    """base class holding info about a property
 
-    properties are only sent to the ECS if export is True, or an extname is set
-    if mandatory is True, they MUST have a value in the cfg file assigned to them.
-    otherwise, this is optional in which case the default value is applied.
-    All values MUST pass the datatype.
-    '''
+    :param description: mandatory
+    :param datatype: the datatype to be accepted. not only to the SECoP datatypes are allowed!
+         also for example ``ValueType()`` (any type!), ``NoneOr(...)``, etc.
+    :param default: a default value. SECoP properties are normally not sent to the ECS,
+         when they match the default
+    :param extname: external name
+    :param export: sent to the ECS when True. defaults to True, when ``extname`` is given
+    :param mandatory: defaults to True, when ``default`` is not given. indicates that it must have a value
+       assigned from the cfg file (or, in case of a module property, it may be assigned as a class attribute)
+    :param settable: settable from the cfg file
+    """
+
     # note: this is intended to be used on base classes.
     #       the VALUES of the properties are on the instances!
     def __init__(self, description, datatype, default=None, extname='', export=False, mandatory=None, settable=True):
         if not callable(datatype):
             raise ValueError('datatype MUST be a valid DataType or a basic_validator')
-        self.description = description
+        self.description = inspect.cleandoc(description)
         self.default = datatype.default if default is None else datatype(default)
         self.datatype = datatype
         self.extname = extname

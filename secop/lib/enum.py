@@ -270,7 +270,10 @@ class Enum(dict):
         self.name = name
 
     def __getattr__(self, key):
-        return self[key]
+        try:
+            return self[key]
+        except KeyError as e:
+            raise AttributeError(str(e))
 
     def __setattr__(self, key, value):
         if self.name and key != 'name':
@@ -286,7 +289,7 @@ class Enum(dict):
         raise TypeError('Enum %r can not be changed!' % self.name)
 
     def __repr__(self):
-        return '<Enum %r (%d values)>' % (self.name, len(self)//2)
+        return 'Enum(%r, %s)' % (self.name, ', '.join('%s=%d' % (m.name, m.value) for m in self.members))
 
     def __call__(self, key):
         return self[key]

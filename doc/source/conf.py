@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# SECoP documentation build configuration file, created by
+# Frappy documentation build configuration file, created by
 # sphinx-quickstart on Mon Sep 11 10:58:28 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -57,9 +57,9 @@ source_suffix = ['.rst', '.md']
 master_doc = 'index'
 
 # General information about the project.
-project = 'SECoP'
-#copyright = '2017, Enrico Faulhaber, Markus Zolliker'
-copyright = '2017, SECoP Committee'
+project = 'Frappy'
+copyright = '2017-2021, Enrico Faulhaber, Markus Zolliker,'
+#copyright = '2017, SECoP Committee'
 author = 'Enrico Faulhaber, Markus Zolliker'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -89,6 +89,10 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
+autodoc_default_options = {
+    'member-order': 'bysource',
+    'show-inheritance': True,
+}
 default_role = 'any'
 
 # -- Options for HTML output ----------------------------------------------
@@ -106,11 +110,6 @@ html_theme = 'sphinx_rtd_theme'
 html_last_updated_fmt = '%Y-%m-%d %H:%M'
 
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-#
-# html_theme_options = {}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -136,7 +135,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'SECoPdoc'
+htmlhelp_basename = 'Frappydoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -163,7 +162,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'SECoP.tex', 'SECoP source documentation',
+    (master_doc, 'Frappy.tex', 'Frappy source documentation',
      'Enrico Faulhaber, Markus Zolliker', 'manual'),
 ]
 
@@ -173,7 +172,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'secop', 'SECoP source documentation',
+    (master_doc, 'frappy', 'Frappy source documentation',
      [author], 1)
 ]
 
@@ -184,8 +183,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'SECoP', 'SECoP source documentation',
-     author, 'SECoP', 'One line description of project.',
+    (master_doc, 'Frappy', 'Frappy source documentation',
+     author, 'Frappy', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -213,3 +212,8 @@ epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+from secop.lib.classdoc import class_doc_handler
+
+def setup(app):
+    app.connect('autodoc-process-docstring', class_doc_handler)

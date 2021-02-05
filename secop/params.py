@@ -23,8 +23,9 @@
 """Define classes for Parameters/Commands and Overriding them"""
 
 
-from collections import OrderedDict
+import inspect
 import itertools
+from collections import OrderedDict
 
 from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType, \
     NoneOr, TextType, IntRange, TupleOf
@@ -82,58 +83,59 @@ class Accessible(HasProperties):
 
 
 class Parameter(Accessible):
-    """storage for Parameter settings + value + qualifiers
+    """defines a parameter
 
     :param description: description
     :param datatype: the datatype
     :param inherit: whether properties not given should be inherited.
       defaults to True when datatype or description is missing, else to False
-    :param ctr: inherited ctr
-    :param internally_called: True when called internally, else called from a definition
+    :param reorder: when True, put this parameter after all inherited items in the accessible list
     :param kwds: optional properties
-
-    if readonly is False, the value can be changed (by code, or remote)
-    if no default is given, the parameter MUST be specified in the configfile
-    during startup, value is initialized with the default value or
-    from the config file if specified there
-
-    poll can be:
-    - None: will be converted to True/False if handler is/is not None
-    - False or 0 (never poll this parameter)
-    - True or > 0  (poll this parameter)
-    - the exact meaning depends on the used poller
-      meaning for secop.poller.Poller:
-        - 1 or True (AUTO), converted to SLOW (readonly=False), DYNAMIC('status' and 'value') or REGULAR(else)
-        - 2 (SLOW), polled with lower priority and a multiple of pollperiod
-        - 3 (REGULAR), polled with pollperiod
-        - 4 (DYNAMIC), polled with pollperiod, if not BUSY, else with a fraction of pollperiod
-      meaning for the basicPoller:
-        - True or 1 (poll this every pollinterval)
-        - positive int  (poll every N(th) pollinterval)
-        - negative int  (normally poll every N(th) pollinterval, if module is busy, poll every pollinterval)
-        note: Drivable (and derived classes) poll with 10 fold frequency if module is busy....
+    :param ctr: (for internal use only)
+    :param internally_used: (for internal use only)
     """
+    # storage for Parameter settings + value + qualifiers
 
     properties = {
-        'description': Property('Description of the Parameter', TextType(),
+        'description': Property('mandatory description of the parameter', TextType(),
                                  extname='description', mandatory=True),
-        'datatype':    Property('Datatype of the Parameter', DataTypeType(),
+        'datatype':    Property('datatype of the Parameter (SECoP datainfo)', DataTypeType(),
                                  extname='datainfo', mandatory=True),
-        'readonly':    Property('Is the Parameter readonly? (vs. changeable via SECoP)', BoolType(),
+        'readonly':    Property('not changeable via SECoP (default True)', BoolType(),
                                  extname='readonly', default=True),
-        'group':       Property('Optional parameter group this parameter belongs to', StringType(),
+        'group':       Property('optional parameter group this parameter belongs to', StringType(),
                                  extname='group', default=''),
-        'visibility':  Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
+        'visibility':  Property('optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
                                  extname='visibility', default=1),
-        'constant':    Property('Optional constant value for constant parameters', ValueType(),
+        'constant':    Property('optional constant value for constant parameters', ValueType(),
                                  extname='constant', default=None, mandatory=False),
-        'default':     Property('Default (startup) value of this parameter if it can not be read from the hardware.',
+        'default':     Property('[internal] default (startup) value of this parameter '
+                                'if it can not be read from the hardware',
                                  ValueType(), export=False, default=None, mandatory=False),
-        'export':      Property('Is this parameter accessible via SECoP? (vs. internal parameter)',
+        'export':      Property('''
+                                [internal] export settings
+        
+                                  * False: not accessible via SECoP.
+                                  * True: exported, name automatic.
+                                  * a string: exported with custom name''',
                                  OrType(BoolType(), StringType()), export=False, default=True),
-        'poll':        Property('Polling indicator', NoneOr(IntRange()), export=False, default=None),
-        'needscfg':    Property('needs value in config', NoneOr(BoolType()), export=False, default=None),
-        'optional':    Property('[Internal] is this parameter optional?', BoolType(), export=False,
+        'poll':        Property('''
+                                [internal] polling indicator
+                                
+                                may be:
+                                
+                                  * None (omitted): will be converted to True/False if handler is/is not None
+                                  * False or 0 (never poll this parameter)
+                                  * True or 1 (AUTO), converted to SLOW (readonly=False)
+                                    DYNAMIC (*status* and *value*) or REGULAR (else)
+                                  * 2 (SLOW), polled with lower priority and a multiple of pollinterval
+                                  * 3 (REGULAR), polled with pollperiod
+                                  * 4 (DYNAMIC), if BUSY, with a fraction of pollinterval,
+                                    else polled with pollperiod
+                                ''',
+                                NoneOr(IntRange()), export=False, default=None),
+        'needscfg':    Property('[internal] needs value in config', NoneOr(BoolType()), export=False, default=None),
+        'optional':    Property('[internal] is this parameter optional?', BoolType(), export=False,
                                  settable=False, default=False),
         'handler':     Property('[internal] overload the standard read and write functions',
                                  ValueType(), export=False, default=None, mandatory=False, settable=False),
@@ -143,7 +145,7 @@ class Parameter(Accessible):
     }
 
     def __init__(self, description=None, datatype=None, inherit=True, *,
-                 ctr=None, internally_called=False, reorder=False, **kwds):
+                 reorder=False, ctr=None, internally_called=False, **kwds):
         if datatype is not None:
             if not isinstance(datatype, DataType):
                 if isinstance(datatype, type) and issubclass(datatype, DataType):
@@ -153,11 +155,14 @@ class Parameter(Accessible):
                     raise ProgrammingError(
                         'datatype MUST be derived from class DataType!')
             kwds['datatype'] = datatype
+
         if description is not None:
+            if not internally_called:
+                description = inspect.cleandoc(description)
             kwds['description'] = description
 
         unit = kwds.pop('unit', None)
-        if unit is not None:   # for legacy code only
+        if unit is not None and datatype:   # for legacy code only
             datatype.setProperty('unit', unit)
 
         constant = kwds.get('constant')
@@ -179,6 +184,8 @@ class Parameter(Accessible):
         if inherit:
             if reorder:
                 kwds['ctr'] = next(object_counter)
+            if unit is not None:
+                kwds['unit'] = unit
             self.kwds = kwds  # contains only the items which must be overwritten
 
         # internal caching: value and timestamp of last change...
@@ -249,7 +256,7 @@ class Override:
     """Stores the overrides to be applied to a Parameter
 
     note: overrides are applied by the metaclass during class creating
-    reorder= True: use position of Override instead of inherited for the order
+    reorder=True: use position of Override instead of inherited for the order
     """
     def __init__(self, description="", datatype=None, *, reorder=False, **kwds):
         self.kwds = kwds
@@ -270,29 +277,33 @@ class Override:
 
 
 class Command(Accessible):
-    """storage for Commands settings (description + call signature...)
-    """
+    # to be merged with usercommand
     properties = {
-        'description': Property('Description of the Command', TextType(),
+        'description': Property('description of the Command', TextType(),
                                  extname='description', export=True, mandatory=True),
-        'group':       Property('Optional command group of the command.', StringType(),
+        'group':       Property('optional command group of the command.', StringType(),
                                  extname='group', export=True, default=''),
-        'visibility':  Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
+        'visibility':  Property('optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
                                  extname='visibility', export=True, default=1),
-        'export':      Property('[internal] Flag: is the command accessible via SECoP? (vs. pure internal use)',
+        'export':      Property('''
+                                [internal] export settings
+        
+                                  * False: not accessible via SECoP.
+                                  * True: exported, name automatic.
+                                  * a string: exported with custom name''',
                                  OrType(BoolType(), StringType()), export=False, default=True),
         'optional':    Property('[internal] is the command optional to implement? (vs. mandatory)',
                                  BoolType(), export=False, default=False, settable=False),
         'datatype': Property('[internal] datatype of the command, auto generated from \'argument\' and \'result\'',
                               DataTypeType(), extname='datainfo', mandatory=True),
-        'argument': Property('Datatype of the argument to the command, or None.',
+        'argument': Property('datatype of the argument to the command, or None',
                               NoneOr(DataTypeType()), export=False, mandatory=True),
-        'result': Property('Datatype of the result from the command, or None.',
+        'result': Property('datatype of the result from the command, or None',
                               NoneOr(DataTypeType()), export=False, mandatory=True),
     }
 
-    def __init__(self, description=None, *, ctr=None, inherit=True,
-                 internally_called=False, reorder=False, **kwds):
+    def __init__(self, description=None, *, reorder=False, inherit=True,
+                 internally_called=False, ctr=None, **kwds):
         if internally_called:
             inherit = False
         # make sure either all or no datatype info is in kwds
@@ -326,27 +337,39 @@ class Command(Accessible):
 
 
 class usercommand(Command):
-    """decorator to turn a method into a command"""
+    """decorator to turn a method into a command
+
+    :param argument: the datatype of the argument or None
+    :param result: the datatype of the result or None
+    :param inherit: whether properties not given should be inherited.
+      defaults to True when datatype or description is missing, else to False
+    :param reorder: when True, put this command after all inherited items in the accessible list
+    :param kwds: optional properties
+
+    {all properties}
+    """
 
     func = None
 
-    def __init__(self, arg0=False, result=None, inherit=True, *, internally_called=False, **kwds):
-        if result or kwds or isinstance(arg0, DataType) or not callable(arg0):
-            argument = kwds.pop('argument', arg0)  # normal case
+    def __init__(self, argument=False, result=None, inherit=True, **kwds):
+        if result or kwds or isinstance(argument, DataType) or not callable(argument):
+            # normal case
             self.func = None
             if argument is False and result:
                 argument = None
             if argument is not False:
                 if isinstance(argument, (tuple, list)):
+                    # goodie: allow declaring multiple arguments as a tuple
+                    # TODO: check that calling works properly
                     argument = TupleOf(*argument)
                 kwds['argument'] = argument
                 kwds['result'] = result
             self.kwds = kwds
         else:
             # goodie: allow @usercommand instead of @usercommand()
-            self.func = arg0  # this is the wrapped method!
-            if arg0.__doc__ is not None:
-                kwds['description'] = arg0.__doc__
+            self.func = argument  # this is the wrapped method!
+            if argument.__doc__ is not None:
+                kwds['description'] = argument.__doc__
             self.name = self.func.__name__
         super().__init__(kwds.pop('description', ''), inherit=inherit, **kwds)
 

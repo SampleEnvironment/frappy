@@ -197,10 +197,14 @@ class IOHandler(IOHandlerBase):
     the same format as the arguments for the change command.
     Examples: devices from LakeShore, PPMS
 
-    implementing classes may override the following class variables
+    :param group:     the handler group (used for analyze_<group> and change_<group>)
+    :param querycmd:  the command for a query, may contain named formats for cmdargs
+    :param replyfmt:  the format for reading the reply with some scanf like behaviour
+    :param changecmd: the first part of the change command (without values), may be
+                         omitted if no write happens
     """
-    CMDARGS = []  # list of properties or parameters to be used for building some of the the query and change commands
-    CMDSEPARATOR = None  # if not None, it is possible to join a command and a query with the given separator
+    CMDARGS = []  #: list of properties or parameters to be used for building some of the the query and change commands
+    CMDSEPARATOR = None  #: if not None, it is possible to join a command and a query with the given separator
 
     def __init__(self, group, querycmd, replyfmt, changecmd=None):
         """initialize the IO handler
@@ -269,7 +273,7 @@ class IOHandler(IOHandlerBase):
         return self.read
 
     def read(self, module):
-        """write values from module"""
+        # read values from module
         assert module.__class__ == self._module_class
         try:
             # do a read of the current hw values
@@ -293,7 +297,8 @@ class IOHandler(IOHandlerBase):
     def get_write_func(self, pname):
         """returns the write function passed to the metaclass
 
-        If pre_wfunc is given, it is to be called before change_<group>.
+        :param pname: the parameter name
+
         May be overriden to return None, if not used
         """
 
@@ -304,7 +309,7 @@ class IOHandler(IOHandlerBase):
         return wfunc
 
     def write(self, module, pname, value):
-        """write value to the module"""
+        # write value to parameter pname of the module
         assert module.__class__ == self._module_class
         force_read = False
         valuedict = {pname: value}
