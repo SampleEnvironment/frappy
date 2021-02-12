@@ -41,7 +41,7 @@ class Ls370Sim(Communicator):
                 self._data[fmt % chan] = v
         # mkthread(self.run)
 
-    def do_communicate(self, command):
+    def communicate(self, command):
         # simulation part, time independent
         for channel in range(1,17):
             _, _, _, _, excoff = self._data['RDGRNG?%d' % channel].split(',')

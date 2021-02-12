@@ -22,6 +22,8 @@
 """Define Simulation classes"""
 
 
+# TODO: rework after syntax change!
+
 import random
 from time import sleep
 

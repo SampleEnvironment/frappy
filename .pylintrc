@@ -212,13 +212,13 @@ max-locals=50
 max-returns=10
 
 # Maximum number of branch for function / method body
-max-branches=40
+max-branches=50
 
 # Maximum number of statements in function / method body
 max-statements=150
 
 # Maximum number of parents for a class (see R0901).
-max-parents=10
+max-parents=15
 
 # Maximum number of attributes for a class (see R0902).
 max-attributes=50

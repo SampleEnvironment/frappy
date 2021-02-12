@@ -20,7 +20,7 @@
 # *****************************************************************************
 """Andeen Hagerling capacitance bridge"""
 
-from secop.core import Readable, Parameter, Override, FloatRange, HasIodev, StringIO, Done
+from secop.core import Readable, Parameter, FloatRange, HasIodev, StringIO, Done
 
 
 class Ah2700IO(StringIO):
@@ -29,12 +29,12 @@ class Ah2700IO(StringIO):
 
 
 class Capacitance(HasIodev, Readable):
-    parameters = {
-        'value': Override('capacitance', FloatRange(unit='pF'), poll=True),
-        'freq': Parameter('frequency', FloatRange(unit='Hz'), readonly=False, default=0),
-        'voltage': Parameter('voltage', FloatRange(unit='V'), readonly=False, default=0),
-        'loss': Parameter('loss', FloatRange(unit='deg'), default=0),
-    }
+
+    value = Parameter('capacitance', FloatRange(unit='pF'), poll=True)
+    freq = Parameter('frequency', FloatRange(unit='Hz'), readonly=False, default=0)
+    voltage = Parameter('voltage', FloatRange(unit='V'), readonly=False, default=0)
+    loss = Parameter('loss', FloatRange(unit='deg'), default=0)
+
     iodevClass = Ah2700IO
 
     def parse_reply(self, reply):

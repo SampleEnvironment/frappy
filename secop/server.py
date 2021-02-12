@@ -227,7 +227,7 @@ class Server:
         # all objs created, now start them up and interconnect
         for modname, modobj in self.modules.items():
             self.log.info('registering module %r' % modname)
-            self.dispatcher.register_module(modobj, modname, modobj.properties['export'])
+            self.dispatcher.register_module(modobj, modname, modobj.export)
             if modobj.pollerClass is not None:
                 # a module might be explicitly excluded from polling by setting pollerClass to None
                 modobj.pollerClass.add_to_table(poll_table, modobj)
@@ -236,10 +236,10 @@ class Server:
 
         # handle attached modules
         for modname, modobj in self.modules.items():
-            for propname, propobj in modobj.__class__.properties.items():
+            for propname, propobj in modobj.propertyDict.items():
                 if isinstance(propobj, Attached):
                     setattr(modobj, propobj.attrname or '_' + propname,
-                            self.dispatcher.get_module(modobj.properties[propname]))
+                            self.dispatcher.get_module(getattr(modobj, propname)))
         # call init on each module after registering all
         for modname, modobj in self.modules.items():
             modobj.initModule()

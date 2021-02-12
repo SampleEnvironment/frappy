@@ -27,18 +27,16 @@ from math import atan
 
 from secop.datatypes import EnumType, FloatRange, TupleOf, StringType, BoolType
 from secop.lib import clamp, mkthread
-from secop.modules import Drivable, Override, Parameter
+from secop.modules import Drivable, Parameter, Command
 
 # test custom property (value.test can be changed in config file)
 from secop.properties import Property
 
-Parameter.properties['test'] = Property('A Property for testing purposes', StringType(), default='', export=True)
+Parameter.propertyDict['test'] = Property('A Property for testing purposes', StringType(), default='', export=True)
 
 
 class CryoBase(Drivable):
-    properties = {
-        'is_cryo': Property('private Flag if this is a cryostat', BoolType(), default=True, export=True),
-    }
+    is_cryo = Property('private Flag if this is a cryostat', BoolType(), default=True, export=True)
 
 
 class Cryostat(CryoBase):
@@ -49,93 +47,88 @@ class Cryostat(CryoBase):
     - thermal transfer between regulation and samplen
     """
 
-    parameters = dict(
-        jitter=Parameter("amount of random noise on readout values",
-                     datatype=FloatRange(0, 1), unit="K",
-                     default=0.1, readonly=False, export=False,
-                     ),
-        T_start=Parameter("starting temperature for simulation",
-                      datatype=FloatRange(0), default=10,
-                      export=False,
-                      ),
-        looptime=Parameter("timestep for simulation",
-                       datatype=FloatRange(0.01, 10), unit="s", default=1,
-                       readonly=False, export=False,
+    jitter = Parameter("amount of random noise on readout values",
+                       datatype=FloatRange(0, 1), unit="K",
+                       default=0.1, readonly=False, export=False,
                        ),
-        ramp=Parameter("ramping speed of the setpoint",
-                   datatype=FloatRange(0, 1e3), unit="K/min", default=1,
-                   readonly=False,
-                   ),
-        setpoint=Parameter("current setpoint during ramping else target",
-                       datatype=FloatRange(), default=1, unit='K',
-                       ),
-        maxpower=Parameter("Maximum heater power",
-                       datatype=FloatRange(0), default=1, unit="W",
-                       readonly=False,
-                       group='heater_settings',
-                       ),
-        heater=Parameter("current heater setting",
-                     datatype=FloatRange(0, 100), default=0, unit="%",
-                     group='heater_settings',
-                     ),
-        heaterpower=Parameter("current heater power",
-                          datatype=FloatRange(0), default=0, unit="W",
-                          group='heater_settings',
-                          ),
-        target=Override("target temperature",
-                     datatype=FloatRange(0), default=0, unit="K",
+    T_start = Parameter("starting temperature for simulation",
+                        datatype=FloatRange(0), default=10,
+                        export=False,
+                        ),
+    looptime = Parameter("timestep for simulation",
+                         datatype=FloatRange(0.01, 10), unit="s", default=1,
+                         readonly=False, export=False,
+                         ),
+    ramp = Parameter("ramping speed of the setpoint",
+                     datatype=FloatRange(0, 1e3), unit="K/min", default=1,
                      readonly=False,
                      ),
-        value=Override("regulation temperature",
-                    datatype=FloatRange(0), default=0, unit="K",
-                    test='TEST',
+    setpoint = Parameter("current setpoint during ramping else target",
+                         datatype=FloatRange(), default=1, unit='K',
+                         ),
+    maxpower = Parameter("Maximum heater power",
+                         datatype=FloatRange(0), default=1, unit="W",
+                         readonly=False,
+                         group='heater_settings',
+                         ),
+    heater = Parameter("current heater setting",
+                       datatype=FloatRange(0, 100), default=0, unit="%",
+                       group='heater_settings',
+                       ),
+    heaterpower = Parameter("current heater power",
+                            datatype=FloatRange(0), default=0, unit="W",
+                            group='heater_settings',
+                            ),
+    target = Parameter("target temperature",
+                       datatype=FloatRange(0), default=0, unit="K",
+                       readonly=False,
+                       ),
+    value = Parameter("regulation temperature",
+                      datatype=FloatRange(0), default=0, unit="K",
+                      test='TEST',
+                      ),
+    pid = Parameter("regulation coefficients",
+                    datatype=TupleOf(FloatRange(0), FloatRange(0, 100),
+                                     FloatRange(0, 100)),
+                    default=(40, 10, 2), readonly=False,
+                    group='pid',
                     ),
-        pid=Parameter("regulation coefficients",
-                  datatype=TupleOf(FloatRange(0), FloatRange(0, 100),
-                                   FloatRange(0, 100)),
-                  default=(40, 10, 2), readonly=False,
+    # pylint: disable=invalid-name
+    p = Parameter("regulation coefficient 'p'",
+                  datatype=FloatRange(0), default=40, unit="%/K", readonly=False,
                   group='pid',
                   ),
-        p=Parameter("regulation coefficient 'p'",
-                datatype=FloatRange(0), default=40, unit="%/K", readonly=False,
-                group='pid',
-                ),
-        i=Parameter("regulation coefficient 'i'",
-                datatype=FloatRange(0, 100), default=10, readonly=False,
-                group='pid',
-                ),
-        d=Parameter("regulation coefficient 'd'",
-                datatype=FloatRange(0, 100), default=2, readonly=False,
-                group='pid',
-                ),
-        mode=Parameter("mode of regulation",
-                   datatype=EnumType('mode', ramp=None, pid=None, openloop=None),
-                   default='ramp',
-                   readonly=False,
-                   ),
-        pollinterval=Override("polling interval",
-                           datatype=FloatRange(0), default=5,
-                           ),
-        tolerance=Parameter("temperature range for stability checking",
-                        datatype=FloatRange(0, 100), default=0.1, unit='K',
+    i = Parameter("regulation coefficient 'i'",
+                  datatype=FloatRange(0, 100), default=10, readonly=False,
+                  group='pid',
+                  ),
+    d = Parameter("regulation coefficient 'd'",
+                  datatype=FloatRange(0, 100), default=2, readonly=False,
+                  group='pid',
+                  ),
+    mode = Parameter("mode of regulation",
+                     datatype=EnumType('mode', ramp=None, pid=None, openloop=None),
+                     default='ramp',
+                     readonly=False,
+                     ),
+    pollinterval = Parameter("polling interval",
+                             datatype=FloatRange(0), default=5,
+                             ),
+    tolerance = Parameter("temperature range for stability checking",
+                          datatype=FloatRange(0, 100), default=0.1, unit='K',
+                          readonly=False,
+                          group='stability',
+                          ),
+    window = Parameter("time window for stability checking",
+                       datatype=FloatRange(1, 900), default=30, unit='s',
+                       readonly=False,
+                       group='stability',
+                       ),
+    timeout = Parameter("max waiting time for stabilisation check",
+                        datatype=FloatRange(1, 36000), default=900, unit='s',
                         readonly=False,
                         group='stability',
                         ),
-        window=Parameter("time window for stability checking",
-                     datatype=FloatRange(1, 900), default=30, unit='s',
-                     readonly=False,
-                     group='stability',
-                     ),
-        timeout=Parameter("max waiting time for stabilisation check",
-                      datatype=FloatRange(1, 36000), default=900, unit='s',
-                      readonly=False,
-                      group='stability',
-                      ),
-    )
-    commands = dict(
-        stop=Override(
-            "Stop ramping the setpoint\n\nby setting the current setpoint as new target"),
-    )
 
     def initModule(self):
         self._stopflag = False
@@ -180,8 +173,11 @@ class Cryostat(CryoBase):
     def read_pid(self):
         return (self.p, self.i, self.d)
 
-    def do_stop(self):
-        # stop the ramp by setting current setpoint as target
+    @Command()
+    def stop(self):
+        """Stop ramping the setpoint
+
+        by setting the current setpoint as new target"""
         # XXX: discussion: take setpoint or current value ???
         self.write_target(self.setpoint)
 

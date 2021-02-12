@@ -20,11 +20,10 @@ Parameters, Commands and Properties
 ...................................
 
 .. autoclass:: secop.params.Parameter
-.. autoclass:: secop.params.usercommand
+.. autoclass:: secop.params.Command
 .. autoclass:: secop.properties.Property
 .. autoclass:: secop.modules.Attached
     :show-inheritance:
-
 
 
 Datatypes

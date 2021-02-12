@@ -26,7 +26,7 @@ import math
 import numpy as np
 from scipy.interpolate import splrep, splev  # pylint: disable=import-error
 
-from secop.core import Readable, Parameter, Override, Attached, StringType, BoolType
+from secop.core import Readable, Parameter, Attached, StringType, BoolType
 
 
 def linear(x):
@@ -102,6 +102,7 @@ class CalCurve:
         sensopt = calibspec.split(',')
         calibname = sensopt.pop(0)
         _, dot, ext = basename(calibname).rpartition('.')
+        kind = None
         for path in os.environ.get('FRAPPY_CALIB_PATH', '').split(','):
             # first try without adding kind
             filename = join(path.strip(), calibname)
@@ -150,16 +151,14 @@ class CalCurve:
 
 
 class Sensor(Readable):
-    properties = {
-        'rawsensor': Attached(),
-    }
-    parameters = {
-        'calib': Parameter('calibration name', datatype=StringType(), readonly=False),
-        'abs': Parameter('True: take abs(raw) before calib', datatype=BoolType(), readonly=False, default=True),
-        'value': Override(unit='K'),
-        'pollinterval': Override(export=False),
-        'status': Override(default=(Readable.Status.ERROR, 'unintialized'))
-    }
+    rawsensor = Attached()
+
+    calib = Parameter('calibration name', datatype=StringType(), readonly=False)
+    abs = Parameter('True: take abs(raw) before calib', datatype=BoolType(), readonly=False, default=True)
+    value = Parameter(unit='K')
+    pollinterval = Parameter(export=False)
+    status = Parameter(default=(Readable.Status.ERROR, 'unintialized'))
+
     pollerClass = None
     description = 'a calibrated sensor value'
     _value_error = None

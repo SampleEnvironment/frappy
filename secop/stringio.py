@@ -27,11 +27,10 @@ import time
 import threading
 import re
 from secop.lib.asynconn import AsynConn, ConnectionClosed
-from secop.modules import Module, Communicator, Parameter, Command, Property, Attached
+from secop.modules import Module, Communicator, Parameter, Command, Property, Attached, Done
 from secop.datatypes import StringType, FloatRange, ArrayOf, BoolType, TupleOf, ValueType
-from secop.errors import CommunicationFailedError, CommunicationSilentError
+from secop.errors import CommunicationFailedError, CommunicationSilentError, ConfigError
 from secop.poller import REGULAR
-from secop.metaclass import Done
 
 
 class StringIO(Communicator):
@@ -39,38 +38,22 @@ class StringIO(Communicator):
 
     self healing is assured by polling the parameter 'is_connected'
     """
-    properties = {
-        'uri':
-            Property('hostname:portnumber', datatype=StringType()),
-        'end_of_line':
-            Property('end_of_line character', datatype=ValueType(),
-                default='\n', settable=True),
-        'encoding':
-            Property('used encoding', datatype=StringType(),
-                default='ascii', settable=True),
-        'identification':
-            Property('''
-                     identification
-                     
-                     a list of tuples with commands and expected responses as regexp,
-                     to be sent on connect''',
-                     datatype=ArrayOf(TupleOf(StringType(), StringType())), default=[], export=False),
-    }
-    parameters = {
-        'timeout':
-            Parameter('timeout', datatype=FloatRange(0), default=2),
-        'wait_before':
-            Parameter('wait time before sending', datatype=FloatRange(), default=0),
-        'is_connected':
-            Parameter('connection state', datatype=BoolType(), readonly=False, poll=REGULAR),
-        'pollinterval':
-            Parameter('reconnect interval', datatype=FloatRange(0), readonly=False, default=10),
-    }
-    commands = {
-        'multicomm':
-            Command('execute multiple commands in one go',
-                argument=ArrayOf(StringType()), result=ArrayOf(StringType()))
-    }
+    uri = Property('hostname:portnumber', datatype=StringType())
+    end_of_line = Property('end_of_line character', datatype=ValueType(),
+                           default='\n', settable=True)
+    encoding = Property('used encoding', datatype=StringType(),
+                        default='ascii', settable=True)
+    identification = Property('''
+                              identification
+
+                              a list of tuples with commands and expected responses as regexp,
+                              to be sent on connect''',
+                              datatype=ArrayOf(TupleOf(StringType(), StringType())), default=[], export=False)
+
+    timeout = Parameter('timeout', datatype=FloatRange(0), default=2)
+    wait_before = Parameter('wait time before sending', datatype=FloatRange(), default=0)
+    is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, poll=REGULAR)
+    pollinterval = Parameter('reconnect interval', datatype=FloatRange(0), readonly=False, default=10)
 
     _reconnectCallbacks = None
 
@@ -105,11 +88,12 @@ class StringIO(Communicator):
             self._conn = AsynConn(uri, self._eol_read)
             self.is_connected = True
             for command, regexp in self.identification:
-                reply = self.do_communicate(command)
+                reply = self.communicate(command)
                 if not re.match(regexp, reply):
                     self.closeConnection()
                     raise CommunicationFailedError('bad response: %s does not match %s' %
                                                    (reply, regexp))
+
     def closeConnection(self):
         """close connection
 
@@ -125,7 +109,7 @@ class StringIO(Communicator):
         self.is_connected is changed only by self.connectStart or self.closeConnection
         """
         if self.is_connected:
-            return Done # no need for intermediate updates
+            return Done  # no need for intermediate updates
         try:
             self.connectStart()
             if self._last_error:
@@ -170,7 +154,7 @@ class StringIO(Communicator):
             if removeme:
                 self._reconnectCallbacks.pop(key)
 
-    def do_communicate(self, command):
+    def communicate(self, command):
         """send a command and receive a reply
 
         using end_of_line, encoding and self._lock
@@ -179,6 +163,8 @@ class StringIO(Communicator):
         """
         if not self.is_connected:
             self.read_is_connected()  # try to reconnect
+            if not self._conn:
+                raise CommunicationSilentError('can not connect to %r' % self.uri)
         try:
             with self._lock:
                 # read garbage and wait before send
@@ -210,11 +196,13 @@ class StringIO(Communicator):
             self.log.error(self._last_error)
             raise
 
-    def do_multicomm(self, commands):
+    @Command(ArrayOf(StringType()), result=ArrayOf(StringType()))
+    def multicomm(self, commands):
+        """communicate multiple request/replies in one row"""
         replies = []
         with self._lock:
             for cmd in commands:
-                replies.append(self.do_communicate(cmd))
+                replies.append(self.communicate(cmd))
         return replies
 
 
@@ -223,17 +211,15 @@ class HasIodev(Module):
 
     not only StringIO !
     """
-    properties = {
-        'iodev': Attached(),
-        'uri': Property('uri for automatic creation of the attached communication module',
-                        StringType(), default=''),
-    }
+    iodev = Attached()
+    uri = Property('uri for automatic creation of the attached communication module',
+                   StringType(), default='')
 
     iodevDict = {}
 
     def __init__(self, name, logger, opts, srv):
         iodev = opts.get('iodev')
-        super().__init__(name, logger, opts, srv)
+        Module.__init__(self, name, logger, opts, srv)
         if self.uri:
             opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
                     'export': False}
@@ -243,7 +229,9 @@ class HasIodev(Module):
                 iodev = self.iodevClass(ioname, srv.log.getChild(ioname), opts, srv)
                 srv.modules[ioname] = iodev
                 self.iodevDict[self.uri] = ioname
-            self.setProperty('iodev', ioname)
+            self.iodev = ioname
+        elif not self.iodev:
+            raise ConfigError("Module %s needs a value for either 'uri' or 'iodev'" % name)
 
     def initModule(self):
         try:
@@ -254,4 +242,4 @@ class HasIodev(Module):
         super().initModule()
 
     def sendRecv(self, command):
-        return self._iodev.do_communicate(command)
+        return self._iodev.communicate(command)

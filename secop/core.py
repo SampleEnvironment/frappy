@@ -29,11 +29,10 @@
 from secop.datatypes import FloatRange, IntRange, ScaledInteger, \
     BoolType, EnumType, BLOBType, StringType, TupleOf, ArrayOf, StructOf
 from secop.lib.enum import Enum
-from secop.modules import Module, Readable, Writable, Drivable, Communicator, Attached
+from secop.modules import Module, Readable, Writable, Drivable, Communicator, Attached, Done
 from secop.properties import Property
-from secop.params import Parameter, Command, Override, usercommand
+from secop.params import Parameter, Command
 from secop.poller import AUTO, REGULAR, SLOW, DYNAMIC
-from secop.metaclass import Done
 from secop.iohandler import IOHandler, IOHandlerBase
 from secop.stringio import StringIO, HasIodev
 from secop.proxy import SecNode, Proxy, proxy_class

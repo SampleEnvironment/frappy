@@ -20,12 +20,11 @@
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
-"""Define Baseclasses for real Modules implemented in the server"""
+"""Define base classes for real Modules implemented in the server"""
 
 
 import sys
 import time
-from collections import OrderedDict
 
 from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
     StringType, TupleOf, get_datatype, ArrayOf, TextType, StatusType
@@ -33,19 +32,147 @@ from secop.errors import ConfigError, ProgrammingError, SECoPError, BadValueErro
     SilentError, InternalError, secop_error
 from secop.lib import formatException, formatExtendedStack, mkthread
 from secop.lib.enum import Enum
-from secop.metaclass import ModuleMeta
-from secop.params import PREDEFINED_ACCESSIBLES, Command, Override, Parameter, Parameters, Commands
+from secop.params import PREDEFINED_ACCESSIBLES, Command, Parameter, Accessible
 from secop.properties import HasProperties, Property
 from secop.poller import Poller, BasicPoller
 
 
-# XXX: connect with 'protocol'-Modules.
-# Idea: every Module defined herein is also a 'protocol'-Module,
-# all others MUST derive from those, the 'interface'-class is still derived
-# from these base classes (how to do this?)
+Done = object()  #: a special return value for a read/write function indicating that the setter is triggered already
 
 
-class Module(HasProperties, metaclass=ModuleMeta):
+class HasAccessibles(HasProperties):
+    """base class of Module
+
+    joining the class's properties, parameters and commands dicts with
+    those of base classes.
+    wrap read_*/write_* methods
+    (so the dispatcher will get notified of changed values)
+    """
+    @classmethod
+    def __init_subclass__(cls):  # pylint: disable=too-many-branches
+        super().__init_subclass__()
+        # merge accessibles from all sub-classes, treat overrides
+        # for now, allow to use also the old syntax (parameters/commands dict)
+        accessibles = {}
+        for base in cls.__bases__:
+            accessibles.update(getattr(base, 'accessibles', {}))
+        newaccessibles = {k: v for k, v in cls.__dict__.items() if isinstance(v, Accessible)}
+        for aname, aobj in accessibles.items():
+            value = getattr(cls, aname, None)
+            if not isinstance(value, Accessible):  # else override is already done in __set_name__
+                anew = aobj.override(value)
+                newaccessibles[aname] = anew
+                setattr(cls, aname, anew)
+                anew.__set_name__(cls, aname)
+        ordered = {}
+        for aname in cls.__dict__.get('paramOrder', ()):
+            if aname in accessibles:
+                ordered[aname] = accessibles.pop(aname)
+            elif aname in newaccessibles:
+                ordered[aname] = newaccessibles.pop(aname)
+            # ignore unknown names
+        # starting from old accessibles not mentioned, append items from 'order'
+        accessibles.update(ordered)
+        # then new accessibles not mentioned
+        accessibles.update(newaccessibles)
+        cls.accessibles = accessibles
+
+        # Correct naming of EnumTypes
+        for k, v in accessibles.items():
+            if isinstance(v, Parameter) and isinstance(v.datatype, EnumType):
+                v.datatype.set_name(k)
+
+        # check validity of Parameter entries
+        for pname, pobj in accessibles.items():
+            # XXX: create getters for the units of params ??
+
+            # wrap of reading/writing funcs
+            if isinstance(pobj, Command):
+                # nothing to do for now
+                continue
+            rfunc = cls.__dict__.get('read_' + pname, None)
+            rfunc_handler = pobj.handler.get_read_func(cls, pname) if pobj.handler else None
+            if rfunc_handler:
+                if rfunc:
+                    raise ProgrammingError("parameter '%s' can not have a handler "
+                                           "and read_%s" % (pname, pname))
+                rfunc = rfunc_handler
+
+            # create wrapper except when read function is already wrapped
+            if rfunc is None or getattr(rfunc, '__wrapped__', False) is False:
+
+                def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
+                    if rfunc:
+                        self.log.debug("calling %r" % rfunc)
+                        try:
+                            value = rfunc(self)
+                            self.log.debug("rfunc(%s) returned %r" % (pname, value))
+                            if value is Done:  # the setter is already triggered
+                                return getattr(self, pname)
+                        except Exception as e:
+                            self.log.debug("rfunc(%s) failed %r" % (pname, e))
+                            self.announceUpdate(pname, None, e)
+                            raise
+                    else:
+                        # return cached value
+                        self.log.debug("rfunc(%s): return cached value" % pname)
+                        value = self.accessibles[pname].value
+                    setattr(self, pname, value)  # important! trigger the setter
+                    return value
+
+                if rfunc:
+                    wrapped_rfunc.__doc__ = rfunc.__doc__
+                setattr(cls, 'read_' + pname, wrapped_rfunc)
+                wrapped_rfunc.__wrapped__ = True
+
+            if not pobj.readonly:
+                wfunc = getattr(cls, 'write_' + pname, None)
+                if wfunc is None:  # ignore the handler, if a write function is present
+                    wfunc = pobj.handler.get_write_func(pname) if pobj.handler else None
+
+                # create wrapper except when write function is already wrapped
+                if wfunc is None or getattr(wfunc, '__wrapped__', False) is False:
+
+                    def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
+                        self.log.debug("check validity of %s = %r" % (pname, value))
+                        pobj = self.accessibles[pname]
+                        value = pobj.datatype(value)
+                        if wfunc:
+                            self.log.debug('calling %s %r(%r)' % (wfunc.__name__, wfunc, value))
+                            returned_value = wfunc(self, value)
+                            if returned_value is Done:  # the setter is already triggered
+                                return getattr(self, pname)
+                            if returned_value is not None:  # goodie: accept missing return value
+                                value = returned_value
+                        setattr(self, pname, value)
+                        return value
+
+                    if wfunc:
+                        wrapped_wfunc.__doc__ = wfunc.__doc__
+                    setattr(cls, 'write_' + pname, wrapped_wfunc)
+                    wrapped_wfunc.__wrapped__ = True
+
+        # check information about Command's
+        for attrname in cls.__dict__:
+            if attrname.startswith('do_'):
+                raise ProgrammingError('%r: old style command %r not supported anymore'
+                                       % (cls.__name__, attrname))
+
+        res = {}
+        # collect info about properties
+        for pn, pv in cls.propertyDict.items():
+            if pv.settable:
+                res[pn] = pv
+        # collect info about parameters and their properties
+        for param, pobj in cls.accessibles.items():
+            res[param] = {}
+            for pn, pv in pobj.getProperties().items():
+                if pv.settable:
+                    res[param][pn] = pv
+        cls.configurables = res
+
+
+class Module(HasAccessibles):
     """basic module
 
     all SECoP modules derive from this.
@@ -58,7 +185,8 @@ class Module(HasProperties, metaclass=ModuleMeta):
     Notes:
 
     - the programmer normally should not need to reimplement :meth:`__init__`
-    - within modules, parameters should only be addressed as ``self.<pname>``, i.e. ``self.value``, ``self.target`` etc...
+    - within modules, parameters should only be addressed as ``self.<pname>``,
+      i.e. ``self.value``, ``self.target`` etc...
 
       - these are accessing the cached version.
       - they can also be written to, generating an async update
@@ -77,22 +205,17 @@ class Module(HasProperties, metaclass=ModuleMeta):
     # note: properties don't change after startup and are usually filled
     #       with data from a cfg file...
     # note: only the properties predefined here are allowed to be set in the cfg file
-    # note: the names map to a [datatype, value] list, value comes from the cfg file,
-    #       datatype is fixed!
-    properties = {
-        'export':          Property('Flag if this Module is to be exported', BoolType(), default=True, export=False),
-        'group':           Property('Optional group the Module belongs to', StringType(), default='', extname='group'),
-        'description':     Property('Description of the module', TextType(), extname='description', mandatory=True),
-        'meaning':         Property('Optional Meaning indicator', TupleOf(StringType(),IntRange(0,50)),
-                                    default=('',0), extname='meaning'),
-        'visibility':      Property('Optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
-                                    default='user', extname='visibility'),
-        'implementation':  Property('Internal name of the implementation class of the module', StringType(),
-                                    extname='implementation'),
-        'interface_classes': Property('Offical highest Interface-class of the module', ArrayOf(StringType()),
-                                    extname='interface_classes'),
-        # what else?
-    }
+    export = Property('flag if this module is to be exported', BoolType(), default=True, export=False)
+    group = Property('optional group the module belongs to', StringType(), default='', extname='group')
+    description = Property('description of the module', TextType(), extname='description', mandatory=True)
+    meaning = Property('optional meaning indicator', TupleOf(StringType(), IntRange(0, 50)),
+                       default=('', 0), extname='meaning')
+    visibility = Property('optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
+                          default='user', extname='visibility')
+    implementation = Property('internal name of the implementation class of the module', StringType(),
+                              extname='implementation')
+    interface_classes = Property('offical highest Interface-class of the module', ArrayOf(StringType()),
+                                 extname='interface_classes')
 
     # properties, parameters and commands are auto-merged upon subclassing
     parameters = {}
@@ -113,14 +236,14 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
         # handle module properties
         # 1) make local copies of properties
-        super(Module, self).__init__()
+        super().__init__()
 
         # 2) check and apply properties specified in cfgdict
         #    specified as '.<propertyname> = <propertyvalue>'
         #    (this is for legacy config files only)
         for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if k[0] == '.':
-                if k[1:] in self.__class__.properties:
+                if k[1:] in self.propertyDict:
                     self.setProperty(k[1:], cfgdict.pop(k))
                 else:
                     raise ConfigError('Module %r has no property %r' %
@@ -128,20 +251,20 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
         # 3) check and apply properties specified in cfgdict as
         #    '<propertyname> = <propertyvalue>' (without '.' prefix)
-        for k in self.__class__.properties:
+        for k in self.propertyDict:
             if k in cfgdict:
                 self.setProperty(k, cfgdict.pop(k))
 
         # 4) set automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
-        self.properties['implementation'] = myclassname
+        self.implementation = myclassname
         # list of all 'secop' modules
-        self.properties['interface_classes'] = [
-            b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
+        # self.interface_classes = [
+        #    b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
         # list of only the 'highest' secop module class
-        self.properties['interface_classes'] = [[
-            b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')][0]]
+        self.interface_classes = [
+            b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')][0:1]
 
         # handle Features
         # XXX: todo
@@ -150,7 +273,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
         # 1) make local copies of parameter objects
         #    they need to be individual per instance since we use them also
         #    to cache the current value + qualifiers...
-        accessibles = OrderedDict()
+        accessibles = {}
         # conversion from exported names to internal attribute names
         accessiblename2attr = {}
         for aname, aobj in self.accessibles.items():
@@ -159,31 +282,31 @@ class Module(HasProperties, metaclass=ModuleMeta):
             if isinstance(aobj, Parameter):
                 # fix default properties poll and needscfg
                 if aobj.poll is None:
-                    aobj.properties['poll'] = bool(aobj.handler)
+                    aobj.poll = bool(aobj.handler)
                 if aobj.needscfg is None:
-                    aobj.properties['needscfg'] = not aobj.poll
+                    aobj.needscfg = not aobj.poll
 
             if not self.export:  # do not export parameters of a module not exported
-                aobj.properties['export'] = False
+                aobj.export = False
             if aobj.export:
                 if aobj.export is True:
                     predefined_obj = PREDEFINED_ACCESSIBLES.get(aname, None)
                     if predefined_obj:
                         if isinstance(aobj, predefined_obj):
-                            aobj.setProperty('export', aname)
+                            aobj.export = aname
                         else:
                             raise ProgrammingError("can not use '%s' as name of a %s" %
-                                  (aname, aobj.__class__.__name__))
-                    else: # create custom parameter
-                        aobj.setProperty('export', '_' + aname)
+                                                   (aname, aobj.__class__.__name__))
+                    else:  # create custom parameter
+                        aobj.export = '_' + aname
                 accessiblename2attr[aobj.export] = aname
             accessibles[aname] = aobj
         # do not re-use self.accessibles as this is the same for all instances
         self.accessibles = accessibles
         self.accessiblename2attr = accessiblename2attr
         # provide properties to 'filter' out the parameters/commands
-        self.parameters = Parameters((k,v) for k,v in accessibles.items() if isinstance(v, Parameter))
-        self.commands = Commands((k,v) for k,v in accessibles.items() if isinstance(v, Command))
+        self.parameters = {k: v for k, v in accessibles.items() if isinstance(v, Parameter)}
+        self.commands = {k: v for k, v in accessibles.items() if isinstance(v, Command)}
 
         # 2) check and apply parameter_properties
         #    specified as '<paramname>.<propertyname> = <propertyvalue>'
@@ -200,6 +323,9 @@ class Module(HasProperties, metaclass=ModuleMeta):
                     else:
                         raise ConfigError('Module %s: Parameter %r has no property %r!' %
                                           (self.name, paramname, propname))
+                else:
+                    raise ConfigError('Module %s has no Parameter %r!' %
+                                      (self.name, paramname))
 
         # 3) check config for problems:
         #    only accept remaining config items specified in parameters
@@ -209,7 +335,7 @@ class Module(HasProperties, metaclass=ModuleMeta):
                     'Module %s:config Parameter %r '
                     'not understood! (use one of %s)' %
                     (self.name, k, ', '.join(list(self.parameters) +
-                                             list(self.__class__.properties))))
+                                             list(self.propertyDict))))
 
         # 4) complain if a Parameter entry has no default value and
         #    is not specified in cfgdict and deal with parameters to be written.
@@ -348,7 +474,6 @@ class Module(HasProperties, metaclass=ModuleMeta):
                     modobj.announceUpdate(p, value)
                 self.valueCallbacks[pname].append(cb)
 
-
     def isBusy(self, status=None):
         """helper function for treating substates of BUSY correctly"""
         # defined even for non drivable (used for dynamic polling)
@@ -403,31 +528,22 @@ class Module(HasProperties, metaclass=ModuleMeta):
 
 
 class Readable(Module):
-    """basic readable Module"""
+    """basic readable module"""
     # pylint: disable=invalid-name
     Status = Enum('Status',
-                  IDLE = 100,
-                  WARN = 200,
-                  UNSTABLE = 270,
-                  ERROR = 400,
-                  DISABLED = 0,
-                  UNKNOWN = 401,
-                 )  #: status codes
-    parameters = {
-        'value':        Parameter('current value of the Module', readonly=True,
-                                  datatype=FloatRange(),
-                                  poll=True,
-                                 ),
-        'pollinterval': Parameter('sleeptime between polls', default=5,
-                                  readonly=False,
-                                  datatype=FloatRange(0.1, 120),
-                                 ),
-        'status':       Parameter('current status of the Module',
-                                  default=(Status.IDLE, ''),
-                                  datatype=TupleOf(EnumType(Status), StringType()),
-                                  readonly=True, poll=True,
-                                 ),
-    }
+                  IDLE=100,
+                  WARN=200,
+                  UNSTABLE=270,
+                  ERROR=400,
+                  DISABLED=0,
+                  UNKNOWN=401,
+                  )  #: status codes
+
+    value = Parameter('current value of the module', FloatRange(), poll=True)
+    status = Parameter('current status of the module', TupleOf(EnumType(Status), StringType()),
+                       default=(Status.IDLE, ''), poll=True)
+    pollinterval = Parameter('sleeptime between polls', FloatRange(0.1, 120),
+                             default=5, readonly=False)
 
     def startModule(self, started_callback):
         """start basic polling thread"""
@@ -476,11 +592,9 @@ class Readable(Module):
 
 class Writable(Readable):
     """basic writable module"""
-    parameters = {
-        'target': Parameter('target value of the Module',
-                            default=0, readonly=False, datatype=FloatRange(),
-                           ),
-    }
+
+    target = Parameter('target value of the module',
+                       default=0, readonly=False, datatype=FloatRange())
 
 
 class Drivable(Writable):
@@ -488,17 +602,7 @@ class Drivable(Writable):
 
     Status = Enum(Readable.Status, BUSY=300)  #: status codes
 
-    commands = {
-        'stop': Command(
-            'cease driving, go to IDLE state',
-            argument=None,
-            result=None
-        ),
-    }
-
-    overrides = {
-        'status': Override(datatype=StatusType(Status)),
-    }
+    status = Parameter(datatype=StatusType(Status))  # override Readable.status
 
     def isBusy(self, status=None):
         """check for busy, treating substates correctly
@@ -532,23 +636,16 @@ class Drivable(Writable):
                 self.pollOneParam(pname)
         return fastpoll
 
-    def do_stop(self):
-        """default implementation of the stop command
-
-        by default does nothing."""
+    @Command(None, result=None)
+    def stop(self):
+        """cease driving, go to IDLE state"""
 
 
 class Communicator(Module):
     """basic abstract communication module"""
 
-    commands = {
-        "communicate": Command("provides the simplest mean to communication",
-                            argument=StringType(),
-                            result=StringType()
-                           ),
-    }
-
-    def do_communicate(self, command):
+    @Command(StringType(), result=StringType())
+    def communicate(self, command):
         """communicate command
 
         :param command: the command to be sent
@@ -569,7 +666,8 @@ class Attached(Property):
     # we can not put this to properties.py, as it needs datatypes
     def __init__(self, attrname=None):
         self.attrname = attrname
-        super().__init__('attached module', StringType())
+        # we can not make it mandatory, as the check in Module.__init__ will be before auto-assign in HasIodev
+        super().__init__('attached module', StringType(), mandatory=False)
 
     def __repr__(self):
         return 'Attached(%s)' % (repr(self.attrname) if self.attrname else '')

@@ -25,68 +25,78 @@
 # no fixtures needed
 import pytest
 
-from secop.datatypes import BoolType, IntRange
-from secop.params import Command, Override, Parameter, Parameters
+from secop.datatypes import BoolType, IntRange, FloatRange
+from secop.params import Command, Parameter
+from secop.modules import HasAccessibles
 from secop.errors import ProgrammingError
 
 
 def test_Command():
-    cmd = Command('do_something')
-    assert cmd.description == 'do_something'
-    assert cmd.ctr
-    assert cmd.argument is None
-    assert cmd.result is None
-    assert cmd.for_export() == {'datainfo': {'type': 'command'},
-                                'description': 'do_something'}
+    class Mod(HasAccessibles):
+        @Command()
+        def cmd(self):
+            """do something"""
+        @Command(IntRange(-9,9), result=IntRange(-1,1), description='do some other thing')
+        def cmd2(self):
+            pass
 
-    cmd = Command('do_something', argument=IntRange(-9,9), result=IntRange(-1,1))
-    assert cmd.description
-    assert isinstance(cmd.argument, IntRange)
-    assert isinstance(cmd.result, IntRange)
-    assert cmd.for_export() == {'datainfo': {'type': 'command', 'argument': {'type': 'int', 'min':-9, 'max':9},
-                                                           'result': {'type': 'int', 'min':-1, 'max':1}},
-                                'description': 'do_something'}
-    assert cmd.exportProperties() == {'datainfo': {'type': 'command', 'argument': {'type': 'int', 'max': 9, 'min': -9},
-                                                                 'result': {'type': 'int', 'max': 1, 'min': -1}},
-                                      'description': 'do_something'}
+    assert Mod.cmd.description == 'do something'
+    assert Mod.cmd.argument is None
+    assert Mod.cmd.result is None
+    assert Mod.cmd.for_export() == {'datainfo': {'type': 'command'},
+                                'description': 'do something'}
+
+    assert Mod.cmd2.description == 'do some other thing'
+    assert isinstance(Mod.cmd2.argument, IntRange)
+    assert isinstance(Mod.cmd2.result, IntRange)
+    assert Mod.cmd2.for_export() == {'datainfo': {'type': 'command', 'argument': {'type': 'int', 'min': -9, 'max': 9},
+                                                  'result': {'type': 'int', 'min': -1, 'max': 1}},
+                                     'description': 'do some other thing'}
+    assert Mod.cmd2.exportProperties() == {'datainfo': {'type': 'command', 'argument': {'type': 'int', 'max': 9, 'min': -9},
+                                                        'result': {'type': 'int', 'max': 1, 'min': -1}},
+                                           'description': 'do some other thing'}
 
 
 def test_Parameter():
-    p1 = Parameter('description1', datatype=IntRange(), default=0)
-    p2 = Parameter('description2', datatype=IntRange(), constant=1)
-    assert p1 != p2
-    assert p1.ctr != p2.ctr
+    class Mod(HasAccessibles):
+        p1 = Parameter('desc1', datatype=FloatRange(), default=0)
+        p2 = Parameter('desc2', datatype=FloatRange(), default=0, readonly=True)
+        p3 = Parameter('desc3', datatype=FloatRange(), default=0, readonly=False)
+        p4 = Parameter('desc4', datatype=FloatRange(), constant=1)
+    assert repr(Mod.p1) != repr(Mod.p3)
+    assert id(Mod.p1.datatype) != id(Mod.p2.datatype)
+    assert Mod.p1.exportProperties() == {'datainfo': {'type': 'double'}, 'description': 'desc1', 'readonly': True}
+    assert Mod.p2.exportProperties() == {'datainfo': {'type': 'double'}, 'description': 'desc2', 'readonly': True}
+    assert Mod.p3.exportProperties() == {'datainfo': {'type': 'double'}, 'description': 'desc3', 'readonly': False}
+    assert Mod.p4.exportProperties() == {'datainfo': {'type': 'double'}, 'description': 'desc4', 'readonly': True,
+                                         'constant': 1.0}
+    p3 = Mod.p1.copy()
+    assert id(p3) != id(Mod.p1)
+    assert repr(Mod.p1) == repr(p3)
+
     with pytest.raises(ProgrammingError):
         Parameter(None, datatype=float, inherit=False)
-    p3 = p1.copy()
-    assert p1.ctr == p3.ctr
-    p3.ctr = p1.ctr # manipulate ctr for next line
-    assert repr(p1) == repr(p3)
-    assert p1.datatype != p2.datatype
 
 
 def test_Override():
-    p = Parameter('description1', datatype=BoolType, default=False)
+    class Base(HasAccessibles):
+        p1 = Parameter('description1', datatype=BoolType, default=False)
+        p2 = Parameter('description1', datatype=BoolType, default=False)
+        p3 = Parameter('description1', datatype=BoolType, default=False)
 
-    o = Override(default=True, reorder=True)
-    q = o.apply(p)
-    qctr = q.ctr
-    assert q.ctr > p.ctr  # reorder=True: take ctr from override object
-    assert q != p
-    assert qctr == o.apply(p).ctr  # do not create a new ctr when applied again
+    class Mod(Base):
+        p1 = Parameter(default=True)
+        p2 = Parameter()  # override without change
 
-    o2 = Override(default=True)
-    q2 = o2.apply(p)
-    assert q2.ctr == p.ctr   # reorder=False: take ctr from inherited param
-    assert q2 != p
-    assert repr(q2) != repr(p)
+    assert Mod.p1 != Base.p1
+    assert Mod.p2 != Base.p2
+    assert Mod.p3 == Base.p3
 
-    q3 = Override().apply(p)  # Override without change
-    assert id(q2) != id(p)  # must be a new object
-    assert repr(q3) == repr(p)  # but must be a clone
+    assert id(Mod.p2) != id(Base.p2)  # must be a new object
+    assert repr(Mod.p2) == repr(Base.p2)  # but must be a clone
 
 
-def test_Parameters():
-    ps = Parameters(dict(p1=Parameter('p1', datatype=BoolType, default=True)))
-    ps['p2'] = Parameter('p2', datatype=BoolType, default=True, export=True)
-    assert ps['_p2'].export == '_p2'
+def test_Export():
+    class Mod:
+        param = Parameter('description1', datatype=BoolType, default=False)
+    assert Mod.param.export == '_param'

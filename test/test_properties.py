@@ -24,37 +24,57 @@
 import pytest
 
 from secop.datatypes import IntRange, StringType, FloatRange, ValueType
-from secop.errors import ProgrammingError, ConfigError
-from secop.properties import Property, Properties, HasProperties
+from secop.errors import ProgrammingError, ConfigError, BadValueError
+from secop.properties import Property, HasProperties
 
-# args are: datatype, default, extname, export, mandatory, settable
+
+def Prop(*args, name=None, **kwds):
+    # collect the args for Property
+    return name, args, kwds
+
+
+# Property(description, datatype, default, ...)
 V_test_Property = [
-    [(StringType(), 'default', 'extname', False, False),
-     dict(default='default', extname='extname', export=True, mandatory=False)],
-    [(IntRange(), '42', '_extname', False, True),
-     dict(default=42, extname='_extname', export=True, mandatory=True)],
-    [(IntRange(), '42', '_extname', True, False),
-     dict(default=42, extname='_extname', export=True, mandatory=False)],
-    [(IntRange(), 42, '_extname', True, True),
-     dict(default=42, extname='_extname', export=True, mandatory=True)],
-    [(IntRange(), 0, '', True, True),
-     dict(default=0, extname='', export=True, mandatory=True)],
-    [(IntRange(), 0, '', True, False),
-     dict(default=0, extname='', export=True, mandatory=False)],
-    [(IntRange(), 0, '', False, True),
-     dict(default=0, extname='', export=False, mandatory=True)],
-    [(IntRange(), 0, '', False, False),
-     dict(default=0, extname='', export=False, mandatory=False)],
-    [(IntRange(), None, '', None),
-     dict(default=0, extname='', export=False, mandatory=True)], # mandatory not given, no default -> mandatory
-    [(ValueType(), 1, '', False),
-     dict(default=1, extname='', export=False, mandatory=False)], # mandatory not given, default given -> NOT mandatory
+    [Prop(StringType(), 'default', extname='extname', mandatory=False),
+     dict(default='default', extname='extname', export=True, mandatory=False)
+     ],
+    [Prop(IntRange(), '42', export=True, name='custom', mandatory=True),
+     dict(default=42, extname='_custom', export=True, mandatory=True),
+     ],
+    [Prop(IntRange(), '42', export=True, name='name'),
+     dict(default=42, extname='_name', export=True, mandatory=False)
+     ],
+    [Prop(IntRange(), 42, '_extname', mandatory=True),
+     dict(default=42, extname='_extname', export=True, mandatory=True)
+     ],
+    [Prop(IntRange(), 0, export=True, mandatory=True),
+     dict(default=0, extname='', export=True, mandatory=True)
+     ],
+    [Prop(IntRange(), 0, export=True, mandatory=False),
+     dict(default=0, extname='', export=True, mandatory=False)
+     ],
+    [Prop(IntRange(), 0, export=False, mandatory=True),
+     dict(default=0, extname='', export=False, mandatory=True)
+     ],
+    [Prop(IntRange(), 0, export=False, mandatory=False),
+     dict(default=0, extname='', export=False, mandatory=False)
+     ],
+    [Prop(IntRange()),
+     dict(default=0, extname='', export=False, mandatory=True)  # mandatory not given, no default -> mandatory
+     ],
+    [Prop(ValueType(), 1),
+     dict(default=1, extname='', export=False, mandatory=False)  # mandatory not given, default given -> NOT mandatory
+     ],
 ]
-@pytest.mark.parametrize('args, check', V_test_Property)
-def test_Property(args, check):
-    p = Property('', *args)
+@pytest.mark.parametrize('propargs, check', V_test_Property)
+def test_Property(propargs, check):
+    name, args, kwds = propargs
+    p = Property('', *args, **kwds)
+    if name:
+        p.__set_name__(None, name)
     result = {k: getattr(p, k) for k in check}
     assert result == check
+
 
 def test_Property_basic():
     with pytest.raises(TypeError):
@@ -67,47 +87,47 @@ def test_Property_basic():
         Property('', 1)
     Property('', IntRange(), '42', 'extname', False, False)
 
+
 def test_Properties():
-    p = Properties()
-    with pytest.raises(ProgrammingError):
-        p[1] = 2
-    p['a'] = Property('', IntRange(), '42', export=True)
-    assert p['a'].default == 42
-    assert p['a'].export is True
-    assert p['a'].extname == '_a'
-    with pytest.raises(ProgrammingError):
-        p['a'] = 137
-    with pytest.raises(ProgrammingError):
-        del p[1]
-    with pytest.raises(ProgrammingError):
-        del p['a']
-    p['a'] = Property('', IntRange(), 0, export=False)
-    assert p['a'].default == 0
-    assert p['a'].export is False
-    assert p['a'].extname == ''
+    class Cls(HasProperties):
+        aa = Property('', IntRange(0, 99), '42', export=True)
+        bb = Property('', IntRange(), 0, export=False)
+
+    assert Cls.aa.default == 42
+    assert Cls.aa.export is True
+    assert Cls.aa.extname == '_aa'
+
+    cc = Cls()
+    with pytest.raises(BadValueError):
+        cc.aa = 137
+
+    assert Cls.bb.default == 0
+    assert Cls.bb.export is False
+    assert Cls.bb.extname == ''
 
 
 class c(HasProperties):
-    properties = {
-        'a' : Property('', IntRange(), 1),
-    }
+    # properties
+    a = Property('', IntRange(), 1)
+
 
 class cl(c):
-    properties = {
-        'a' : Property('', IntRange(), 3),
-        'b' : Property('', FloatRange(), 3.14),
-        'minabc': Property('', IntRange(), 8),
-        'maxabc': Property('', IntRange(), 9),
-        'minx': Property('', IntRange(), 2),
-        'maxy': Property('', IntRange(), 1),
-    }
+    # properties
+    a = Property('', IntRange(), 3)
+    b = Property('', FloatRange(), 3.14)
+    minabc = Property('', IntRange(), 8)
+    maxabc = Property('', IntRange(), 9)
+    minx = Property('', IntRange(), 2)
+    maxy = Property('', IntRange(), 1)
+
 
 def test_HasProperties():
     o = c()
-    assert o.properties['a'] == 1
+    assert o.a == 1
     o = cl()
-    assert o.properties['a'] == 3
-    assert o.properties['b'] == 3.14
+    assert o.a == 3
+    assert o.b == 3.14
+
 
 def test_Property_checks():
     o = c()
@@ -118,6 +138,7 @@ def test_Property_checks():
     o.setProperty('maxabc', 1)
     with pytest.raises(ConfigError):
         o.checkProperties()
+
 
 def test_Property_override():
     o1 = c()
@@ -131,10 +152,10 @@ def test_Property_override():
         class cx(c): # pylint: disable=unused-variable
             def a(self):
                 pass
-    assert 'collides with method' in str(e.value)
+    assert 'collides with' in str(e.value)
 
     with pytest.raises(ProgrammingError) as e:
         class cz(c): # pylint: disable=unused-variable
             a = 's'
 
-    assert 'can not be set to' in str(e.value)
+    assert 'can not set' in str(e.value)

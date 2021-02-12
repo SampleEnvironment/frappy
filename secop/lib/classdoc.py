@@ -67,6 +67,7 @@ SIMPLETYPES = {
     'IntRange': 'int',
     'BlobType': 'bytes',
     'StringType': 'str',
+    'TextType': 'str',
     'BoolType': 'bool',
     'StructOf': 'dict',
 }
@@ -179,7 +180,7 @@ def append_to_doc(cls, lines, itemcls, name, attrname, fmtfunc):
 def class_doc_handler(app, what, name, cls, options, lines):
     if what == 'class':
         if issubclass(cls, HasProperties):
-            append_to_doc(cls, lines, Property, 'properties', 'properties', fmt_property)
+            append_to_doc(cls, lines, Property, 'properties', 'propertyDict', fmt_property)
         if issubclass(cls, Module):
             append_to_doc(cls, lines, Parameter, 'parameters', 'accessibles', fmt_param)
             append_to_doc(cls, lines, Command, 'commands', 'accessibles', fmt_command)

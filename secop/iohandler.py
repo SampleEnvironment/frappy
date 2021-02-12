@@ -54,7 +54,7 @@ method has to be called explicitly int the write_<parameter> method, if needed.
 """
 import re
 
-from secop.metaclass import Done
+from secop.modules import Done
 from secop.errors import ProgrammingError
 
 

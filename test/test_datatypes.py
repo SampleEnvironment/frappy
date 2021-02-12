@@ -25,7 +25,7 @@
 # no fixtures needed
 import pytest
 
-from secop.datatypes import ArrayOf, BLOBType, BoolType, \
+from secop.datatypes import ArrayOf, BLOBType, BoolType, Enum, StatusType, \
     DataType, EnumType, FloatRange, IntRange, ProgrammingError, ConfigError, \
     ScaledInteger, StringType, TextType, StructOf, TupleOf, get_datatype, CommandType
 
@@ -359,6 +359,7 @@ def test_BoolType():
         # pylint: disable=unexpected-keyword-arg
         BoolType(unit='K')
 
+
 def test_ArrayOf():
     # test constructor catching illegal arguments
     with pytest.raises(ValueError):
@@ -476,6 +477,14 @@ def test_Command():
     assert dt.export_datatype() == {'type': 'command',
         'argument':{'type': 'int', 'min':-1, 'max':1},
         'result':{'type': 'int', 'min':-3, 'max':3}}
+
+
+def test_StatusType():
+    status_codes = Enum('Status', IDLE=100, WARN=200, BUSY=300, ERROR=400)
+    dt = StatusType(status_codes)
+    assert dt.IDLE == status_codes.IDLE
+    assert dt.ERROR == status_codes.ERROR
+    assert dt._enum == status_codes
 
 
 def test_get_datatype():

@@ -28,14 +28,11 @@ from secop.properties import Property
 from secop.stringio import HasIodev
 from secop.lib import get_class
 from secop.client import SecopClient, decode_msg, encode_msg_frame
-from secop.errors import ConfigError, make_secop_error, CommunicationFailedError
+from secop.errors import ConfigError, make_secop_error, CommunicationFailedError, BadValueError
 
 
 class ProxyModule(HasIodev, Module):
-    properties = {
-        'module':
-            Property('remote module name', datatype=StringType(), default=''),
-    }
+    module = Property('remote module name', datatype=StringType(), default='')
 
     pollerClass = None
     _consistency_check_done = False
@@ -55,7 +52,7 @@ class ProxyModule(HasIodev, Module):
 
     def initModule(self):
         if not self.module:
-            self.properties['module'] = self.name
+            self.module = self.name
         self._secnode = self._iodev.secnode
         self._secnode.register_callback(self.module, self.updateEvent,
                                         self.descriptiveDataChange, self.nodeStateChange)
@@ -103,9 +100,9 @@ class ProxyModule(HasIodev, Module):
             dt = props['datatype']
             try:
                 cobj.datatype.compatible(dt)
-            except Exception:
+            except BadValueError:
                 self.log.warning('remote command %s:%s is not compatible: %r != %r'
-                                 % (self.module, pname, pobj.datatype, dt))
+                                 % (self.module, cname, cobj.datatype, dt))
         # what to do if descriptive data does not match?
         # we might raise an exception, but this would lead to a reconnection,
         # which might not help.
@@ -141,14 +138,7 @@ PROXY_CLASSES = [ProxyDrivable, ProxyWritable, ProxyReadable, ProxyModule]
 
 
 class SecNode(Module):
-    properties = {
-        'uri':
-            Property('uri of a SEC node', datatype=StringType()),
-    }
-    commands = {
-        'request':
-            Command('send a request', argument=StringType(), result=StringType())
-    }
+    uri = Property('uri of a SEC node', datatype=StringType())
 
     def earlyInit(self):
         self.secnode = SecopClient(self.uri, self.log)
@@ -156,8 +146,9 @@ class SecNode(Module):
     def startModule(self, started_callback):
         self.secnode.spawn_connect(started_callback)
 
-    def do_request(self, msg):
-        """for test purposes"""
+    @Command(StringType(), result=StringType())
+    def request(self, msg):
+        """send a request, for debugging purposes"""
         reply = self.secnode.request(*decode_msg(msg.encode('utf-8')))
         return encode_msg_frame(*reply).decode('utf-8')
 
@@ -184,17 +175,12 @@ def proxy_class(remote_class, name=None):
     else:
         raise ConfigError('%r is no SECoP module class' % remote_class)
 
-    parameters = {}
-    commands = {}
-    attrs = dict(parameters=parameters, commands=commands, properties=rcls.properties)
+    attrs = rcls.propertyDict.copy()
 
     for aname, aobj in rcls.accessibles.items():
         if isinstance(aobj, Parameter):
-            pobj = aobj.copy()
-            parameters[aname] = pobj
-            pobj.properties['poll'] = False
-            pobj.properties['handler'] = None
-            pobj.properties['needscfg'] = False
+            pobj = aobj.override(poll=False, handler=None, needscfg=False)
+            attrs[aname] = pobj
 
             def rfunc(self, pname=aname):
                 value, _, readerror = self._secnode.getParameter(self.name, pname)
@@ -216,12 +202,11 @@ def proxy_class(remote_class, name=None):
 
         elif isinstance(aobj, Command):
             cobj = aobj.copy()
-            commands[aname] = cobj
 
             def cfunc(self, arg=None, cname=aname):
                 return self._secnode.execCommand(self.name, cname, arg)
 
-            attrs['do_' + aname] = cfunc
+            attrs[aname] = cobj(cfunc)
 
         else:
             raise ConfigError('do not now about %r in %s.accessibles' % (aobj, remote_class))

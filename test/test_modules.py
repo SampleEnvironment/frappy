@@ -22,14 +22,14 @@
 # *****************************************************************************
 """test data types."""
 
-# no fixtures needed
-#import pytest
-
 import threading
+import pytest
+
 from secop.datatypes import BoolType, FloatRange, StringType
 from secop.modules import Communicator, Drivable, Module
-from secop.params import Command, Override, Parameter, usercommand
+from secop.params import Command, Parameter
 from secop.poller import BasicPoller
+from secop.errors import ProgrammingError
 
 
 class DispatcherStub:
@@ -64,29 +64,26 @@ def test_Communicator():
     assert event.is_set() # event should be set immediately
 
 
-def test_ModuleMeta():
+def test_ModuleMagic():
     class Newclass1(Drivable):
-        parameters = {
-            'pollinterval': Override(reorder=True),
-            'param1' : Parameter('param1', datatype=BoolType(), default=False),
-            'param2': Parameter('param2', datatype=FloatRange(unit='Ohm'), default=True),
-            "cmd": Command('stuff', argument=BoolType(), result=BoolType())
-        }
-        commands = {
-            # intermixing parameters with commands is not recommended,
-            # but acceptable for influencing the order
-            'a1': Parameter('a1', datatype=BoolType(), default=False),
-            'a2': Parameter('a2', datatype=BoolType(), default=True),
-            'value': Override(datatype=StringType(), default='first'),
-            'cmd2': Command('another stuff', argument=BoolType(), result=BoolType()),
-        }
+        param1 = Parameter('param1', datatype=BoolType(), default=False)
+        param2 = Parameter('param2', datatype=FloatRange(unit='Ohm'), default=True)
+
+        @Command(argument=BoolType(), result=BoolType())
+        def cmd(self, arg):
+            """stuff"""
+            return not arg
+
+        a1 = Parameter('a1', datatype=BoolType(), default=False)
+        a2 = Parameter('a2', datatype=BoolType(), default=True)
+        value = Parameter(datatype=StringType(), default='first')
+
+        @Command(argument=BoolType(), result=BoolType())
+        def cmd2(self, arg):
+            """another stuff"""
+            return not arg
+
         pollerClass = BasicPoller
-
-        def do_cmd(self, arg):
-            return not arg
-
-        def do_cmd2(self, arg):
-            return not arg
 
         def read_param1(self):
             return True
@@ -103,19 +100,31 @@ def test_ModuleMeta():
         def read_value(self):
             return 'second'
 
+    with pytest.raises(ProgrammingError):
+        class Mod1(Module):  # pylint: disable=unused-variable
+            def do_this(self):  # old style command
+                pass
 
-    # first inherited accessibles, then Overrides with reorder=True and new accessibles
-    sortcheck1 = ['value', 'status', 'target', 'pollinterval',
+    with pytest.raises(ProgrammingError):
+        class Mod2(Module):  # pylint: disable=unused-variable
+            param = Parameter(),  # pylint: disable=trailing-comma-tuple
+
+
+    # first inherited accessibles
+    sortcheck1 = ['value', 'status', 'pollinterval', 'target', 'stop',
                  'param1', 'param2', 'cmd', 'a1', 'a2', 'cmd2']
 
     class Newclass2(Newclass1):
-        parameters = {
-            'cmd2': Override('another stuff'),
-            'value': Override(datatype=FloatRange(unit='deg'), reorder=True),
-            'a1': Override(datatype=FloatRange(unit='$/s'), reorder=True, readonly=False),
-            'b2': Parameter('<b2>', datatype=BoolType(), default=True,
-                            poll=True, readonly=False, initwrite=True),
-        }
+        paramOrder = 'param1', 'param2', 'cmd', 'value'
+
+        @Command(description='another stuff')
+        def cmd2(self, arg):
+            return arg
+
+        value = Parameter(datatype=FloatRange(unit='deg'))
+        a1 = Parameter(datatype=FloatRange(unit='$/s'), readonly=False)
+        b2 = Parameter('<b2>', datatype=BoolType(), default=True,
+                            poll=True, readonly=False, initwrite=True)
 
         def write_a1(self, value):
             self._a1_written = value
@@ -128,47 +137,15 @@ def test_ModuleMeta():
         def read_value(self):
             return 0
 
-    sortcheck2 = ['status', 'target', 'pollinterval',
-                  'param1', 'param2', 'cmd', 'a2', 'cmd2', 'value', 'a1', 'b2']
-
-    # check consistency of new syntax:
-    class Testclass1(Drivable):
-        pollinterval = Parameter(reorder=True)
-        param1 = Parameter('param1', datatype=BoolType(), default=False)
-        param2 = Parameter('param2', datatype=FloatRange(unit='Ohm'), default=True)
-
-        @usercommand(BoolType(), BoolType())
-        def cmd(self, arg):
-            """stuff"""
-            return not arg
-
-        a1 = Parameter('a1', datatype=BoolType(), default=False)
-        a2 = Parameter('a2', datatype=BoolType(), default=True)
-        value = Parameter(datatype=StringType(), default='first')
-
-        @usercommand(BoolType(), BoolType())
-        def cmd2(self, arg):
-            """another stuff"""
-            return not arg
-
-    class Testclass2(Testclass1):
-        cmd2 = Command('another stuff')
-        value = Parameter(datatype=FloatRange(unit='deg'), reorder=True)
-        a1 = Parameter(datatype=FloatRange(unit='$/s'), reorder=True, readonly=False)
-        b2 = Parameter('<b2>', datatype=BoolType(), default=True,
-                       poll=True, readonly=False, initwrite=True)
-
-    for old, new in (Newclass1, Testclass1), (Newclass2, Testclass2):
-        assert len(old.accessibles) == len(new.accessibles)
-        for (oname, oobj), (nname, nobj) in zip(old.accessibles.items(), new.accessibles.items()):
-            assert oname == nname
-            assert oobj.for_export() == nobj.for_export()
+    # first inherited items not mentioned, then the ones mentioned in paramOrder, then the other new ones
+    sortcheck2 = ['status', 'pollinterval', 'target', 'stop',
+                  'a1', 'a2', 'cmd2', 'param1', 'param2', 'cmd', 'value', 'b2']
 
     logger = LoggerStub()
     updates = {}
     srv = ServerStub(updates)
 
-    params_found = set() # set of instance accessibles
+    params_found = set()  # set of instance accessibles
     objects = []
 
     for newclass, sortcheck in [(Newclass1, sortcheck1), (Newclass2, sortcheck2)]:
@@ -176,15 +153,11 @@ def test_ModuleMeta():
         o2 = newclass('o2', logger, {'.description':''}, srv)
         for obj in [o1, o2]:
             objects.append(obj)
-            ctr_found = set()
-            for n, o in obj.accessibles.items():
+            for o in obj.accessibles.values():
                 # check that instance accessibles are unique objects
                 assert o not in params_found
                 params_found.add(o)
-                assert o.ctr not in ctr_found
-                ctr_found.add(o.ctr)
-                check_order = [(obj.accessibles[n].ctr, n) for n in sortcheck]
-            assert check_order == sorted(check_order)
+            assert list(obj.accessibles) == sortcheck
 
     # check for inital updates working properly
     o1 = Newclass1('o1', logger, {'.description':''}, srv)
@@ -246,7 +219,7 @@ def test_ModuleMeta():
             assert acs is not None
         else: # do not check object or mixin
             acs = {}
-        for n, o in acs.items():
+        for o in acs.values():
             # check that class accessibles are not reused as instance accessibles
             assert o not in params_found
 

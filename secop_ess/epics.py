@@ -58,20 +58,20 @@ except ImportError:
 class EpicsReadable(Readable):
     """EpicsDrivable handles a Drivable interfacing to EPICS v4"""
     # Commmon parameter for all EPICS devices
-    parameters = {
-        'value': Parameter('EPICS generic value',
-                       datatype=FloatRange(),
-                       default=300.0,),
-        'epics_version': Parameter("EPICS version used, v3 or v4",
-                               datatype=EnumType(v3=3, v4=4),),
-        # 'private' parameters: not remotely accessible
-        'value_pv': Parameter('EPICS pv_name of value',
-                          datatype=StringType(),
-                          default="unset", export=False),
-        'status_pv': Parameter('EPICS pv_name of status',
-                           datatype=StringType(),
-                           default="unset", export=False),
-    }
+
+    # parameters
+    value = Parameter('EPICS generic value',
+                  datatype=FloatRange(),
+                  default=300.0,)
+    epics_version = Parameter("EPICS version used, v3 or v4",
+                          datatype=EnumType(v3=3, v4=4),)
+    value_pv = Parameter('EPICS pv_name of value',
+                     datatype=StringType(),
+                     default="unset", export=False)
+    status_pv = Parameter('EPICS pv_name of status',
+                      datatype=StringType(),
+                      default="unset", export=False)
+
 
     # Generic read and write functions
     def _read_pv(self, pv_name):
@@ -118,21 +118,21 @@ class EpicsReadable(Readable):
 class EpicsDrivable(Drivable):
     """EpicsDrivable handles a Drivable interfacing to EPICS v4"""
     # Commmon parameter for all EPICS devices
-    parameters = {
-        'target': Parameter('EPICS generic target', datatype=FloatRange(),
-                        default=300.0, readonly=False),
-        'value': Parameter('EPICS generic value', datatype=FloatRange(),
-                       default=300.0,),
-        'epics_version': Parameter("EPICS version used, v3 or v4",
-                               datatype=StringType(),),
-        # 'private' parameters: not remotely accessible
-        'target_pv': Parameter('EPICS pv_name of target', datatype=StringType(),
-                           default="unset", export=False),
-        'value_pv': Parameter('EPICS pv_name of value', datatype=StringType(),
-                          default="unset", export=False),
-        'status_pv': Parameter('EPICS pv_name of status', datatype=StringType(),
-                           default="unset", export=False),
-    }
+
+    # parameters
+    target = Parameter('EPICS generic target', datatype=FloatRange(),
+                   default=300.0, readonly=False)
+    value = Parameter('EPICS generic value', datatype=FloatRange(),
+                  default=300.0,)
+    epics_version = Parameter("EPICS version used, v3 or v4",
+                          datatype=StringType(),)
+    target_pv = Parameter('EPICS pv_name of target', datatype=StringType(),
+                      default="unset", export=False)
+    value_pv = Parameter('EPICS pv_name of value', datatype=StringType(),
+                     default="unset", export=False)
+    status_pv = Parameter('EPICS pv_name of status', datatype=StringType(),
+                      default="unset", export=False)
+
 
     # Generic read and write functions
     def _read_pv(self, pv_name):
@@ -191,17 +191,16 @@ class EpicsDrivable(Drivable):
 
 class EpicsTempCtrl(EpicsDrivable):
 
-    parameters = {
-        # TODO: restrict possible values with oneof datatype
-        'heaterrange': Parameter('Heater range', datatype=StringType(),
-                             default='Off', readonly=False,),
-        'tolerance': Parameter('allowed deviation between value and target',
-                           datatype=FloatRange(1e-6, 1e6), default=0.1,
-                           readonly=False,),
-        # 'private' parameters: not remotely accessible
-        'heaterrange_pv': Parameter('EPICS pv_name of heater range',
-                                datatype=StringType(), default="unset", export=False,),
-    }
+
+    # parameters
+    heaterrange = Parameter('Heater range', datatype=StringType(),
+                        default='Off', readonly=False,)
+    tolerance = Parameter('allowed deviation between value and target',
+                      datatype=FloatRange(1e-6, 1e6), default=0.1,
+                      readonly=False,)
+    heaterrange_pv = Parameter('EPICS pv_name of heater range',
+                           datatype=StringType(), default="unset", export=False,)
+
 
     def read_target(self):
         return self._read_pv(self.target_pv)

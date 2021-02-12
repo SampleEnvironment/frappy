@@ -22,7 +22,7 @@
 
 not tested yet"""
 
-from secop.core import Writable, Module, Parameter, Override, Attached,\
+from secop.core import Writable, Module, Parameter, Attached,\
     BoolType, FloatRange, EnumType, HasIodev, StringIO
 
 
@@ -42,13 +42,13 @@ SOURCECMDS = {
 
 
 class SourceMeter(HasIodev, Module):
-    parameters = {
-        'resistivity': Parameter('readback resistivity', FloatRange(unit='Ohm'), poll=True),
-        'power': Parameter('readback power', FloatRange(unit='W'), poll=True),
-        'mode': Parameter('measurement mode', EnumType(off=0, current=1, voltage=2),
-                          readonly=False, default=0),
-        'active': Parameter('output enable', BoolType(), readonly=False, poll=True),
-    }
+
+    resistivity = Parameter('readback resistivity', FloatRange(unit='Ohm'), poll=True)
+    power = Parameter('readback power', FloatRange(unit='W'), poll=True)
+    mode = Parameter('measurement mode', EnumType(off=0, current=1, voltage=2),
+                     readonly=False, default=0)
+    active = Parameter('output enable', BoolType(), readonly=False, poll=True)
+
     iodevClass = K2601bIO
 
     def read_resistivity(self):
@@ -74,15 +74,12 @@ class SourceMeter(HasIodev, Module):
 
 
 class Current(HasIodev, Writable):
-    properties = {
-        'sourcemeter': Attached(),
-    }
-    parameters = {
-        'value': Override('measured current', FloatRange(unit='A'), poll=True),
-        'target': Override('set current', FloatRange(unit='A'), poll=True),
-        'active': Parameter('current is controlled', BoolType(), default=False),  # polled from Current/Voltage
-        'limit': Parameter('current limit', FloatRange(0, 2.0, unit='A'), default=2, poll=True),
-    }
+    sourcemeter = Attached()
+
+    value = Parameter('measured current', FloatRange(unit='A'), poll=True)
+    target = Parameter('set current', FloatRange(unit='A'), poll=True)
+    active = Parameter('current is controlled', BoolType(), default=False)  # polled from Current/Voltage
+    limit = Parameter('current limit', FloatRange(0, 2.0, unit='A'), default=2, poll=True)
 
     def read_value(self):
         return self.sendRecv('print(smua.measure.i())')
@@ -120,15 +117,12 @@ class Current(HasIodev, Writable):
 
 
 class Voltage(HasIodev, Writable):
-    properties = {
-        'sourcemeter': Attached(),
-    }
-    parameters = {
-        'value': Override('measured voltage', FloatRange(unit='V'), poll=True),
-        'target': Override('set voltage', FloatRange(unit='V'), poll=True),
-        'active': Parameter('voltage is controlled', BoolType(), poll=True),
-        'limit': Parameter('current limit', FloatRange(0, 2.0, unit='V'), default=2, poll=True),
-    }
+    sourcemeter = Attached()
+
+    value = Parameter('measured voltage', FloatRange(unit='V'), poll=True)
+    target = Parameter('set voltage', FloatRange(unit='V'), poll=True)
+    active = Parameter('voltage is controlled', BoolType(), poll=True)
+    limit = Parameter('current limit', FloatRange(0, 2.0, unit='V'), default=2, poll=True)
 
     def read_value(self):
         return self.sendRecv('print(smua.measure.v())')
@@ -159,7 +153,7 @@ class Voltage(HasIodev, Writable):
     def write_active(self, value):
         if self._sourcemeter.mode != 2:
             if value:
-                self._sourcemeter.write_mode(2) # switch to voltage
+                self._sourcemeter.write_mode(2)  # switch to voltage
             else:
                 return 0
         return self._sourcemeter.write_active(value)

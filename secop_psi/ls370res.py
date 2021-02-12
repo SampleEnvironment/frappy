@@ -22,8 +22,7 @@
 
 import time
 
-from secop.modules import Readable, Drivable, Parameter, Override, Property, Attached
-from secop.metaclass import Done
+from secop.modules import Readable, Drivable, Parameter, Property, Attached, Done
 from secop.datatypes import FloatRange, IntRange, EnumType, BoolType
 from secop.stringio import HasIodev
 from secop.poller import Poller, REGULAR
@@ -59,13 +58,11 @@ class StringIO(secop.stringio.StringIO):
 
 
 class Main(HasIodev, Drivable):
-    parameters = {
-        'value': Override('the current channel', poll=REGULAR, datatype=IntRange(0, 17)),
-        'target': Override('channel to select', datatype=IntRange(0, 17)),
-        'autoscan':
-            Parameter('whether to scan automatically', datatype=BoolType(), readonly=False, default=False),
-        'pollinterval': Override('sleeptime between polls', default=1),
-    }
+
+    value = Parameter('the current channel', poll=REGULAR, datatype=IntRange(0, 17))
+    target = Parameter('channel to select', datatype=IntRange(0, 17))
+    autoscan = Parameter('whether to scan automatically', datatype=BoolType(), readonly=False, default=False)
+    pollinterval = Parameter('sleeptime between polls', default=1)
 
     pollerClass = Poller
     iodevClass = StringIO
@@ -142,40 +139,23 @@ class ResChannel(HasIodev, Readable):
     _main = None  # main module
     _last_range_change = 0  # time of last range change
 
-    properties = {
-        'channel':
-            Property('the Lakeshore channel', datatype=IntRange(1, 16), export=False),
-        'main':
-            Attached()
-    }
+    channel = Property('the Lakeshore channel', datatype=IntRange(1, 16), export=False)
+    main = Attached()
 
-    parameters = {
-        'value':
-            Override(datatype=FloatRange(unit='Ohm')),
-        'pollinterval':
-            Override(visibility=3),
-        'range':
-            Parameter('reading range', readonly=False,
-                      datatype=EnumType(**RES_RANGE), handler=rdgrng),
-        'minrange':
-            Parameter('minimum range for software autorange', readonly=False, default=1,
-                      datatype=EnumType(**RES_RANGE)),
-        'autorange':
-            Parameter('autorange', datatype=EnumType(off=0, hard=1, soft=2),
-                      readonly=False, handler=rdgrng, default=2),
-        'iexc':
-            Parameter('current excitation', datatype=EnumType(off=0, **CUR_RANGE), readonly=False, handler=rdgrng),
-        'vexc':
-            Parameter('voltage excitation', datatype=EnumType(off=0, **VOLT_RANGE), readonly=False, handler=rdgrng),
-        'enabled':
-            Parameter('is this channel enabled?', datatype=BoolType(), readonly=False, handler=inset),
-        'pause':
-            Parameter('pause after channel change', datatype=FloatRange(3, 60), readonly=False, handler=inset),
-        'dwell':
-            Parameter('dwell time with autoscan', datatype=FloatRange(1, 200), readonly=False, handler=inset),
-        'filter':
-            Parameter('filter time', datatype=FloatRange(1, 200), readonly=False, handler=filterhdl),
-    }
+    value = Parameter(datatype=FloatRange(unit='Ohm'))
+    pollinterval = Parameter(visibility=3)
+    range = Parameter('reading range', readonly=False,
+                      datatype=EnumType(**RES_RANGE), handler=rdgrng)
+    minrange = Parameter('minimum range for software autorange', readonly=False, default=1,
+                         datatype=EnumType(**RES_RANGE))
+    autorange = Parameter('autorange', datatype=EnumType(off=0, hard=1, soft=2),
+                          readonly=False, handler=rdgrng, default=2)
+    iexc = Parameter('current excitation', datatype=EnumType(off=0, **CUR_RANGE), readonly=False, handler=rdgrng)
+    vexc = Parameter('voltage excitation', datatype=EnumType(off=0, **VOLT_RANGE), readonly=False, handler=rdgrng)
+    enabled = Parameter('is this channel enabled?', datatype=BoolType(), readonly=False, handler=inset)
+    pause = Parameter('pause after channel change', datatype=FloatRange(3, 60), readonly=False, handler=inset)
+    dwell = Parameter('dwell time with autoscan', datatype=FloatRange(1, 200), readonly=False, handler=inset)
+    filter = Parameter('filter time', datatype=FloatRange(1, 200), readonly=False, handler=filterhdl)
 
     def initModule(self):
         self._main = self.DISPATCHER.get_module(self.main)

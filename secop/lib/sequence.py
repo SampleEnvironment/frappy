@@ -141,7 +141,7 @@ class SequencerMixin:
             return self.read_hw_status()
         return self.Status.IDLE, ''
 
-    def do_stop(self):
+    def stop(self):
         if self.seq_is_alive():
             self._seq_stopflag = True
 

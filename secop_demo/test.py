@@ -24,7 +24,7 @@
 import random
 
 from secop.datatypes import FloatRange, StringType
-from secop.modules import Communicator, Drivable, Parameter, Readable, Override
+from secop.modules import Communicator, Drivable, Parameter, Readable
 from secop.params import Command
 
 
@@ -45,11 +45,10 @@ class Heater(Drivable):
     class name indicates it to be some heating element,
     but the implementation may do anything
     """
-    parameters = {
-        'maxheaterpower': Parameter('maximum allowed heater power',
-                                datatype=FloatRange(0, 100), unit='W',
-                                ),
-    }
+
+    maxheaterpower = Parameter('maximum allowed heater power',
+                               datatype=FloatRange(0, 100), unit='W',
+                               )
 
     def read_value(self):
         return round(100 * random.random(), 1)
@@ -64,22 +63,21 @@ class Temp(Drivable):
     class name indicates it to be some temperature controller,
     but the implementation may do anything
     """
-    parameters = {
-        'sensor': Parameter(
-            "Sensor number or calibration id",
-            datatype=StringType(
-                8,
-                16),
-            readonly=True,
-        ),
-        'target': Override(
-            "Target temperature",
-            default=300.0,
-            datatype=FloatRange(0),
-            readonly=False,
-            unit='K',
-        ),
-    }
+
+    sensor = Parameter(
+       "Sensor number or calibration id",
+       datatype=StringType(
+           8,
+           16),
+       readonly=True,
+    )
+    target = Parameter(
+       "Target temperature",
+       default=300.0,
+       datatype=FloatRange(0),
+       readonly=False,
+       unit='K',
+    )
 
     def read_value(self):
         return round(100 * random.random(), 1)
@@ -90,8 +88,8 @@ class Temp(Drivable):
 
 class Lower(Communicator):
     """Communicator returning a lowercase version of the request"""
-    command = {
-        'communicate': Command('lowercase a string', argument=StringType(), result=StringType(), export='communicate'),
-    }
-    def do_communicate(self, request):
-        return str(request).lower()
+
+    @Command(argument=StringType(), result=StringType(), export='communicate')
+    def communicate(self, command):
+        """lowercase a string"""
+        return str(command).lower()

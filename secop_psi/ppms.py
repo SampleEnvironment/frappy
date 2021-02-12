@@ -34,8 +34,8 @@ Polling of value and status is done commonly for all modules. For each registere
 import time
 import threading
 
-from secop.modules import Module, Readable, Drivable, Parameter, Override,\
-    Communicator, Property, Attached
+from secop.modules import Readable, Drivable, Parameter,\
+    Communicator, Property, Attached, HasAccessibles, Done
 from secop.datatypes import EnumType, FloatRange, IntRange, StringType,\
     BoolType, StatusType
 from secop.lib.enum import Enum
@@ -44,7 +44,6 @@ from secop.errors import HardwareError
 from secop.poller import Poller
 import secop.iohandler
 from secop.stringio import HasIodev
-from secop.metaclass import Done
 
 try:
     import secop_psi.ppmswindows as ppmshw
@@ -73,19 +72,14 @@ class IOHandler(secop.iohandler.IOHandler):
 class Main(Communicator):
     """ppms communicator module"""
 
-    parameters = {
-        'pollinterval': Parameter('poll interval', readonly=False,
-                                  datatype=FloatRange(), default=2),
-        'communicate':  Override('GBIP command'),
-        'data':         Parameter('internal', poll=True, export=True,  # export for test only
-                                  default="", readonly=True, datatype=StringType()),
-    }
-    properties = {
-        'class_id':     Property('Quantum Design class id', export=False,
-                                 datatype=StringType()),
-    }
+    pollinterval = Parameter('poll interval', FloatRange(), readonly=False, default=2)
+    data = Parameter('internal', StringType(), poll=True, export=True,  # export for test only
+                     default="", readonly=True)
 
-    _channel_names = ['packed_status', 'temp', 'field', 'position', 'r1', 'i1', 'r2', 'i2',
+    class_id = Property('Quantum Design class id', StringType(), export=False)
+
+    _channel_names = [
+        'packed_status', 'temp', 'field', 'position', 'r1', 'i1', 'r2', 'i2',
         'r3', 'i3', 'r4', 'i4', 'v1', 'v2', 'digital', 'cur1', 'pow1', 'cur2', 'pow2',
         'p', 'u20', 'u21', 'u22', 'ts', 'u24', 'u25', 'u26', 'u27', 'u28', 'u29']
     assert len(_channel_names) == 30
@@ -102,7 +96,8 @@ class Main(Communicator):
     def register(self, other):
         self.modules[other.channel] = other
 
-    def do_communicate(self, command):
+    def communicate(self, command):
+        """GPIB command"""
         with self.lock:
             reply = self._ppms_device.send(command)
             self.log.debug("%s|%s", command, reply)
@@ -114,7 +109,7 @@ class Main(Communicator):
             if channel.enabled:
                 mask |= 1 << self._channel_to_index.get(channelname, 0)
         # send, read and convert to floats and ints
-        data = self.do_communicate('GETDAT? %d' % mask)
+        data = self.communicate('GETDAT? %d' % mask)
         reply = data.split(',')
         mask = int(reply.pop(0))
         reply.pop(0)  # pop timestamp
@@ -133,11 +128,9 @@ class Main(Communicator):
         return data  # return data as string
 
 
-class PpmsMixin(HasIodev, Module):
+class PpmsMixin(HasIodev, HasAccessibles):
     """common methods for ppms modules"""
-    properties = {
-        'iodev': Attached(),
-    }
+    iodev = Attached()
 
     pollerClass = Poller
     enabled = True  # default, if no parameter enable is defined
@@ -177,28 +170,21 @@ class PpmsMixin(HasIodev, Module):
 
 class Channel(PpmsMixin, Readable):
     """channel base class"""
-    parameters = {
-        'value':
-            Override('main value of channels', poll=True),
-        'enabled':
-            Parameter('is this channel used?', readonly=False, poll=False,
-                      datatype=BoolType(), default=False),
-        'pollinterval':
-            Override(visibility=3),
-    }
-    properties = {
-        'channel':
-            Property('channel name',
-                     datatype=StringType(), export=False, default=''),
-        'no':
-            Property('channel number',
-                     datatype=IntRange(1, 4), export=False),
-    }
+
+    value = Parameter('main value of channels', poll=True)
+    enabled = Parameter('is this channel used?', readonly=False, poll=False,
+                        datatype=BoolType(), default=False)
+    pollinterval = Parameter(visibility=3)
+
+    channel = Property('channel name',
+                       datatype=StringType(), export=False, default='')
+    no = Property('channel number',
+                  datatype=IntRange(1, 4), export=False)
 
     def earlyInit(self):
         Readable.earlyInit(self)
         if not self.channel:
-            self.properties['channel'] = self.name
+            self.channel = self.name
 
     def get_settings(self, pname):
         return ''
@@ -207,19 +193,12 @@ class Channel(PpmsMixin, Readable):
 class UserChannel(Channel):
     """user channel"""
 
-    parameters = {
-        'pollinterval':
-            Override(visibility=3),
-    }
-    properties = {
-        'no':
-            Property('channel number',
-                     datatype=IntRange(0, 0), export=False, default=0),
-        'linkenable':
-            Property('name of linked channel for enabling',
-                     datatype=StringType(), export=False, default=''),
+    pollinterval = Parameter(visibility=3)
 
-    }
+    no = Property('channel number',
+                  datatype=IntRange(0, 0), export=False, default=0)
+    linkenable = Property('name of linked channel for enabling',
+                          datatype=StringType(), export=False, default='')
 
     def write_enabled(self, enabled):
         other = self._iodev.modules.get(self.linkenable, None)
@@ -233,16 +212,11 @@ class DriverChannel(Channel):
 
     drvout = IOHandler('drvout', 'DRVOUT? %(no)d', '%d,%g,%g')
 
-    parameters = {
-        'current':
-            Parameter('driver current', readonly=False, handler=drvout,
-                      datatype=FloatRange(0., 5000., unit='uA')),
-        'powerlimit':
-            Parameter('power limit', readonly=False, handler=drvout,
-                      datatype=FloatRange(0., 1000., unit='uW')),
-        'pollinterval':
-            Override(visibility=3),
-    }
+    current = Parameter('driver current', readonly=False, handler=drvout,
+                        datatype=FloatRange(0., 5000., unit='uA'))
+    powerlimit = Parameter('power limit', readonly=False, handler=drvout,
+                           datatype=FloatRange(0., 1000., unit='uW'))
+    pollinterval = Parameter(visibility=3)
 
     def analyze_drvout(self, no, current, powerlimit):
         if self.no != no:
@@ -260,27 +234,19 @@ class BridgeChannel(Channel):
     bridge = IOHandler('bridge', 'BRIDGE? %(no)d', '%d,%g,%g,%d,%d,%g')
     # pylint: disable=invalid-name
     ReadingMode = Enum('ReadingMode', standard=0, fast=1, highres=2)
-    parameters = {
-        'enabled':
-            Override(handler=bridge),
-        'excitation':
-            Parameter('excitation current', readonly=False, handler=bridge,
-                      datatype=FloatRange(0.01, 5000., unit='uA')),
-        'powerlimit':
-            Parameter('power limit', readonly=False, handler=bridge,
-                      datatype=FloatRange(0.001, 1000., unit='uW')),
-        'dcflag':
-            Parameter('True when excitation is DC (else AC)', readonly=False, handler=bridge,
-                      datatype=BoolType()),
-        'readingmode':
-            Parameter('reading mode', readonly=False, handler=bridge,
-                      datatype=EnumType(ReadingMode)),
-        'voltagelimit':
-            Parameter('voltage limit', readonly=False, handler=bridge,
-                      datatype=FloatRange(0.0001, 100., unit='mV')),
-        'pollinterval':
-            Override(visibility=3),
-    }
+
+    enabled = Parameter(handler=bridge)
+    excitation = Parameter('excitation current', readonly=False, handler=bridge,
+                           datatype=FloatRange(0.01, 5000., unit='uA'))
+    powerlimit = Parameter('power limit', readonly=False, handler=bridge,
+                           datatype=FloatRange(0.001, 1000., unit='uW'))
+    dcflag = Parameter('True when excitation is DC (else AC)', readonly=False, handler=bridge,
+                       datatype=BoolType())
+    readingmode = Parameter('reading mode', readonly=False, handler=bridge,
+                            datatype=EnumType(ReadingMode))
+    voltagelimit = Parameter('voltage limit', readonly=False, handler=bridge,
+                             datatype=FloatRange(0.0001, 100., unit='mV'))
+    pollinterval = Parameter(visibility=3)
 
     def analyze_bridge(self, no, excitation, powerlimit, dcflag, readingmode, voltagelimit):
         if self.no != no:
@@ -306,12 +272,9 @@ class Level(PpmsMixin, Readable):
 
     level = IOHandler('level', 'LEVEL?', '%g,%d')
 
-    parameters = {
-        'value':  Override(datatype=FloatRange(unit='%'), handler=level),
-        'status': Override(handler=level),
-        'pollinterval':
-            Override(visibility=3),
-    }
+    value = Parameter(datatype=FloatRange(unit='%'), handler=level)
+    status = Parameter(handler=level)
+    pollinterval = Parameter(visibility=3)
 
     channel = 'level'
 
@@ -360,16 +323,13 @@ class Chamber(PpmsMixin, Drivable):
         venting_continuously=9,
         general_failure=15,
     )
-    parameters = {
-        'value':
-            Override(description='chamber state', handler=chamber,
-                     datatype=EnumType(StatusCode)),
-        'target':
-            Override(description='chamber command', handler=chamber,
-                     datatype=EnumType(Operation)),
-        'pollinterval':
-            Override(visibility=3),
-    }
+
+    value = Parameter(description='chamber state', handler=chamber,
+                      datatype=EnumType(StatusCode))
+    target = Parameter(description='chamber command', handler=chamber,
+                       datatype=EnumType(Operation))
+    pollinterval = Parameter(visibility=3)
+
     STATUS_MAP = {
         StatusCode.purged_and_sealed: (Status.IDLE, 'purged and sealed'),
         StatusCode.vented_and_sealed: (Status.IDLE, 'vented and sealed'),
@@ -409,37 +369,29 @@ class Temp(PpmsMixin, Drivable):
     """temperature"""
 
     temp = IOHandler('temp', 'TEMP?', '%g,%g,%d')
-    Status = Enum(Drivable.Status,
-        RAMPING = 370,
-        STABILIZING = 380,
+    Status = Enum(
+        Drivable.Status,
+        RAMPING=370,
+        STABILIZING=380,
     )
     # pylint: disable=invalid-name
     ApproachMode = Enum('ApproachMode', fast_settle=0, no_overshoot=1)
-    parameters = {
-        'value':
-            Override(datatype=FloatRange(unit='K'), poll=True),
-        'status':
-            Override(datatype=StatusType(Status), poll=True),
-        'target':
-            Override(datatype=FloatRange(1.7, 402.0, unit='K'), poll=False, needscfg=False),
-        'setpoint':
-            Parameter('intermediate set point',
-                      datatype=FloatRange(1.7, 402.0, unit='K'), handler=temp),
-        'ramp':
-            Parameter('ramping speed', readonly=False, default=0,
-                      datatype=FloatRange(0, 20, unit='K/min')),
-        'workingramp':
-            Parameter('intermediate ramp value',
-                      datatype=FloatRange(0, 20, unit='K/min'), handler=temp),
-        'approachmode':
-            Parameter('how to approach target!', readonly=False, handler=temp,
-                      datatype=EnumType(ApproachMode)),
-        'pollinterval':
-            Override(visibility=3),
-        'timeout':
-            Parameter('drive timeout, in addition to ramp time', readonly=False,
-                      datatype=FloatRange(0, unit='sec'), default=3600),
-    }
+
+    value = Parameter(datatype=FloatRange(unit='K'), poll=True)
+    status = Parameter(datatype=StatusType(Status), poll=True)
+    target = Parameter(datatype=FloatRange(1.7, 402.0, unit='K'), poll=False, needscfg=False)
+    setpoint = Parameter('intermediate set point',
+                         datatype=FloatRange(1.7, 402.0, unit='K'), handler=temp)
+    ramp = Parameter('ramping speed', readonly=False, default=0,
+                     datatype=FloatRange(0, 20, unit='K/min'))
+    workingramp = Parameter('intermediate ramp value',
+                            datatype=FloatRange(0, 20, unit='K/min'), handler=temp)
+    approachmode = Parameter('how to approach target!', readonly=False, handler=temp,
+                             datatype=EnumType(ApproachMode))
+    pollinterval = Parameter(visibility=3)
+    timeout = Parameter('drive timeout, in addition to ramp time', readonly=False,
+                        datatype=FloatRange(0, unit='sec'), default=3600)
+
     # pylint: disable=invalid-name
     TempStatus = Enum(
         'TempStatus',
@@ -464,17 +416,14 @@ class Temp(PpmsMixin, Drivable):
         14: (Status.ERROR, 'can not complete'),
         15: (Status.ERROR, 'general failure'),
     }
-    properties = {
-        'general_stop': Property('respect general stop', datatype=BoolType(),
-                                 export=True, default=True)
-    }
+    general_stop = Property('respect general stop', datatype=BoolType(),
+                            default=True, value=False)
 
     channel = 'temp'
     _stopped = False
     _expected_target_time = 0
     _last_change = 0  # 0 means no target change is pending
     _last_target = None  # last reached target
-    general_stop = False
     _cool_deadline = 0
     _wait_at10 = False
     _ramp_at_limit = False
@@ -588,7 +537,7 @@ class Temp(PpmsMixin, Drivable):
     def calc_expected(self, target, ramp):
         self._expected_target_time = time.time() + abs(target - self.value) * 60.0 / max(0.1, ramp)
 
-    def do_stop(self):
+    def stop(self):
         if not self.isDriving():
             return
         if self.status[0] != self.Status.STABILIZING:
@@ -605,35 +554,27 @@ class Field(PpmsMixin, Drivable):
     """magnetic field"""
 
     field = IOHandler('field', 'FIELD?', '%g,%g,%d,%d')
-    Status = Enum(Drivable.Status,
-        PREPARED = 150,
-        PREPARING = 340,
-        RAMPING = 370,
-        FINALIZING = 390,
+    Status = Enum(
+        Drivable.Status,
+        PREPARED=150,
+        PREPARING=340,
+        RAMPING=370,
+        FINALIZING=390,
     )
     # pylint: disable=invalid-name
     PersistentMode = Enum('PersistentMode', persistent=0, driven=1)
     ApproachMode = Enum('ApproachMode', linear=0, no_overshoot=1, oscillate=2)
 
-    parameters = {
-        'value':
-            Override(datatype=FloatRange(unit='T'), poll=True),
-        'status':
-            Override(datatype=StatusType(Status), poll=True),
-        'target':
-            Override(datatype=FloatRange(-15, 15, unit='T'), handler=field),
-        'ramp':
-            Parameter('ramping speed', readonly=False, handler=field,
-                      datatype=FloatRange(0.064, 1.19, unit='T/min')),
-        'approachmode':
-            Parameter('how to approach target', readonly=False, handler=field,
-                      datatype=EnumType(ApproachMode)),
-        'persistentmode':
-            Parameter('what to do after changing field', readonly=False, handler=field,
-                      datatype=EnumType(PersistentMode)),
-        'pollinterval':
-            Override(visibility=3),
-    }
+    value = Parameter(datatype=FloatRange(unit='T'), poll=True)
+    status = Parameter(datatype=StatusType(Status), poll=True)
+    target = Parameter(datatype=FloatRange(-15, 15, unit='T'), handler=field)
+    ramp = Parameter('ramping speed', readonly=False, handler=field,
+                     datatype=FloatRange(0.064, 1.19, unit='T/min'))
+    approachmode = Parameter('how to approach target', readonly=False, handler=field,
+                             datatype=EnumType(ApproachMode))
+    persistentmode = Parameter('what to do after changing field', readonly=False, handler=field,
+                               datatype=EnumType(PersistentMode))
+    pollinterval = Parameter(visibility=3)
 
     STATUS_MAP = {
         1: (Status.IDLE, 'persistent mode'),
@@ -669,7 +610,7 @@ class Field(PpmsMixin, Drivable):
                 else:
                     status = (self.Status.WARN, 'timeout when ramping leads')
             elif now > self._last_change + 5:
-                self._last_change = 0 # give up waiting for driving
+                self._last_change = 0  # give up waiting for driving
             elif self.isDriving(status) and status != self._status_before_change:
                 self._last_change = 0
                 self.log.debug('time needed to change to busy: %.3g', now - self._last_change)
@@ -735,7 +676,7 @@ class Field(PpmsMixin, Drivable):
             return Done
         return None  # do not execute FIELD command, as this would trigger a ramp up of leads current
 
-    def do_stop(self):
+    def stop(self):
         if not self.isDriving():
             return
         newtarget = clamp(self._last_target, self.value, self.target)
@@ -751,20 +692,15 @@ class Position(PpmsMixin, Drivable):
 
     move = IOHandler('move', 'MOVE?', '%g,%g,%g')
     Status = Drivable.Status
-    parameters = {
-        'value':
-            Override(datatype=FloatRange(unit='deg'), poll=True),
-        'target':
-            Override(datatype=FloatRange(-720., 720., unit='deg'), handler=move),
-        'enabled':
-            Parameter('is this channel used?', readonly=False, poll=False,
-                      datatype=BoolType(), default=True),
-        'speed':
-            Parameter('motor speed', readonly=False, handler=move,
-                      datatype=FloatRange(0.8, 12, unit='deg/sec')),
-        'pollinterval':
-            Override(visibility=3),
-    }
+
+    value = Parameter(datatype=FloatRange(unit='deg'), poll=True)
+    target = Parameter(datatype=FloatRange(-720., 720., unit='deg'), handler=move)
+    enabled = Parameter('is this channel used?', readonly=False, poll=False,
+                        datatype=BoolType(), default=True)
+    speed = Parameter('motor speed', readonly=False, handler=move,
+                      datatype=FloatRange(0.8, 12, unit='deg/sec'))
+    pollinterval = Parameter(visibility=3)
+
     STATUS_MAP = {
         1: (Status.IDLE, 'at target'),
         5: (Status.BUSY, 'moving'),
@@ -843,7 +779,7 @@ class Position(PpmsMixin, Drivable):
         self.speed = value
         return None  # do not execute MOVE command, as this would trigger an unnecessary move
 
-    def do_stop(self):
+    def stop(self):
         if not self.isDriving():
             return
         newtarget = clamp(self._last_target, self.value, self.target)

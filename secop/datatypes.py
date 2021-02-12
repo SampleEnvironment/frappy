@@ -98,7 +98,7 @@ class DataType(HasProperties):
     def set_properties(self, **kwds):
         """init datatype properties"""
         try:
-            for k,v in kwds.items():
+            for k, v in kwds.items():
                 self.setProperty(k, v)
             self.checkProperties()
         except Exception as e:
@@ -151,10 +151,11 @@ class Stub(DataType):
         """
         for dtcls in globals().values():
             if isinstance(dtcls, type) and issubclass(dtcls, DataType):
-                for prop in dtcls.properties.values():
+                for prop in dtcls.propertyDict.values():
                     stub = prop.datatype
                     if isinstance(stub, cls):
                         prop.datatype = globals()[stub.name](*stub.args)
+
 
 # SECoP types:
 
@@ -165,16 +166,14 @@ class FloatRange(DataType):
     :param maxval: (property **max**)
     :param kwds: any of the properties below
     """
-    properties = {
-        'min': Property('low limit', Stub('FloatRange'), extname='min', default=-sys.float_info.max),
-        'max': Property('high limit', Stub('FloatRange'), extname='max', default=sys.float_info.max),
-        'unit': Property('physical unit', Stub('StringType'), extname='unit', default=''),
-        'fmtstr': Property('format string', Stub('StringType'), extname='fmtstr', default='%g'),
-        'absolute_resolution': Property('absolute resolution', Stub('FloatRange', 0),
-                                        extname='absolute_resolution', default=0.0),
-        'relative_resolution': Property('relative resolution', Stub('FloatRange', 0),
-                                        extname='relative_resolution', default=1.2e-7),
-    }
+    min = Property('low limit', Stub('FloatRange'), extname='min', default=-sys.float_info.max)
+    max = Property('high limit', Stub('FloatRange'), extname='max', default=sys.float_info.max)
+    unit = Property('physical unit', Stub('StringType'), extname='unit', default='')
+    fmtstr = Property('format string', Stub('StringType'), extname='fmtstr', default='%g')
+    absolute_resolution = Property('absolute resolution', Stub('FloatRange', 0),
+                                   extname='absolute_resolution', default=0.0)
+    relative_resolution = Property('relative resolution', Stub('FloatRange', 0),
+                                   extname='relative_resolution', default=1.2e-7)
 
     def __init__(self, minval=None, maxval=None, **kwds):
         super().__init__()
@@ -204,7 +203,7 @@ class FloatRange(DataType):
         if self.min - prec <= value <= self.max + prec:
             return min(max(value, self.min), self.max)
         raise BadValueError('%.14g should be a float between %.14g and %.14g' %
-                         (value, self.min, self.max))
+                            (value, self.min, self.max))
 
     def __repr__(self):
         hints = self.get_info()
@@ -212,7 +211,7 @@ class FloatRange(DataType):
             hints['minval'] = hints.pop('min')
         if 'max' in hints:
             hints['maxval'] = hints.pop('max')
-        return 'FloatRange(%s)' % (', '.join('%s=%r' % (k,v) for k,v in hints.items()))
+        return 'FloatRange(%s)' % (', '.join('%s=%r' % (k, v) for k, v in hints.items()))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -247,12 +246,10 @@ class IntRange(DataType):
     :param minval: (property **min**)
     :param maxval: (property **max**)
     """
-    properties = {
-        'min': Property('minimum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='min', mandatory=True),
-        'max': Property('maximum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='max', mandatory=True),
-        # a unit on an int is now allowed in SECoP, but do we need them in Frappy?
-        # 'unit': Property('physical unit', StringType(), extname='unit', default=''),
-    }
+    min = Property('minimum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='min', mandatory=True)
+    max = Property('maximum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='max', mandatory=True)
+    # a unit on an int is now allowed in SECoP, but do we need them in Frappy?
+    # unit = Property('physical unit', StringType(), extname='unit', default='')
 
     def __init__(self, minval=None, maxval=None):
         super().__init__()
@@ -278,7 +275,12 @@ class IntRange(DataType):
             raise BadValueError('Can not convert %r to int' % value)
 
     def __repr__(self):
-        return 'IntRange(%d, %d)' % (self.min, self.max)
+        args = (self.min, self.max)
+        if args[1] == DEFAULT_MAX_INT:
+            args = args[:1]
+            if args[0] == DEFAULT_MIN_INT:
+                args = ()
+        return 'IntRange%s' % repr(args)
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -315,24 +317,23 @@ class ScaledInteger(DataType):
     note: limits are for the scaled float value
           the scale is only used for calculating to/from transport serialisation
     """
-    properties = {
-        'scale': Property('scale factor', FloatRange(sys.float_info.min), extname='scale', mandatory=True),
-        'min': Property('low limit', FloatRange(), extname='min', mandatory=True),
-        'max': Property('high limit', FloatRange(), extname='max', mandatory=True),
-        'unit': Property('physical unit', Stub('StringType'), extname='unit', default=''),
-        'fmtstr': Property('format string', Stub('StringType'), extname='fmtstr', default='%g'),
-        'absolute_resolution': Property('absolute resolution', FloatRange(0),
-                                        extname='absolute_resolution', default=0.0),
-        'relative_resolution': Property('relative resolution', FloatRange(0),
-                                        extname='relative_resolution', default=1.2e-7),
-    }
+    scale = Property('scale factor', FloatRange(sys.float_info.min), extname='scale', mandatory=True)
+    min = Property('low limit', FloatRange(), extname='min', mandatory=True)
+    max = Property('high limit', FloatRange(), extname='max', mandatory=True)
+    unit = Property('physical unit', Stub('StringType'), extname='unit', default='')
+    fmtstr = Property('format string', Stub('StringType'), extname='fmtstr', default='%g')
+    absolute_resolution = Property('absolute resolution', FloatRange(0),
+                                   extname='absolute_resolution', default=0.0)
+    relative_resolution = Property('relative resolution', FloatRange(0),
+                                   extname='relative_resolution', default=1.2e-7)
 
     def __init__(self, scale, minval=None, maxval=None, absolute_resolution=None, **kwds):
         super().__init__()
         scale = float(scale)
         if absolute_resolution is None:
             absolute_resolution = scale
-        self.set_properties(scale=scale,
+        self.set_properties(
+            scale=scale,
             min=DEFAULT_MIN_INT * scale if minval is None else float(minval),
             max=DEFAULT_MAX_INT * scale if maxval is None else float(maxval),
             absolute_resolution=absolute_resolution,
@@ -363,8 +364,8 @@ class ScaledInteger(DataType):
 
     def export_datatype(self):
         return self.get_info(type='scaled',
-                                min = int((self.min + self.scale * 0.5) // self.scale),
-                                max = int((self.max + self.scale * 0.5) // self.scale))
+                             min=int((self.min + self.scale * 0.5) // self.scale),
+                             max=int((self.max + self.scale * 0.5) // self.scale))
 
     def __call__(self, value):
         try:
@@ -377,15 +378,15 @@ class ScaledInteger(DataType):
             value = min(max(value, self.min), self.max)
         else:
             raise BadValueError('%g should be a float between %g and %g' %
-                             (value, self.min, self.max))
+                                (value, self.min, self.max))
         intval = int((value + self.scale * 0.5) // self.scale)
         value = float(intval * self.scale)
         return value  # return 'actual' value (which is more discrete than a float)
 
     def __repr__(self):
         hints = self.get_info(scale=float('%g' % self.scale),
-                              min = int((self.min + self.scale * 0.5) // self.scale),
-                              max = int((self.max + self.scale * 0.5) // self.scale))
+                              min=int((self.min + self.scale * 0.5) // self.scale),
+                              max=int((self.max + self.scale * 0.5) // self.scale))
         return 'ScaledInteger(%s)' % (', '.join('%s=%r' % kv for kv in hints.items()))
 
     def export_value(self, value):
@@ -434,10 +435,11 @@ class EnumType(DataType):
         return EnumType(self._enum)
 
     def export_datatype(self):
-        return {'type': 'enum', 'members':dict((m.name, m.value) for m in self._enum.members)}
+        return {'type': 'enum', 'members': dict((m.name, m.value) for m in self._enum.members)}
 
     def __repr__(self):
-        return "EnumType(%r, %s)" % (self._enum.name, ', '.join('%s=%d' %(m.name, m.value) for m in self._enum.members))
+        return "EnumType(%r, %s)" % (self._enum.name,
+                                     ', '.join('%s=%d' % (m.name, m.value) for m in self._enum.members))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -451,7 +453,7 @@ class EnumType(DataType):
         """return the validated (internal) value or raise"""
         try:
             return self._enum[value]
-        except (KeyError, TypeError): # TypeError will be raised when value is not hashable
+        except (KeyError, TypeError):  # TypeError will be raised when value is not hashable
             raise BadValueError('%r is not a member of enum %r' % (value, self._enum))
 
     def from_string(self, text):
@@ -459,6 +461,9 @@ class EnumType(DataType):
 
     def format_value(self, value, unit=None):
         return '%s<%s>' % (self._enum[value].name, self._enum[value].value)
+
+    def set_name(self, name):
+        self._enum.name = name
 
     def compatible(self, other):
         for m in self._enum.members:
@@ -471,12 +476,10 @@ class BLOBType(DataType):
     internally treated as bytes
     """
 
-    properties = {
-        'minbytes': Property('minimum number of bytes', IntRange(0), extname='minbytes',
-                             default=0),
-        'maxbytes': Property('maximum number of bytes', IntRange(0), extname='maxbytes',
-                             mandatory=True),
-    }
+    minbytes = Property('minimum number of bytes', IntRange(0), extname='minbytes',
+                        default=0)
+    maxbytes = Property('maximum number of bytes', IntRange(0), extname='maxbytes',
+                        mandatory=True)
 
     def __init__(self, minbytes=0, maxbytes=None):
         super().__init__()
@@ -538,14 +541,12 @@ class StringType(DataType):
 
     for parameters see properties below
     """
-    properties = {
-        'minchars': Property('minimum number of character points', IntRange(0, UNLIMITED),
-                             extname='minchars', default=0),
-        'maxchars': Property('maximum number of character points', IntRange(0, UNLIMITED),
-                             extname='maxchars', default=UNLIMITED),
-        'isUTF8': Property('flag telling whether encoding is UTF-8 instead of ASCII',
-                           Stub('BoolType'), extname='isUTF8', default=False),
-    }
+    minchars = Property('minimum number of character points', IntRange(0, UNLIMITED),
+                        extname='minchars', default=0)
+    maxchars = Property('maximum number of character points', IntRange(0, UNLIMITED),
+                        extname='maxchars', default=UNLIMITED)
+    isUTF8 = Property('flag telling whether encoding is UTF-8 instead of ASCII',
+                      Stub('BoolType'), extname='isUTF8', default=False)
 
     def __init__(self, minchars=0, maxchars=None, **kwds):
         super().__init__()
@@ -611,7 +612,8 @@ class StringType(DataType):
 # TextType is a special StringType intended for longer texts (i.e. embedding \n),
 # whereas StringType is supposed to not contain '\n'
 # unfortunately, SECoP makes no distinction here....
-# note: content is supposed to follow the format of a git commit message, i.e. a line of text, 2 '\n' + a longer explanation
+# note: content is supposed to follow the format of a git commit message,
+# i.e. a line of text, 2 '\n' + a longer explanation
 class TextType(StringType):
     def __init__(self, maxchars=None):
         if maxchars is None:
@@ -621,7 +623,7 @@ class TextType(StringType):
     def __repr__(self):
         if self.maxchars == UNLIMITED:
             return 'TextType()'
-        return 'TextType(%d)' % (self.maxchars)
+        return 'TextType(%d)' % self.maxchars
 
     def copy(self):
         # DataType.copy will not work, because it is exported as 'string'
@@ -678,12 +680,10 @@ class ArrayOf(DataType):
 
     :param members: the datatype of the elements
     """
-    properties = {
-        'minlen': Property('minimum number of elements', IntRange(0), extname='minlen',
-                           default=0),
-        'maxlen': Property('maximum number of elements', IntRange(0), extname='maxlen',
-                           mandatory=True),
-    }
+    minlen = Property('minimum number of elements', IntRange(0), extname='minlen',
+                      default=0)
+    maxlen = Property('maximum number of elements', IntRange(0), extname='maxlen',
+                      mandatory=True)
 
     def __init__(self, members, minlen=0, maxlen=None):
         super().__init__()
@@ -714,14 +714,14 @@ class ArrayOf(DataType):
 
     def setProperty(self, key, value):
         """set also properties of members"""
-        if key in self.__class__.properties:
+        if key in self.propertyDict:
             super().setProperty(key, value)
         else:
             self.members.setProperty(key, value)
 
     def export_datatype(self):
         return dict(type='array', minlen=self.minlen, maxlen=self.maxlen,
-                               members=self.members.export_datatype())
+                    members=self.members.export_datatype())
 
     def __repr__(self):
         return 'ArrayOf(%s, %s, %s)' % (
@@ -806,11 +806,10 @@ class TupleOf(DataType):
         try:
             if len(value) != len(self.members):
                 raise BadValueError(
-                    'Illegal number of Arguments! Need %d arguments.' %
-                        (len(self.members)))
+                    'Illegal number of Arguments! Need %d arguments.' % len(self.members))
             # validate elements and return as list
             return tuple(sub(elem)
-                    for sub, elem in zip(self.members, value))
+                         for sub, elem in zip(self.members, value))
         except Exception as exc:
             raise BadValueError('Can not validate:', str(exc))
 
@@ -830,12 +829,12 @@ class TupleOf(DataType):
 
     def format_value(self, value, unit=None):
         return '(%s)' % (', '.join([sub.format_value(elem)
-                                     for sub, elem in zip(self.members, value)]))
+                                   for sub, elem in zip(self.members, value)]))
 
     def compatible(self, other):
         if not isinstance(other, TupleOf):
             raise BadValueError('incompatible datatypes')
-        if len(self.members) != len(other.members) :
+        if len(self.members) != len(other.members):
             raise BadValueError('incompatible datatypes')
         for a, b in zip(self.members, other.members):
             a.compatible(b)
@@ -867,15 +866,15 @@ class StructOf(DataType):
             if name not in members:
                 raise ProgrammingError(
                     'Only members of StructOf may be declared as optional!')
-        self.default = dict((k,el.default) for k, el in members.items())
+        self.default = dict((k, el.default) for k, el in members.items())
 
     def copy(self):
         """DataType.copy does not work when members contain enums"""
-        return StructOf(self.optional, **{k: v.copy() for k,v in self.members.items()})
+        return StructOf(self.optional, **{k: v.copy() for k, v in self.members.items()})
 
     def export_datatype(self):
         res = dict(type='struct', members=dict((n, s.export_datatype())
-                                       for n, s in list(self.members.items())))
+                                               for n, s in list(self.members.items())))
         if self.optional:
             res['optional'] = self.optional
         return res
@@ -991,8 +990,8 @@ class CommandType(DataType):
             raise BadValueError('incompatible datatypes')
 
 
-
 # internally used datatypes (i.e. only for programming the SEC-node)
+
 class DataTypeType(DataType):
     def __call__(self, value):
         """check if given value (a python obj) is a valid datatype
@@ -1091,16 +1090,13 @@ class LimitsType(TupleOf):
 
 
 class StatusType(TupleOf):
-    # shorten initialisation and allow acces to status enumMembers from status values
+    # shorten initialisation and allow access to status enumMembers from status values
     def __init__(self, enum):
         TupleOf.__init__(self, EnumType(enum), StringType())
-        self.enum = enum
+        self._enum = enum
 
     def __getattr__(self, key):
-        enum = TupleOf.__getattr__(self, 'enum')
-        if hasattr(enum, key):
-            return getattr(enum, key)
-        return TupleOf.__getattr__(self, key)
+        return getattr(self._enum, key)
 
 
 def floatargs(kwds):

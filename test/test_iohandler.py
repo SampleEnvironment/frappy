@@ -107,15 +107,11 @@ def test_IOHandler():
 
 
     class Module1(Module):
-        properties = {
-            'channel': Property('the channel', IntRange(), default=3),
-            'loop': Property('the loop', IntRange(), default=2),
-        }
-        parameters = {
-            'simple': Parameter('a readonly', FloatRange(), default=0.77, handler=group1),
-            'real': Parameter('a float value', FloatRange(), default=12.3, handler=group2, readonly=False),
-            'text': Parameter('a string value', StringType(), default='x', handler=group2, readonly=False),
-        }
+        channel = Property('the channel', IntRange(), default=3)
+        loop = Property('the loop', IntRange(), default=2)
+        simple = Parameter('a readonly', FloatRange(), default=0.77, handler=group1)
+        real = Parameter('a float value', FloatRange(), default=12.3, handler=group2, readonly=False)
+        text = Parameter('a string value', StringType(), default='x', handler=group2, readonly=False)
 
         def sendRecv(self, command):
             assert data.pop('command') == command
@@ -196,6 +192,4 @@ def test_IOHandler():
     with pytest.raises(ProgrammingError): # can not use a handler for different modules
         # pylint: disable=unused-variable
         class Module2(Module):
-            parameters = {
-                'simple': Parameter('a readonly', FloatRange(), default=0.77, handler=group1),
-            }
+            simple = Parameter('a readonly', FloatRange(), default=0.77, handler=group1)

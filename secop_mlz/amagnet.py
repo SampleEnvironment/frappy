@@ -49,36 +49,37 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
     pollerClass = BasicPoller
 
-    parameters = {
-        'subdev_currentsource': Parameter('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False),
-        'subdev_enable': Parameter('Switch to set for on/off', datatype=StringType(), readonly=True, export=False),
-        'subdev_polswitch': Parameter('Switch to set for polarity', datatype=StringType(), readonly=True, export=False),
-        'subdev_symmetry': Parameter('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False),
-        'userlimits': Parameter('User defined limits of device value',
-                            datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
-                            default=(float('-Inf'), float('+Inf')), readonly=False, poll=10),
-        'abslimits': Parameter('Absolute limits of device value',
-                           datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
-                           default=(-0.5, 0.5), poll=True,
-                           ),
-        'precision': Parameter('Precision of the device value (allowed deviation '
-                           'of stable values from target)',
-                           datatype=FloatRange(0.001, unit='$'), default=0.001, readonly=False,
-                           ),
-        'ramp': Parameter('Target rate of field change per minute', readonly=False,
-                      datatype=FloatRange(unit='$/min'), default=1.0),
-        'calibration': Parameter('Coefficients for calibration '
-                             'function: [c0, c1, c2, c3, c4] calculates '
-                             'B(I) = c0*I + c1*erf(c2*I) + c3*atan(c4*I)'
-                             ' in T', poll=1,
-                             datatype=ArrayOf(FloatRange(), 5, 5),
-                             default=(1.0, 0.0, 0.0, 0.0, 0.0)),
-        'calibrationtable': Parameter('Map of Coefficients for calibration per symmetry setting',
-                                  datatype=StructOf(symmetric=ArrayOf(FloatRange(), 5, 5),
-                                                    short=ArrayOf(
-                                                        FloatRange(), 5, 5),
-                                                    asymmetric=ArrayOf(FloatRange(), 5, 5)), export=False),
-    }
+
+    # parameters
+    subdev_currentsource = Parameter('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False)
+    subdev_enable = Parameter('Switch to set for on/off', datatype=StringType(), readonly=True, export=False)
+    subdev_polswitch = Parameter('Switch to set for polarity', datatype=StringType(), readonly=True, export=False)
+    subdev_symmetry = Parameter('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False)
+    userlimits = Parameter('User defined limits of device value',
+                       datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
+                       default=(float('-Inf'), float('+Inf')), readonly=False, poll=10)
+    abslimits = Parameter('Absolute limits of device value',
+                      datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
+                      default=(-0.5, 0.5), poll=True,
+                      )
+    precision = Parameter('Precision of the device value (allowed deviation '
+                      'of stable values from target)',
+                      datatype=FloatRange(0.001, unit='$'), default=0.001, readonly=False,
+                      )
+    ramp = Parameter('Target rate of field change per minute', readonly=False,
+                 datatype=FloatRange(unit='$/min'), default=1.0)
+    calibration = Parameter('Coefficients for calibration '
+                        'function: [c0, c1, c2, c3, c4] calculates '
+                        'B(I) = c0*I + c1*erf(c2*I) + c3*atan(c4*I)'
+                        ' in T', poll=1,
+                        datatype=ArrayOf(FloatRange(), 5, 5),
+                        default=(1.0, 0.0, 0.0, 0.0, 0.0))
+    calibrationtable = Parameter('Map of Coefficients for calibration per symmetry setting',
+                             datatype=StructOf(symmetric=ArrayOf(FloatRange(), 5, 5),
+                                               short=ArrayOf(
+                                                   FloatRange(), 5, 5),
+                                               asymmetric=ArrayOf(FloatRange(), 5, 5)), export=False)
+
 
     def _current2field(self, current, *coefficients):
         """Return field in T for given current in A.
@@ -307,7 +308,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
             return self._currentsource.read_status()[0] == 'BUSY'
         if self._currentsource.status[0] != 'BUSY':
             if self._enable.status[0] == 'ERROR':
-                self._enable.do_reset()
+                self._enable.reset()
                 self._enable.read_status()
             self._enable.write_target('On')
             self._enable._hw_wait()

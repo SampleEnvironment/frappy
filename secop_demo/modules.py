@@ -28,42 +28,39 @@ import time
 from secop.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, IntRange, StringType, StructOf, TupleOf
 from secop.lib.enum import Enum
-from secop.modules import Drivable, Override, Parameter as SECoP_Parameter, Readable
+from secop.modules import Drivable, Parameter as SECoP_Parameter, Readable
 from secop.properties import Property
 
 
 class Parameter(SECoP_Parameter):
-    properties = {
-        'test' : Property('A property for testing purposes', StringType(), default='', mandatory=False, extname='test'),
-    }
+    test = Property('A property for testing purposes', StringType(), default='', mandatory=False, extname='test')
+
 
 PERSIST = 101
+
 
 class Switch(Drivable):
     """switch it on or off....
     """
-    parameters = {
-        'value': Override('current state (on or off)',
+
+    value = Parameter('current state (on or off)',
+                      datatype=EnumType(on=1, off=0), default=0,
+                      )
+    target = Parameter('wanted state (on or off)',
                        datatype=EnumType(on=1, off=0), default=0,
-                       ),
-        'target': Override('wanted state (on or off)',
-                        datatype=EnumType(on=1, off=0), default=0,
-                        readonly=False,
-                        ),
-        'switch_on_time': Parameter('seconds to wait after activating the switch',
+                       readonly=False,
+                       )
+    switch_on_time = Parameter('seconds to wait after activating the switch',
+                               datatype=FloatRange(0, 60), unit='s',
+                               default=10, export=False,
+                               )
+    switch_off_time = Parameter('cool-down time in seconds',
                                 datatype=FloatRange(0, 60), unit='s',
                                 default=10, export=False,
-                                ),
-        'switch_off_time': Parameter('cool-down time in seconds',
-                                 datatype=FloatRange(0, 60), unit='s',
-                                 default=10, export=False,
-                                 ),
-    }
+                                )
 
-    properties = {
-        'description' : Property('The description of the Module', StringType(),
-                                 default='no description', mandatory=False, extname='description'),
-    }
+    description = Property('The description of the Module', StringType(),
+                           default='no description', mandatory=False, extname='description')
 
     def read_value(self):
         # could ask HW
@@ -109,30 +106,29 @@ class Switch(Drivable):
 class MagneticField(Drivable):
     """a liquid magnet
     """
-    parameters = {
-        'value': Override('current field in T',
+
+    value = Parameter('current field in T',
+                      unit='T', datatype=FloatRange(-15, 15), default=0,
+                      )
+    target = Parameter('target field in T',
                        unit='T', datatype=FloatRange(-15, 15), default=0,
-                       ),
-        'target': Override('target field in T',
-                        unit='T', datatype=FloatRange(-15, 15), default=0,
-                        readonly=False,
-                        ),
-        'ramp': Parameter('ramping speed',
-                      unit='T/min', datatype=FloatRange(0, 1), default=0.1,
-                      readonly=False,
-                      ),
-        'mode': Parameter('what to do after changing field',
-                      default=1, datatype=EnumType(persistent=1, hold=0),
-                      readonly=False,
-                      ),
-        'heatswitch': Parameter('name of heat switch device',
-                            datatype=StringType(), export=False,
-                            ),
-    }
+                       readonly=False,
+                       )
+    ramp = Parameter('ramping speed',
+                     unit='T/min', datatype=FloatRange(0, 1), default=0.1,
+                     readonly=False,
+                     )
+    mode = Parameter('what to do after changing field',
+                     default=1, datatype=EnumType(persistent=1, hold=0),
+                     readonly=False,
+                     )
+    heatswitch = Parameter('name of heat switch device',
+                           datatype=StringType(), export=False,
+                           )
+
     Status = Enum(Drivable.Status, PERSIST=PERSIST, PREPARE=301, RAMPING=302, FINISH=303)
-    overrides = {
-        'status' : Override(datatype=TupleOf(EnumType(Status), StringType())),
-    }
+
+    status = Parameter(datatype=TupleOf(EnumType(Status), StringType()))
 
     def initModule(self):
         self._state = Enum('state', idle=1, switch_on=2, switch_off=3, ramp=4).idle
@@ -202,21 +198,20 @@ class MagneticField(Drivable):
             time.sleep(max(0.01, ts + loopdelay - time.time()))
         self.log.error(self, 'main thread exited unexpectedly!')
 
-    def do_stop(self):
+    def stop(self):
         self.write_target(self.read_value())
 
 
 class CoilTemp(Readable):
     """a coil temperature
     """
-    parameters = {
-        'value': Override('Coil temperatur',
-                       unit='K', datatype=FloatRange(), default=0,
-                       ),
-        'sensor': Parameter("Sensor number or calibration id",
-                        datatype=StringType(), readonly=True,
-                        ),
-    }
+
+    value = Parameter('Coil temperatur',
+                      unit='K', datatype=FloatRange(), default=0,
+                      )
+    sensor = Parameter("Sensor number or calibration id",
+                       datatype=StringType(), readonly=True,
+                       )
 
     def read_value(self):
         return round(2.3 + random.random(), 3)
@@ -225,18 +220,17 @@ class CoilTemp(Readable):
 class SampleTemp(Drivable):
     """a sample temperature
     """
-    parameters = {
-        'value': Override('Sample temperature',
-                       unit='K', datatype=FloatRange(), default=10,
-                       ),
-        'sensor': Parameter("Sensor number or calibration id",
-                        datatype=StringType(), readonly=True,
-                        ),
-        'ramp': Parameter('moving speed in K/min',
-                      datatype=FloatRange(0, 100), unit='K/min', default=0.1,
-                      readonly=False,
-                      ),
-    }
+
+    value = Parameter('Sample temperature',
+                      unit='K', datatype=FloatRange(), default=10,
+                      )
+    sensor = Parameter("Sensor number or calibration id",
+                       datatype=StringType(), readonly=True,
+                       )
+    ramp = Parameter('moving speed in K/min',
+                     datatype=FloatRange(0, 100), unit='K/min', default=0.1,
+                     readonly=False,
+                     )
 
     def initModule(self):
         _thread = threading.Thread(target=self._thread)
@@ -272,20 +266,19 @@ class Label(Readable):
        of several subdevices. used for demoing connections between
        modules.
     """
-    parameters = {
-        'system': Parameter("Name of the magnet system",
-                        datatype=StringType(), export=False,
-                        ),
-        'subdev_mf': Parameter("name of subdevice for magnet status",
-                           datatype=StringType(), export=False,
-                           ),
-        'subdev_ts': Parameter("name of subdevice for sample temp",
-                           datatype=StringType(), export=False,
-                           ),
-        'value': Override("final value of label string", default='',
-                       datatype=StringType(),
-                       ),
-    }
+
+    system = Parameter("Name of the magnet system",
+                       datatype=StringType(), export=False,
+                       )
+    subdev_mf = Parameter("name of subdevice for magnet status",
+                          datatype=StringType(), export=False,
+                          )
+    subdev_ts = Parameter("name of subdevice for sample temp",
+                          datatype=StringType(), export=False,
+                          )
+    value = Parameter("final value of label string", default='',
+                      datatype=StringType(),
+                      )
 
     def read_value(self):
         strings = [self.system]
@@ -317,29 +310,25 @@ class Label(Readable):
 class DatatypesTest(Readable):
     """for demoing all datatypes
     """
-    parameters = {
-        'enum':       Parameter('enum', datatype=EnumType(boo=None, faar=None, z=9),
-                            readonly=False, default=1),
-        'tupleof':    Parameter('tuple of int, float and str',
-                            datatype=TupleOf(IntRange(), FloatRange(),
-                                             StringType()),
-                            readonly=False, default=(1, 2.3, 'a')),
-        'arrayof':    Parameter('array: 2..3 times bool',
-                            datatype=ArrayOf(BoolType(), 2, 3),
-                            readonly=False, default=[1, 0, 1]),
-        'intrange':   Parameter('intrange', datatype=IntRange(2, 9),
-                            readonly=False, default=4),
-        'floatrange': Parameter('floatrange', datatype=FloatRange(-1, 1),
-                            readonly=False, default=0, ),
-        'struct':     Parameter('struct(a=str, b=int, c=bool)',
-                            datatype=StructOf(a=StringType(), b=IntRange(),
-                                              c=BoolType()),
-                           ),
-    }
+
+    enum = Parameter('enum', datatype=EnumType(boo=None, faar=None, z=9),
+                     readonly=False, default=1)
+    tupleof = Parameter('tuple of int, float and str',
+                        datatype=TupleOf(IntRange(), FloatRange(),
+                                         StringType()),
+                        readonly=False, default=(1, 2.3, 'a'))
+    arrayof = Parameter('array: 2..3 times bool',
+                        datatype=ArrayOf(BoolType(), 2, 3),
+                        readonly=False, default=[1, 0, 1])
+    intrange = Parameter('intrange', datatype=IntRange(2, 9),
+                         readonly=False, default=4)
+    floatrange = Parameter('floatrange', datatype=FloatRange(-1, 1),
+                           readonly=False, default=0)
+    struct = Parameter('struct(a=str, b=int, c=bool)',
+                       datatype=StructOf(a=StringType(), b=IntRange(),
+                                         c=BoolType()))
 
 
 class ArrayTest(Readable):
-    parameters = {
-        "x": Parameter('value', datatype=ArrayOf(FloatRange(), 0, 100000),
-                        default = 100000 * [0]),
-    }
+    x = Parameter('value', datatype=ArrayOf(FloatRange(), 0, 100000),
+                  default=100000 * [0])

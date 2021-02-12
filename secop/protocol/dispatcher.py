@@ -42,7 +42,7 @@ import threading
 from collections import OrderedDict
 from time import time as currenttime
 
-from secop.errors import BadValueError, NoSuchCommandError, NoSuchModuleError, \
+from secop.errors import NoSuchCommandError, NoSuchModuleError, \
     NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPServerError
 from secop.params import Parameter
 from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
@@ -53,10 +53,10 @@ from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
 def make_update(modulename, pobj):
     if pobj.readerror:
         return (ERRORPREFIX + EVENTREPLY, '%s:%s' % (modulename, pobj.export),
-               # error-report !
-               [pobj.readerror.name, repr(pobj.readerror), dict(t=pobj.timestamp)])
+                # error-report !
+                [pobj.readerror.name, repr(pobj.readerror), dict(t=pobj.timestamp)])
     return (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
-               [pobj.export_value(), dict(t=pobj.timestamp)])
+            [pobj.export_value(), dict(t=pobj.timestamp)])
 
 
 class Dispatcher:
@@ -109,7 +109,7 @@ class Dispatcher:
         self._subscriptions.setdefault(eventname, set()).add(conn)
 
     def unsubscribe(self, conn, eventname):
-        if not ':' in eventname:
+        if ':' not in eventname:
             # also remove 'more specific' subscriptions
             for k, v in self._subscriptions.items():
                 if k.startswith('%s:' % eventname):
@@ -177,7 +177,7 @@ class Dispatcher:
         result = {'modules': OrderedDict()}
         for modulename in self._export:
             module = self.get_module(modulename)
-            if not module.properties.get('export', False):
+            if not module.export:
                 continue
             # some of these need rework !
             mod_desc = {'accessibles': self.export_accessibles(modulename)}
@@ -186,7 +186,7 @@ class Dispatcher:
             result['modules'][modulename] = mod_desc
         result['equipment_id'] = self.equipment_id
         result['firmware'] = 'FRAPPY - The Python Framework for SECoP'
-        result['version'] = '2019.08'
+        result['version'] = '2021.02'
         result.update(self.nodeprops)
         return result
 
@@ -195,40 +195,24 @@ class Dispatcher:
         if moduleobj is None:
             raise NoSuchModuleError('Module %r does not exist' % modulename)
 
-        cmdname = moduleobj.commands.exported.get(exportedname, None)
-        if cmdname is None:
-            raise NoSuchCommandError('Module %r has no command %r' % (modulename, exportedname))
-        cmdspec = moduleobj.commands[cmdname]
-        if argument is None and cmdspec.datatype.argument is not None:
-            raise BadValueError("Command '%s:%s' needs an argument" % (modulename, cmdname))
-
-        if argument is not None and cmdspec.datatype.argument is None:
-            raise BadValueError("Command '%s:%s' takes no argument" % (modulename, cmdname))
-
-        if cmdspec.datatype.argument:
-            # validate!
-            argument = cmdspec.datatype(argument)
+        cname = moduleobj.accessiblename2attr.get(exportedname)
+        cobj = moduleobj.commands.get(cname)
+        if cobj is None:
+            raise NoSuchCommandError('Module %r has no command %r' % (modulename, cname or exportedname))
 
         # now call func
         # note: exceptions are handled in handle_request, not here!
-        func = getattr(moduleobj, 'do_' + cmdname)
-        res = func() if argument is None else func(argument)
-
-        # pipe through cmdspec.datatype.result
-        if cmdspec.datatype.result:
-            res = cmdspec.datatype.result(res)
-
-        return res, dict(t=currenttime())
+        return cobj.do(moduleobj, argument), dict(t=currenttime())
 
     def _setParameterValue(self, modulename, exportedname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError('Module %r does not exist' % modulename)
 
-        pname = moduleobj.parameters.exported.get(exportedname, None)
-        if pname is None:
-            raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, exportedname))
-        pobj = moduleobj.parameters[pname]
+        pname = moduleobj.accessiblename2attr.get(exportedname)
+        pobj = moduleobj.parameters.get(pname)
+        if pobj is None:
+            raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, pname or exportedname))
         if pobj.constant is not None:
             raise ReadOnlyError("Parameter %s:%s is constant and can not be changed remotely"
                                 % (modulename, pname))
@@ -252,10 +236,10 @@ class Dispatcher:
         if moduleobj is None:
             raise NoSuchModuleError('Module %r does not exist' % modulename)
 
-        pname = moduleobj.parameters.exported.get(exportedname, None)
-        if pname is None:
-            raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, exportedname))
-        pobj = moduleobj.parameters[pname]
+        pname = moduleobj.accessiblename2attr.get(exportedname)
+        pobj = moduleobj.parameters.get(pname)
+        if pobj is None:
+            raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, pname or exportedname))
         if pobj.constant is not None:
             # really needed? we could just construct a readreply instead....
             # raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
@@ -321,15 +305,13 @@ class Dispatcher:
         return (WRITEREPLY, specifier, list(self._setParameterValue(modulename, pname, data)))
 
     def handle_do(self, conn, specifier, data):
-        # XXX: should this be done asyncron? we could just return the reply in
-        # that case
         modulename, cmd = specifier.split(':', 1)
         return (COMMANDREPLY, specifier, list(self._execute_command(modulename, cmd, data)))
 
     def handle_ping(self, conn, specifier, data):
         if data:
             raise ProtocolError('ping requests don\'t take data!')
-        return (HEARTBEATREPLY, specifier, [None, {'t':currenttime()}])
+        return (HEARTBEATREPLY, specifier, [None, {'t': currenttime()}])
 
     def handle_activate(self, conn, specifier, data):
         if data:
