@@ -22,21 +22,22 @@
 # *****************************************************************************
 """general SECoP client"""
 
-import time
-import queue
 import json
-from threading import Event, RLock, current_thread
+import queue
+import time
 from collections import defaultdict
+from threading import Event, RLock, current_thread
 
-from secop.lib import mkthread, formatExtendedTraceback, formatExtendedStack
-from secop.lib.asynconn import AsynConn, ConnectionClosed
-from secop.datatypes import get_datatype
-from secop.protocol.interface import encode_msg_frame, decode_msg
-from secop.protocol.messages import REQUEST2REPLY, ERRORPREFIX, EVENTREPLY, WRITEREQUEST, WRITEREPLY, \
-    READREQUEST, READREPLY, IDENTREQUEST, IDENTPREFIX, ENABLEEVENTSREQUEST, COMMANDREQUEST, \
-    DESCRIPTIONREQUEST, HEARTBEATREQUEST
 import secop.errors
 import secop.params
+from secop.datatypes import get_datatype
+from secop.lib import formatExtendedStack, formatExtendedTraceback, mkthread
+from secop.lib.asynconn import AsynConn, ConnectionClosed
+from secop.protocol.interface import decode_msg, encode_msg_frame
+from secop.protocol.messages import COMMANDREQUEST, \
+    DESCRIPTIONREQUEST, ENABLEEVENTSREQUEST, ERRORPREFIX, \
+    EVENTREPLY, HEARTBEATREQUEST, IDENTPREFIX, IDENTREQUEST, \
+    READREPLY, READREQUEST, REQUEST2REPLY, WRITEREPLY, WRITEREQUEST
 
 # replies to be handled for cache
 UPDATE_MESSAGES = {EVENTREPLY, READREPLY, WRITEREPLY, ERRORPREFIX + READREQUEST, ERRORPREFIX + EVENTREPLY}

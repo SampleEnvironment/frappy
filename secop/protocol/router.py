@@ -34,12 +34,12 @@ simplifications:
 
 import time
 
-import secop.protocol.dispatcher
-import secop.errors
-from secop.protocol.messages import DESCRIPTIONREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY,\
-    READREQUEST, WRITEREQUEST, COMMANDREQUEST
 import secop.client
+import secop.errors
+import secop.protocol.dispatcher
 from secop.lib.multievent import MultiEvent
+from secop.protocol.messages import COMMANDREQUEST, DESCRIPTIONREPLY, \
+    ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, READREQUEST, WRITEREQUEST
 
 
 class SecopClient(secop.client.SecopClient):

@@ -28,12 +28,12 @@
 import sys
 from base64 import b64decode, b64encode
 
-from secop.errors import ProgrammingError, ProtocolError, BadValueError, ConfigError
+from secop.errors import BadValueError, \
+    ConfigError, ProgrammingError, ProtocolError
 from secop.lib import clamp
 from secop.lib.enum import Enum
 from secop.parse import Parser
 from secop.properties import HasProperties, Property
-
 
 # Only export these classes for 'from secop.datatypes import *'
 __all__ = [

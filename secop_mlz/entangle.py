@@ -30,18 +30,17 @@ MLZ TANGO interface for the respective device classes.
 
 import re
 import threading
-from time import time as currenttime
 from time import sleep
+from time import time as currenttime
 
 import PyTango
-
-from secop.datatypes import ArrayOf, EnumType, \
-    FloatRange, IntRange, StringType, TupleOf, LimitsType
+from secop.datatypes import ArrayOf, EnumType, FloatRange, \
+    IntRange, LimitsType, StringType, TupleOf
 from secop.errors import CommunicationFailedError, \
     ConfigError, HardwareError, ProgrammingError
 from secop.lib import lazy_property
-from secop.modules import Command, Drivable, \
-    Module, Parameter, Readable, BasicPoller
+from secop.modules import BasicPoller, Command, \
+    Drivable, Module, Parameter, Readable
 
 #####
 

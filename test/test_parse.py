@@ -22,8 +22,8 @@
 """test data types."""
 
 
-from collections import OrderedDict
 from ast import literal_eval
+from collections import OrderedDict
 
 import pytest
 

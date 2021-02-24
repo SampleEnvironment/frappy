@@ -21,14 +21,15 @@
 # *****************************************************************************
 """SECoP proxy modules"""
 
-from secop.params import Parameter, Command
-from secop.modules import Module, Writable, Readable, Drivable
+from secop.client import SecopClient, decode_msg, encode_msg_frame
 from secop.datatypes import StringType
+from secop.errors import BadValueError, \
+    CommunicationFailedError, ConfigError, make_secop_error
+from secop.lib import get_class
+from secop.modules import Drivable, Module, Readable, Writable
+from secop.params import Command, Parameter
 from secop.properties import Property
 from secop.stringio import HasIodev
-from secop.lib import get_class
-from secop.client import SecopClient, decode_msg, encode_msg_frame
-from secop.errors import ConfigError, make_secop_error, CommunicationFailedError, BadValueError
 
 
 class ProxyModule(HasIodev, Module):

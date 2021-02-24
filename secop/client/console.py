@@ -25,16 +25,16 @@
 
 
 import code
+import configparser
 import socket
 import threading
 from collections import deque
 from os import path
-import configparser
+
 import mlzlog
 
 from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
 from secop.protocol.messages import EVENTREPLY
-
 
 
 class NameSpace(dict):

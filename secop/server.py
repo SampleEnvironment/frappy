@@ -23,12 +23,17 @@
 # *****************************************************************************
 """Define helpers"""
 
-import os
 import ast
-import time
-import threading
 import configparser
+import os
+import threading
+import time
 from collections import OrderedDict
+
+from secop.errors import ConfigError
+from secop.lib import formatException, get_class, getGeneralConfig
+from secop.modules import Attached
+
 try:
     from daemon import DaemonContext
     try:
@@ -38,9 +43,6 @@ try:
 except ImportError:
     DaemonContext = None
 
-from secop.errors import ConfigError
-from secop.lib import formatException, get_class, getGeneralConfig
-from secop.modules import Attached
 
 try:
     import systemd.daemon

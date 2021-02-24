@@ -20,15 +20,16 @@
 #
 # *****************************************************************************
 
-from os import path, listdir
-import sys
 import inspect
-from secop.gui.qt import uic, QIcon, QSize, QFileDialog, QDialogButtonBox
-from secop.server import getGeneralConfig
+import sys
+from os import listdir, path
+
+from secop.gui.qt import QDialogButtonBox, QFileDialog, QIcon, QSize, uic
 from secop.modules import Module
 from secop.params import Parameter
 from secop.properties import Property
 from secop.protocol.interface.tcp import TCPServer
+from secop.server import getGeneralConfig
 
 uipath = path.dirname(__file__)
 

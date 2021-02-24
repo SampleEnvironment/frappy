@@ -21,7 +21,8 @@
 # *****************************************************************************
 
 from textwrap import indent
-from secop.modules import Module, HasProperties, Property, Parameter, Command
+
+from secop.modules import Command, HasProperties, Module, Parameter, Property
 
 
 def indent_description(p):

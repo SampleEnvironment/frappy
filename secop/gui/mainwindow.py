@@ -26,9 +26,9 @@ import secop.client
 from secop.gui.modulectrl import ModuleCtrl
 from secop.gui.nodectrl import NodeCtrl
 from secop.gui.paramview import ParameterView
-from secop.gui.qt import QInputDialog, QMainWindow, QMessageBox, \
-    QObject, QTreeWidgetItem, pyqtSignal, pyqtSlot, QBrush, QColor
-from secop.gui.util import loadUi, Value
+from secop.gui.qt import QBrush, QColor, QInputDialog, QMainWindow, \
+    QMessageBox, QObject, QTreeWidgetItem, pyqtSignal, pyqtSlot
+from secop.gui.util import Value, loadUi
 from secop.lib import formatExtendedTraceback
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1

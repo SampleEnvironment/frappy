@@ -21,11 +21,11 @@
 # *****************************************************************************
 
 import os
-from secop.gui.qt import QMainWindow, QMessageBox
-from secop.gui.cfg_editor.node_display import NodeDisplay
-from secop.gui.cfg_editor.utils import loadUi, get_file_paths
-from secop.gui.cfg_editor.widgets import TabBar
 
+from secop.gui.cfg_editor.node_display import NodeDisplay
+from secop.gui.cfg_editor.utils import get_file_paths, loadUi
+from secop.gui.cfg_editor.widgets import TabBar
+from secop.gui.qt import QMainWindow, QMessageBox
 
 # TODO move secop mainwinodw to gui/client and all specific stuff
 NODE = 'node'

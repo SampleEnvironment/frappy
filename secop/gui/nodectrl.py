@@ -25,14 +25,15 @@
 import json
 import pprint
 from time import sleep
+
 import mlzlog
 
+import secop.lib
 from secop.datatypes import EnumType, StringType
 from secop.errors import SECoPError
 from secop.gui.qt import QFont, QFontMetrics, QLabel, \
     QMessageBox, QTextCursor, QWidget, pyqtSlot, toHtmlEscaped
-from secop.gui.util import loadUi, Value
-import secop.lib
+from secop.gui.util import Value, loadUi
 
 
 class NodeCtrl(QWidget):

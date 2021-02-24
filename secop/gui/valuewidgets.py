@@ -23,10 +23,10 @@
 
 
 from secop.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
-    FloatRange, IntRange, StringType, StructOf, TupleOf, TextType
-from secop.gui.qt import QCheckBox, QComboBox, QDialog, QDoubleSpinBox, \
-    QFrame, QGridLayout, QGroupBox, QLabel, QLineEdit, QSpinBox, QVBoxLayout, \
-    QTextEdit
+    FloatRange, IntRange, StringType, StructOf, TextType, TupleOf
+from secop.gui.qt import QCheckBox, QComboBox, QDialog, \
+    QDoubleSpinBox, QFrame, QGridLayout, QGroupBox, \
+    QLabel, QLineEdit, QSpinBox, QTextEdit, QVBoxLayout
 from secop.gui.util import loadUi
 
 # XXX: implement live validators !!!!

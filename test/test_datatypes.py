@@ -25,9 +25,10 @@
 # no fixtures needed
 import pytest
 
-from secop.datatypes import ArrayOf, BLOBType, BoolType, Enum, StatusType, \
-    DataType, EnumType, FloatRange, IntRange, ProgrammingError, ConfigError, \
-    ScaledInteger, StringType, TextType, StructOf, TupleOf, get_datatype, CommandType
+from secop.datatypes import ArrayOf, BLOBType, BoolType, \
+    CommandType, ConfigError, DataType, Enum, EnumType, FloatRange, \
+    IntRange, ProgrammingError, ScaledInteger, StatusType, \
+    StringType, StructOf, TextType, TupleOf, get_datatype
 
 
 def copytest(dt):

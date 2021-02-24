@@ -22,12 +22,13 @@
 
 import time
 
-from secop.modules import Readable, Drivable, Parameter, Property, Attached, Done
-from secop.datatypes import FloatRange, IntRange, EnumType, BoolType
-from secop.stringio import HasIodev
-from secop.poller import Poller, REGULAR
-from secop.lib import formatStatusBits
 import secop.iohandler
+from secop.datatypes import BoolType, EnumType, FloatRange, IntRange
+from secop.lib import formatStatusBits
+from secop.modules import Attached, Done, \
+    Drivable, Parameter, Property, Readable
+from secop.poller import REGULAR, Poller
+from secop.stringio import HasIodev
 
 Status = Drivable.Status
 

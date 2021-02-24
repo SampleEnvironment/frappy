@@ -31,7 +31,7 @@ import math
 from secop.datatypes import ArrayOf, FloatRange, StringType, StructOf, TupleOf
 from secop.errors import ConfigError, DisabledError
 from secop.lib.sequence import SequencerMixin, Step
-from secop.modules import Drivable, Parameter, BasicPoller
+from secop.modules import BasicPoller, Drivable, Parameter
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):

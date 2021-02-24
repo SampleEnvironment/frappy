@@ -25,10 +25,10 @@
 # no fixtures needed
 import pytest
 
-from secop.datatypes import BoolType, IntRange, FloatRange
-from secop.params import Command, Parameter
-from secop.modules import HasAccessibles
+from secop.datatypes import BoolType, FloatRange, IntRange
 from secop.errors import ProgrammingError
+from secop.modules import HasAccessibles
+from secop.params import Command, Parameter
 
 
 def test_Command():

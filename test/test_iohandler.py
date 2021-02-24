@@ -23,10 +23,11 @@
 
 import pytest
 
+from secop.datatypes import FloatRange, IntRange, Property, StringType
+from secop.errors import ProgrammingError
 from secop.iohandler import CmdParser, IOHandler
 from secop.modules import Module, Parameter
-from secop.datatypes import FloatRange, StringType, IntRange, Property
-from secop.errors import ProgrammingError
+
 
 @pytest.mark.parametrize('fmt, text, values, text2', [
         ('%d,%d', '2,3', [2,3], None),

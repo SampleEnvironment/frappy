@@ -21,12 +21,12 @@
 # *****************************************************************************
 """provides tcp interface to the SECoP Server"""
 
-import sys
 import socket
 import socketserver
+import sys
 import threading
 
-from secop.datatypes import StringType, BoolType
+from secop.datatypes import BoolType, StringType
 from secop.errors import SECoPError
 from secop.lib import formatException, \
     formatExtendedStack, formatExtendedTraceback
@@ -34,7 +34,6 @@ from secop.properties import Property
 from secop.protocol.interface import decode_msg, encode_msg_frame, get_msg
 from secop.protocol.messages import ERRORPREFIX, \
     HELPREPLY, HELPREQUEST, HelpMessage
-
 
 DEF_PORT = 10767
 MESSAGE_READ_SIZE = 1024

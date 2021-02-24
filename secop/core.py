@@ -26,13 +26,14 @@
 # allow to import the most important classes from 'secop'
 
 # pylint: disable=unused-import
-from secop.datatypes import FloatRange, IntRange, ScaledInteger, \
-    BoolType, EnumType, BLOBType, StringType, TupleOf, ArrayOf, StructOf
-from secop.lib.enum import Enum
-from secop.modules import Module, Readable, Writable, Drivable, Communicator, Attached, Done
-from secop.properties import Property
-from secop.params import Parameter, Command
-from secop.poller import AUTO, REGULAR, SLOW, DYNAMIC
+from secop.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
+    FloatRange, IntRange, ScaledInteger, StringType, StructOf, TupleOf
 from secop.iohandler import IOHandler, IOHandlerBase
-from secop.stringio import StringIO, HasIodev
-from secop.proxy import SecNode, Proxy, proxy_class
+from secop.lib.enum import Enum
+from secop.modules import Attached, Communicator, \
+    Done, Drivable, Module, Readable, Writable
+from secop.params import Command, Parameter
+from secop.poller import AUTO, DYNAMIC, REGULAR, SLOW
+from secop.properties import Property
+from secop.proxy import Proxy, SecNode, proxy_class
+from secop.stringio import HasIodev, StringIO

@@ -31,18 +31,18 @@ Polling of value and status is done commonly for all modules. For each registere
 <module>.update_value_status() is called in order to update their value and status.
 """
 
-import time
 import threading
+import time
 
-from secop.modules import Readable, Drivable, Parameter,\
-    Communicator, Property, Attached, HasAccessibles, Done
-from secop.datatypes import EnumType, FloatRange, IntRange, StringType,\
-    BoolType, StatusType
-from secop.lib.enum import Enum
-from secop.lib import clamp
-from secop.errors import HardwareError
-from secop.poller import Poller
 import secop.iohandler
+from secop.datatypes import BoolType, EnumType, \
+    FloatRange, IntRange, StatusType, StringType
+from secop.errors import HardwareError
+from secop.lib import clamp
+from secop.lib.enum import Enum
+from secop.modules import Attached, Communicator, Done, \
+    Drivable, HasAccessibles, Parameter, Property, Readable
+from secop.poller import Poller
 from secop.stringio import HasIodev
 
 try:

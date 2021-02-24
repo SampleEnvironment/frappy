@@ -34,10 +34,11 @@ Usage examples:
 """
 
 import time
-from threading import Event
 from heapq import heapify, heapreplace
-from secop.lib import mkthread
+from threading import Event
+
 from secop.errors import ProgrammingError
+from secop.lib import mkthread
 
 # poll types:
 AUTO = 1  #: equivalent to True, converted to REGULAR, SLOW or DYNAMIC

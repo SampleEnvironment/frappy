@@ -26,16 +26,15 @@
 import sys
 import time
 
-from secop.datatypes import EnumType, FloatRange, BoolType, IntRange, \
-    StringType, TupleOf, get_datatype, ArrayOf, TextType, StatusType
-from secop.errors import ConfigError, ProgrammingError, SECoPError, BadValueError,\
-    SilentError, InternalError, secop_error
+from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
+    IntRange, StatusType, StringType, TextType, TupleOf, get_datatype
+from secop.errors import BadValueError, ConfigError, InternalError, \
+    ProgrammingError, SECoPError, SilentError, secop_error
 from secop.lib import formatException, formatExtendedStack, mkthread
 from secop.lib.enum import Enum
-from secop.params import PREDEFINED_ACCESSIBLES, Command, Parameter, Accessible
+from secop.params import PREDEFINED_ACCESSIBLES, Accessible, Command, Parameter
+from secop.poller import BasicPoller, Poller
 from secop.properties import HasProperties, Property
-from secop.poller import Poller, BasicPoller
-
 
 Done = object()  #: a special return value for a read/write function indicating that the setter is triggered already
 

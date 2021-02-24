@@ -29,7 +29,8 @@ from time import sleep
 
 from secop.datatypes import FloatRange
 from secop.lib import mkthread
-from secop.modules import Drivable, Module, Parameter, Readable, Writable, BasicPoller
+from secop.modules import BasicPoller, Drivable, \
+    Module, Parameter, Readable, Writable
 
 
 class SimBase:

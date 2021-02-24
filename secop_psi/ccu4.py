@@ -22,7 +22,8 @@
 
 """drivers for CCU4, the cryostat control unit at SINQ"""
 # the most common Frappy classes can be imported from secop.core
-from secop.core import Readable, Parameter, FloatRange, EnumType, StringIO, HasIodev
+from secop.core import EnumType, FloatRange, \
+    HasIodev, Parameter, Readable, StringIO
 
 
 class CCU4IO(StringIO):

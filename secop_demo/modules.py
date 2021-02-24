@@ -28,7 +28,9 @@ import time
 from secop.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, IntRange, StringType, StructOf, TupleOf
 from secop.lib.enum import Enum
-from secop.modules import Drivable, Parameter as SECoP_Parameter, Readable
+from secop.modules import Drivable
+from secop.modules import Parameter as SECoP_Parameter
+from secop.modules import Readable
 from secop.properties import Property
 
 

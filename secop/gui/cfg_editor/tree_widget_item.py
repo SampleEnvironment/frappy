@@ -20,10 +20,11 @@
 #
 # *****************************************************************************
 
-from secop.gui.qt import QTreeWidgetItem, QFont, QWidget, QVBoxLayout, QLabel, \
-    QHBoxLayout, QPushButton, QSize, QSizePolicy, QDialog, QTextEdit, pyqtSignal
-from secop.gui.cfg_editor.utils import setTreeIcon, setIcon, loadUi, \
-    set_name_edit_style
+from secop.gui.cfg_editor.utils import loadUi, \
+    set_name_edit_style, setIcon, setTreeIcon
+from secop.gui.qt import QDialog, QFont, QHBoxLayout, \
+    QLabel, QPushButton, QSize, QSizePolicy, QTextEdit, \
+    QTreeWidgetItem, QVBoxLayout, QWidget, pyqtSignal
 from secop.gui.valuewidgets import get_widget
 from secop.properties import Property
 

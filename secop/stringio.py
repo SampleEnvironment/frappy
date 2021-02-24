@@ -23,13 +23,17 @@
 implements TCP/IP and is be used as a base for SerialIO
 """
 
-import time
-import threading
 import re
+import threading
+import time
+
+from secop.datatypes import ArrayOf, BoolType, \
+    FloatRange, StringType, TupleOf, ValueType
+from secop.errors import CommunicationFailedError, \
+    CommunicationSilentError, ConfigError
 from secop.lib.asynconn import AsynConn, ConnectionClosed
-from secop.modules import Module, Communicator, Parameter, Command, Property, Attached, Done
-from secop.datatypes import StringType, FloatRange, ArrayOf, BoolType, TupleOf, ValueType
-from secop.errors import CommunicationFailedError, CommunicationSilentError, ConfigError
+from secop.modules import Attached, Command, \
+    Communicator, Done, Module, Parameter, Property
 from secop.poller import REGULAR
 
 

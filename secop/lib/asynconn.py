@@ -28,16 +28,18 @@ support for asynchronous communication, but may be used also for
 synchronous IO (see secop.stringio.StringIO)
 """
 
-import socket
-import select
-import time
 import ast
+import select
+import socket
+import time
+
+from secop.errors import CommunicationFailedError, ConfigError
+from secop.lib import closeSocket, parseHostPort, tcpSocket
+
 try:
     from serial import Serial
 except ImportError:
     Serial = None
-from secop.lib import parseHostPort, tcpSocket, closeSocket
-from secop.errors import ConfigError, CommunicationFailedError
 
 
 class ConnectionClosed(ConnectionError):

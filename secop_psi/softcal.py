@@ -20,13 +20,14 @@
 # *****************************************************************************
 """Software calibration"""
 
-import os
-from os.path import join, exists, basename
 import math
-import numpy as np
-from scipy.interpolate import splrep, splev  # pylint: disable=import-error
+import os
+from os.path import basename, exists, join
 
-from secop.core import Readable, Parameter, Attached, StringType, BoolType
+import numpy as np
+from scipy.interpolate import splev, splrep  # pylint: disable=import-error
+
+from secop.core import Attached, BoolType, Parameter, Readable, StringType
 
 
 def linear(x):

@@ -23,13 +23,14 @@
 """test data types."""
 
 import threading
+
 import pytest
 
 from secop.datatypes import BoolType, FloatRange, StringType
+from secop.errors import ProgrammingError
 from secop.modules import Communicator, Drivable, Module
 from secop.params import Command, Parameter
 from secop.poller import BasicPoller
-from secop.errors import ProgrammingError
 
 
 class DispatcherStub:

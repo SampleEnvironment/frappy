@@ -20,8 +20,8 @@
 #
 # *****************************************************************************
 
-from secop.gui.qt import QWidget, Qt, QHBoxLayout, QSpacerItem, QSizePolicy
 from secop.gui.cfg_editor.utils import loadUi
+from secop.gui.qt import QHBoxLayout, QSizePolicy, QSpacerItem, Qt, QWidget
 
 
 class NodeDisplay(QWidget):

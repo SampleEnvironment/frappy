@@ -18,9 +18,10 @@
 # Module authors:
 #   Markus Zolliker <markus.zolliker@psi.ch>
 # *****************************************************************************
-import time
 import json
 import math
+import time
+
 
 def num(string):
     return json.loads(string)

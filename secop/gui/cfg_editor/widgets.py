@@ -23,15 +23,15 @@
 
 import os
 
-from secop.gui.cfg_editor.config_file import write_config, read_config
+from secop.gui.cfg_editor.config_file import read_config, write_config
 from secop.gui.cfg_editor.tree_widget_item import TreeWidgetItem
-from secop.gui.cfg_editor.utils import get_file_paths, get_modules, \
-    get_interfaces, loadUi, set_name_edit_style, get_module_class_from_name, \
-    get_all_items, get_interface_class_from_name, get_params, get_props, \
-    setActionIcon
-from secop.gui.qt import QWidget, QDialog, QLabel, QTabBar, Qt, QPoint, QMenu, \
-    QTreeWidget, QSize, pyqtSignal, QLineEdit, QComboBox, QDialogButtonBox, \
-    QTextEdit, QTreeView, QStandardItemModel, QStandardItem
+from secop.gui.cfg_editor.utils import get_all_items, \
+    get_file_paths, get_interface_class_from_name, get_interfaces, \
+    get_module_class_from_name, get_modules, get_params, \
+    get_props, loadUi, set_name_edit_style, setActionIcon
+from secop.gui.qt import QComboBox, QDialog, QDialogButtonBox, QLabel, \
+    QLineEdit, QMenu, QPoint, QSize, QStandardItem, QStandardItemModel, \
+    Qt, QTabBar, QTextEdit, QTreeView, QTreeWidget, QWidget, pyqtSignal
 
 NODE = 'node'
 MODULE = 'module'

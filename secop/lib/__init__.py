@@ -21,13 +21,13 @@
 # *****************************************************************************
 """Define helpers"""
 
+import importlib
 import linecache
 import socket
 import sys
 import threading
 import traceback
-import importlib
-from os import path, environ
+from os import environ, path
 
 repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
 

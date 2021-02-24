@@ -23,9 +23,12 @@
 
 import time
 from collections import OrderedDict
+
 import pytest
+
 from secop.modules import Drivable
-from secop.poller import Poller, REGULAR, DYNAMIC, SLOW
+from secop.poller import DYNAMIC, REGULAR, SLOW, Poller
+
 Status = Drivable.Status
 
 class Time:

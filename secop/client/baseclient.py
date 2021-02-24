@@ -30,11 +30,6 @@ import time
 from collections import OrderedDict
 from select import select
 
-try:
-    import mlzlog
-except ImportError:
-    pass
-
 import serial
 
 from secop.datatypes import CommandType, EnumType, get_datatype
@@ -46,6 +41,13 @@ from secop.protocol.messages import BUFFERREQUEST, COMMANDREQUEST, \
     ENABLEEVENTSREQUEST, ERRORPREFIX, EVENTREPLY, \
     HEARTBEATREQUEST, HELPREQUEST, IDENTREQUEST, READREPLY, \
     READREQUEST, REQUEST2REPLY, WRITEREPLY, WRITEREQUEST
+
+try:
+    import mlzlog
+except ImportError:
+    pass
+
+
 
 class TCPConnection:
     # disguise a TCP connection as serial one

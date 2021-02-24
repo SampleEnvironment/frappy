@@ -25,11 +25,11 @@
 
 import inspect
 
-from secop.datatypes import CommandType, DataType, StringType, BoolType, EnumType, DataTypeType, ValueType, OrType, \
-    NoneOr, TextType, IntRange, TupleOf, StructOf
-from secop.errors import ProgrammingError, BadValueError
+from secop.datatypes import BoolType, CommandType, DataType, \
+    DataTypeType, EnumType, IntRange, NoneOr, OrType, \
+    StringType, StructOf, TextType, TupleOf, ValueType
+from secop.errors import BadValueError, ProgrammingError
 from secop.properties import HasProperties, Property
-
 
 UNSET = object()  # an argument not given, not even None
 

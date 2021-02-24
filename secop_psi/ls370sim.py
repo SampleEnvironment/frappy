@@ -22,6 +22,7 @@
 
 from secop.modules import Communicator
 
+
 class Ls370Sim(Communicator):
     CHANNEL_COMMANDS = [
         ('RDGR?%d', '1.0'),

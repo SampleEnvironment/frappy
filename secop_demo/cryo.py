@@ -25,10 +25,9 @@ import random
 import time
 from math import atan
 
-from secop.datatypes import EnumType, FloatRange, TupleOf, StringType, BoolType
+from secop.datatypes import BoolType, EnumType, FloatRange, StringType, TupleOf
 from secop.lib import clamp, mkthread
-from secop.modules import Drivable, Parameter, Command
-
+from secop.modules import Command, Drivable, Parameter
 # test custom property (value.test can be changed in config file)
 from secop.properties import Property
 

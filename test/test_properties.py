@@ -23,9 +23,9 @@
 
 import pytest
 
-from secop.datatypes import IntRange, StringType, FloatRange, ValueType
-from secop.errors import ProgrammingError, ConfigError, BadValueError
-from secop.properties import Property, HasProperties
+from secop.datatypes import FloatRange, IntRange, StringType, ValueType
+from secop.errors import BadValueError, ConfigError, ProgrammingError
+from secop.properties import HasProperties, Property
 
 
 def Prop(*args, name=None, **kwds):

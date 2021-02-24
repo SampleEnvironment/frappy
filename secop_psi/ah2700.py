@@ -20,7 +20,7 @@
 # *****************************************************************************
 """Andeen Hagerling capacitance bridge"""
 
-from secop.core import Readable, Parameter, FloatRange, HasIodev, StringIO, Done
+from secop.core import Done, FloatRange, HasIodev, Parameter, Readable, StringIO
 
 
 class Ah2700IO(StringIO):

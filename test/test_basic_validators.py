@@ -24,10 +24,11 @@
 # no fixtures needed
 import pytest
 
-from secop.basic_validators import FloatProperty, PositiveFloatProperty, \
-    NonNegativeFloatProperty, IntProperty, PositiveIntProperty, \
-    NonNegativeIntProperty, BoolProperty, StringProperty, UnitProperty, \
-    FmtStrProperty, OneOfProperty, NoneOr, EnumProperty, TupleProperty
+from secop.basic_validators import BoolProperty, EnumProperty, FloatProperty, \
+    FmtStrProperty, IntProperty, NoneOr, NonNegativeFloatProperty, \
+    NonNegativeIntProperty, OneOfProperty, PositiveFloatProperty, \
+    PositiveIntProperty, StringProperty, TupleProperty, UnitProperty
+
 
 class unprintable:
     def __str__(self):

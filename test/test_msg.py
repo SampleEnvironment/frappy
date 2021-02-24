@@ -23,8 +23,8 @@
 
 import pytest
 
-from secop.protocol.interface import encode_msg_frame, decode_msg
 import secop.protocol.messages as m
+from secop.protocol.interface import decode_msg, encode_msg_frame
 
 # args are: msg tuple, msg bytes
 MSG = [

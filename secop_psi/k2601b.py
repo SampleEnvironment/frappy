@@ -22,8 +22,8 @@
 
 not tested yet"""
 
-from secop.core import Writable, Module, Parameter, Attached,\
-    BoolType, FloatRange, EnumType, HasIodev, StringIO
+from secop.core import Attached, BoolType, EnumType, FloatRange, \
+    HasIodev, Module, Parameter, StringIO, Writable
 
 
 class K2601bIO(StringIO):

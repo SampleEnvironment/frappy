@@ -23,10 +23,10 @@
 """Define validated data types."""
 
 
-import sys
 import inspect
+import sys
 
-from secop.errors import ConfigError, ProgrammingError, BadValueError
+from secop.errors import BadValueError, ConfigError, ProgrammingError
 
 
 class HasDescriptorMeta(type):

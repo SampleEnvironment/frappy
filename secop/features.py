@@ -24,7 +24,7 @@
 
 from secop.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, StringType, StructOf, TupleOf
-from secop.modules import Command, Parameter, HasAccessibles
+from secop.modules import Command, HasAccessibles, Parameter
 
 
 class Feature(HasAccessibles):
