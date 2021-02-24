@@ -41,7 +41,7 @@ from secop.errors import HardwareError
 from secop.lib import clamp
 from secop.lib.enum import Enum
 from secop.modules import Attached, Communicator, Done, \
-    Drivable, HasAccessibles, Parameter, Property, Readable
+    Drivable, Parameter, Property, Readable
 from secop.poller import Poller
 from secop.stringio import HasIodev
 
@@ -128,14 +128,18 @@ class Main(Communicator):
         return data  # return data as string
 
 
-class PpmsMixin(HasIodev, HasAccessibles):
-    """common methods for ppms modules"""
+class PpmsBase(HasIodev, Readable):
+    """common base for all ppms modules"""
     iodev = Attached()
 
     pollerClass = Poller
     enabled = True  # default, if no parameter enable is defined
     _last_settings = None  # used by several modules
     slow_pollfactor = 1
+
+    # as this pollinterval affects only the polling of settings
+    # it would be confusing to export it.
+    pollinterval = Parameter(export=False)
 
     def initModule(self):
         self._iodev.register(self)
@@ -168,13 +172,12 @@ class PpmsMixin(HasIodev, HasAccessibles):
             self.status = (self.Status.IDLE, '')
 
 
-class Channel(PpmsMixin, Readable):
+class Channel(PpmsBase):
     """channel base class"""
 
     value = Parameter('main value of channels', poll=True)
     enabled = Parameter('is this channel used?', readonly=False, poll=False,
                         datatype=BoolType(), default=False)
-    pollinterval = Parameter(visibility=3)
 
     channel = Property('channel name',
                        datatype=StringType(), export=False, default='')
@@ -193,7 +196,7 @@ class Channel(PpmsMixin, Readable):
 class UserChannel(Channel):
     """user channel"""
 
-    pollinterval = Parameter(visibility=3)
+    # pollinterval = Parameter(visibility=3)
 
     no = Property('channel number',
                   datatype=IntRange(0, 0), export=False, default=0)
@@ -216,7 +219,7 @@ class DriverChannel(Channel):
                         datatype=FloatRange(0., 5000., unit='uA'))
     powerlimit = Parameter('power limit', readonly=False, handler=drvout,
                            datatype=FloatRange(0., 1000., unit='uW'))
-    pollinterval = Parameter(visibility=3)
+    # pollinterval = Parameter(visibility=3)
 
     def analyze_drvout(self, no, current, powerlimit):
         if self.no != no:
@@ -246,7 +249,7 @@ class BridgeChannel(Channel):
                             datatype=EnumType(ReadingMode))
     voltagelimit = Parameter('voltage limit', readonly=False, handler=bridge,
                              datatype=FloatRange(0.0001, 100., unit='mV'))
-    pollinterval = Parameter(visibility=3)
+    # pollinterval = Parameter(visibility=3)
 
     def analyze_bridge(self, no, excitation, powerlimit, dcflag, readingmode, voltagelimit):
         if self.no != no:
@@ -267,14 +270,14 @@ class BridgeChannel(Channel):
         return self.no, 0, 0, change.dcflag, change.readingmode, 0
 
 
-class Level(PpmsMixin, Readable):
+class Level(PpmsBase):
     """helium level"""
 
     level = IOHandler('level', 'LEVEL?', '%g,%d')
 
     value = Parameter(datatype=FloatRange(unit='%'), handler=level)
     status = Parameter(handler=level)
-    pollinterval = Parameter(visibility=3)
+    # pollinterval = Parameter(visibility=3)
 
     channel = 'level'
 
@@ -290,7 +293,7 @@ class Level(PpmsMixin, Readable):
         return dict(value=level, status=(self.Status.IDLE, ''))
 
 
-class Chamber(PpmsMixin, Drivable):
+class Chamber(PpmsBase, Drivable):
     """sample chamber handling
 
     value is an Enum, which is redundant with the status text
@@ -328,7 +331,7 @@ class Chamber(PpmsMixin, Drivable):
                       datatype=EnumType(StatusCode))
     target = Parameter(description='chamber command', handler=chamber,
                        datatype=EnumType(Operation))
-    pollinterval = Parameter(visibility=3)
+    # pollinterval = Parameter(visibility=3)
 
     STATUS_MAP = {
         StatusCode.purged_and_sealed: (Status.IDLE, 'purged and sealed'),
@@ -365,7 +368,7 @@ class Chamber(PpmsMixin, Drivable):
         return (change.target,)
 
 
-class Temp(PpmsMixin, Drivable):
+class Temp(PpmsBase, Drivable):
     """temperature"""
 
     temp = IOHandler('temp', 'TEMP?', '%g,%g,%d')
@@ -388,7 +391,7 @@ class Temp(PpmsMixin, Drivable):
                             datatype=FloatRange(0, 20, unit='K/min'), handler=temp)
     approachmode = Parameter('how to approach target!', readonly=False, handler=temp,
                              datatype=EnumType(ApproachMode))
-    pollinterval = Parameter(visibility=3)
+    # pollinterval = Parameter(visibility=3)
     timeout = Parameter('drive timeout, in addition to ramp time', readonly=False,
                         datatype=FloatRange(0, unit='sec'), default=3600)
 
@@ -550,7 +553,7 @@ class Temp(PpmsMixin, Drivable):
         self._stopped = True
 
 
-class Field(PpmsMixin, Drivable):
+class Field(PpmsBase, Drivable):
     """magnetic field"""
 
     field = IOHandler('field', 'FIELD?', '%g,%g,%d,%d')
@@ -574,7 +577,7 @@ class Field(PpmsMixin, Drivable):
                              datatype=EnumType(ApproachMode))
     persistentmode = Parameter('what to do after changing field', readonly=False, handler=field,
                                datatype=EnumType(PersistentMode))
-    pollinterval = Parameter(visibility=3)
+    # pollinterval = Parameter(visibility=3)
 
     STATUS_MAP = {
         1: (Status.IDLE, 'persistent mode'),
@@ -687,7 +690,7 @@ class Field(PpmsMixin, Drivable):
         self._stopped = True
 
 
-class Position(PpmsMixin, Drivable):
+class Position(PpmsBase, Drivable):
     """rotator position"""
 
     move = IOHandler('move', 'MOVE?', '%g,%g,%g')
@@ -699,7 +702,7 @@ class Position(PpmsMixin, Drivable):
                         datatype=BoolType(), default=True)
     speed = Parameter('motor speed', readonly=False, handler=move,
                       datatype=FloatRange(0.8, 12, unit='deg/sec'))
-    pollinterval = Parameter(visibility=3)
+    # pollinterval = Parameter(visibility=3)
 
     STATUS_MAP = {
         1: (Status.IDLE, 'at target'),

@@ -40,7 +40,7 @@ Done = object()  #: a special return value for a read/write function indicating 
 
 
 class HasAccessibles(HasProperties):
-    """base class of Module
+    """base class of module
 
     joining the class's properties, parameters and commands dicts with
     those of base classes.
@@ -53,7 +53,7 @@ class HasAccessibles(HasProperties):
         # merge accessibles from all sub-classes, treat overrides
         # for now, allow to use also the old syntax (parameters/commands dict)
         accessibles = {}
-        for base in cls.__bases__:
+        for base in reversed(cls.__bases__):
             accessibles.update(getattr(base, 'accessibles', {}))
         newaccessibles = {k: v for k, v in cls.__dict__.items() if isinstance(v, Accessible)}
         for aname, aobj in accessibles.items():
@@ -445,6 +445,19 @@ class Module(HasAccessibles):
                 pass
 
     def registerCallbacks(self, modobj, autoupdate=()):
+        """register callbacks to another module <modobj>
+
+        - whenever a self.<param> changes:
+          <modobj>.update_<param> is called with the new value as argument.
+          If this method raises an exception, <modobj>.<param> gets into an error state.
+          If the method does not exist and <param> is in autoupdate,
+          <modobj>.<param> is updated to self.<param>
+        - whenever <self>.<param> gets into an error state:
+          <modobj>.error_update_<param> is called with the exception as argument.
+          If this method raises an error, <modobj>.<param> gets into an error state.
+          If this method does not exist, and <param> is in autoupdate,
+          <modobj>.<param> gets into the same error state as self.<param>
+        """
         for pname in self.parameters:
             errfunc = getattr(modobj, 'error_update_' + pname, None)
             if errfunc:
