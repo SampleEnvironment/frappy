@@ -168,7 +168,6 @@ class NodeCtrl(QWidget):
                 print(secop.lib.formatExtendedTraceback())
                 widget = QLabel('Bad configured Module %s! (%s)' % (modname, e))
 
-
             if unit:
                 labelstr = '%s (%s):' % (modname, unit)
             else:
@@ -290,7 +289,7 @@ class DrivableWidget(ReadableWidget):
 
     def update_current(self, value):
         self.currentLineEdit.setText(str(value))
-        #elif self._is_enum:
+        # elif self._is_enum:
         #    member = self._map[self._revmap[value.value]]
         #    self.currentLineEdit.setText('%s.%s (%d)' % (member.enum.name, member.name, member.value))
 

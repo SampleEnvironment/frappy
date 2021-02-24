@@ -47,7 +47,7 @@ def get_git_version(abbrev=4, cwd=None):
         # mangle version to comply with pep440
         if version.count('-'):
             version, patchcount, githash = version.split('-')
-            version += '.post%s+%s' %(patchcount, githash)
+            version += '.post%s+%s' % (patchcount, githash)
         return version
     except Exception:
         return None

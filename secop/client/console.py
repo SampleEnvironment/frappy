@@ -21,7 +21,7 @@
 # *****************************************************************************
 """console client"""
 
-# this needs to be reworked or removed
+# TODO: remove, as currently not used
 
 
 import code

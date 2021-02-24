@@ -21,6 +21,8 @@
 # *****************************************************************************
 """Define Client side proxies"""
 
+# TODO: remove, as currently not used
+
 
 import json
 import queue
@@ -46,7 +48,6 @@ try:
     import mlzlog
 except ImportError:
     pass
-
 
 
 class TCPConnection:

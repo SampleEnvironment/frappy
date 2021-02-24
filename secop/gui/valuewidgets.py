@@ -29,6 +29,7 @@ from secop.gui.qt import QCheckBox, QComboBox, QDialog, \
     QLabel, QLineEdit, QSpinBox, QTextEdit, QVBoxLayout
 from secop.gui.util import loadUi
 
+
 # XXX: implement live validators !!!!
 # XXX: signals upon change of value
 # XXX: honor readonly in all cases!
@@ -171,12 +172,12 @@ class StructWidget(QGroupBox):
         self._labels = []
         for idx, name in enumerate(sorted(datatype.members)):
             dt = datatype.members[name]
-            w = get_widget(dt, readonly=readonly, parent=self)
-            l = QLabel(name)
-            self.layout.addWidget(l, idx, 0)
-            self.layout.addWidget(w, idx, 1)
-            self._labels.append(l)
-            self.subwidgets[name] = (w, dt)
+            widget = get_widget(dt, readonly=readonly, parent=self)
+            label = QLabel(name)
+            self.layout.addWidget(label, idx, 0)
+            self.layout.addWidget(widget, idx, 1)
+            self._labels.append(label)
+            self.subwidgets[name] = (widget, dt)
             self.datatypes.append(dt)
         self.setLayout(self.layout)
 
@@ -215,20 +216,21 @@ class ArrayWidget(QGroupBox):
             w.set_value(v)
 
 
-
 def get_widget(datatype, readonly=False, parent=None):
-    return {FloatRange: FloatWidget,
-     IntRange: IntWidget,
-     StringType: StringWidget,
-     TextType: TextWidget,
-     BLOBType: BlobWidget,
-     EnumType: EnumWidget,
-     BoolType: BoolWidget,
-     TupleOf: TupleWidget,
-     StructOf: StructWidget,
-     ArrayOf: ArrayWidget,
+    return {
+        FloatRange: FloatWidget,
+        IntRange: IntWidget,
+        StringType: StringWidget,
+        TextType: TextWidget,
+        BLOBType: BlobWidget,
+        EnumType: EnumWidget,
+        BoolType: BoolWidget,
+        TupleOf: TupleWidget,
+        StructOf: StructWidget,
+        ArrayOf: ArrayWidget,
     }.get(datatype.__class__)(datatype, readonly, parent)
 # TODO: handle NoneOr
+
 
 class msg(QDialog):
     def __init__(self, stuff, parent=None):
@@ -242,7 +244,7 @@ class msg(QDialog):
         dt = StructOf(i=IntRange(0, 10), f=FloatRange(), b=BoolType())
         w = StructWidget(dt)
         self.gridLayout.addWidget(w, row, 1)
-        row+=1
+        row += 1
 
         self.gridLayout.addWidget(QLabel('stuff'), row, 0, 1, 0)
         row += 1  # at pos (0,0) span 2 cols, 1 row

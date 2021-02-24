@@ -22,7 +22,6 @@
 """Define (internal) SECoP Errors"""
 
 
-
 class SECoPError(RuntimeError):
 
     def __init__(self, *args, **kwds):

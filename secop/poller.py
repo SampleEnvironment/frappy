@@ -167,8 +167,8 @@ class Poller(PollerBase):
                     continue  # only one poller per handler
                 handlers.add(pobj.handler)
             # placeholders 0 are used for due, lastdue and idx
-            self.queues[polltype].append((0, 0,
-                (0, module, pobj, pname, factors[polltype])))
+            self.queues[polltype].append(
+                (0, 0, (0, module, pobj, pname, factors[polltype])))
 
     def poll_next(self, polltype):
         """try to poll next item

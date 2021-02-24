@@ -25,6 +25,7 @@ import json
 
 EOL = b'\n'
 
+
 def encode_msg_frame(action, specifier=None, data=None):
     """ encode a msg_triple into an msg_frame, ready to be sent
 

@@ -440,7 +440,7 @@ class Module(HasAccessibles):
         for cb in cblist:
             try:
                 cb(arg)
-            except Exception as e:
+            except Exception:
                 # print(formatExtendedTraceback())
                 pass
 

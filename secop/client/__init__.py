@@ -31,7 +31,7 @@ from threading import Event, RLock, current_thread
 import secop.errors
 import secop.params
 from secop.datatypes import get_datatype
-from secop.lib import formatExtendedStack, formatExtendedTraceback, mkthread
+from secop.lib import mkthread
 from secop.lib.asynconn import AsynConn, ConnectionClosed
 from secop.protocol.interface import decode_msg, encode_msg_frame
 from secop.protocol.messages import COMMANDREQUEST, \
@@ -160,7 +160,6 @@ class ProxyClient:
                 cblist.remove(func)
             if not cblist:
                 self.callbacks[cbname].pop(key)
-
 
     def callback(self, key, cbname, *args):
         """perform callbacks

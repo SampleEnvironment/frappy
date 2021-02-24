@@ -62,10 +62,10 @@ class AsynConn:
             except (ValueError, TypeError, AssertionError):
                 if 'COM' in uri:
                     raise ValueError("the correct uri for a COM port is: "
-                                     "'serial://COM<i>[?<option>=<value>[+<option>=value ...]]'" )
+                                     "'serial://COM<i>[?<option>=<value>[+<option>=value ...]]'")
                 if '/dev' in uri:
                     raise ValueError("the correct uri for a serial port is: "
-                                     "'serial:///dev/<tty>[?<option>=<value>[+<option>=value ...]]'" )
+                                     "'serial:///dev/<tty>[?<option>=<value>[+<option>=value ...]]'")
                 raise ValueError('invalid uri: %s' % uri)
             iocls = cls.SCHEME_MAP['tcp']
             uri = 'tcp://%s:%d' % host_port

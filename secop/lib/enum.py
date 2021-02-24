@@ -32,6 +32,7 @@ class EnumMember:
     has an int-type value and attributes 'name' and 'value'
     """
     __slots__ = ['name', 'value', 'enum']
+
     def __init__(self, enum, name, value):
         if not isinstance(enum, Enum):
             raise TypeError('1st Argument must be an instance of class Enum()')
@@ -49,7 +50,7 @@ class EnumMember:
         try:
             other = int(other)
         except Exception:
-            #raise TypeError('%r can not be compared to %r!' %(other, self))
+            # raise TypeError('%r can not be compared to %r!' %(other, self))
             return -1  # XXX:!
         if self.value < other:
             return -1
@@ -59,10 +60,12 @@ class EnumMember:
 
     def __lt__(self, other):
         return self.__cmp__(other.value if isinstance(other, EnumMember) else other) == -1
+
     def __le__(self, other):
         return self.__cmp__(other.value if isinstance(other, EnumMember) else other) < 1
+
     def __eq__(self, other):
-        if isinstance(other, (EnumMember)):
+        if isinstance(other, EnumMember):
             return other.value == self.value
         if isinstance(other, int):
             return other == self.value
@@ -72,10 +75,13 @@ class EnumMember:
                 return self.name == other
             return False
         return self.__cmp__(other.value if isinstance(other, EnumMember) else other) == 0
+
     def __ne__(self, other):
         return not self.__eq__(other)
+
     def __ge__(self, other):
         return self.__cmp__(other.value if isinstance(other, EnumMember) else other) > -1
+
     def __gt__(self, other):
         return self.__cmp__(other.value if isinstance(other, EnumMember) else other) == 1
 
@@ -100,77 +106,105 @@ class EnumMember:
     def __repr__(self):
         return '<%s%s (%d)>' % (self.enum.name + '.' if self.enum.name else '', self.name, self.value)
 
-
     # numeric operations: delegate to int. Do we really need any of those?
     def __add__(self, other):
         return self.value.__add__(other.value if isinstance(other, EnumMember) else other)
+
     def __sub__(self, other):
         return self.value.__sub__(other.value if isinstance(other, EnumMember) else other)
+
     def __mul__(self, other):
         return self.value.__mul__(other.value if isinstance(other, EnumMember) else other)
+
     def __truediv__(self, other):
         return self.value.__truediv__(other.value if isinstance(other, EnumMember) else other)
+
     def __floordiv__(self, other):
         return self.value.__floordiv__(other.value if isinstance(other, EnumMember) else other)
+
     def __mod__(self, other):
         return self.value.__mod__(other.value if isinstance(other, EnumMember) else other)
+
     def __divmod__(self, other):
         return self.value.__divmod__(other.value if isinstance(other, EnumMember) else other)
+
     def __pow__(self, other, *args):
         return self.value.__pow__(other, *args)
+
     def __lshift__(self, other):
         return self.value.__lshift__(other.value if isinstance(other, EnumMember) else other)
+
     def __rshift__(self, other):
         return self.value.__rshift__(other.value if isinstance(other, EnumMember) else other)
 
     def __radd__(self, other):
         return self.value.__radd__(other.value if isinstance(other, EnumMember) else other)
+
     def __rsub__(self, other):
         return self.value.__rsub__(other.value if isinstance(other, EnumMember) else other)
+
     def __rmul__(self, other):
         return self.value.__rmul__(other.value if isinstance(other, EnumMember) else other)
+
     def __rtruediv__(self, other):
         return self.value.__rtruediv__(other.value if isinstance(other, EnumMember) else other)
+
     def __rfloordiv__(self, other):
         return self.value.__rfloordiv__(other.value if isinstance(other, EnumMember) else other)
+
     def __rmod__(self, other):
         return self.value.__rmod__(other.value if isinstance(other, EnumMember) else other)
+
     def __rdivmod__(self, other):
         return self.value.__rdivmod__(other.value if isinstance(other, EnumMember) else other)
+
     def __rpow__(self, other, *args):
         return self.value.__rpow__(other, *args)
+
     def __rlshift__(self, other):
         return self.value.__rlshift__(other.value if isinstance(other, EnumMember) else other)
+
     def __rrshift__(self, other):
         return self.value.__rrshift__(other.value if isinstance(other, EnumMember) else other)
 
     # logical operations
     def __and__(self, other):
         return self.value.__and__(other.value if isinstance(other, EnumMember) else other)
+
     def __xor__(self, other):
         return self.value.__xor__(other.value if isinstance(other, EnumMember) else other)
+
     def __or__(self, other):
         return self.value.__or__(other.value if isinstance(other, EnumMember) else other)
+
     def __rand__(self, other):
         return self.value.__rand__(other.value if isinstance(other, EnumMember) else other)
+
     def __rxor__(self, other):
         return self.value.__rxor__(other.value if isinstance(other, EnumMember) else other)
+
     def __ror__(self, other):
         return self.value.__ror__(other.value if isinstance(other, EnumMember) else other)
+
     # other stuff
     def __neg__(self):
         return self.value.__neg__()
+
     def __pos__(self):
         return self.value.__pos__()
+
     def __abs__(self):
         return self.value.__abs__()
+
     def __invert__(self):
         return self.value.__invert__()
+
     def __int__(self):
         return self.value.__int__()
+
     def __float__(self):
         return self.value.__float__()
-        #return NotImplemented  # makes no sense
+
     def __index__(self):
         return self.value.__index__()
 
@@ -206,6 +240,7 @@ class Enum(dict):
     You only can create an extended Enum.
     """
     name = ''
+
     def __init__(self, name='', parent=None, **kwds):
         super(Enum, self).__init__()
         if isinstance(name, (dict, Enum)) and parent is None:
@@ -217,7 +252,7 @@ class Enum(dict):
                 # if name was not given, use that of the parent
                 # this means, an extended Enum behaves like the parent
                 # THIS MAY BE CONFUSING SOMETIMES!
-                name=parent.name
+                name = parent.name
 #            else:
 #                raise TypeError('Enum instances need a name or an Enum parent!')
         if not isinstance(name, str):
@@ -225,8 +260,9 @@ class Enum(dict):
 
         names = set()
         values = set()
+
         # pylint: disable=dangerous-default-value
-        def add(self, k, v, names = names, value = values):
+        def add(self, k, v, names=names, value=values):
             """helper for creating the enum members"""
             if v is None:
                 # sugar: take the next free number if value was None
@@ -237,7 +273,7 @@ class Enum(dict):
             if v in names:
                 v = self[v].value
                 while v in values:
-                    v +=1
+                    v += 1
 
             # check that the value is an int
             _v = int(v)

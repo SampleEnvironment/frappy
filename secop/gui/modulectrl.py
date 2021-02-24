@@ -36,19 +36,19 @@ class CommandDialog(QDialog):
         loadUi(self, 'cmddialog.ui')
 
         self.setWindowTitle('Arguments for %s' % cmdname)
-        #row = 0
+        # row = 0
 
         self._labels = []
         self.widgets = []
         # improve! recursive?
         dtype = argument
-        l = QLabel(repr(dtype))
-        l.setWordWrap(True)
-        w = get_widget(dtype, readonly=False)
-        self.gridLayout.addWidget(l, 0, 0)
-        self.gridLayout.addWidget(w, 0, 1)
-        self._labels.append(l)
-        self.widgets.append(w)
+        label = QLabel(repr(dtype))
+        label.setWordWrap(True)
+        widget = get_widget(dtype, readonly=False)
+        self.gridLayout.addWidget(label, 0, 0)
+        self.gridLayout.addWidget(widget, 0, 1)
+        self._labels.append(label)
+        self.widgets.append(widget)
 
         self.gridLayout.setRowStretch(1, 1)
         self.setModal(True)

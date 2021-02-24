@@ -58,6 +58,7 @@ CONFIG['basedir'] = repodir
 
 unset_value = object()
 
+
 class lazy_property:
     """A property that calculates its value only once."""
 

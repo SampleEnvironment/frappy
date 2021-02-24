@@ -88,10 +88,10 @@ class ProxyModule(HasIodev, Module):
                         dt.compatible(pobj.datatype)
                     except Exception:
                         self.log.warning('remote parameter %s:%s is not fully compatible: %r != %r'
-                                           % (self.module, pname, pobj.datatype, dt))
+                                         % (self.module, pname, pobj.datatype, dt))
             except Exception:
                 self.log.warning('remote parameter %s:%s has an incompatible datatype: %r != %r'
-                                   % (self.module, pname, pobj.datatype, dt))
+                                 % (self.module, pname, pobj.datatype, dt))
         while cmds:
             cname, cobj = cmds.popitem()
             props = remotecmds.get(cname)

@@ -80,7 +80,6 @@ REQUEST2REPLY = {
 }
 
 
-
 HelpMessage = """Try one of the following:
             '%s' to query protocol version
             '%s' to read the description

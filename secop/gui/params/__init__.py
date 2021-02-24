@@ -22,12 +22,9 @@
 # *****************************************************************************
 
 
-from secop.datatypes import EnumType, FloatRange, IntRange
-from secop.gui.qt import QCheckBox, QLabel, QLineEdit, QMessageBox
-from secop.gui.qt import QPushButton as QButton
-from secop.gui.qt import QSizePolicy, Qt, QWidget, pyqtSignal, pyqtSlot
+from secop.datatypes import EnumType
+from secop.gui.qt import QWidget, pyqtSignal, pyqtSlot
 from secop.gui.util import loadUi
-from secop.lib import formatExtendedStack
 
 
 class ParameterWidget(QWidget):

@@ -58,7 +58,7 @@ def write_config(file_name, tree_widget):
             value = value.replace('\n\n', '\n.\n')
             value = value.replace('\n', '\n    ')
             itm_lines[id(itm)] = '[%s %s]\n' % (itm.kind, itm.name) +\
-                             value_str % (SECTIONS[itm.kind], value)
+                                 value_str % (SECTIONS[itm.kind], value)
         # TODO params and props
         elif itm.kind == PARAMETER and value:
             itm_lines[id(itm)] = value_str % (itm.name, value)
@@ -142,7 +142,7 @@ def read_config(file_path):
                     else:
                         param.addChild(TreeWidgetItem(PROPERTY,
                                        separated[1], get_value(config, section,
-                                                                option)))
+                                                               option)))
     node = get_comments(node, ifs, mods, file_path)
     return node, ifs, mods
 

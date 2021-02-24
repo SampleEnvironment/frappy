@@ -90,7 +90,7 @@ class QSECNode(QObject):
 
     def queryCache(self, module):
         return {k: Value(*self.conn.cache[(module, k)])
-                  for k in self.modules[module]['parameters']}
+                for k in self.modules[module]['parameters']}
 
     def syncCommunicate(self, action, ident='', data=None):
         reply = self.conn.request(action, ident, data)
