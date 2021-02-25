@@ -33,6 +33,7 @@ from collections import OrderedDict
 from secop.errors import ConfigError
 from secop.lib import formatException, get_class, getGeneralConfig
 from secop.modules import Attached
+from secop.params import PREDEFINED_ACCESSIBLES
 
 try:
     from daemon import DaemonContext
@@ -42,7 +43,6 @@ try:
         import daemon.pidfile as pidlockfile
 except ImportError:
     DaemonContext = None
-
 
 try:
     import systemd.daemon
@@ -273,3 +273,10 @@ class Server:
             if not event.wait(timeout=max(0, deadline - time.time())):
                 self.log.info('WARNING: timeout when starting %s' % name)
         self.log.info('all modules and pollers started')
+        history_path = os.environ.get('FRAPPY_HISTORY')
+        if history_path:
+            from secop.historywriter import FrappyHistoryWriter  # pylint: disable=import-outside-toplevel
+            writer = FrappyHistoryWriter(history_path, PREDEFINED_ACCESSIBLES.keys(), self.dispatcher)
+            # treat writer as a connection
+            self.dispatcher.add_connection(writer)
+            writer.init(self.dispatcher.handle_describe(writer, None, None))
