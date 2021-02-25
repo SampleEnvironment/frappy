@@ -95,11 +95,7 @@ class Server:
         merged_cfg = OrderedDict()
         ambiguous_sections = set()
         for cfgfile in cfgfiles.split(','):
-            if cfgfile.endswith('.cfg') and os.path.exists(cfgfile):
-                filename = cfgfile
-            else:
-                filename = os.path.join(cfg['confdir'], cfgfile + '.cfg')
-            cfgdict = self.loadCfgFile(filename)
+            cfgdict = self.loadCfgFile(cfgfile)
             ambiguous_sections |= set(merged_cfg) & set(cfgdict)
             merged_cfg.update(cfgdict)
         self.node_cfg = merged_cfg.pop('NODE', {})
@@ -118,7 +114,20 @@ class Server:
         self._cfgfiles = cfgfiles
         self._pidfile = os.path.join(cfg['piddir'], name + '.pid')
 
-    def loadCfgFile(self, filename):
+    def loadCfgFile(self, cfgfile):
+        if not cfgfile.endswith('.cfg'):
+            cfgfile += '.cfg'
+        cfg = getGeneralConfig()
+        if os.sep in cfgfile:  # specified as full path
+            filename = cfgfile if os.path.exists(cfgfile) else None
+        else:
+            for filename in [os.path.join(d, cfgfile) for d in cfg['confdir'].split(os.pathsep)]:
+                if os.path.exists(filename):
+                    break
+            else:
+                filename = None
+        if filename is None:
+            raise ConfigError("Couldn't find cfg file %r in %s" % (cfgfile, cfg['confdir']))
         self.log.debug('Parse config file %s ...' % filename)
         result = OrderedDict()
         parser = configparser.ConfigParser()
