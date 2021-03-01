@@ -48,86 +48,67 @@ class Cryostat(CryoBase):
 
     jitter = Parameter("amount of random noise on readout values",
                        datatype=FloatRange(0, 1), unit="K",
-                       default=0.1, readonly=False, export=False,
-                       ),
+                       default=0.1, readonly=False, export=False)
     T_start = Parameter("starting temperature for simulation",
                         datatype=FloatRange(0), default=10,
-                        export=False,
-                        ),
+                        export=False)
     looptime = Parameter("timestep for simulation",
                          datatype=FloatRange(0.01, 10), unit="s", default=1,
-                         readonly=False, export=False,
-                         ),
+                         readonly=False, export=False)
     ramp = Parameter("ramping speed of the setpoint",
                      datatype=FloatRange(0, 1e3), unit="K/min", default=1,
-                     readonly=False,
-                     ),
+                     readonly=False)
     setpoint = Parameter("current setpoint during ramping else target",
-                         datatype=FloatRange(), default=1, unit='K',
-                         ),
+                         datatype=FloatRange(), default=1, unit='K')
     maxpower = Parameter("Maximum heater power",
                          datatype=FloatRange(0), default=1, unit="W",
                          readonly=False,
-                         group='heater_settings',
-                         ),
+                         group='heater_settings')
     heater = Parameter("current heater setting",
                        datatype=FloatRange(0, 100), default=0, unit="%",
-                       group='heater_settings',
-                       ),
+                       group='heater_settings')
     heaterpower = Parameter("current heater power",
                             datatype=FloatRange(0), default=0, unit="W",
-                            group='heater_settings',
-                            ),
+                            group='heater_settings')
     target = Parameter("target temperature",
                        datatype=FloatRange(0), default=0, unit="K",
-                       readonly=False,
-                       ),
+                       readonly=False,)
     value = Parameter("regulation temperature",
                       datatype=FloatRange(0), default=0, unit="K",
-                      test='TEST',
-                      ),
+                      test='TEST')
     pid = Parameter("regulation coefficients",
                     datatype=TupleOf(FloatRange(0), FloatRange(0, 100),
                                      FloatRange(0, 100)),
                     default=(40, 10, 2), readonly=False,
-                    group='pid',
-                    ),
+                    group='pid')
     # pylint: disable=invalid-name
     p = Parameter("regulation coefficient 'p'",
                   datatype=FloatRange(0), default=40, unit="%/K", readonly=False,
-                  group='pid',
-                  ),
+                  group='pid')
     i = Parameter("regulation coefficient 'i'",
                   datatype=FloatRange(0, 100), default=10, readonly=False,
-                  group='pid',
-                  ),
+                  group='pid')
     d = Parameter("regulation coefficient 'd'",
                   datatype=FloatRange(0, 100), default=2, readonly=False,
-                  group='pid',
-                  ),
+                  group='pid')
     mode = Parameter("mode of regulation",
                      datatype=EnumType('mode', ramp=None, pid=None, openloop=None),
                      default='ramp',
-                     readonly=False,
-                     ),
+                     readonly=False)
     pollinterval = Parameter("polling interval",
-                             datatype=FloatRange(0), default=5,
-                             ),
+                             datatype=FloatRange(0), default=5)
     tolerance = Parameter("temperature range for stability checking",
                           datatype=FloatRange(0, 100), default=0.1, unit='K',
                           readonly=False,
-                          group='stability',
-                          ),
+                          group='stability')
     window = Parameter("time window for stability checking",
                        datatype=FloatRange(1, 900), default=30, unit='s',
                        readonly=False,
-                       group='stability',
-                       ),
+                       group='stability')
     timeout = Parameter("max waiting time for stabilisation check",
                         datatype=FloatRange(1, 36000), default=900, unit='s',
                         readonly=False,
-                        group='stability',
-                        ),
+                        group='stability')
 
     def initModule(self):
         self._stopflag = False

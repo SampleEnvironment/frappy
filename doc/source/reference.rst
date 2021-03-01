@@ -13,7 +13,7 @@ Module Base Classes
 .. autoclass:: secop.modules.Writable
 
 .. autoclass:: secop.modules.Drivable
-    :members: Status, isBusy, isDriving, do_stop
+    :members: Status, isBusy, isDriving, stop
 
 
 Parameters, Commands and Properties
@@ -47,11 +47,11 @@ Communication
 
 .. autoclass:: secop.modules.Communicator
     :show-inheritance:
-    :members: do_communicate
+    :members: communicate
 
 .. autoclass:: secop.stringio.StringIO
     :show-inheritance:
-    :members: do_communicate, do_multicomm
+    :members: communicate, multicomm
 
 .. autoclass:: secop.stringio.HasIodev
     :show-inheritance:
