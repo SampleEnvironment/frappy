@@ -275,8 +275,16 @@ class Server:
         self.log.info('all modules and pollers started')
         history_path = os.environ.get('FRAPPY_HISTORY')
         if history_path:
-            from secop.historywriter import FrappyHistoryWriter  # pylint: disable=import-outside-toplevel
+            from secop_psi.historywriter import FrappyHistoryWriter  # pylint: disable=import-outside-toplevel
             writer = FrappyHistoryWriter(history_path, PREDEFINED_ACCESSIBLES.keys(), self.dispatcher)
             # treat writer as a connection
             self.dispatcher.add_connection(writer)
             writer.init(self.dispatcher.handle_describe(writer, None, None))
+        # TODO: if ever somebody wants to implement an other history writer:
+        # - a general config file /etc/secp/secop.conf or <frappy repo>/etc/secop.conf
+        #   might be introduced, which contains the log, pid and cfg directory path and
+        #   the class path implementing the history
+        # - or we just add here an other if statement:
+        #   history_path = os.environ.get('ALTERNATIVE_HISTORY')
+        #   if history_path:
+        #       from secop_<xx>.historywriter import ... etc.

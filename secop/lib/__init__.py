@@ -52,8 +52,11 @@ else:
 # overwrite with env variables SECOP_LOGDIR, SECOP_PIDDIR, SECOP_CONFDIR, if present
 for dirname in CONFIG:
     CONFIG[dirname] = environ.get('SECOP_%s' % dirname.upper(), CONFIG[dirname])
+
 # this is not customizable
 CONFIG['basedir'] = repodir
+
+# TODO: if ever more general options are need, we should think about a general config file
 
 
 unset_value = object()
