@@ -30,6 +30,7 @@ CCU4 luckily has a very simple and logical protocol:
         # for completeness: (not needed, as it is the default)
         end_of_line = '\n'
         # on connect, we send 'cid' and expect a reply starting with 'CCU4'
+        # 'cid' is a CCU4 command returning the current version prefixed with CCU4
         identification = [('cid', r'CCU4.*')]
 
 
@@ -144,16 +145,16 @@ which means it might be worth to create a *query* method, and then the
         ...
 
 
-    def query(self, cmd):
-        """send a query and get the response
+        def query(self, cmd):
+            """send a query and get the response
 
-        :param cmd: the name of the parameter to query or '<parameter>=<value'
-                    for changing a parameter
-        :returns: the (new) value of the parameter
-        """
-        name, txtvalue = self._iodev.communicate(cmd).split('=')
-        assert name == cmd.split('=')[0]  # check that we got a reply to our command
-        return txtvalue  # Frappy will automatically convert the string to the needed data type
+            :param cmd: the name of the parameter to query or '<parameter>=<value'
+                        for changing a parameter
+            :returns: the (new) value of the parameter
+            """
+            name, txtvalue = self._iodev.communicate(cmd).split('=')
+            assert name == cmd.split('=')[0]  # check that we got a reply to our command
+            return txtvalue  # Frappy will automatically convert the string to the needed data type
 
         def read_value(self):
             return self.query('h')
