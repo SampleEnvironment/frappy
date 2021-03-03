@@ -89,16 +89,18 @@ class HasAccessibles(HasProperties):
             if isinstance(pobj, Command):
                 # nothing to do for now
                 continue
-            rfunc = cls.__dict__.get('read_' + pname, None)
+            rfunc = getattr(cls, 'read_' + pname, None)
             rfunc_handler = pobj.handler.get_read_func(cls, pname) if pobj.handler else None
+            wrapped = hasattr(rfunc, '__wrapped__')
             if rfunc_handler:
-                if rfunc:
+                if rfunc and not wrapped:
                     raise ProgrammingError("parameter '%s' can not have a handler "
                                            "and read_%s" % (pname, pname))
                 rfunc = rfunc_handler
+                wrapped = False
 
             # create wrapper except when read function is already wrapped
-            if rfunc is None or getattr(rfunc, '__wrapped__', False) is False:
+            if not wrapped:
 
                 def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
                     if rfunc:
@@ -126,11 +128,14 @@ class HasAccessibles(HasProperties):
 
             if not pobj.readonly:
                 wfunc = getattr(cls, 'write_' + pname, None)
-                if wfunc is None:  # ignore the handler, if a write function is present
-                    wfunc = pobj.handler.get_write_func(pname) if pobj.handler else None
+                wrapped = hasattr(wfunc, '__wrapped__')
+                if (wfunc is None or wrapped) and pobj.handler:
+                    # ignore the handler, if a write function is present
+                    wfunc = pobj.handler.get_write_func(pname)
+                    wrapped = False
 
                 # create wrapper except when write function is already wrapped
-                if wfunc is None or getattr(wfunc, '__wrapped__', False) is False:
+                if not wrapped:
 
                     def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
                         self.log.debug("check validity of %s = %r" % (pname, value))

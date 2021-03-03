@@ -23,7 +23,7 @@ CCU4 luckily has a very simple and logical protocol:
 
     # the most common Frappy classes can be imported from secop.core
     from secop.core import Readable, Parameter, FloatRange, BoolType, StringIO, HasIodev
-    
+
 
     class CCU4IO(StringIO):
         """communication with CCU4"""
@@ -39,7 +39,7 @@ CCU4 luckily has a very simple and logical protocol:
     # Readable as a base class defines the value and status parameters
     class HeLevel(HasIodev, Readable):
         """He Level channel of CCU4"""
-        
+
         # define the communication class to create the IO module
         iodevClass = CCU4IO
 
@@ -99,11 +99,11 @@ the status codes from the hardware to the standard SECoP status codes.
         full_length = Parameter('warm length when full', FloatRange(0, 2000, unit='mm'),
                                 readonly=False)
         sample_rate = Parameter('sample rate', EnumType(slow=0, fast=1), readonly=False)
-        
+
         ...
-        
+
         Status = Readable.Status
-        
+
         # conversion of the code from the CCU4 parameter 'hsf'
         STATUS_MAP = {
             0: (Status.IDLE, 'sensor ok'),
@@ -113,17 +113,17 @@ the status codes from the hardware to the standard SECoP status codes.
             4: (Status.ERROR, 'not yet read'),
             5: (Status.DISABLED, 'disabled'),
         }
-        
+
         def read_status(self):
             name, txtvalue = self._iodev.communicate('hsf').split('=')
             assert name == 'hsf'
             return self.STATUS_MAP(int(txtvalue))
-            
+
         def read_empty_length(self):
             name, txtvalue = self._iodev.communicate('hem').split('=')
             assert name == 'hem'
             return txtvalue
-        
+
         def write_empty_length(self, value):
             name, txtvalue = self._iodev.communicate('hem=%g' % value).split('=')
             assert name == 'hem'
@@ -135,7 +135,7 @@ the status codes from the hardware to the standard SECoP status codes.
 Here we start to realize, that we will repeat similar code for other parameters,
 which means it might be worth to create a *query* method, and then the
 *read_<param>* and *write_<param>* methods will become shorter:
- 
+
 .. code:: python
 
     ...

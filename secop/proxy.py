@@ -122,6 +122,8 @@ class ProxyModule(HasIodev, Module):
                     self.announceUpdate(pname, None, readerror)
                 self.announceUpdate('status', newstatus)
 
+    def checkProperties(self):
+        pass # skip
 
 class ProxyReadable(ProxyModule, Readable):
     pass
