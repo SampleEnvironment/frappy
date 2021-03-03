@@ -63,7 +63,7 @@ class Main(HasIodev, Drivable):
     value = Parameter('the current channel', poll=REGULAR, datatype=IntRange(0, 17))
     target = Parameter('channel to select', datatype=IntRange(0, 17))
     autoscan = Parameter('whether to scan automatically', datatype=BoolType(), readonly=False, default=False)
-    pollinterval = Parameter('sleeptime between polls', default=1)
+    pollinterval = Parameter(default=1, export=False)
 
     pollerClass = Poller
     iodevClass = StringIO
@@ -120,6 +120,11 @@ class Main(HasIodev, Drivable):
             self.status = [Status.BUSY, 'switching']
         return channel
 
+    def write_autoscan(self, value):
+        scan.send_change(self, self.value, value)
+        # self.sendRecv('SCAN %d,%d;SCAN?' % (channel, self.autoscan))
+        return value
+
 
 class ResChannel(HasIodev, Readable):
     """temperature channel on Lakeshore 336"""
@@ -144,7 +149,7 @@ class ResChannel(HasIodev, Readable):
     main = Attached()
 
     value = Parameter(datatype=FloatRange(unit='Ohm'))
-    pollinterval = Parameter(visibility=3)
+    pollinterval = Parameter(visibility=3, default=1, export=False)
     range = Parameter('reading range', readonly=False,
                       datatype=EnumType(**RES_RANGE), handler=rdgrng)
     minrange = Parameter('minimum range for software autorange', readonly=False, default=1,
@@ -158,16 +163,24 @@ class ResChannel(HasIodev, Readable):
     dwell = Parameter('dwell time with autoscan', datatype=FloatRange(1, 200), readonly=False, handler=inset)
     filter = Parameter('filter time', datatype=FloatRange(1, 200), readonly=False, handler=filterhdl)
 
+    _trigger_read = False
+
     def initModule(self):
         self._main = self.DISPATCHER.get_module(self.main)
         self._main.register_channel(self)
 
     def read_value(self):
-        if self.channel != self._main.value:
-            return Done
         if not self.enabled:
             self.status = [self.Status.DISABLED, 'disabled']
             return Done
+        if self.channel != self._main.value:
+            if self.channel == self._main.target:
+                self._trigger_read = True
+                return Done
+            if not self._trigger_read:
+                return Done
+            # we got here, when we missed the idle state of self._main
+        self._trigger_read = False
         result = self.sendRecv('RDGR?%d' % self.channel)
         result = float(result)
         if self.autorange == 'soft':
