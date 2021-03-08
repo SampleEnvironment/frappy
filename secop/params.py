@@ -225,10 +225,13 @@ class Parameter(Accessible):
                 self.propertyValues.pop('default')
 
         if self.export is True:
-            if isinstance(self, PREDEFINED_ACCESSIBLES.get(name, type(None))):
+            predefined_cls = PREDEFINED_ACCESSIBLES.get(name, None)
+            if predefined_cls is Parameter:
                 self.export = name
-            else:
+            elif predefined_cls is None:
                 self.export = '_' + name
+            else:
+                raise ProgrammingError('can not use %r as name of a Parameter' % name)
 
     def copy(self):
         # deep copy, as datatype might be altered from config
@@ -339,10 +342,13 @@ class Command(Accessible):
 
         self.datatype = CommandType(self.argument, self.result)
         if self.export is True:
-            if isinstance(self, PREDEFINED_ACCESSIBLES.get(name, type(None))):
+            predefined_cls = PREDEFINED_ACCESSIBLES.get(name, None)
+            if predefined_cls is Command:
                 self.export = name
-            else:
+            elif predefined_cls is None:
                 self.export = '_' + name
+            else:
+                raise ProgrammingError('can not use %r as name of a Command' % name)
 
     def __get__(self, obj, owner=None):
         if obj is None:

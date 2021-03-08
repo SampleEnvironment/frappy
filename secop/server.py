@@ -26,11 +26,13 @@
 import ast
 import configparser
 import os
+import sys
 import threading
 import time
+import traceback
 from collections import OrderedDict
 
-from secop.errors import ConfigError
+from secop.errors import ConfigError, SECoPError
 from secop.lib import formatException, get_class, getGeneralConfig
 from secop.modules import Attached
 from secop.params import PREDEFINED_ACCESSIBLES
@@ -179,8 +181,8 @@ class Server:
             self.run()
 
     def unknown_options(self, cls, options):
-        raise ConfigError("%s class don't know how to handle option(s): %s" %
-                          (cls.__name__, ', '.join(options)))
+        return ("%s class don't know how to handle option(s): %s" %
+                (cls.__name__, ', '.join(options)))
 
     def run(self):
         while self._restart:
@@ -201,7 +203,7 @@ class Server:
             cls = get_class(self.INTERFACES[scheme])
             with cls(scheme, self.log.getChild(scheme), opts, self) as self.interface:
                 if opts:
-                    self.unknown_options(cls, opts)
+                    raise ConfigError(self.unknown_options(cls, opts))
                 self.log.info('startup done, handling transport messages')
                 if systemd:
                     systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
@@ -219,20 +221,46 @@ class Server:
             self.interface.shutdown()
 
     def _processCfg(self):
+        errors = []
         opts = dict(self.node_cfg)
         cls = get_class(opts.pop('class', 'protocol.dispatcher.Dispatcher'))
         self.dispatcher = cls(opts.pop('name', self._cfgfiles), self.log.getChild('dispatcher'), opts, self)
         if opts:
-            self.unknown_options(cls, opts)
+            errors.append(self.unknown_options(cls, opts))
         self.modules = OrderedDict()
+        failure_traceback = None  # traceback for the last error
+        failed = set()  # python modules failed to load
+        self.lastError = None
         for modname, options in self.module_cfg.items():
             opts = dict(options)
-            cls = get_class(opts.pop('class'))
-            modobj = cls(modname, self.log.getChild(modname), opts, self)
-            # all used args should be popped from opts!
-            if opts:
-                self.unknown_options(cls, opts)
-            self.modules[modname] = modobj
+            pymodule = None
+            try:
+                classname = opts.pop('class')
+                pymodule = classname.rpartition('.')[0]
+                if pymodule in failed:
+                    continue
+                cls = get_class(classname)
+            except Exception as e:
+                if str(e) == 'no such class':
+                    errors.append('%s not found' % classname)
+                else:
+                    failed.add(pymodule)
+                    failure_traceback = traceback.format_exc()
+                    errors.append('error importing %s' % classname)
+            else:
+                try:
+                    modobj = cls(modname, self.log.getChild(modname), opts, self)
+                    # all used args should be popped from opts!
+                    if opts:
+                        errors.append(self.unknown_options(cls, opts))
+                    self.modules[modname] = modobj
+                except ConfigError as e:
+                    errors.append('error creating module %s:' % modname)
+                    for errtxt in e.args[0]:
+                        errors.append('  ' + errtxt)
+                except Exception:
+                    failure_traceback = traceback.format_exc()
+                    errors.append('error creating %s' % modname)
 
         poll_table = dict()
         # all objs created, now start them up and interconnect
@@ -249,11 +277,30 @@ class Server:
         for modname, modobj in self.modules.items():
             for propname, propobj in modobj.propertyDict.items():
                 if isinstance(propobj, Attached):
-                    setattr(modobj, propobj.attrname or '_' + propname,
-                            self.dispatcher.get_module(getattr(modobj, propname)))
+                    try:
+                        setattr(modobj, propobj.attrname or '_' + propname,
+                                self.dispatcher.get_module(getattr(modobj, propname)))
+                    except SECoPError as e:
+                        errors.append('module %s, attached %s: %s' % (modname, propname, str(e)))
+
         # call init on each module after registering all
         for modname, modobj in self.modules.items():
-            modobj.initModule()
+            try:
+                modobj.initModule()
+            except Exception as e:
+                failure_traceback = traceback.format_exc()
+                errors.append('error initializing %s: %r' % (modname, e))
+
+        if errors:
+            for errtxt in errors:
+                for line in errtxt.split('\n'):
+                    self.log.error(line)
+            # print a list of config errors to stderr
+            sys.stderr.write('\n'.join(errors))
+            sys.stderr.write('\n')
+            if failure_traceback:
+                sys.stderr.write(failure_traceback)
+            sys.exit(1)
 
         if self._testonly:
             return

@@ -30,9 +30,9 @@ from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
     IntRange, StatusType, StringType, TextType, TupleOf, get_datatype
 from secop.errors import BadValueError, ConfigError, InternalError, \
     ProgrammingError, SECoPError, SilentError, secop_error
-from secop.lib import formatException, formatExtendedStack, mkthread
+from secop.lib import formatException, mkthread
 from secop.lib.enum import Enum
-from secop.params import PREDEFINED_ACCESSIBLES, Accessible, Command, Parameter
+from secop.params import Accessible, Command, Parameter
 from secop.poller import BasicPoller, Poller
 from secop.properties import HasProperties, Property
 
@@ -237,29 +237,27 @@ class Module(HasAccessibles):
         self.name = name
         self.valueCallbacks = {}
         self.errorCallbacks = {}
+        errors = []
 
         # handle module properties
         # 1) make local copies of properties
         super().__init__()
 
-        # 2) check and apply properties specified in cfgdict
-        #    specified as '.<propertyname> = <propertyvalue>'
-        #    (this is for legacy config files only)
-        for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
-            if k[0] == '.':
-                if k[1:] in self.propertyDict:
-                    self.setProperty(k[1:], cfgdict.pop(k))
-                else:
-                    raise ConfigError('Module %r has no property %r' %
-                                      (self.name, k[1:]))
+        # 2) check and apply properties specified in cfgdict as
+        # '<propertyname> = <propertyvalue>'
+        for key in self.propertyDict:
+            value = cfgdict.pop(key, None)
+            if value is None:
+                # legacy cfg: specified as '.<propertyname> = <propertyvalue>'
+                value = cfgdict.pop('.' + key, None)
+            if value is not None:
+                try:
+                    self.setProperty(key, value)
+                except BadValueError:
+                    errors.append('%s: value %r does not match %r!' %
+                                  (key, value, self.propertyDict[key].datatype))
 
-        # 3) check and apply properties specified in cfgdict as
-        #    '<propertyname> = <propertyvalue>' (without '.' prefix)
-        for k in self.propertyDict:
-            if k in cfgdict:
-                self.setProperty(k, cfgdict.pop(k))
-
-        # 4) set automatic properties
+        # 3) set automatic properties
         mycls = self.__class__
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
         self.implementation = myclassname
@@ -293,16 +291,6 @@ class Module(HasAccessibles):
             if not self.export:  # do not export parameters of a module not exported
                 aobj.export = False
             if aobj.export:
-                if aobj.export is True:
-                    predefined_obj = PREDEFINED_ACCESSIBLES.get(aname, None)
-                    if predefined_obj:
-                        if isinstance(aobj, predefined_obj):
-                            aobj.export = aname
-                        else:
-                            raise ProgrammingError("can not use '%s' as name of a %s" %
-                                                   (aname, aobj.__class__.__name__))
-                    else:  # create custom parameter
-                        aobj.export = '_' + aname
                 accessiblename2attr[aobj.export] = aname
             accessibles[aname] = aobj
         # do not re-use self.accessibles as this is the same for all instances
@@ -317,29 +305,31 @@ class Module(HasAccessibles):
         for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if '.' in k[1:]:
                 paramname, propname = k.split('.', 1)
+                propvalue = cfgdict.pop(k)
                 paramobj = self.accessibles.get(paramname, None)
                 # paramobj might also be a command (not sure if this is needed)
                 if paramobj:
                     if propname == 'datatype':
-                        paramobj.setProperty('datatype', get_datatype(cfgdict.pop(k), k))
-                    elif propname in paramobj.getProperties():
-                        paramobj.setProperty(propname, cfgdict.pop(k))
-                    else:
-                        raise ConfigError('Module %s: Parameter %r has no property %r!' %
-                                          (self.name, paramname, propname))
+                        propvalue = get_datatype(propvalue, k)
+                    try:
+                        paramobj.setProperty(propname, propvalue)
+                    except KeyError:
+                        errors.append("'%s.%s' does not exist" %
+                                      (paramname, propname))
+                    except BadValueError as e:
+                        errors.append('%s.%s: %s' %
+                                      (paramname, propname, str(e)))
                 else:
-                    raise ConfigError('Module %s has no Parameter %r!' %
-                                      (self.name, paramname))
+                    errors.append('%r not found' % paramname)
 
         # 3) check config for problems:
         #    only accept remaining config items specified in parameters
-        for k, v in cfgdict.items():
-            if k not in self.parameters:
-                raise ConfigError(
-                    'Module %s:config Parameter %r '
-                    'not understood! (use one of %s)' %
-                    (self.name, k, ', '.join(list(self.parameters) +
-                                             list(self.propertyDict))))
+        bad = [k for k in cfgdict if k not in self.parameters]
+        if bad:
+            errors.append(
+                '%s does not exist (use one of %s)' %
+                (', '.join(bad), ', '.join(list(self.parameters) +
+                                                      list(self.propertyDict))))
 
         # 4) complain if a Parameter entry has no default value and
         #    is not specified in cfgdict and deal with parameters to be written.
@@ -354,15 +344,14 @@ class Module(HasAccessibles):
                     # TODO: not sure about readonly (why not a parameter which can only be written from config?)
                     try:
                         pobj.value = pobj.datatype(cfgdict[pname])
+                        self.writeDict[pname] = pobj.value
                     except BadValueError as e:
-                        raise ConfigError('%s.%s: %s' % (name, pname, e))
-                    self.writeDict[pname] = pobj.value
+                        errors.append('%s: %s' % (pname, e))
             else:
                 if pobj.default is None:
                     if pobj.needscfg:
-                        raise ConfigError('Parameter %s.%s has no default '
-                                          'value and was not given in config!' %
-                                          (self.name, pname))
+                        errors.append('%r has no default '
+                                      'value and was not given in config!' % pname)
                     # we do not want to call the setter for this parameter for now,
                     # this should happen on the first read
                     pobj.readerror = ConfigError('not initialized')
@@ -373,8 +362,8 @@ class Module(HasAccessibles):
                     try:
                         value = pobj.datatype(pobj.default)
                     except BadValueError as e:
-                        raise ProgrammingError('bad default for %s.%s: %s'
-                                               % (name, pname, e))
+                        # this should not happen, as the default is already checked in Parameter
+                        raise ProgrammingError('bad default for %s:%s: %s' % (name, pname, e)) from None
                     if pobj.initwrite and not pobj.readonly:
                         # we will need to call write_<pname>
                         # if this is not desired, the default must not be given
@@ -390,13 +379,12 @@ class Module(HasAccessibles):
             try:
                 # this checks also for the proper datatype
                 # note: this will NOT call write_* methods!
-                setattr(self, k, v)
+                if k in self.parameters or k in self.propertyDict:
+                    setattr(self, k, v)
+                    cfgdict.pop(k)
             except (ValueError, TypeError):
-                self.log.exception(formatExtendedStack())
-                raise
-                # raise ConfigError('Module %s: config parameter %r:\n%r' %
-                #                   (self.name, k, e))
-            cfgdict.pop(k)
+                # self.log.exception(formatExtendedStack())
+                errors.append('module %s, parameter %s: %s' % (self.name, k, e))
 
         # Modify units AFTER applying the cfgdict
         for k, v in self.parameters.items():
@@ -405,9 +393,18 @@ class Module(HasAccessibles):
                 dt.setProperty('unit', dt.unit.replace('$', self.parameters['value'].datatype.unit))
 
         # 6) check complete configuration of * properties
-        self.checkProperties()
-        for p in self.parameters.values():
-            p.checkProperties()
+        if not errors:
+            try:
+                self.checkProperties()
+            except ConfigError as e:
+                errors.append(str(e))
+            for pname, p in self.parameters.items():
+                try:
+                    p.checkProperties()
+                except ConfigError:
+                    errors.append('%s: %s' % (pname, e))
+        if errors:
+            raise ConfigError(errors)
 
     # helper cfg-editor
     def __iter__(self):
@@ -506,7 +503,7 @@ class Module(HasAccessibles):
     def pollOneParam(self, pname):
         """poll parameter <pname> with proper error handling"""
         try:
-            return getattr(self, 'read_' + pname)()
+            getattr(self, 'read_' + pname)()
         except SilentError:
             pass
         except SECoPError as e:
@@ -521,10 +518,12 @@ class Module(HasAccessibles):
         with proper error handling
         """
         for pname in list(self.writeDict):
-            if pname in self.writeDict:  # this might not be true with handlers
+            value = self.writeDict.pop(pname, Done)
+            # in the mean time, a poller or handler might already have done it
+            if value is not Done:
                 try:
                     self.log.debug('initialize parameter %s', pname)
-                    getattr(self, 'write_' + pname)(self.writeDict.pop(pname))
+                    getattr(self, 'write_' + pname)(value)
                 except SilentError:
                     pass
                 except SECoPError as e:

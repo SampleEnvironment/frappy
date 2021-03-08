@@ -134,7 +134,7 @@ class HasProperties(HasDescriptors):
     propertyValues = None
 
     def __init__(self):
-        super(HasProperties, self).__init__()
+        super().__init__()
         # store property values in the instance, keep descriptors on the class
         self.propertyValues = {}
         # pre-init
@@ -158,7 +158,7 @@ class HasProperties(HasDescriptors):
         cls.propertyDict = properties
         # treat overriding properties with bare values
         for pn, po in properties.items():
-            value = cls.__dict__.get(pn, po)
+            value = getattr(cls, pn, po)
             if not isinstance(value, Property):  # attribute is a bare value
                 po = Property(**po.__dict__)
                 try:
@@ -168,20 +168,20 @@ class HasProperties(HasDescriptors):
                         if pn in getattr(base, 'propertyDict', {}):
                             if callable(value):
                                 raise ProgrammingError('method %s.%s collides with property of %s' %
-                                                       (cls.__name__, pn, base.__name__))
+                                                       (cls.__name__, pn, base.__name__)) from None
                             raise ProgrammingError('can not set property %s.%s to %r' %
-                                                   (cls.__name__, pn, value))
+                                                   (cls.__name__, pn, value)) from None
                 cls.propertyDict[pn] = po
 
     def checkProperties(self):
         """validates properties and checks for min... <= max..."""
         for pn, po in self.propertyDict.items():
             if po.mandatory:
-                if pn not in self.propertyDict:
+                try:
+                    self.propertyValues[pn] = po.datatype(self.propertyValues[pn])
+                except (KeyError, BadValueError):
                     name = getattr(self, 'name', self.__class__.__name__)
-                    raise ConfigError('Property %r of %s needs a value of type %r!' % (pn, name, po.datatype))
-                # apply validator (which may complain further)
-                self.propertyValues[pn] = po.datatype(self.propertyValues[pn])
+                    raise ConfigError('%s.%s needs a value of type %r!' % (name, pn, po.datatype)) from None
         for pn, po in self.propertyDict.items():
             if pn.startswith('min'):
                 maxname = 'max' + pn[3:]
