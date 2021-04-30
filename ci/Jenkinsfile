@@ -30,7 +30,8 @@ def changedFiles = '';
 
 def run_pylint(pyver) {
   stage ('pylint-' + pyver) {
-      gerritPostCheck(["jenkins:pylint_${pyver}":"RUNNING"])  
+    def cpylint = "RUNNING"  
+    gerritPostCheck(["jenkins:pylint_${pyver}": cpylint])  
     def status = 'OK'
     changedFiles = sh returnStdout: true, script: '''\
 #!/bin/bash
@@ -69,7 +70,7 @@ fi
 
     echo "pylint result: $res"
     this.verifyresult.put('pylint'+pyver, 1)
-    def cplyint ="SUCCESSFULL"
+    cpylint = "SUCCESSFULL"
     if ( res != 0 ) {
         currentBuild.result='FAILURE'
         this.verifyresult.put('pylint'+ pyver, -1)
@@ -97,13 +98,13 @@ fi
 
 def run_tests(pyver) {
     stage('Test:' + pyver) {
+        def cpytest = "RUNNING"
         gerritPostCheck(["jenkins:pytest_${pyver}":"RUNNING"])
         writeFile file: 'setup.cfg', text: '''
 [tool:pytest]
 addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
 
     def status = "OK"
-    def cpytest = "SUCCESSFULL"
     verifyresult.put(pyver, 0)
     try {
         timeout(5) {
@@ -116,6 +117,7 @@ python3 setup.py develop
 make test
 '''
         verifyresult.put(pyver, 1)
+        cpytest = "SUCCESSFULL"
         }
     } catch (all) {
         currentBuild.result = 'FAILURE'
@@ -124,12 +126,6 @@ make test
         verifyresult.put(pyver, -1)
     }
     gerritPostCheck(["jenkins:pytest_${pyver}":cpytest])
-    gerritverificationpublisher([
-    verifyStatusValue: verifyresult[pyver],
-    verifyStatusCategory: 'test ',
-    verifyStatusName: 'pytest-'+pyver,
-    verifyStatusReporter: 'jenkins',
-    verifyStatusRerun: '!recheck'])
 
     step([$class: 'JUnitResultArchiver', allowEmptyResults: true,
           keepLongStdio: true, testResults: 'pytest.xml'])
