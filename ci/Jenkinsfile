@@ -30,6 +30,7 @@ def changedFiles = '';
 
 def run_pylint(pyver) {
   stage ('pylint-' + pyver) {
+      gerritPostCheck(["jenkins:pylint_${pyver}:"RUNNING"])  
     def status = 'OK'
     changedFiles = sh returnStdout: true, script: '''\
 #!/bin/bash
@@ -56,8 +57,8 @@ fi
     withCredentials([string(credentialsId: 'GERRITHTTP',
                      variable: 'GERRITHTTP')]) {
         sh """\
-        #!/bin/bash
-	if [ -f pylint_results.txt ] ; then
+#!/bin/bash
+        if [ -f pylint_results.txt ] ; then
           /home/jenkins/tools2/bin/pylint2gerrit
           mv pylint_results.txt pylint-${pyver}.txt
         else
@@ -68,18 +69,15 @@ fi
 
     echo "pylint result: $res"
     this.verifyresult.put('pylint'+pyver, 1)
+    def cplyint ="SUCCESSFULL"
     if ( res != 0 ) {
         currentBuild.result='FAILURE'
         this.verifyresult.put('pylint'+ pyver, -1)
         status = 'FAILURE'
+        cpylint = "FAILED"
     }
 
-    gerritverificationpublisher([
-        verifyStatusValue: this.verifyresult['pylint'+pyver],
-        verifyStatusCategory: 'pylint ',
-        verifyStatusName: 'pylint-'+pyver,
-        verifyStatusReporter: 'jenkins',
-        verifyStatusRerun: '!recheck'])
+    gerritPostCheck(["jenkins:pylint_${pyver}": cpylint])  
     archiveArtifacts([allowEmptyArchive: true,
                           artifacts: 'pylint-*.txt'])
     recordIssues([enabledForFailure: true,
@@ -99,11 +97,13 @@ fi
 
 def run_tests(pyver) {
     stage('Test:' + pyver) {
-       writeFile file: 'setup.cfg', text: '''
+        gerritPostCheck(["jenkins:pytest_${pyver}":"RUNNING"])
+        writeFile file: 'setup.cfg', text: '''
 [tool:pytest]
 addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
 
     def status = "OK"
+    def cpytest = "SUCCESSFULL"
     verifyresult.put(pyver, 0)
     try {
         timeout(5) {
@@ -120,8 +120,10 @@ make test
     } catch (all) {
         currentBuild.result = 'FAILURE'
         status = 'FAILURE'
+        cpytest= "FAILED"
         verifyresult.put(pyver, -1)
     }
+    gerritPostCheck(["jenkins:pytest_${pyver}":cpytest])
     gerritverificationpublisher([
     verifyStatusValue: verifyresult[pyver],
     verifyStatusCategory: 'test ',
@@ -185,13 +187,6 @@ def run_docs() {
 
     stage('store html doc for build') {
         publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'doc/_build/html', reportFiles: 'index.html', reportName: 'Built documentation', reportTitles: ''])
-        gerritverificationpublisher([
-        verifyStatusValue: 1,
-        verifyStatusCategory: 'test ',
-        verifyStatusName: 'doc',
-        verifyStatusReporter: 'jenkins',
-        verifyStatusRerun: '@recheck'
-    ])
     }
 
 }
@@ -233,8 +228,8 @@ node("dockerhost") {
    }
 
     stage('execute tests') {
-    def img = docker.image('secop_base:latest')
-    def docimg = docker.image('secop_docs:latest')
+    def img = docker.image('secop_base:latest').pull()
+    def docimg = docker.image('secop_docs:latest').pull()
 
     parallel 'Test': {
         img.inside {
