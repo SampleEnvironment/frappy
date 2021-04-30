@@ -70,7 +70,7 @@ fi
 
     echo "pylint result: $res"
     this.verifyresult.put('pylint'+pyver, 1)
-    cpylint = "SUCCESSFULL"
+    cpylint = "SUCCESSFUL"
     if ( res != 0 ) {
         currentBuild.result='FAILURE'
         this.verifyresult.put('pylint'+ pyver, -1)
@@ -117,7 +117,7 @@ python3 setup.py develop
 make test
 '''
         verifyresult.put(pyver, 1)
-        cpytest = "SUCCESSFULL"
+        cpytest = "SUCCESSFUL"
         }
     } catch (all) {
         currentBuild.result = 'FAILURE'
@@ -136,6 +136,8 @@ make test
 }
 
 def run_docs() {
+    def cdocs  = "RUNNING"
+    gerritPostCheck(["jenkins:docs":cdocs])
     stage('prepare') {
         sh '''
         . /home/jenkins/secopvenv/bin/activate
@@ -183,8 +185,9 @@ def run_docs() {
 
     stage('store html doc for build') {
         publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'doc/_build/html', reportFiles: 'index.html', reportName: 'Built documentation', reportTitles: ''])
+        cdocs = "SUCCESSFUL"
     }
-
+    gerritPostCheck(["jenkins:docs":cdocs])
 }
 
 
