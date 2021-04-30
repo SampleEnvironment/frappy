@@ -228,8 +228,8 @@ node("dockerhost") {
    }
 
     stage('execute tests') {
-    def img = docker.image('secop_base:latest').pull()
-    def docimg = docker.image('secop_docs:latest').pull()
+    def img = docker.image('secop_base:latest')
+    def docimg = docker.image('secop_docs:latest')
 
     parallel 'Test': {
         img.inside {
