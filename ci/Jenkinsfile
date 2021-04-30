@@ -30,7 +30,7 @@ def changedFiles = '';
 
 def run_pylint(pyver) {
   stage ('pylint-' + pyver) {
-      gerritPostCheck(["jenkins:pylint_${pyver}:"RUNNING"])  
+      gerritPostCheck(["jenkins:pylint_${pyver}":"RUNNING"])  
     def status = 'OK'
     changedFiles = sh returnStdout: true, script: '''\
 #!/bin/bash
