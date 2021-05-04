@@ -1,3 +1,64 @@
+secop-core (0.12.0) focal; urgency=medium
+
+  [ Markus Zolliker ]
+  * make datatypes immutable
+  * customizable general config
+  * support for multiple secop servers
+  * secop.asynconn without pyserial
+  * change cfg file format
+  * fix bug in secop.gui.valuewidgets
+  * fix deadlock when reconnecting client
+  * allow class instead of class name in proxy_class
+  * fix pylint command in Makefile
+  * change arguments of stringio-server
+  * router bug fix
+  * introduce update callbacks
+  * improve error handling on client connections
+  * ppms: improve status and temperature
+  * rework tcp server
+  * cosmetics on datatypes.TextType
+  * improve error handling in SecopClient
+  * improve HasIodev
+  * HasIodev bug fix
+  * fix handling of StructOf datatype
+  * more flexible end_of_line in stringio
+  * improvements on PPMS and LS370
+  * add readbytes method to AsynConn
+  * Param(..., initwrite=True) works only with poll=True
+  * fix initwrite behaviour
+  * make order of accessibles work again
+  * main module of LS370 is now drivable
+  * improve softcal
+  * make arguments of Parameter and Override consistent
+  * new syntax for parameter/commands/properties
+  * enhance documentation
+  * removed old style syntax
+  * after running isort
+  * try to follow PEP8
+  * fix inheritance order
+  * remove obsolete code
+  * lookup cfg files in a list of directories
+  * added hook for optional history writer
+  * fixed errors during migration
+  * move historywriter to secop_psi
+  * fix autoscan behaviour in ls370res
+
+  [ l_samenv ]
+  * improve tutorial_helevel
+  * fixed bugs from syntax migration
+
+  [ Markus Zolliker ]
+  * user friendly reporting of config errors
+
+  [ Bjoern Pedersen ]
+  * Jenkisfile: verification
+  * Fixes to Jenkinsfile
+  * No pull for images, they are recreated in the job
+  * Another Jenkisfile error
+  * Correct checks enum
+
+ -- Markus Zolliker <jenkins@jenkins02.admin.frm2.tum.de>  Tue, 04 May 2021 08:49:57 +0200
+
 secop-core (0.11.6) unstable; urgency=medium
 
   * fix secop-generator
