@@ -1,5 +1,4 @@
 usr/bin/secop-server
-usr/bin/secop-console
 usr/lib/python3.*/dist-packages/secop/*.py
 usr/lib/python3.*/dist-packages/secop/lib
 usr/lib/python3.*/dist-packages/secop/client
