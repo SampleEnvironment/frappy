@@ -210,7 +210,7 @@ class PyTangoDevice(Module):
         # exception mapping is enabled).
         self._createPyTangoDevice = self._applyGuardToFunc(
             self._createPyTangoDevice, 'constructor')
-        super(PyTangoDevice, self).earlyInit()
+        super().earlyInit()
 
     @lazy_property
     def _dev(self):
@@ -249,10 +249,10 @@ class PyTangoDevice(Module):
         # otherwise would lead to attribute errors later
         try:
             device.State
-        except AttributeError:
+        except AttributeError as e:
             raise CommunicationFailedError(
                 self, 'connection to Tango server failed, '
-                'is the server running?')
+                'is the server running?') from e
         return self._applyGuardsToPyTangoDevice(device)
 
     def _applyGuardsToPyTangoDevice(self, dev):
@@ -377,13 +377,16 @@ class AnalogInput(PyTangoDevice, Readable):
     """
 
     def startModule(self, started_callback):
-        super(AnalogInput, self).startModule(started_callback)
-        # query unit from tango and update value property
-        attrInfo = self._dev.attribute_query('value')
-        # prefer configured unit if nothing is set on the Tango device, else
-        # update
-        if attrInfo.unit != 'No unit':
-            self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
+        super().startModule(started_callback)
+        try:
+            # query unit from tango and update value property
+            attrInfo = self._dev.attribute_query('value')
+            # prefer configured unit if nothing is set on the Tango device, else
+            # update
+            if attrInfo.unit != 'No unit':
+                self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
+        except Exception as e:
+            self.log.error(e)
 
     def read_value(self):
         return self._dev.value
@@ -446,13 +449,13 @@ class AnalogOutput(PyTangoDevice, Drivable):
     _moving = False
 
     def initModule(self):
-        super(AnalogOutput, self).initModule()
+        super().initModule()
         # init history
         self._history = []  # will keep (timestamp, value) tuple
         self._timeout = None  # keeps the time at which we will timeout, or None
 
     def startModule(self, started_callback):
-        super(AnalogOutput, self).startModule(started_callback)
+        super().startModule(started_callback)
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else
@@ -461,7 +464,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
             self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
 
     def pollParams(self, nr=0):
-        super(AnalogOutput, self).pollParams(nr)
+        super().pollParams(nr)
         while len(self._history) > 2:
             # if history would be too short, break
             if self._history[-1][0] - self._history[1][0] <= self.window:
@@ -503,7 +506,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         if self._isAtTarget():
             self._timeout = None
             self._moving = False
-            return super(AnalogOutput, self).read_status()
+            return super().read_status()
         if self._timeout:
             if self._timeout < currenttime():
                 return self.Status.UNSTABLE, 'timeout after waiting for stable value'
@@ -573,9 +576,10 @@ class AnalogOutput(PyTangoDevice, Drivable):
         self._moving = True
         self._history = []  # clear history
         self.read_status()  # poll our status to keep it updated
+        return self.read_target()
 
     def _hw_wait(self):
-        while super(AnalogOutput, self).read_status()[0] == self.Status.BUSY:
+        while super().read_status()[0] == self.Status.BUSY:
             sleep(0.3)
 
     def stop(self):
@@ -597,7 +601,7 @@ class Actuator(AnalogOutput):
                       readonly=False, datatype=FloatRange(0, unit='$/s'),
                       )
     ramp = Parameter('The speed of changing the value',
-                     readonly=False, datatype=FloatRange(0, unit='$/s'),
+                     readonly=False, datatype=FloatRange(0, unit='$/min'),
                      poll=30,
                      )
 
@@ -730,6 +734,10 @@ class TemperatureController(Actuator):
     def read_heateroutput(self):
         return self._dev.heaterOutput
 
+    # remove UserCommand setposition from Actuator
+    # (makes no sense for a TemperatureController)
+    setposition = None
+
 
 class PowerSupply(Actuator):
     """A power supply (voltage and current) device.
@@ -777,16 +785,18 @@ class NamedDigitalInput(DigitalInput):
                         datatype=StringType(), export=False)  # XXX:!!!
 
     def initModule(self):
-        super(NamedDigitalInput, self).initModule()
+        super().initModule()
         try:
-            # pylint: disable=eval-used
-            mapping = eval(self.mapping.replace('\n', ' '))
+            mapping = self.mapping
+            if isinstance(mapping, str):
+                # pylint: disable=eval-used
+                mapping = eval(self.mapping.replace('\n', ' '))
             if isinstance(mapping, str):
                 # pylint: disable=eval-used
                 mapping = eval(mapping)
             self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
         except Exception as e:
-            raise ValueError('Illegal Value for mapping: %r' % e)
+            raise ValueError('Illegal Value for mapping: %r' % self.mapping) from e
 
     def read_value(self):
         value = self._dev.value
@@ -805,7 +815,7 @@ class PartialDigitalInput(NamedDigitalInput):
                          datatype=IntRange(0), default=1)
 
     def initModule(self):
-        super(PartialDigitalInput, self).initModule()
+        super().initModule()
         self._mask = (1 << self.bitwidth) - 1
         # self.accessibles['value'].datatype = IntRange(0, self._mask)
 
@@ -830,6 +840,7 @@ class DigitalOutput(PyTangoDevice, Drivable):
     def write_target(self, value):
         self._dev.value = value
         self.read_value()
+        return self.read_target()
 
     def read_target(self):
         attrObj = self._dev.read_attribute('value')
@@ -845,22 +856,25 @@ class NamedDigitalOutput(DigitalOutput):
                         datatype=StringType(), export=False)
 
     def initModule(self):
-        super(NamedDigitalOutput, self).initModule()
+        super().initModule()
         try:
-            # pylint: disable=eval-used
-            mapping = eval(self.mapping.replace('\n', ' '))
+            mapping = self.mapping
+            if isinstance(mapping, str):
+                # pylint: disable=eval-used
+                mapping = eval(self.mapping.replace('\n', ' '))
             if isinstance(mapping, str):
                 # pylint: disable=eval-used
                 mapping = eval(mapping)
             self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
             self.accessibles['target'].setProperty('datatype', EnumType('target', **mapping))
         except Exception as e:
-            raise ValueError('Illegal Value for mapping: %r' % e)
+            raise ValueError('Illegal Value for mapping: %r' % self.mapping) from e
 
     def write_target(self, value):
         # map from enum-str to integer value
         self._dev.value = int(value)
         self.read_value()
+        return self.read_target()
 
 
 class PartialDigitalOutput(NamedDigitalOutput):
@@ -875,7 +889,7 @@ class PartialDigitalOutput(NamedDigitalOutput):
                          datatype=IntRange(0), default=1)
 
     def initModule(self):
-        super(PartialDigitalOutput, self).initModule()
+        super().initModule()
         self._mask = (1 << self.bitwidth) - 1
         # self.accessibles['value'].datatype = IntRange(0, self._mask)
         # self.accessibles['target'].datatype = IntRange(0, self._mask)
@@ -891,6 +905,7 @@ class PartialDigitalOutput(NamedDigitalOutput):
                    (value << self.startbit)
         self._dev.value = newvalue
         self.read_value()
+        return self.read_target()
 
 
 class StringIO(PyTangoDevice, Module):
