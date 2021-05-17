@@ -36,82 +36,82 @@ from secop.modules import BasicPoller, Drivable, \
 class SimBase:
     pollerClass = BasicPoller
 
-    def __init__(self, cfgdict):
-        # spice up parameters if requested by extra property
-        # hint: us a comma-separated list if mor than one extra_param
-        # BIG FAT WARNING: changing extra params will NOT generate events!
-        # XXX: implement default read_* and write_* methods to handle
-        # read and change messages correctly
-        if '.extra_params' in cfgdict:
-            extra_params = cfgdict.pop('.extra_params')
+    def __new__(cls, devname, logger, cfgdict, dispatcher):
+        extra_params = cfgdict.pop('extra_params', '') or cfgdict.pop('.extra_params', '')
+        attrs = {}
+        if extra_params:
             # make a copy of self.parameter
-            self.accessibles = dict((k, v.copy()) for k, v in self.accessibles.items())
+            # self.accessibles = dict((k, v.copy()) for k, v in self.accessibles.items())
             for k in extra_params.split(','):
                 k = k.strip()
-                self.accessibles[k] = Parameter('extra_param: %s' % k.strip(),
-                                       datatype=FloatRange(),
-                                       default=0.0)
-                def reader(pname=k):
+                attrs[k] = Parameter('extra_param: %s' % k.strip(),
+                                     datatype=FloatRange(),
+                                     default=0.0)
+
+                def reader(self, pname=k):
                     self.log.debug('simulated reading %s' % pname)
-                    return self.accessibles[pname].value
-                setattr(self, 'read_' + k, reader)
-                def writer(newval, pname=k):
+                    return self.parameters[pname].value
+
+                attrs['read_' + k] = reader
+
+                def writer(self, newval, pname=k):
                     self.log.debug('simulated writing %r to %s' % (newval, pname))
-                    self.accessibles[pname].value = newval
+                    self.parameters[pname].value = newval
                     return newval
-                setattr(self, 'write_' + k, writer)
+
+                attrs['write_' + k] = writer
+
+        return object.__new__(type('SimBase_%s' % devname, (cls,), attrs))
 
     def initModule(self):
         self._sim_thread = mkthread(self._sim)
 
     def _sim(self):
         try:
-            while not self.sim():
-                pass
+            if not self.sim():
+                self.log.info('sim thread running')
+                while not self.sim():
+                    pass
+                self.log.info('sim thread ended')
         except Exception as e:
             self.log.exception(e)
-        self.log.info('sim thread ended')
 
     def sim(self):
-        return True # nothing to do, stop thread
-
-    def read_value(self):
-        if 'jitter' in self.accessibles:
-            return self._value + self.jitter*(0.5-random.random())
-        return self._value
+        return True  # nothing to do, stop thread
 
 
 class SimModule(SimBase, Module):
-    def __init__(self, devname, logger, cfgdict, dispatcher):
-        SimBase.__init__(self, cfgdict)
-        Module.__init__(self, devname, logger, cfgdict, dispatcher)
+    pass
+    # def __init__(self, devname, logger, cfgdict, dispatcher):
+    #     SimBase.__init__(self, cfgdict)
+    #     Module.__init__(self, devname, logger, cfgdict, dispatcher)
 
 
 class SimReadable(SimBase, Readable):
     def __init__(self, devname, logger, cfgdict, dispatcher):
-        SimBase.__init__(self, cfgdict)
-        Readable.__init__(self, devname, logger, cfgdict, dispatcher)
-        self._value = self.accessibles['value'].default
+        # SimBase.__init__(self, cfgdict)
+        super().__init__(devname, logger, cfgdict, dispatcher)
+        self._value = self.parameters['value'].default
+
+    def read_value(self):
+        if 'jitter' in self.parameters:
+            return self._value + self.jitter * (0.5 - random.random())
+        return self._value
 
 
-class SimWritable(SimBase, Writable):
-    def __init__(self, devname, logger, cfgdict, dispatcher):
-        SimBase.__init__(self, cfgdict)
-        Writable.__init__(self, devname, logger, cfgdict, dispatcher)
-        self._value = self.accessibles['value'].default
+class SimWritable(SimReadable, Writable):
+
     def read_value(self):
         return self.target
+
     def write_target(self, value):
         self.value = value
 
     def _hw_wait(self):
         pass
 
-class SimDrivable(SimBase, Drivable):
-    def __init__(self, devname, logger, cfgdict, dispatcher):
-        SimBase.__init__(self, cfgdict)
-        Drivable.__init__(self, devname, logger, cfgdict, dispatcher)
-        self._value = self.accessibles['value'].default
+
+class SimDrivable(SimReadable, Drivable):
 
     def sim(self):
         while self._value == self.target:
