@@ -218,7 +218,7 @@ class Module(HasAccessibles):
                           default='user', extname='visibility')
     implementation = Property('internal name of the implementation class of the module', StringType(),
                               extname='implementation')
-    interface_classes = Property('offical highest Interface-class of the module', ArrayOf(StringType()),
+    interface_classes = Property('offical highest interface-class of the module', ArrayOf(StringType()),
                                  extname='interface_classes')
 
     # properties, parameters and commands are auto-merged upon subclassing

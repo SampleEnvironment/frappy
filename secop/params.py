@@ -187,7 +187,6 @@ class Parameter(Accessible):
         self._constant = constant
 
     def __get__(self, instance, owner):
-        # not used yet
         if instance is None:
             return self
         return instance.parameters[self.name].value

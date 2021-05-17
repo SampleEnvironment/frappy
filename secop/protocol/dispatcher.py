@@ -171,10 +171,10 @@ class Dispatcher:
         self.log.debug('-> module is not to be exported!')
         return OrderedDict()
 
-    def get_descriptive_data(self):
+    def get_descriptive_data(self, specifier):
         """returns a python object which upon serialisation results in the descriptive data"""
-        # XXX: be lazy and cache this?
-        result = {'modules': OrderedDict()}
+        modules = {}
+        result = {'modules': modules}
         for modulename in self._export:
             module = self.get_module(modulename)
             if not module.export:
@@ -183,11 +183,22 @@ class Dispatcher:
             mod_desc = {'accessibles': self.export_accessibles(modulename)}
             mod_desc.update(module.exportProperties())
             mod_desc.pop('export', False)
-            result['modules'][modulename] = mod_desc
-        result['equipment_id'] = self.equipment_id
-        result['firmware'] = 'FRAPPY - The Python Framework for SECoP'
-        result['version'] = '2021.02'
-        result.update(self.nodeprops)
+            modules[modulename] = mod_desc
+        modname, _, pname = (specifier or '').partition(':')
+        if modname in modules:  # extension to SECoP standard: description of a single module
+            result = modules[modname]
+            if pname in result['accessibles']:  # extension to SECoP standard: description of a single accessible
+                # command is also accepted
+                result = result['accessibles'][pname]
+            elif pname:
+                raise NoSuchParameterError('Module %r has no parameter %r' % (modname, pname))
+        elif not modname or modname == '.':
+            result['equipment_id'] = self.equipment_id
+            result['firmware'] = 'FRAPPY - The Python Framework for SECoP'
+            result['version'] = '2021.02'
+            result.update(self.nodeprops)
+        else:
+            raise NoSuchModuleError('Module %r does not exist' % modname)
         return result
 
     def _execute_command(self, modulename, exportedname, argument=None):
@@ -287,7 +298,7 @@ class Dispatcher:
         return (IDENTREPLY, None, None)
 
     def handle_describe(self, conn, specifier, data):
-        return (DESCRIPTIONREPLY, '.', self.get_descriptive_data())
+        return (DESCRIPTIONREPLY, specifier or '.', self.get_descriptive_data(specifier))
 
     def handle_read(self, conn, specifier, data):
         if data:
