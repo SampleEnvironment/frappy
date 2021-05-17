@@ -56,13 +56,19 @@ class HasAccessibles(HasProperties):
         for base in reversed(cls.__bases__):
             accessibles.update(getattr(base, 'accessibles', {}))
         newaccessibles = {k: v for k, v in cls.__dict__.items() if isinstance(v, Accessible)}
-        for aname, aobj in accessibles.items():
+        for aname, aobj in list(accessibles.items()):
             value = getattr(cls, aname, None)
             if not isinstance(value, Accessible):  # else override is already done in __set_name__
-                anew = aobj.override(value)
-                newaccessibles[aname] = anew
-                setattr(cls, aname, anew)
-                anew.__set_name__(cls, aname)
+                if value is None:
+                    accessibles.pop(aname)
+                else:
+                    # this is either a method overwriting a command
+                    # or a value overwriting a property value or parameter default
+                    anew = aobj.override(value)
+                    newaccessibles[aname] = anew
+                    setattr(cls, aname, anew)
+                    anew.__set_name__(cls, aname)
+
         ordered = {}
         for aname in cls.__dict__.get('paramOrder', ()):
             if aname in accessibles:
