@@ -59,4 +59,4 @@ release:
 
 
 build-pkg:
-	debocker build --image jenkinsng.admin.frm2:5000/mlzbase/buster
+	debocker build --image docker.ictrl.frm2.tum.de:5443/mlzbase/buster
