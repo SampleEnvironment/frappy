@@ -25,6 +25,8 @@ import socket
 import socketserver
 import sys
 import threading
+import time
+import errno
 
 from secop.datatypes import BoolType, StringType
 from secop.errors import SECoPError
@@ -184,8 +186,19 @@ class TCPServer(socketserver.ThreadingTCPServer):
         port = int(options.pop('uri').split('://', 1)[-1])
         self.detailed_errors = options.pop('detailed_errors', False)
 
-        self.allow_reuse_address = True
         self.log.info("TCPServer %s binding to port %d" % (name, port))
-        socketserver.ThreadingTCPServer.__init__(
-            self, ('0.0.0.0', port), TCPRequestHandler, bind_and_activate=True)
+        for ntry in range(5):
+            try:
+                socketserver.ThreadingTCPServer.__init__(
+                    self, ('0.0.0.0', port), TCPRequestHandler, bind_and_activate=True)
+                break
+            except OSError as e:
+                if e.args[0] == errno.EADDRINUSE:  # address already in use
+                    # this may happen despite of allow_reuse_address
+                    time.sleep(0.3 * (1 << ntry))  # max accumulated sleep time: 0.3 * 31 = 9.3 sec
+                else:
+                    self.log.error('could not initialize TCP Server: %r' % e)
+                    raise
+        if ntry:
+            self.log.warning('tried again %d times after "Address already in use"' % ntry)
         self.log.info("TCPServer initiated")

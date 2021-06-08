@@ -202,7 +202,7 @@ class Poller(PollerBase):
                 module.pollOneParam(pname)
                 done = True
                 lastdue = due
-                due = max(lastdue + mininterval, now + min(self.maxwait, mininterval * 0.5))
+            due = max(lastdue + mininterval, now + min(self.maxwait, mininterval * 0.5))
             # replace due, lastdue with new values and sort in
             heapreplace(queue, (due, lastdue, pollitem))
         return 0
@@ -227,9 +227,10 @@ class Poller(PollerBase):
         (where n is the number of regular parameters).
         """
         if not self:
-            # nothing to do (else we might call time.sleep(float('inf')) below
+            # nothing to do (else time.sleep(float('inf')) might be called below
             started_callback()
             return
+        # if writeInitParams is not yet done, we do it here
         for module in self.modules:
             module.writeInitParams()
         # do all polls once and, at the same time, insert due info

@@ -39,10 +39,6 @@ class Accessible(HasProperties):
 
     kwds = None  # is a dict if it might be used as Override
 
-    def __init__(self, **kwds):
-        super().__init__()
-        self.init(kwds)
-
     def init(self, kwds):
         # do not use self.propertyValues.update here, as no invalid values should be
         # assigned to properties, even not before checkProperties
@@ -101,10 +97,10 @@ class Parameter(Accessible):
 
     description = Property(
         'mandatory description of the parameter', TextType(),
-        extname='description', mandatory=True)
+        extname='description', mandatory=True, export='always')
     datatype = Property(
         'datatype of the Parameter (SECoP datainfo)', DataTypeType(),
-        extname='datainfo', mandatory=True)
+        extname='datainfo', mandatory=True, export='always')
     readonly = Property(
         'not changeable via SECoP (default True)', BoolType(),
         extname='readonly', default=True, export='always')
@@ -165,7 +161,7 @@ class Parameter(Accessible):
     readerror = None
 
     def __init__(self, description=None, datatype=None, inherit=True, *, unit=None, constant=None, **kwds):
-        super().__init__(**kwds)
+        super().__init__()
         if datatype is not None:
             if not isinstance(datatype, DataType):
                 if isinstance(datatype, type) and issubclass(datatype, DataType):
@@ -178,6 +174,8 @@ class Parameter(Accessible):
             if 'default' in kwds:
                 self.default = datatype(kwds['default'])
 
+        self.init(kwds)  # datatype must be defined before we can treat dataset properties like fmtstr or unit
+
         if description is not None:
             self.description = inspect.cleandoc(description)
 
@@ -187,6 +185,7 @@ class Parameter(Accessible):
         self._constant = constant
 
     def __get__(self, instance, owner):
+        # not used yet
         if instance is None:
             return self
         return instance.parameters[self.name].value
@@ -282,7 +281,7 @@ class Command(Accessible):
 
     description = Property(
         'description of the Command', TextType(),
-        extname='description', export=True, mandatory=True)
+        extname='description', export='always', mandatory=True)
     group = Property(
         'optional command group of the command.', StringType(),
         extname='group', export=True, default='')
@@ -312,7 +311,8 @@ class Command(Accessible):
     func = None
 
     def __init__(self, argument=False, *, result=None, inherit=True, **kwds):
-        super().__init__(**kwds)
+        super().__init__()
+        self.init(kwds)
         if result or kwds or isinstance(argument, DataType) or not callable(argument):
             # normal case
             if argument is False and result:

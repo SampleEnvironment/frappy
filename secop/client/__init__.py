@@ -493,14 +493,12 @@ class SecopClient(ProxyClient):
             self.log.warning('unhandled message: %s %s %r' % (action, ident, data))
 
     def _set_state(self, online, state=None):
-        # treat reconnecting as online!
-        state = state or self.state
-        self.callback(None, 'nodeStateChange', online, state)
-        for mname in self.modules:
-            self.callback(mname, 'nodeStateChange', online, state)
-        # set online attribute after callbacks -> callback may check for old state
+        # remark: reconnecting is treated as online
         self.online = online
-        self.state = state
+        self.state = state or self.state
+        self.callback(None, 'nodeStateChange', self.online, self.state)
+        for mname in self.modules:
+            self.callback(mname, 'nodeStateChange', self.online, self.state)
 
     def queue_request(self, action, ident=None, data=None):
         """make a request"""

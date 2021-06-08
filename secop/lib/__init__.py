@@ -105,7 +105,10 @@ def get_class(spec):
     else:
         # rarely needed by now....
         module = importlib.import_module('secop.' + modname)
-    return getattr(module, classname)
+    try:
+        return getattr(module, classname)
+    except AttributeError:
+        raise AttributeError('no such class') from None
 
 
 def mkthread(func, *args, **kwds):

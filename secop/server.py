@@ -256,7 +256,7 @@ class Server:
                     self.modules[modname] = modobj
                 except ConfigError as e:
                     errors.append('error creating module %s:' % modname)
-                    for errtxt in e.args[0]:
+                    for errtxt in e.args[0] if isinstance(e.args[0], list) else [e.args[0]]:
                         errors.append('  ' + errtxt)
                 except Exception:
                     failure_traceback = traceback.format_exc()

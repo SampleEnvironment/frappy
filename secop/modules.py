@@ -99,10 +99,13 @@ class HasAccessibles(HasProperties):
             rfunc_handler = pobj.handler.get_read_func(cls, pname) if pobj.handler else None
             wrapped = hasattr(rfunc, '__wrapped__')
             if rfunc_handler:
-                if rfunc and not wrapped:
-                    raise ProgrammingError("parameter '%s' can not have a handler "
-                                           "and read_%s" % (pname, pname))
-                rfunc = rfunc_handler
+                if 'read_' + pname in cls.__dict__:
+                    if pname in cls.__dict__:
+                        raise ProgrammingError("parameter '%s' can not have a handler "
+                                               "and read_%s" % (pname, pname))
+                    # read_<pname> overwrites inherited handler
+                else:
+                    rfunc = rfunc_handler
                 wrapped = False
 
             # create wrapper except when read function is already wrapped
@@ -388,7 +391,7 @@ class Module(HasAccessibles):
                 if k in self.parameters or k in self.propertyDict:
                     setattr(self, k, v)
                     cfgdict.pop(k)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
                 # self.log.exception(formatExtendedStack())
                 errors.append('module %s, parameter %s: %s' % (self.name, k, e))
 

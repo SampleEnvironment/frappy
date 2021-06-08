@@ -102,7 +102,7 @@ class DataType(HasProperties):
                 self.setProperty(k, v)
             self.checkProperties()
         except Exception as e:
-            raise ProgrammingError(str(e))
+            raise ProgrammingError(str(e)) from None
 
     def get_info(self, **kwds):
         """prepare dict for export or repr
@@ -194,7 +194,7 @@ class FloatRange(DataType):
         try:
             value = float(value)
         except Exception:
-            raise BadValueError('Can not __call__ %r to float' % value)
+            raise BadValueError('Can not __call__ %r to float' % value) from None
         # map +/-infty to +/-max possible number
         value = clamp(-sys.float_info.max, value, sys.float_info.max)
 
@@ -267,12 +267,12 @@ class IntRange(DataType):
         try:
             fvalue = float(value)
             value = int(value)
-            if not self.min <= value <= self.max or round(fvalue) != fvalue:
-                raise BadValueError('%r should be an int between %d and %d' %
-                                    (value, self.min, self.max))
-            return value
         except Exception:
-            raise BadValueError('Can not convert %r to int' % value)
+            raise BadValueError('Can not convert %r to int' % value) from None
+        if not self.min <= value <= self.max or round(fvalue) != fvalue:
+            raise BadValueError('%r should be an int between %d and %d' %
+                                (value, self.min, self.max))
+        return value
 
     def __repr__(self):
         args = (self.min, self.max)
@@ -371,7 +371,7 @@ class ScaledInteger(DataType):
         try:
             value = float(value)
         except Exception:
-            raise BadValueError('Can not convert %r to float' % value)
+            raise BadValueError('Can not convert %r to float' % value) from None
         prec = max(self.scale, abs(value * self.relative_resolution),
                    self.absolute_resolution)
         if self.min - prec <= value <= self.max + prec:
@@ -454,7 +454,7 @@ class EnumType(DataType):
         try:
             return self._enum[value]
         except (KeyError, TypeError):  # TypeError will be raised when value is not hashable
-            raise BadValueError('%r is not a member of enum %r' % (value, self._enum))
+            raise BadValueError('%r is not a member of enum %r' % (value, self._enum)) from None
 
     def from_string(self, text):
         return self(text)
@@ -533,7 +533,7 @@ class BLOBType(DataType):
             if self.minbytes < other.minbytes or self.maxbytes > other.maxbytes:
                 raise BadValueError('incompatible datatypes')
         except AttributeError:
-            raise BadValueError('incompatible datatypes')
+            raise BadValueError('incompatible datatypes') from None
 
 
 class StringType(DataType):
@@ -572,7 +572,7 @@ class StringType(DataType):
             try:
                 value.encode('ascii')
             except UnicodeEncodeError:
-                raise BadValueError('%r contains non-ascii character!' % value)
+                raise BadValueError('%r contains non-ascii character!' % value) from None
         size = len(value)
         if size < self.minchars:
             raise BadValueError(
@@ -606,7 +606,7 @@ class StringType(DataType):
                     self.isUTF8 > other.isUTF8:
                 raise BadValueError('incompatible datatypes')
         except AttributeError:
-            raise BadValueError('incompatible datatypes')
+            raise BadValueError('incompatible datatypes') from None
 
 
 # TextType is a special StringType intended for longer texts (i.e. embedding \n),
@@ -618,7 +618,7 @@ class TextType(StringType):
     def __init__(self, maxchars=None):
         if maxchars is None:
             maxchars = UNLIMITED
-        super(TextType, self).__init__(0, maxchars)
+        super().__init__(0, maxchars)
 
     def __repr__(self):
         if self.maxchars == UNLIMITED:
@@ -771,7 +771,7 @@ class ArrayOf(DataType):
                 raise BadValueError('incompatible datatypes')
             self.members.compatible(other.members)
         except AttributeError:
-            raise BadValueError('incompatible datatypes')
+            raise BadValueError('incompatible datatypes') from None
 
 
 class TupleOf(DataType):
@@ -811,7 +811,7 @@ class TupleOf(DataType):
             return tuple(sub(elem)
                          for sub, elem in zip(self.members, value))
         except Exception as exc:
-            raise BadValueError('Can not validate:', str(exc))
+            raise BadValueError('Can not validate:', str(exc)) from None
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -894,7 +894,7 @@ class StructOf(DataType):
             return ImmutableDict((str(k), self.members[k](v))
                                  for k, v in list(value.items()))
         except Exception as exc:
-            raise BadValueError('Can not validate %s: %s' % (repr(value), str(exc)))
+            raise BadValueError('Can not validate %s: %s' % (repr(value), str(exc))) from None
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -924,7 +924,7 @@ class StructOf(DataType):
             if mandatory:
                 raise BadValueError('incompatible datatypes')
         except (AttributeError, TypeError, KeyError):
-            raise BadValueError('incompatible datatypes')
+            raise BadValueError('incompatible datatypes') from None
 
 
 class CommandType(DataType):
@@ -987,7 +987,7 @@ class CommandType(DataType):
             if self.result != other.result:  # not both are None
                 other.result.compatible(self.result)
         except AttributeError:
-            raise BadValueError('incompatible datatypes')
+            raise BadValueError('incompatible datatypes') from None
 
 
 # internally used datatypes (i.e. only for programming the SEC-node)
@@ -1164,9 +1164,9 @@ def get_datatype(json, pname=''):
             kwargs = json.copy()
             base = kwargs.pop('type')
         except (TypeError, KeyError, AttributeError):
-            raise BadValueError('a data descriptor must be a dict containing a "type" key, not %r' % json)
+            raise BadValueError('a data descriptor must be a dict containing a "type" key, not %r' % json) from None
 
     try:
         return DATATYPES[base](pname=pname, **kwargs)
     except Exception as e:
-        raise BadValueError('invalid data descriptor: %r (%s)' % (json, str(e)))
+        raise BadValueError('invalid data descriptor: %r (%s)' % (json, str(e))) from None
