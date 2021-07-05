@@ -194,7 +194,7 @@ class FloatRange(DataType):
         try:
             value = float(value)
         except Exception:
-            raise BadValueError('Can not __call__ %r to float' % value) from None
+            raise BadValueError('Can not convert %r to float' % value) from None
         # map +/-infty to +/-max possible number
         value = clamp(-sys.float_info.max, value, sys.float_info.max)
 

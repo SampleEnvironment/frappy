@@ -22,8 +22,6 @@
 """Define Simulation classes"""
 
 
-# TODO: rework after syntax change!
-
 import random
 from time import sleep
 
@@ -40,8 +38,6 @@ class SimBase:
         extra_params = cfgdict.pop('extra_params', '') or cfgdict.pop('.extra_params', '')
         attrs = {}
         if extra_params:
-            # make a copy of self.parameter
-            # self.accessibles = dict((k, v.copy()) for k, v in self.accessibles.items())
             for k in extra_params.split(','):
                 k = k.strip()
                 attrs[k] = Parameter('extra_param: %s' % k.strip(),
@@ -82,14 +78,10 @@ class SimBase:
 
 class SimModule(SimBase, Module):
     pass
-    # def __init__(self, devname, logger, cfgdict, dispatcher):
-    #     SimBase.__init__(self, cfgdict)
-    #     Module.__init__(self, devname, logger, cfgdict, dispatcher)
 
 
 class SimReadable(SimBase, Readable):
     def __init__(self, devname, logger, cfgdict, dispatcher):
-        # SimBase.__init__(self, cfgdict)
         super().__init__(devname, logger, cfgdict, dispatcher)
         self._value = self.parameters['value'].default
 
