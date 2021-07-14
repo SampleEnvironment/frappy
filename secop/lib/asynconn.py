@@ -25,7 +25,7 @@
 generic class for byte oriented communication
 includes implementation for TCP and Serial connections
 support for asynchronous communication, but may be used also for
-synchronous IO (see secop.stringio.StringIO)
+synchronous IO (see secop.io)
 """
 
 import ast
@@ -62,11 +62,11 @@ class AsynConn:
             except (ValueError, TypeError, AssertionError):
                 if 'COM' in uri:
                     raise ValueError("the correct uri for a COM port is: "
-                                     "'serial://COM<i>[?<option>=<value>[+<option>=value ...]]'")
+                                     "'serial://COM<i>[?<option>=<value>[+<option>=value ...]]'") from None
                 if '/dev' in uri:
                     raise ValueError("the correct uri for a serial port is: "
-                                     "'serial:///dev/<tty>[?<option>=<value>[+<option>=value ...]]'")
-                raise ValueError('invalid uri: %s' % uri)
+                                     "'serial:///dev/<tty>[?<option>=<value>[+<option>=value ...]]'") from None
+                raise ValueError('invalid uri: %s' % uri) from None
             iocls = cls.SCHEME_MAP['tcp']
             uri = 'tcp://%s:%d' % host_port
         return object.__new__(iocls)
@@ -164,7 +164,7 @@ class AsynTcp(AsynConn):
             self.connection = tcpSocket(uri, self.defaultport, self.timeout)
         except (ConnectionRefusedError, socket.gaierror) as e:
             # indicate that retrying might make sense
-            raise CommunicationFailedError(str(e))
+            raise CommunicationFailedError(str(e)) from None
 
     def disconnect(self):
         if self.connection:
@@ -237,8 +237,8 @@ class AsynSerial(AsynConn):
             options = dict((kv.split('=') for kv in uri[1].split('+')))
         except IndexError:  # no uri[1], no options
             options = {}
-        except ValueError:
-            raise ConfigError('illegal serial options')
+        except ValueError as e:
+            raise ConfigError('illegal serial options') from e
         parity = options.pop('parity', None)  # only parity is to be treated as text
         for k, v in options.items():
             try:
@@ -256,7 +256,7 @@ class AsynSerial(AsynConn):
         try:
             self.connection = Serial(dev, **options)
         except ValueError as e:
-            raise ConfigError(e)
+            raise ConfigError(e) from None
         # TODO: turn exceptions into ConnectionFailedError, where a retry makes sense
 
     def disconnect(self):

@@ -43,7 +43,7 @@ from secop.lib.enum import Enum
 from secop.modules import Attached, Communicator, Done, \
     Drivable, Parameter, Property, Readable
 from secop.poller import Poller
-from secop.stringio import HasIodev
+from secop.io import HasIodev
 
 try:
     import secop_psi.ppmswindows as ppmshw

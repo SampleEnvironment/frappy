@@ -28,7 +28,7 @@ from secop.lib import formatStatusBits
 from secop.modules import Attached, Done, \
     Drivable, Parameter, Property, Readable
 from secop.poller import REGULAR, Poller
-from secop.stringio import HasIodev
+from secop.io import HasIodev
 
 Status = Drivable.Status
 
@@ -53,7 +53,7 @@ scan = IOHandler('scan', 'SCAN?', '%d,%d')
 STATUS_BIT_LABELS = 'CS_OVL VCM_OVL VMIX_OVL VDIF_OVL R_OVER R_UNDER T_OVER T_UNDER'.split()
 
 
-class StringIO(secop.stringio.StringIO):
+class StringIO(secop.io.StringIO):
     identification = [('*IDN?', 'LSCI,MODEL370,.*')]
     wait_before = 0.05
 

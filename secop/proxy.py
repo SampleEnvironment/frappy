@@ -29,7 +29,7 @@ from secop.lib import get_class
 from secop.modules import Drivable, Module, Readable, Writable
 from secop.params import Command, Parameter
 from secop.properties import Property
-from secop.stringio import HasIodev
+from secop.io import HasIodev
 
 
 class ProxyModule(HasIodev, Module):

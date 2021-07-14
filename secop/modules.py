@@ -410,7 +410,7 @@ class Module(HasAccessibles):
             for pname, p in self.parameters.items():
                 try:
                     p.checkProperties()
-                except ConfigError:
+                except ConfigError as e:
                     errors.append('%s: %s' % (pname, e))
         if errors:
             raise ConfigError(errors)
