@@ -44,7 +44,7 @@ class QSECNode(QObject):
     logEntry = pyqtSignal(str)
 
     def __init__(self, uri, parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.conn = conn = secop.client.SecopClient(uri)
         conn.validate_data = True
         self.log = conn.log
@@ -83,10 +83,7 @@ class QSECNode(QObject):
         return self.conn.getParameter(module, parameter, True)
 
     def execCommand(self, module, command, argument):
-        try:
-            return self.conn.execCommand(module, command, argument)
-        except Exception as e:
-            return 'ERROR: %r' % e, {}
+        return self.conn.execCommand(module, command, argument)
 
     def queryCache(self, module):
         return {k: Value(*self.conn.cache[(module, k)])
@@ -115,7 +112,7 @@ class QSECNode(QObject):
 
 class MainWindow(QMainWindow):
     def __init__(self, hosts, parent=None):
-        super(MainWindow, self).__init__(parent)
+        super().__init__(parent)
 
         loadUi(self, 'mainwindow.ui')
 

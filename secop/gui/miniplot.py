@@ -160,7 +160,7 @@ class MiniPlotFitCurve(MiniPlotCurve):
         return float('-inf')
 
     def __init__(self, formula, params):
-        super(MiniPlotFitCurve, self).__init__()
+        super().__init__()
         self.formula = formula
         self.params = params
 
@@ -193,7 +193,7 @@ class MiniPlot(QWidget):
     autoticky = True
 
     def __init__(self, parent=None):
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         self.xmin = self.xmax = None
         self.ymin = self.ymax = None
         self.curves = []

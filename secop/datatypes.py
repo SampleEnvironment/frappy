@@ -1080,7 +1080,7 @@ UInt64 = IntRange(0, (1 << 64) - 1)
 # Goodie: Convenience Datatypes for Programming
 class LimitsType(TupleOf):
     def __init__(self, members):
-        TupleOf.__init__(self, members, members)
+        super().__init__(members, members)
 
     def __call__(self, value):
         limits = TupleOf.__call__(self, value)
@@ -1092,7 +1092,7 @@ class LimitsType(TupleOf):
 class StatusType(TupleOf):
     # shorten initialisation and allow access to status enumMembers from status values
     def __init__(self, enum):
-        TupleOf.__init__(self, EnumType(enum), StringType())
+        super().__init__(EnumType(enum), StringType())
         self._enum = enum
 
     def __getattr__(self, key):

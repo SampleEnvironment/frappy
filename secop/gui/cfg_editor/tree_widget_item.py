@@ -44,7 +44,7 @@ class TreeWidgetItem(QTreeWidgetItem):
         the datatype passed onto ValueWidget should be on of secop.datatypes"""
         # TODO: like stated in docstring the datatype for parameters and
         #  properties must be found out through their object
-        QTreeWidgetItem.__init__(self, parent)
+        super().__init__(parent)
         self.kind = kind
         self.name = name
         self.class_object = class_object
@@ -129,7 +129,7 @@ class ValueWidget(QWidget):
 
     def __init__(self, name='', value='', datatype=None, kind='', parent=None):
         # TODO: implement: change module/interface class
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         self.datatype = datatype
         self.layout = QVBoxLayout()
         self.name_label = QLabel(name)
@@ -205,7 +205,7 @@ class ValueWidget(QWidget):
 
 class ChangeNameDialog(QDialog):
     def __init__(self, current_name='', invalid_names=None, parent=None):
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         loadUi(self, 'change_name_dialog.ui')
         self.invalid_names = invalid_names
         self.name.setText(current_name)

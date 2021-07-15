@@ -39,7 +39,7 @@ class ParameterWidget(QWidget):
                  initvalue=None,
                  readonly=True,
                  parent=None):
-        super(ParameterWidget, self).__init__(parent)
+        super().__init__(parent)
         self._module = module
         self._paramcmd = paramcmd
         self._datatype = datatype
@@ -76,7 +76,12 @@ class GenericParameterWidget(ParameterWidget):
                                self.setLineEdit.text())
 
     def updateValue(self, value):
-        self.currentLineEdit.setText(str(value))
+        fmtstr = getattr(self._datatype, 'fmtstr', '%s')
+        if value.readerror:
+            value = str(value)
+        else:
+            value = fmtstr % (value.value,)
+        self.currentLineEdit.setText(value)
 
 
 class EnumParameterWidget(GenericParameterWidget):

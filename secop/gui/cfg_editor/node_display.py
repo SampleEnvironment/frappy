@@ -26,7 +26,7 @@ from secop.gui.qt import QHBoxLayout, QSizePolicy, QSpacerItem, Qt, QWidget
 
 class NodeDisplay(QWidget):
     def __init__(self, file_path=None, parent=None):
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         loadUi(self, 'node_display.ui')
         self.saved = bool(file_path)
         self.created = self.tree_widget.set_file(file_path)

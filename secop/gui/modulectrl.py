@@ -32,7 +32,7 @@ from secop.gui.valuewidgets import get_widget
 
 class CommandDialog(QDialog):
     def __init__(self, cmdname, argument, parent=None):
-        super(CommandDialog, self).__init__(parent)
+        super().__init__(parent)
         loadUi(self, 'cmddialog.ui')
 
         self.setWindowTitle('Arguments for %s' % cmdname)
@@ -58,7 +58,7 @@ class CommandDialog(QDialog):
         return True, self.widgets[0].get_value()
 
     def exec_(self):
-        if super(CommandDialog, self).exec_():
+        if super().exec_():
             return self.get_value()
         return None
 
@@ -71,16 +71,17 @@ def showCommandResultDialog(command, args, result, extras=''):
     m.exec_()
 
 
-def showErrorDialog(error):
+def showErrorDialog(command, args, error):
     m = QMessageBox()
-    m.setText('Error %r' % error)
+    args = '' if args is None else repr(args)
+    m.setText('calling: %s(%s)\nraised %r' % (command, args, error))
     m.exec_()
 
 
 class ParameterGroup(QWidget):
 
     def __init__(self, groupname, parent=None):
-        super(ParameterGroup, self).__init__(parent)
+        super().__init__(parent)
         loadUi(self, 'paramgroup.ui')
 
         self._groupname = groupname
@@ -112,7 +113,7 @@ class ParameterGroup(QWidget):
 class CommandButton(QPushButton):
 
     def __init__(self, cmdname, cmdinfo, cb, parent=None):
-        super(CommandButton, self).__init__(parent)
+        super().__init__(parent)
 
         self._cmdname = cmdname
         self._argintype = cmdinfo['datatype'].argument   # single datatype
@@ -140,7 +141,7 @@ class CommandButton(QPushButton):
 class ModuleCtrl(QWidget):
 
     def __init__(self, node, module, parent=None):
-        super(ModuleCtrl, self).__init__(parent)
+        super().__init__(parent)
         loadUi(self, 'modulectrl.ui')
         self._node = node
         self._module = module
@@ -161,11 +162,11 @@ class ModuleCtrl(QWidget):
         try:
             result, qualifiers = self._node.execCommand(
                 self._module, command, args)
-        except TypeError:
-            result = None
-            qualifiers = {}
-            # XXX: flag missing data report as error
-        showCommandResultDialog(command, args, result, qualifiers)
+        except Exception as e:
+            showErrorDialog(command, args, e)
+            return
+        if result is not None:
+            showCommandResultDialog(command, args, result, qualifiers)
 
     def _initModuleWidgets(self):
         initValues = self._node.queryCache(self._module)

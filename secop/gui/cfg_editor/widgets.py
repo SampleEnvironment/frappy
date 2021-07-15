@@ -31,7 +31,7 @@ from secop.gui.cfg_editor.utils import get_all_items, \
     get_props, loadUi, set_name_edit_style, setActionIcon
 from secop.gui.qt import QComboBox, QDialog, QDialogButtonBox, QLabel, \
     QLineEdit, QMenu, QPoint, QSize, QStandardItem, QStandardItemModel, \
-    Qt, QTabBar, QTextEdit, QTreeView, QTreeWidget, QWidget, pyqtSignal
+    Qt, QTabBar, QTextEdit, QTreeView, QTreeWidget, pyqtSignal
 
 NODE = 'node'
 MODULE = 'module'
@@ -47,7 +47,7 @@ class TreeWidget(QTreeWidget):
     add_canceled = pyqtSignal()
 
     def __init__(self, parent=None):
-        QTreeWidget.__init__(self, parent)
+        super().__init__(parent)
         self.file_path = None
         self.setIconSize(QSize(24, 24))
         self.setSelectionMode(QTreeWidget.SingleSelection)
@@ -335,7 +335,7 @@ class AddDialog(QDialog):
         """Notes:
             self.get_value: is mapped to the specific method for getting
                             the value from self.value"""
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         loadUi(self, 'add_dialog.ui')
         self.setWindowTitle('add %s' % kind)
         self.kind = kind
@@ -402,7 +402,7 @@ class AddDialog(QDialog):
 
 class TabBar(QTabBar):
     def __init__(self, parent=None):
-        QTabBar.__init__(self, parent)
+        super().__init__(parent)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.context_pos = QPoint(0, 0)
         self.menu = QMenu()
@@ -436,7 +436,7 @@ class TabBar(QTabBar):
 
 class TreeComboBox(QComboBox):
     def __init__(self, value_dict, parent=None):
-        QComboBox.__init__(self, parent)
+        super().__init__(parent)
         self.tree_view = QTreeView()
         self.tree_view.setHeaderHidden(True)
         self.tree_view.expanded.connect(self.resize_length)

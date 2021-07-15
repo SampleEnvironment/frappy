@@ -25,7 +25,7 @@
 class SECoPError(RuntimeError):
 
     def __init__(self, *args, **kwds):
-        RuntimeError.__init__(self)
+        super().__init__()
         self.args = args
         for k, v in list(kwds.items()):
             setattr(self, k, v)

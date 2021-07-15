@@ -39,7 +39,7 @@ COMMENT = 'comment'
 class MainWindow(QMainWindow):
 
     def __init__(self, file_path=None, parent=None):
-        QMainWindow.__init__(self, parent)
+        super().__init__(parent)
         loadUi(self, 'mainwindow.ui')
         self.tabWidget.currentChanged.connect(self.tab_relevant_btns_disable)
         if file_path is None:
