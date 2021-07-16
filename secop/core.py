@@ -37,3 +37,4 @@ from secop.poller import AUTO, DYNAMIC, REGULAR, SLOW
 from secop.properties import Property
 from secop.proxy import Proxy, SecNode, proxy_class
 from secop.io import HasIodev, StringIO, BytesIO
+from secop.persistent import PersistentMixin, PersistentParam

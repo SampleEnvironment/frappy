@@ -110,9 +110,6 @@ class Property:
         self.name = name
         if self.export and not self.extname:
             self.extname = '_' + name
-        if self.description == '_':
-            # the programmer indicates, that the name is already speaking for itself
-            self.description = name.replace('_', ' ')
 
     def __repr__(self):
         extras = ['default=%s' % repr(self.default)]
