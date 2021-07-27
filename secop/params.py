@@ -233,7 +233,7 @@ class Parameter(Accessible):
 
     def copy(self):
         # deep copy, as datatype might be altered from config
-        res = Parameter()
+        res = type(self)()
         res.name = self.name
         res.init(self.propertyValues)
         res.datatype = res.datatype.copy()
@@ -363,7 +363,7 @@ class Command(Accessible):
         return self
 
     def copy(self):
-        res = Command()
+        res = type(self)()
         res.name = self.name
         res.func = self.func
         res.init(self.propertyValues)
