@@ -35,9 +35,17 @@ UNSET = object()  # an argument not given, not even None
 
 
 class Accessible(HasProperties):
-    """base class for Parameter and Command"""
+    """base class for Parameter and Command
 
-    kwds = None  # is a dict if it might be used as Override
+    Inheritance mechanism:
+
+    param.propertyValues contains the properties, which will be used when the
+      owner class will be instantiated
+
+    param.ownProperties contains the properties to be used for inheritance
+    """
+
+    ownProperties = None
 
     def init(self, kwds):
         # do not use self.propertyValues.update here, as no invalid values should be
@@ -45,43 +53,44 @@ class Accessible(HasProperties):
         for k, v in kwds.items():
             self.setProperty(k, v)
 
-    def inherit(self, cls, owner):
-        for base in owner.__bases__:
-            if hasattr(base, self.name):
-                aobj = getattr(base, 'accessibles', {}).get(self.name)
-                if aobj:
-                    if not isinstance(aobj, cls):
-                        raise ProgrammingError('%s %s.%s can not inherit from a %s' %
-                                               (cls.__name__, owner.__name__, self.name, aobj.__class__.__name__))
-                    # inherit from aobj
-                    for pname, value in aobj.propertyValues.items():
-                        if pname not in self.propertyValues:
-                            self.propertyValues[pname] = value
-                break
-
     def as_dict(self):
         return self.propertyValues
 
-    def override(self, value=UNSET, **kwds):
-        """return a copy, overridden by a bare attribute
-
-        and/or some properties"""
+    def override(self, value):
+        """override with a bare value"""
         raise NotImplementedError
 
     def copy(self):
         """return a (deep) copy of ourselfs"""
         raise NotImplementedError
 
+    def updateProperties(self, merged_properties):
+        """update merged_properties with our own properties"""
+        raise NotImplementedError
+
+    def merge(self, merged_properties):
+        """merge with inherited properties
+
+        :param merged_properties: dict of properties to be updated
+        note: merged_properties may be modified
+        """
+        raise NotImplementedError
+
+    def finish(self):
+        """ensure consistency"""
+        raise NotImplementedError
+
     def for_export(self):
         """prepare for serialisation"""
         raise NotImplementedError
 
+    def hasDatatype(self):
+        return 'datatype' in self.propertyValues
+
     def __repr__(self):
         props = []
-        for k, prop in sorted(self.propertyDict.items()):
-            v = self.propertyValues.get(k, prop.default)
-            if v != prop.default:
-                props.append('%s=%r' % (k, v))
+        for k, v in sorted(self.propertyValues.items()):
+            props.append('%s=%r' % (k, v))
         return '%s(%s)' % (self.__class__.__name__, ', '.join(props))
 
 
@@ -100,7 +109,7 @@ class Parameter(Accessible):
         extname='description', mandatory=True, export='always')
     datatype = Property(
         'datatype of the Parameter (SECoP datainfo)', DataTypeType(),
-        extname='datainfo', mandatory=True, export='always')
+        extname='datainfo', mandatory=True, export='always', default=ValueType())
     readonly = Property(
         'not changeable via SECoP (default True)', BoolType(),
         extname='readonly', default=True, export='always')
@@ -160,9 +169,13 @@ class Parameter(Accessible):
     timestamp = 0
     readerror = None
 
-    def __init__(self, description=None, datatype=None, inherit=True, *, unit=None, constant=None, **kwds):
+    def __init__(self, description=None, datatype=None, inherit=True, **kwds):
         super().__init__()
-        if datatype is not None:
+        if datatype is None:
+            # collect datatype properties. these are not applied, as we have no datatype
+            self.ownProperties = {k: kwds.pop(k) for k in list(kwds) if k not in self.propertyDict}
+        else:
+            self.ownProperties = {}
             if not isinstance(datatype, DataType):
                 if isinstance(datatype, type) and issubclass(datatype, DataType):
                     # goodie: make an instance from a class (forgotten ()???)
@@ -174,15 +187,15 @@ class Parameter(Accessible):
             if 'default' in kwds:
                 self.default = datatype(kwds['default'])
 
-        self.init(kwds)  # datatype must be defined before we can treat dataset properties like fmtstr or unit
-
         if description is not None:
-            self.description = inspect.cleandoc(description)
+            kwds['description'] = inspect.cleandoc(description)
 
-        # save for __set_name__
-        self._inherit = inherit
-        self._unit = unit  # for legacy code only
-        self._constant = constant
+        self.init(kwds)
+
+        if inherit:
+            self.ownProperties.update(self.propertyValues)
+        else:
+            self.ownProperties = {k: getattr(self, k) for k in self.propertyDict}
 
     def __get__(self, instance, owner):
         # not used yet
@@ -195,56 +208,69 @@ class Parameter(Accessible):
 
     def __set_name__(self, owner, name):
         self.name = name
+        if isinstance(self.datatype, EnumType):
+            self.datatype.set_name(name)
 
-        if self._inherit:
-            self.inherit(Parameter, owner)
+        if self.export is True:
+            predefined_cls = PREDEFINED_ACCESSIBLES.get(self.name, None)
+            if predefined_cls is Parameter:
+                self.export = self.name
+            elif predefined_cls is None:
+                self.export = '_' + self.name
+            else:
+                raise ProgrammingError('can not use %r as name of a Parameter' % self.name)
 
-        # check for completeness
-        missing_properties = [pname for pname in ('description', 'datatype') if pname not in self.propertyValues]
-        if missing_properties:
-            raise ProgrammingError('Parameter %s.%s needs a %s' %
-                                   (owner.__name__, name, ' and a '.join(missing_properties)))
-        if self._unit is not None:
-            self.datatype.setProperty('unit', self._unit)
+    def copy(self):
+        """return a (deep) copy of ourselfs"""
+        res = type(self)()
+        res.name = self.name
+        res.init(self.propertyValues)
+        if 'datatype' in self.propertyValues:
+            res.datatype = res.datatype.copy()
+        return res
 
-        if self._constant is not None:
-            constant = self.datatype(self._constant)
+    def updateProperties(self, merged_properties):
+        """update merged_properties with our own properties"""
+        datatype = self.ownProperties.get('datatype')
+        if datatype is not None:
+            # clear datatype properties, as they are overriden by datatype
+            for key in list(merged_properties):
+                if key not in self.propertyDict:
+                    merged_properties.pop(key)
+        merged_properties.update(self.ownProperties)
+
+    def override(self, value):
+        """override default"""
+        self.default = self.datatype(value)
+
+    def merge(self, merged_properties):
+        """merge with inherited properties
+
+        :param merged_properties: dict of properties to be updated
+        note: merged_properties may be modified
+        """
+        datatype = merged_properties.pop('datatype', None)
+        if datatype is not None:
+            self.datatype = datatype.copy()
+        self.init(merged_properties)
+        self.finish()
+
+    def finish(self):
+        """ensure consistency"""
+
+        if self.constant is not None:
+            constant = self.datatype(self.constant)
             # The value of the `constant` property should be the
             # serialised version of the constant, or unset
             self.constant = self.datatype.export_value(constant)
             self.readonly = True
-
         if 'default' in self.propertyValues:
             # fixes in case datatype has changed
             try:
-                self.datatype(self.default)
+                self.default = self.datatype(self.default)
             except BadValueError:
                 # clear default, if it does not match datatype
                 self.propertyValues.pop('default')
-
-        if self.export is True:
-            predefined_cls = PREDEFINED_ACCESSIBLES.get(name, None)
-            if predefined_cls is Parameter:
-                self.export = name
-            elif predefined_cls is None:
-                self.export = '_' + name
-            else:
-                raise ProgrammingError('can not use %r as name of a Parameter' % name)
-
-    def copy(self):
-        # deep copy, as datatype might be altered from config
-        res = type(self)()
-        res.name = self.name
-        res.init(self.propertyValues)
-        res.datatype = res.datatype.copy()
-        return res
-
-    def override(self, value=UNSET, **kwds):
-        res = self.copy()
-        res.init(kwds)
-        if value is not UNSET:
-            res.value = res.datatype(value)
-        return res
 
     def export_value(self):
         return self.datatype.export_value(self.value)
@@ -255,15 +281,23 @@ class Parameter(Accessible):
     def getProperties(self):
         """get also properties of datatype"""
         super_prop = super().getProperties().copy()
-        super_prop.update(self.datatype.getProperties())
+        if self.datatype:
+            super_prop.update(self.datatype.getProperties())
         return super_prop
 
     def setProperty(self, key, value):
         """set also properties of datatype"""
-        if key in self.propertyDict:
-            super().setProperty(key, value)
-        else:
-            self.datatype.setProperty(key, value)
+        try:
+            if key in self.propertyDict:
+                super().setProperty(key, value)
+            else:
+                try:
+                    self.datatype.setProperty(key, value)
+                except KeyError:
+                    raise ProgrammingError('cannot set %s on parameter with datatype %s'
+                                           % (key, type(self.datatype).__name__)) from None
+        except ValueError as e:
+            raise ProgrammingError('property %s: %s' % (key, str(e))) from None
 
     def checkProperties(self):
         super().checkProperties()
@@ -336,10 +370,9 @@ class Command(Accessible):
         if self.func is None:
             raise ProgrammingError('Command %s.%s must be used as a method decorator' %
                                    (owner.__name__, name))
-        if self._inherit:
-            self.inherit(Command, owner)
 
         self.datatype = CommandType(self.argument, self.result)
+        self.ownProperties = self.propertyValues.copy()
         if self.export is True:
             predefined_cls = PREDEFINED_ACCESSIBLES.get(name, None)
             if predefined_cls is Command:
@@ -347,22 +380,28 @@ class Command(Accessible):
             elif predefined_cls is None:
                 self.export = '_' + name
             else:
-                raise ProgrammingError('can not use %r as name of a Command' % name)
+                raise ProgrammingError('can not use %r as name of a Command' % name) from None
+        if not self._inherit:
+            for key, pobj in self.properties.items():
+                if key not in self.propertyValues:
+                    self.propertyValues[key] = pobj.default
 
     def __get__(self, obj, owner=None):
         if obj is None:
             return self
         if not self.func:
-            raise ProgrammingError('Command %s not properly configured' % self.name)
+            raise ProgrammingError('Command %s not properly configured' % self.name) from None
         return self.func.__get__(obj, owner)
 
     def __call__(self, func):
+        """called when used as decorator"""
         if 'description' not in self.propertyValues and func.__doc__:
             self.description = inspect.cleandoc(func.__doc__)
         self.func = func
         return self
 
     def copy(self):
+        """return a (deep) copy of ourselfs"""
         res = type(self)()
         res.name = self.name
         res.func = self.func
@@ -371,15 +410,45 @@ class Command(Accessible):
             res.argument = res.argument.copy()
         if res.result:
             res.result = res.result.copy()
-        res.datatype = CommandType(res.argument, res.result)
+        self.finish()
         return res
 
-    def override(self, value=UNSET, **kwds):
-        res = self.copy()
-        res.init(kwds)
-        if value is not UNSET:
-            res.func = value
-        return res
+    def updateProperties(self, merged_properties):
+        """update merged_properties with our own properties"""
+        merged_properties.update(self.ownProperties)
+
+    def override(self, value):
+        """override method
+
+        this is needed when the @Command is missing on a method overriding a command"""
+        if not callable(value):
+            raise ProgrammingError('%s = %r is overriding a Command' % (self.name, value))
+        self.func = value
+        if value.__doc__:
+            self.description = inspect.cleandoc(value.__doc__)
+
+    def merge(self, merged_properties):
+        """merge with inherited properties
+
+        :param merged_properties: dict of properties to be updated
+        """
+        self.init(merged_properties)
+        self.finish()
+
+    def finish(self):
+        """ensure consistency"""
+        self.datatype = CommandType(self.argument, self.result)
+
+    def setProperty(self, key, value):
+        """special treatment of datatype"""
+        try:
+            if key == 'datatype':
+                command = DataTypeType()(value)
+                super().setProperty('argument', command.argument)
+                super().setProperty('result', command.result)
+            super().setProperty(key, value)
+        except ValueError as e:
+            raise ProgrammingError('property %s: %s' % (key, str(e))) from None
 
     def do(self, module_obj, argument):
         """perform function call

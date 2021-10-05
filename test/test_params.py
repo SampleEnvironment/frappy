@@ -88,15 +88,18 @@ def test_Override():
         p1 = Parameter(default=True)
         p2 = Parameter()  # override without change
 
-    assert Mod.p1 != Base.p1
-    assert Mod.p2 != Base.p2
-    assert Mod.p3 == Base.p3
-
-    assert id(Mod.p2) != id(Base.p2)  # must be a new object
-    assert repr(Mod.p2) == repr(Base.p2)  # but must be a clone
+    assert id(Mod.p1) != id(Base.p1)
+    assert id(Mod.p2) != id(Base.p2)
+    assert id(Mod.p3) == id(Base.p3)
+    assert repr(Mod.p2) == repr(Base.p2)  # must be a clone
+    assert repr(Mod.p3) == repr(Base.p3)  # must be a clone
+    assert Mod.p1.default is True
+    # manipulating default makes Base.p1 and Mod.p1 match
+    Mod.p1.default = False
+    assert repr(Mod.p1) == repr(Base.p1)
 
 
 def test_Export():
-    class Mod:
+    class Mod(HasAccessibles):
         param = Parameter('description1', datatype=BoolType, default=False)
     assert Mod.param.export == '_param'

@@ -25,9 +25,10 @@
 
 import sys
 import time
+from collections import OrderedDict
 
 from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
-    IntRange, StatusType, StringType, TextType, TupleOf, get_datatype
+    IntRange, StatusType, StringType, TextType, TupleOf
 from secop.errors import BadValueError, ConfigError, InternalError, \
     ProgrammingError, SECoPError, SilentError, secop_error
 from secop.lib import formatException, mkthread
@@ -40,7 +41,7 @@ Done = object()  #: a special return value for a read/write function indicating 
 
 
 class HasAccessibles(HasProperties):
-    """base class of module
+    """base class of Module
 
     joining the class's properties, parameters and commands dicts with
     those of base classes.
@@ -52,40 +53,46 @@ class HasAccessibles(HasProperties):
         super().__init_subclass__()
         # merge accessibles from all sub-classes, treat overrides
         # for now, allow to use also the old syntax (parameters/commands dict)
-        accessibles = {}
-        for base in reversed(cls.__bases__):
-            accessibles.update(getattr(base, 'accessibles', {}))
-        newaccessibles = {k: v for k, v in cls.__dict__.items() if isinstance(v, Accessible)}
-        for aname, aobj in list(accessibles.items()):
-            value = getattr(cls, aname, None)
-            if not isinstance(value, Accessible):  # else override is already done in __set_name__
-                if value is None:
-                    accessibles.pop(aname)
-                else:
-                    # this is either a method overwriting a command
-                    # or a value overwriting a property value or parameter default
-                    anew = aobj.override(value)
-                    newaccessibles[aname] = anew
-                    setattr(cls, aname, anew)
-                    anew.__set_name__(cls, aname)
+        accessibles = OrderedDict()  # dict of accessibles
+        merged_properties = {}  # dict of dict of merged properties
+        new_names = []  # list of names of new accessibles
+        override_values = {}  # bare values overriding a parameter and methods overriding a command
 
-        ordered = {}
-        for aname in cls.__dict__.get('paramOrder', ()):
+        for base in reversed(cls.__mro__):
+            for key, value in base.__dict__.items():
+                if isinstance(value, Accessible):
+                    value.updateProperties(merged_properties.setdefault(key, {}))
+                    if base == cls and key not in accessibles:
+                        new_names.append(key)
+                    accessibles[key] = value
+                    override_values.pop(key, None)
+                elif key in accessibles:
+                    override_values[key] = value
+        for aname, aobj in accessibles.items():
+            if aname in override_values:
+                aobj = aobj.copy()
+                aobj.merge(merged_properties[aname])
+                aobj.override(override_values[aname])
+                # replace the bare value by the created accessible
+                setattr(cls, aname, aobj)
+            else:
+                aobj.merge(merged_properties[aname])
+            accessibles[aname] = aobj
+        # rebuild order: (1) inherited items, (2) items from paramOrder, (3) new accessibles
+        # move (2) to the end
+        for aname in list(cls.__dict__.get('paramOrder', ())):
             if aname in accessibles:
-                ordered[aname] = accessibles.pop(aname)
-            elif aname in newaccessibles:
-                ordered[aname] = newaccessibles.pop(aname)
-            # ignore unknown names
-        # starting from old accessibles not mentioned, append items from 'order'
-        accessibles.update(ordered)
-        # then new accessibles not mentioned
-        accessibles.update(newaccessibles)
+                accessibles.move_to_end(aname)
+                # ignore unknown names
+        # move (3) to the end
+        for aname in new_names:
+            accessibles.move_to_end(aname)
+        # note: for python < 3.6 the order of inherited items is not ensured between
+        # declarations within the same class
         cls.accessibles = accessibles
 
         # Correct naming of EnumTypes
-        for k, v in accessibles.items():
-            if isinstance(v, Parameter) and isinstance(v.datatype, EnumType):
-                v.datatype.set_name(k)
+        # moved to Parameter.__set_name__
 
         # check validity of Parameter entries
         for pname, pobj in accessibles.items():
@@ -318,8 +325,9 @@ class Module(HasAccessibles):
                 paramobj = self.accessibles.get(paramname, None)
                 # paramobj might also be a command (not sure if this is needed)
                 if paramobj:
-                    if propname == 'datatype':
-                        propvalue = get_datatype(propvalue, k)
+                    # no longer needed, this conversion is done by DataTypeType.__call__:
+                    # if propname == 'datatype':
+                    #     propvalue = get_datatype(propvalue, k)
                     try:
                         paramobj.setProperty(propname, propvalue)
                     except KeyError:
@@ -346,6 +354,10 @@ class Module(HasAccessibles):
         for pname, pobj in self.parameters.items():
             self.valueCallbacks[pname] = []
             self.errorCallbacks[pname] = []
+
+            if not pobj.hasDatatype():
+                errors.append('%s needs a datatype' % pname)
+                continue
 
             if pname in cfgdict:
                 if not pobj.readonly and pobj.initwrite is not False:
@@ -393,11 +405,15 @@ class Module(HasAccessibles):
                     cfgdict.pop(k)
             except (ValueError, TypeError) as e:
                 # self.log.exception(formatExtendedStack())
-                errors.append('module %s, parameter %s: %s' % (self.name, k, e))
+                errors.append('parameter %s: %s' % (k, e))
+
+        # ensure consistency
+        for aobj in self.accessibles.values():
+            aobj.finish()
 
         # Modify units AFTER applying the cfgdict
-        for k, v in self.parameters.items():
-            dt = v.datatype
+        for pname, pobj in self.parameters.items():
+            dt = pobj.datatype
             if '$' in dt.unit:
                 dt.setProperty('unit', dt.unit.replace('$', self.parameters['value'].datatype.unit))
 

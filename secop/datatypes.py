@@ -958,7 +958,7 @@ class CommandType(DataType):
         argstr = repr(self.argument) if self.argument else ''
         if self.result is None:
             return 'CommandType(%s)' % argstr
-        return 'CommandType(%s)->%s' % (argstr, repr(self.result))
+        return 'CommandType(%s, %s)' % (argstr, repr(self.result))
 
     def __call__(self, value):
         """return the validated argument value or raise"""
@@ -999,7 +999,10 @@ class DataTypeType(DataType):
         returns the value or raises an appropriate exception"""
         if isinstance(value, DataType):
             return value
-        raise ProgrammingError('%r should be a DataType!' % value)
+        try:
+            return get_datatype(value)
+        except Exception as e:
+            raise ProgrammingError(e) from None
 
     def export_value(self, value):
         """if needed, reformat value for transport"""
@@ -1033,6 +1036,13 @@ class ValueType(DataType):
         instead.
         """
         raise NotImplementedError
+
+    def setProperty(self, key, value):
+        """silently ignored
+
+        as ValueType is used for the datatype default, this makes code
+        shorter for cases, where the datatype may not yet be defined
+        """
 
 
 class NoneOr(DataType):

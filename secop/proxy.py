@@ -182,7 +182,7 @@ def proxy_class(remote_class, name=None):
 
     for aname, aobj in rcls.accessibles.items():
         if isinstance(aobj, Parameter):
-            pobj = aobj.override(poll=False, handler=None, needscfg=False)
+            pobj = aobj.merge(dict(poll=False, handler=None, needscfg=False))
             attrs[aname] = pobj
 
             def rfunc(self, pname=aname):

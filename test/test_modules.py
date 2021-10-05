@@ -26,14 +26,16 @@ import threading
 
 import pytest
 
-from secop.datatypes import BoolType, FloatRange, StringType
-from secop.errors import ProgrammingError
-from secop.modules import Communicator, Drivable, Module
+from secop.datatypes import BoolType, FloatRange, StringType, IntRange
+from secop.errors import ProgrammingError, ConfigError
+from secop.modules import Communicator, Drivable, Readable, Module
 from secop.params import Command, Parameter
 from secop.poller import BasicPoller
 
 
 class DispatcherStub:
+    OMIT_UNCHANGED_WITHIN = 0
+
     def __init__(self, updates):
         self.updates = updates
 
@@ -49,6 +51,9 @@ class LoggerStub:
     def debug(self, *args):
         print(*args)
     info = warning = exception = debug
+
+
+logger = LoggerStub()
 
 
 class ServerStub:
@@ -125,7 +130,7 @@ def test_ModuleMagic():
         value = Parameter(datatype=FloatRange(unit='deg'))
         a1 = Parameter(datatype=FloatRange(unit='$/s'), readonly=False)
         b2 = Parameter('<b2>', datatype=BoolType(), default=True,
-                            poll=True, readonly=False, initwrite=True)
+                       poll=True, readonly=False, initwrite=True)
 
         def write_a1(self, value):
             self._a1_written = value
@@ -142,7 +147,6 @@ def test_ModuleMagic():
     sortcheck2 = ['status', 'pollinterval', 'target', 'stop',
                   'a1', 'a2', 'cmd2', 'param1', 'param2', 'cmd', 'value', 'b2']
 
-    logger = LoggerStub()
     updates = {}
     srv = ServerStub(updates)
 
@@ -228,3 +232,113 @@ def test_ModuleMagic():
         o.earlyInit()
     for o in objects:
         o.initModule()
+
+
+def test_param_inheritance():
+    srv = ServerStub({})
+
+    class Base(Module):
+        param = Parameter()
+
+    class MissingDatatype(Base):
+        param = Parameter('param')
+
+    class MissingDescription(Base):
+        param = Parameter(datatype=FloatRange(), default=0)
+
+    # missing datatype and/or description of a parameter has to be detected
+    # at instantation and only then
+    with pytest.raises(ConfigError) as e_info:
+        MissingDatatype('o', logger, {'description': ''}, srv)
+    assert 'datatype' in repr(e_info.value)
+
+    with pytest.raises(ConfigError) as e_info:
+        MissingDescription('o', logger, {'description': ''}, srv)
+    assert 'description' in repr(e_info.value)
+
+    with pytest.raises(ConfigError) as e_info:
+        Base('o', logger, {'description': ''}, srv)
+
+
+def test_mixin():
+    # srv = ServerStub({})
+
+    class Mixin:  # no need to inherit from Module or HasAccessible
+        value = Parameter(unit='K')  # missing datatype and description acceptable in mixins
+        param1 = Parameter('no datatype yet', fmtstr='%.5f')
+        param2 = Parameter('no datatype yet', default=1)
+
+    class MixedReadable(Mixin, Readable):
+        pass
+
+    class MixedDrivable(MixedReadable, Drivable):
+        value = Parameter(unit='Ohm', fmtstr='%.3f')
+        param1 = Parameter(datatype=FloatRange())
+
+    with pytest.raises(ProgrammingError):
+        class MixedModule(Mixin):  # pylint: disable=unused-variable
+            param1 = Parameter('', FloatRange(), fmtstr=0)  # fmtstr must be a string
+
+    assert repr(MixedDrivable.status.datatype) == repr(Drivable.status.datatype)
+    assert repr(MixedReadable.status.datatype) == repr(Readable.status.datatype)
+    assert MixedReadable.value.datatype.unit == 'K'
+    assert MixedDrivable.value.datatype.unit == 'Ohm'
+    assert MixedDrivable.value.datatype.fmtstr == '%.3f'
+    # when datatype is overridden, fmtstr falls back to default:
+    assert MixedDrivable.param1.datatype.fmtstr == '%g'
+
+    srv = ServerStub({})
+
+    MixedDrivable('o', logger, {
+        'description': '',
+        'param1.description': 'param 1',
+        'param1': 0,
+        'param2.datatype': {"type": "double"},
+    }, srv)
+
+    with pytest.raises(ConfigError):
+        MixedReadable('o', logger, {
+            'description': '',
+            'param1.description': 'param 1',
+            'param1': 0,
+            'param2.datatype': {"type": "double"},
+        }, srv)
+
+
+def test_override():
+    class Mod(Drivable):
+        value = 5  # overriding the default value
+
+        def stop(self):
+            """no decorator needed"""
+
+    assert Mod.value.default == 5
+    assert Mod.stop.description == "no decorator needed"
+
+
+def test_command_config():
+    class Mod(Module):
+        @Command(IntRange(0, 1), result=IntRange(0, 1))
+        def convert(self, value):
+            return value
+
+    srv = ServerStub({})
+    mod = Mod('o', logger, {
+        'description': '',
+        'convert.argument': {'type': 'bool'},
+    }, srv)
+    assert mod.commands['convert'].datatype.export_datatype() == {
+        'type': 'command',
+        'argument': {'type': 'bool'},
+        'result': {'type': 'int', 'min': 0, 'max': 1},
+    }
+
+    mod = Mod('o', logger, {
+        'description': '',
+        'convert.datatype': {'type': 'command', 'argument': {'type': 'bool'}, 'result': {'type': 'bool'}},
+    }, srv)
+    assert mod.commands['convert'].datatype.export_datatype() == {
+        'type': 'command',
+        'argument': {'type': 'bool'},
+        'result': {'type': 'bool'},
+    }
