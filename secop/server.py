@@ -228,7 +228,7 @@ class Server:
         if opts:
             errors.append(self.unknown_options(cls, opts))
         self.modules = OrderedDict()
-        failure_traceback = None  # traceback for the last error
+        failure_traceback = None  # traceback for the first error
         failed = set()  # python modules failed to load
         self.lastError = None
         for modname, options in self.module_cfg.items():
@@ -245,7 +245,8 @@ class Server:
                     errors.append('%s not found' % classname)
                 else:
                     failed.add(pymodule)
-                    failure_traceback = traceback.format_exc()
+                    if failure_traceback is None:
+                        failure_traceback = traceback.format_exc()
                     errors.append('error importing %s' % classname)
             else:
                 try:
@@ -259,7 +260,8 @@ class Server:
                     for errtxt in e.args[0] if isinstance(e.args[0], list) else [e.args[0]]:
                         errors.append('  ' + errtxt)
                 except Exception:
-                    failure_traceback = traceback.format_exc()
+                    if failure_traceback is None:
+                        failure_traceback = traceback.format_exc()
                     errors.append('error creating %s' % modname)
 
         poll_table = dict()
@@ -288,7 +290,8 @@ class Server:
             try:
                 modobj.initModule()
             except Exception as e:
-                failure_traceback = traceback.format_exc()
+                if failure_traceback is None:
+                    failure_traceback = traceback.format_exc()
                 errors.append('error initializing %s: %r' % (modname, e))
 
         if errors:
