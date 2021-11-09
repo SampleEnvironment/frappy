@@ -202,3 +202,11 @@ class TCPServer(socketserver.ThreadingTCPServer):
         if ntry:
             self.log.warning('tried again %d times after "Address already in use"' % ntry)
         self.log.info("TCPServer initiated")
+
+    # py35 compatibility
+    if not hasattr(socketserver.ThreadingTCPServer, '__exit__'):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.server_close()

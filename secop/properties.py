@@ -24,24 +24,12 @@
 
 
 import inspect
-import sys
 
 from secop.errors import BadValueError, ConfigError, ProgrammingError
+from secop.lib.py35compat import Object
 
 
-class HasDescriptorMeta(type):
-    def __new__(cls, name, bases, attrs):
-        newtype = type.__new__(cls, name, bases, attrs)
-        if sys.version_info < (3, 6):
-            # support older python versions
-            for key, attr in attrs.items():
-                if hasattr(attr, '__set_name__'):
-                    attr.__set_name__(newtype, key)
-            newtype.__init_subclass__()
-        return newtype
-
-
-class HasDescriptors(metaclass=HasDescriptorMeta):
+class HasDescriptors(Object):
     @classmethod
     def __init_subclass__(cls):
         # when migrating old style declarations, sometimes the trailing comma is not removed
@@ -142,12 +130,6 @@ class HasProperties(HasDescriptors):
     @classmethod
     def __init_subclass__(cls):
         super().__init_subclass__()
-        # raise an error when an attribute is a tuple with one single descriptor as element
-        # when migrating old style declarations, sometimes the trailing comma is not removed
-        bad = [k for k, v in cls.__dict__.items()
-               if isinstance(v, tuple) and len(v) == 1 and hasattr(v[0], '__set_name__')]
-        if bad:
-            raise ProgrammingError('misplaced trailing comma after %s.%s' % (cls.__name__, '/'.join(bad)))
         properties = {}
         # using cls.__bases__ and base.propertyDict for this would fail on some multiple inheritance cases
         for base in reversed(cls.__mro__):
