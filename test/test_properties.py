@@ -159,3 +159,26 @@ def test_Property_override():
             a = 's'
 
     assert 'can not set' in str(e.value)
+
+
+def test_Properties_mro():
+    class Base(HasProperties):
+        prop = Property('base', StringType(), 'base', export='always')
+
+    class SubA(Base):
+        pass
+
+    class SubB(Base):
+        prop = Property('sub', FloatRange(), extname='prop')
+
+    class FinalBA(SubB, SubA):
+        prop = 1
+
+    class FinalAB(SubA, SubB):
+        prop = 2
+
+    assert SubA().exportProperties() == {'_prop': 'base'}
+    assert FinalBA().exportProperties() == {'prop': 1.0}
+    # in an older implementation the following would fail, as SubA.p is constructed first
+    # and then SubA.p overrides SubB.p
+    assert FinalAB().exportProperties() == {'prop': 2.0}

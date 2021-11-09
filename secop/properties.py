@@ -50,15 +50,6 @@ class HasDescriptors(metaclass=HasDescriptorMeta):
         if bad:
             raise ProgrammingError('misplaced trailing comma after %s.%s' % (cls.__name__, '/'.join(bad)))
 
-    @classmethod
-    def filterDescriptors(cls, filter_type):
-        res = {}
-        for name in dir(cls):
-            desc = getattr(cls, name, None)
-            if isinstance(desc, filter_type):
-                res[name] = desc
-        return res
-
 
 UNSET = object()  # an unset value, not even None
 
@@ -111,6 +102,9 @@ class Property:
         if self.export and not self.extname:
             self.extname = '_' + name
 
+    def copy(self):
+        return type(self)(**self.__dict__)
+
     def __repr__(self):
         extras = ['default=%s' % repr(self.default)]
         if self.export:
@@ -128,6 +122,12 @@ class Property:
 
 
 class HasProperties(HasDescriptors):
+    """mixin for classes with properties
+
+    - properties are collected in cls.propertyDict
+    - bare values overriding properties should be kept as properties
+    - include also attributes of type Property on base classes not inheriting HasProperties
+    """
     propertyValues = None
 
     def __init__(self):
@@ -149,25 +149,24 @@ class HasProperties(HasDescriptors):
         if bad:
             raise ProgrammingError('misplaced trailing comma after %s.%s' % (cls.__name__, '/'.join(bad)))
         properties = {}
-        for base in cls.__bases__:
-            properties.update(getattr(base, 'propertyDict', {}))
-        properties.update(cls.filterDescriptors(Property))
+        # using cls.__bases__ and base.propertyDict for this would fail on some multiple inheritance cases
+        for base in reversed(cls.__mro__):
+            properties.update({k: v for k, v in base.__dict__.items() if isinstance(v, Property)})
         cls.propertyDict = properties
         # treat overriding properties with bare values
         for pn, po in properties.items():
             value = getattr(cls, pn, po)
             if not isinstance(value, Property):  # attribute is a bare value
-                po = Property(**po.__dict__)
+                po = po.copy()
                 try:
                     po.value = po.datatype(value)
                 except BadValueError:
-                    for base in cls.__bases__:
-                        if pn in getattr(base, 'propertyDict', {}):
-                            if callable(value):
-                                raise ProgrammingError('method %s.%s collides with property of %s' %
-                                                       (cls.__name__, pn, base.__name__)) from None
-                            raise ProgrammingError('can not set property %s.%s to %r' %
-                                                   (cls.__name__, pn, value)) from None
+                    if pn in properties:
+                        if callable(value):
+                            raise ProgrammingError('method %s.%s collides with property of %s' %
+                                                   (cls.__name__, pn, base.__name__)) from None
+                        raise ProgrammingError('can not set property %s.%s to %r' %
+                                               (cls.__name__, pn, value)) from None
                 cls.propertyDict[pn] = po
 
     def checkProperties(self):
@@ -177,8 +176,7 @@ class HasProperties(HasDescriptors):
                 try:
                     self.propertyValues[pn] = po.datatype(self.propertyValues[pn])
                 except (KeyError, BadValueError):
-                    name = getattr(self, 'name', self.__class__.__name__)
-                    raise ConfigError('%s.%s needs a value of type %r!' % (name, pn, po.datatype)) from None
+                    raise ConfigError('%s needs a value of type %r!' % (pn, po.datatype)) from None
         for pn, po in self.propertyDict.items():
             if pn.startswith('min'):
                 maxname = 'max' + pn[3:]
