@@ -518,7 +518,7 @@ class SecopClient(ProxyClient):
         action, _, data = entry[2]  # pylint: disable=unpacking-non-sequence
         if action.startswith(ERRORPREFIX):
             errcls = self.error_map(data[0])
-            raise errcls('on SEC-Node: ' + data[1])
+            raise errcls(data[1])
         return entry[2]  # reply
 
     def request(self, action, ident=None, data=None):

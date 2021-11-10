@@ -220,6 +220,10 @@ class Server:
             self._restart = True
             self.interface.shutdown()
 
+    def shutdown(self):
+        self._restart = False
+        self.interface.shutdown()
+
     def _processCfg(self):
         errors = []
         opts = dict(self.node_cfg)

@@ -83,6 +83,7 @@ class Dispatcher:
         self._subscriptions = {}
         self._lock = threading.RLock()
         self.restart = srv.restart
+        self.shutdown = srv.shutdown
 
     def broadcast_event(self, msg, reallyall=False):
         """broadcasts a msg to all active connections

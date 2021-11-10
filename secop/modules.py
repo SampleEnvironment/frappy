@@ -642,7 +642,7 @@ class Writable(Readable):
     """basic writable module"""
 
     target = Parameter('target value of the module',
-                       default=0, readonly=False, datatype=FloatRange())
+                       default=0, readonly=False, datatype=FloatRange(unit='$'))
 
 
 class Drivable(Writable):
