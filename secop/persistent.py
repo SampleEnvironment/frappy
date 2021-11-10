@@ -56,12 +56,14 @@ import os
 import json
 
 from secop.lib import getGeneralConfig
-from secop.params import Parameter, Property, BoolType, Command
+from secop.datatypes import EnumType
+from secop.params import Parameter, Property, Command
 from secop.modules import HasAccessibles
 
 
 class PersistentParam(Parameter):
-    persistent = Property('persistence flag', BoolType(), default=True)
+    persistent = Property('persistence flag (auto means: save automatically on any change)',
+                          EnumType(off=0, on=1, auto=2), default=1)
 
 
 class PersistentMixin(HasAccessibles):
@@ -73,8 +75,12 @@ class PersistentMixin(HasAccessibles):
         self.initData = {}
         for pname in self.parameters:
             pobj = self.parameters[pname]
-            if not pobj.readonly and getattr(pobj, 'persistent', False):
+            if not pobj.readonly and getattr(pobj, 'persistent', 0):
                 self.initData[pname] = pobj.value
+                if pobj.persistent == 'auto':
+                    def cb(value, m=self):
+                        m.saveParameters()
+                    self.valueCallbacks[pname].append(cb)
         self.writeDict.update(self.loadParameters(write=False))
 
     def loadParameters(self, write=True):
@@ -88,7 +94,7 @@ class PersistentMixin(HasAccessibles):
         try:
             with open(self.persistentFile, 'r') as f:
                 self.persistentData = json.load(f)
-        except FileNotFoundError:
+        except Exception:
             self.persistentData = {}
         writeDict = {}
         for pname in self.parameters:
