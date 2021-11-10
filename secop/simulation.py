@@ -28,7 +28,7 @@ from time import sleep
 from secop.datatypes import FloatRange
 from secop.lib import mkthread
 from secop.modules import BasicPoller, Drivable, \
-    Module, Parameter, Readable, Writable
+    Module, Parameter, Readable, Writable, Command
 
 
 class SimBase:
@@ -104,10 +104,11 @@ class SimWritable(SimReadable, Writable):
 
 
 class SimDrivable(SimReadable, Drivable):
+    interval = Parameter('simulation interval', FloatRange(0, 1), readonly=False, default=0.3)
 
     def sim(self):
         while self._value == self.target:
-            sleep(0.3)
+            sleep(self.interval)
         self.status = self.Status.BUSY, 'MOVING'
         speed = 0
         if 'ramp' in self.accessibles:
@@ -116,7 +117,7 @@ class SimDrivable(SimReadable, Drivable):
             speed = self.speed
         if speed == 0:
             self._value = self.target
-        speed *= 0.3
+        speed *= self.interval
         try:
             self.pollParams(0)
         except Exception:
@@ -129,7 +130,7 @@ class SimDrivable(SimReadable, Drivable):
                 self._value -= speed
             else:
                 self._value = self.target
-            sleep(0.3)
+            sleep(self.interval)
             try:
                 self.pollParams(0)
             except Exception:
@@ -139,4 +140,8 @@ class SimDrivable(SimReadable, Drivable):
 
     def _hw_wait(self):
         while self.status[0] == self.Status.BUSY:
-            sleep(0.3)
+            sleep(self.interval)
+
+    @Command
+    def stop(self):
+        self.target = self.value
