@@ -98,7 +98,7 @@ def clamp(_min, value, _max):
 
 
 def get_class(spec):
-    """loads a class given by string in dotted notaion (as python would do)"""
+    """loads a class given by string in dotted notation (as python would do)"""
     modname, classname = spec.rsplit('.', 1)
     if modname.startswith('secop'):
         module = importlib.import_module(modname)

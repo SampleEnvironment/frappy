@@ -48,6 +48,7 @@ class ConnectionClosed(ConnectionError):
 
 class AsynConn:
     timeout = 1  # inter byte timeout
+    scheme = None
     SCHEME_MAP = {}
     connection = None  # is not None, if connected
     defaultport = None
@@ -79,8 +80,10 @@ class AsynConn:
         self.disconnect()
 
     @classmethod
-    def register_scheme(cls, scheme):
-        cls.SCHEME_MAP[scheme] = cls
+    def __init_subclass__(cls):
+        """register subclass to scheme, if available"""
+        if cls.scheme:
+            cls.SCHEME_MAP[cls.scheme] = cls
 
     def disconnect(self):
         raise NotImplementedError
@@ -154,6 +157,8 @@ class AsynConn:
 
 
 class AsynTcp(AsynConn):
+    scheme = 'tcp'
+
     def __init__(self, uri, *args, **kwargs):
         super().__init__(uri, *args, **kwargs)
         self.uri = uri
@@ -202,9 +207,6 @@ class AsynTcp(AsynConn):
         raise ConnectionClosed()  # marks end of connection
 
 
-AsynTcp.register_scheme('tcp')
-
-
 class AsynSerial(AsynConn):
     """a serial connection using pyserial
 
@@ -221,6 +223,7 @@ class AsynSerial(AsynConn):
 
     and others (see documentation of serial.Serial)
     """
+    scheme = 'serial'
     PARITY_NAMES = {name[0]: name for name in ['NONE', 'ODD', 'EVEN', 'MASK', 'SPACE']}
 
     def __init__(self, uri, *args, **kwargs):
@@ -282,6 +285,3 @@ class AsynSerial(AsynConn):
             return self.connection.read(n)
         data = self.connection.read(1)
         return data + self.connection.read(self.connection.in_waiting)
-
-
-AsynSerial.register_scheme('serial')
