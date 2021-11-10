@@ -364,6 +364,7 @@ class Command(Accessible):
                 self.description = inspect.cleandoc(argument.__doc__)
             self.name = self.func.__name__
         self._inherit = inherit  # save for __set_name__
+        self.ownProperties = self.propertyValues.copy()
 
     def __set_name__(self, owner, name):
         self.name = name
@@ -372,7 +373,6 @@ class Command(Accessible):
                                    (owner.__name__, name))
 
         self.datatype = CommandType(self.argument, self.result)
-        self.ownProperties = self.propertyValues.copy()
         if self.export is True:
             predefined_cls = PREDEFINED_ACCESSIBLES.get(name, None)
             if predefined_cls is Command:
