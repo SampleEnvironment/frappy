@@ -60,10 +60,11 @@ def make_update(modulename, pobj):
 
 
 class Dispatcher:
-
     def __init__(self, name, logger, options, srv):
         # to avoid errors, we want to eat all options here
         self.equipment_id = options.pop('id', name)
+        # time interval for omitting updates of unchanged values
+        self.omit_unchanged_within = options.pop('omit_unchanged_within', 0.1)
         self.nodeprops = {}
         for k in list(options):
             self.nodeprops[k] = options.pop(k)

@@ -29,7 +29,7 @@ from collections import OrderedDict
 
 from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
     IntRange, StatusType, StringType, TextType, TupleOf
-from secop.errors import BadValueError, ConfigError, InternalError, \
+from secop.errors import BadValueError, ConfigError, \
     ProgrammingError, SECoPError, SilentError, secop_error
 from secop.lib import formatException, mkthread
 from secop.lib.enum import Enum
@@ -243,12 +243,12 @@ class Module(HasAccessibles):
 
     # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
-
     pollerClass = Poller  #: default poller used
 
     def __init__(self, name, logger, cfgdict, srv):
         # remember the dispatcher object (for the async callbacks)
         self.DISPATCHER = srv.dispatcher
+        self.omit_unchanged_within = getattr(self.DISPATCHER, 'omit_unchanged_within', 0.1)
         self.log = logger
         self.name = name
         self.valueCallbacks = {}
@@ -441,18 +441,21 @@ class Module(HasAccessibles):
     def announceUpdate(self, pname, value=None, err=None, timestamp=None):
         """announce a changed value or readerror"""
         pobj = self.parameters[pname]
-        if value is not None:
-            pobj.value = value  # store the value even in case of error
+        timestamp = timestamp or time.time()
+        changed = pobj.value != value
+        try:
+            # store the value even in case of error
+            pobj.value = pobj.datatype(value)
+        except Exception as e:
+            if not err:  # do not overwrite given error
+                err = e
         if err:
-            if not isinstance(err, SECoPError):
-                err = InternalError(err)
+            err = secop_error(err)
             if str(err) == str(pobj.readerror):
                 return  # do call updates for repeated errors
-        else:
-            try:
-                pobj.value = pobj.datatype(value)
-            except Exception as e:
-                err = secop_error(e)
+        elif not changed and timestamp < (pobj.timestamp or 0) + self.omit_unchanged_within:
+            # no change within short time -> omit
+            return
         pobj.timestamp = timestamp or time.time()
         pobj.readerror = err
         if pobj.export:

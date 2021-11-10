@@ -34,7 +34,11 @@ from secop.poller import BasicPoller
 
 
 class DispatcherStub:
-    OMIT_UNCHANGED_WITHIN = 0
+    # the first update from the poller comes a very short time after the
+    # initial value from the timestamp. However, in the test below
+    # the second update happens after the updates dict is cleared
+    # -> we have to inhibit the 'omit unchanged update' feature
+    omit_unchanged_within = 0
 
     def __init__(self, updates):
         self.updates = updates
