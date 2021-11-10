@@ -346,3 +346,16 @@ def test_command_config():
         'argument': {'type': 'bool'},
         'result': {'type': 'bool'},
     }
+
+
+def test_command_none():
+    srv = ServerStub({})
+
+    class Mod(Drivable):
+        pass
+
+    class Mod2(Drivable):
+        stop = None
+
+    assert 'stop' in Mod('o', logger, {'description': ''}, srv).accessibles
+    assert 'stop' not in Mod2('o', logger, {'description': ''}, srv).accessibles
