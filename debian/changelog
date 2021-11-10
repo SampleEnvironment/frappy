@@ -1,3 +1,26 @@
+secop-core (0.12.3) focal; urgency=medium
+
+  [ Georg Brandl ]
+  * Makefile: fix docker image
+
+  [ Markus Zolliker ]
+  * various fixes
+  * remove irrelevant comments
+  * introduce BytesIO
+  * GUI fixes
+  * persistent params / trinamic motor
+  * fix Parameter/Command copy method
+  * show first instead of last traceback on multiple errors
+  * fix parameter inheritance
+  * fix property inheritance
+  * fix python 3.5 compatibility
+  * omit updates of unchanged values within short time
+  * improve simulation
+  * automatically register subclasses of AsynConn
+  * fix feature for removing commands
+
+ -- Georg Brandl <jenkins@jenkins01.admin.frm2.tum.de>  Wed, 10 Nov 2021 16:33:19 +0100
+
 secop-core (0.12.2) focal; urgency=medium
 
   [ Markus Zolliker ]
