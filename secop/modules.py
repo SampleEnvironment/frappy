@@ -322,26 +322,23 @@ class Module(HasAccessibles):
 
         # 2) check and apply parameter_properties
         #    specified as '<paramname>.<propertyname> = <propertyvalue>'
+        #    this may also be done on commands: e.g. 'stop.visibility = advanced'
         for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
             if '.' in k[1:]:
-                paramname, propname = k.split('.', 1)
+                aname, propname = k.split('.', 1)
                 propvalue = cfgdict.pop(k)
-                paramobj = self.accessibles.get(paramname, None)
-                # paramobj might also be a command (not sure if this is needed)
-                if paramobj:
-                    # no longer needed, this conversion is done by DataTypeType.__call__:
-                    # if propname == 'datatype':
-                    #     propvalue = get_datatype(propvalue, k)
+                aobj = self.accessibles.get(aname, None)
+                if aobj:
                     try:
-                        paramobj.setProperty(propname, propvalue)
+                        aobj.setProperty(propname, propvalue)
                     except KeyError:
                         errors.append("'%s.%s' does not exist" %
-                                      (paramname, propname))
+                                      (aname, propname))
                     except BadValueError as e:
                         errors.append('%s.%s: %s' %
-                                      (paramname, propname, str(e)))
+                                      (aname, propname, str(e)))
                 else:
-                    errors.append('%r not found' % paramname)
+                    errors.append('%r not found' % aname)
 
         # 3) check config for problems:
         #    only accept remaining config items specified in parameters
@@ -427,11 +424,11 @@ class Module(HasAccessibles):
                 self.checkProperties()
             except ConfigError as e:
                 errors.append(str(e))
-            for pname, p in self.parameters.items():
+            for aname, aobj in self.accessibles.items():
                 try:
-                    p.checkProperties()
-                except ConfigError as e:
-                    errors.append('%s: %s' % (pname, e))
+                    aobj.checkProperties()
+                except (ConfigError, ProgrammingError) as e:
+                    errors.append('%s: %s' % (aname, e))
         if errors:
             raise ConfigError(errors)
 

@@ -98,35 +98,14 @@ def test_Override():
     Mod.p1.default = False
     assert repr(Mod.p1) == repr(Base.p1)
 
+    for cls in locals().values():
+        if hasattr(cls, 'accessibles'):
+            for p in cls.accessibles.values():
+                assert isinstance(p.ownProperties, dict)
+                assert p.copy().ownProperties == {}
+
 
 def test_Export():
     class Mod(HasAccessibles):
         param = Parameter('description1', datatype=BoolType, default=False)
     assert Mod.param.export == '_param'
-
-
-def test_Command_Inheritance():
-    class Base(HasAccessibles):
-        @Command(BoolType(), visibility=2)
-        def cmd(self, arg):
-            """first"""
-
-    class Sub(Base):
-        @Command(group='grp')
-        def cmd(self, arg):
-            """second"""
-
-    class Sub2(Base):
-        @Command(FloatRange())
-        def cmd(self, arg):
-            """third"""
-
-    assert Sub.accessibles['cmd'].for_export() == {
-        'description': 'second', 'group': 'grp', 'visibility': 2,
-        'datainfo': {'type': 'command', 'argument': {'type': 'bool'}}
-    }
-
-    assert Sub2.accessibles['cmd'].for_export() == {
-        'description': 'third', 'visibility': 2,
-        'datainfo': {'type': 'command', 'argument': {'type': 'double'}}
-    }

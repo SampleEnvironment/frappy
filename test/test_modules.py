@@ -264,9 +264,101 @@ def test_param_inheritance():
         Base('o', logger, {'description': ''}, srv)
 
 
-def test_mixin():
-    # srv = ServerStub({})
+def test_command_inheritance():
+    class Base(Module):
+        @Command(BoolType(), visibility=2)
+        def cmd(self, arg):
+            """base"""
 
+    class Sub1(Base):
+        @Command(group='grp')
+        def cmd(self, arg):
+            """first"""
+
+    class Sub2(Sub1):
+        @Command(None, result=BoolType())
+        def cmd(self):  # pylint: disable=arguments-differ
+            """second"""
+
+    class Sub3(Base):
+        # when either argument or result is given, the other one is assumed to be None
+        # i.e. here we override the argument with None
+        @Command(result=FloatRange())
+        def cmd(self, arg):
+            """third"""
+
+    assert Sub1.accessibles['cmd'].for_export() == {
+        'description': 'first', 'group': 'grp', 'visibility': 2,
+        'datainfo': {'type': 'command', 'argument': {'type': 'bool'}}
+    }
+
+    assert Sub2.accessibles['cmd'].for_export() == {
+        'description': 'second', 'group': 'grp', 'visibility': 2,
+        'datainfo': {'type': 'command', 'result': {'type': 'bool'}}
+    }
+
+    assert Sub3.accessibles['cmd'].for_export() == {
+        'description': 'third', 'visibility': 2,
+        'datainfo': {'type': 'command', 'result': {'type': 'double'}}
+    }
+
+    for cls in locals().values():
+        if hasattr(cls, 'accessibles'):
+            for p in cls.accessibles.values():
+                assert isinstance(p.ownProperties, dict)
+                assert p.copy().ownProperties == {}
+
+
+def test_command_check():
+    srv = ServerStub({})
+
+    class Good(Module):
+        @Command(description='available')
+        def with_description(self):
+            pass
+        @Command()
+        def with_docstring(self):
+            """docstring"""
+
+    Good('o', logger, {'description': ''}, srv)
+
+    class Bad1(Module):
+        @Command
+        def without_description(self):
+            pass
+
+    class Bad2(Module):
+        @Command()
+        def without_description(self):
+            pass
+
+    for cls in Bad1, Bad2:
+        with pytest.raises(ConfigError) as e_info:
+            cls('o', logger, {'description': ''}, srv)
+        assert 'description' in repr(e_info.value)
+
+    class BadDatatype(Module):
+        @Command(FloatRange(0.1, 0.9), result=FloatRange())
+        def cmd(self):
+            """valid command"""
+
+    BadDatatype('o', logger, {'description': ''}, srv)
+
+    # test for command property checking
+    with pytest.raises(ProgrammingError):
+        BadDatatype('o', logger, {
+            'description': '',
+            'cmd.argument': {'type': 'double', 'min': 1, 'max': 0},
+        }, srv)
+
+    with pytest.raises(ProgrammingError):
+        BadDatatype('o', logger, {
+            'description': '',
+            'cmd.visibility': 'invalid',
+        }, srv)
+
+
+def test_mixin():
     class Mixin:  # no need to inherit from Module or HasAccessible
         value = Parameter(unit='K')  # missing datatype and description acceptable in mixins
         param1 = Parameter('no datatype yet', fmtstr='%.5f')
@@ -319,11 +411,19 @@ def test_override():
     assert Mod.value.default == 5
     assert Mod.stop.description == "no decorator needed"
 
+    class Mod2(Drivable):
+        @Command()
+        def stop(self):
+            pass
+
+    assert Mod2.stop.description == Drivable.stop.description
+
 
 def test_command_config():
     class Mod(Module):
         @Command(IntRange(0, 1), result=IntRange(0, 1))
         def convert(self, value):
+            """dummy conversion"""
             return value
 
     srv = ServerStub({})

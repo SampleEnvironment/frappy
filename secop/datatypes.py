@@ -955,10 +955,9 @@ class CommandType(DataType):
         return props
 
     def __repr__(self):
-        argstr = repr(self.argument) if self.argument else ''
         if self.result is None:
-            return 'CommandType(%s)' % argstr
-        return 'CommandType(%s, %s)' % (argstr, repr(self.result))
+            return 'CommandType(%s)' % (repr(self.argument) if self.argument else '')
+        return 'CommandType(%s, %s)' % (repr(self.argument), repr(self.result))
 
     def __call__(self, value):
         """return the validated argument value or raise"""

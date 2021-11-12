@@ -346,6 +346,9 @@ class Command(Accessible):
 
     def __init__(self, argument=False, *, result=None, inherit=True, **kwds):
         super().__init__()
+        if 'datatype' in kwds:
+            # self.init will complain about invalid keywords except 'datatype', as this is a property
+            raise ProgrammingError("Command() got an invalid keyword 'datatype'")
         self.init(kwds)
         if result or kwds or isinstance(argument, DataType) or not callable(argument):
             # normal case
@@ -362,7 +365,7 @@ class Command(Accessible):
             self.func = argument  # this is the wrapped method!
             if argument.__doc__:
                 self.description = inspect.cleandoc(argument.__doc__)
-            self.name = self.func.__name__
+            self.name = self.func.__name__  # this is probably not needed
         self._inherit = inherit  # save for __set_name__
         self.ownProperties = self.propertyValues.copy()
 
@@ -397,6 +400,7 @@ class Command(Accessible):
         """called when used as decorator"""
         if 'description' not in self.propertyValues and func.__doc__:
             self.description = inspect.cleandoc(func.__doc__)
+            self.ownProperties['description'] = self.description
         self.func = func
         return self
 
