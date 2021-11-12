@@ -241,7 +241,7 @@ secop-core (0.10.5) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 29 Oct 2019 16:33:18 +0100
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 29 Oct 2019 16:33:18 +0100
 
 secop-core (0.10.3) unstable; urgency=low
 
@@ -250,7 +250,7 @@ secop-core (0.10.3) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 11 Oct 2019 10:49:43 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 11 Oct 2019 10:49:43 +0200
 
 secop-core (0.10.2) unstable; urgency=low
 
@@ -261,7 +261,7 @@ secop-core (0.10.2) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 11 Oct 2019 10:42:58 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 11 Oct 2019 10:42:58 +0200
 
 secop-core (0.10.1) unstable; urgency=low
 
@@ -270,7 +270,7 @@ secop-core (0.10.1) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 26 Sep 2019 16:41:10 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 26 Sep 2019 16:41:10 +0200
 
 secop-core (0.10.0) unstable; urgency=low
 
@@ -279,7 +279,7 @@ secop-core (0.10.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 26 Sep 2019 16:31:14 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 26 Sep 2019 16:31:14 +0200
 
 secop-core (0.9.0) unstable; urgency=low
 
@@ -306,7 +306,7 @@ secop-core (0.9.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 26 Sep 2019 16:26:07 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 26 Sep 2019 16:26:07 +0200
 
 secop-core (0.8.1) unstable; urgency=low
 
@@ -315,7 +315,7 @@ secop-core (0.8.1) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Wed, 25 Sep 2019 15:40:44 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Wed, 25 Sep 2019 15:40:44 +0200
 
 secop-core (0.8.0) unstable; urgency=low
 
@@ -383,7 +383,7 @@ secop-core (0.8.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Wed, 25 Sep 2019 10:27:51 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Wed, 25 Sep 2019 10:27:51 +0200
 
 secop-core (0.7.0) unstable; urgency=low
 
@@ -419,7 +419,7 @@ secop-core (0.7.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 28 Mar 2019 13:46:08 +0100
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 28 Mar 2019 13:46:08 +0100
 
 secop-core (0.6.4) unstable; urgency=low
 
@@ -484,7 +484,7 @@ secop-core (0.6.4) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 20 Dec 2018 16:44:03 +0100
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 20 Dec 2018 16:44:03 +0100
 
 secop-core (0.6.3) unstable; urgency=low
 
@@ -498,7 +498,7 @@ secop-core (0.6.3) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 27 Jul 2018 09:31:59 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 27 Jul 2018 09:31:59 +0200
 
 secop-core (0.6.2) unstable; urgency=low
 
@@ -537,7 +537,7 @@ secop-core (0.6.2) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Wed, 18 Jul 2018 12:06:57 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Wed, 18 Jul 2018 12:06:57 +0200
 
 secop-core (0.6.1) unstable; urgency=low
 
@@ -546,7 +546,7 @@ secop-core (0.6.1) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 19 Apr 2018 10:24:44 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 19 Apr 2018 10:24:44 +0200
 
 secop-core (0.6.0) unstable; urgency=low
 
@@ -566,7 +566,7 @@ secop-core (0.6.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 17 Apr 2018 17:38:52 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 17 Apr 2018 17:38:52 +0200
 
 secop-core (0.5.0) unstable; urgency=low
 
@@ -629,7 +629,7 @@ secop-core (0.5.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 17 Apr 2018 12:45:58 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 17 Apr 2018 12:45:58 +0200
 
 secop-core (0.4.4) unstable; urgency=low
 
@@ -638,7 +638,7 @@ secop-core (0.4.4) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Sun, 24 Sep 2017 22:25:01 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Sun, 24 Sep 2017 22:25:01 +0200
 
 secop-core (0.4.3) unstable; urgency=low
 
@@ -647,7 +647,7 @@ secop-core (0.4.3) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 22 Sep 2017 17:29:46 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 22 Sep 2017 17:29:46 +0200
 
 secop-core (0.4.2) unstable; urgency=low
 
@@ -656,7 +656,7 @@ secop-core (0.4.2) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 22 Sep 2017 16:37:59 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 22 Sep 2017 16:37:59 +0200
 
 secop-core (0.4.1) unstable; urgency=low
 
@@ -665,7 +665,7 @@ secop-core (0.4.1) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 22 Sep 2017 13:25:28 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 22 Sep 2017 13:25:28 +0200
 
 secop-core (0.4.0) unstable; urgency=low
 
@@ -675,7 +675,7 @@ secop-core (0.4.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Fri, 22 Sep 2017 10:33:04 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 22 Sep 2017 10:33:04 +0200
 
 secop-core (0.3.0) unstable; urgency=low
 
@@ -741,7 +741,7 @@ secop-core (0.3.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Mon, 18 Sep 2017 14:18:36 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Mon, 18 Sep 2017 14:18:36 +0200
 
 secop-core (0.2.0) unstable; urgency=low
 
@@ -750,7 +750,7 @@ secop-core (0.2.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 07 Sep 2017 14:55:41 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 07 Sep 2017 14:55:41 +0200
 
 secop-core (0.1.1) unstable; urgency=low
 
@@ -759,7 +759,7 @@ secop-core (0.1.1) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 07 Sep 2017 11:02:19 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 07 Sep 2017 11:02:19 +0200
 
 secop-core (0.1.0) unstable; urgency=low
 
@@ -768,7 +768,7 @@ secop-core (0.1.0) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 07 Sep 2017 10:50:24 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 07 Sep 2017 10:50:24 +0200
 
 secop-core (0.0.8) unstable; urgency=low
 
@@ -777,7 +777,7 @@ secop-core (0.0.8) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 01 Aug 2017 14:13:11 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 01 Aug 2017 14:13:11 +0200
 
 secop-core (0.0.7) unstable; urgency=low
 
@@ -786,7 +786,7 @@ secop-core (0.0.7) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 01 Aug 2017 13:52:15 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 01 Aug 2017 13:52:15 +0200
 
 secop-core (0.0.6) unstable; urgency=low
 
@@ -796,7 +796,7 @@ secop-core (0.0.6) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 01 Aug 2017 13:39:07 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 01 Aug 2017 13:39:07 +0200
 
 secop-core (0.0.5) unstable; urgency=low
 
@@ -805,7 +805,7 @@ secop-core (0.0.5) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Tue, 01 Aug 2017 13:11:43 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 01 Aug 2017 13:11:43 +0200
 
 secop-core (0.0.4) unstable; urgency=low
 
@@ -814,7 +814,7 @@ secop-core (0.0.4) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 27 Jul 2017 11:39:42 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 27 Jul 2017 11:39:42 +0200
 
 secop-core (0.0.3) unstable; urgency=low
 
@@ -824,7 +824,7 @@ secop-core (0.0.3) unstable; urgency=low
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 27 Jul 2017 11:27:28 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 27 Jul 2017 11:27:28 +0200
 
 secop-core (0.0.2) unstable; urgency=medium
 
@@ -902,4 +902,4 @@ secop-core (0.0.2) unstable; urgency=medium
 
   [ Jenkins ]
 
- -- Jenkins <jenkins@debuild.taco.frm2>  Wed, 19 Jul 2017 11:44:13 +0200
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Wed, 19 Jul 2017 11:44:13 +0200
