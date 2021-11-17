@@ -492,8 +492,11 @@ class AnalogOutput(PyTangoDevice, Drivable):
         hist = self._history[:]
         window_start = currenttime() - self.window
         hist_in_window = [v for (t, v) in hist if t >= window_start]
+        if len(hist) == len(hist_in_window):
+            return False  # no data point before window
         if not hist_in_window:
-            return False  # no relevant history -> no knowledge
+            # window is too small -> use last point only
+            hist_in_window = [self.value]
 
         max_in_hist = max(hist_in_window)
         min_in_hist = min(hist_in_window)
@@ -574,7 +577,9 @@ class AnalogOutput(PyTangoDevice, Drivable):
         if not self.timeout:
             self._timeout = None
         self._moving = True
-        self._history = []  # clear history
+        # do not clear the history here:
+        #    - if the target is not changed by more than precision, there is no need to wait
+        # self._history = []
         self.read_status()  # poll our status to keep it updated
         return self.read_target()
 
