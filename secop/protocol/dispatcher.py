@@ -45,9 +45,11 @@ from time import time as currenttime
 from secop.errors import NoSuchCommandError, NoSuchModuleError, \
     NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPServerError
 from secop.params import Parameter
+from secop.logging import set_log_level
 from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
-    HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY
+    HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY, \
+    LOGGING_REPLY, LOG_EVENT
 
 
 def make_update(modulename, pobj):
@@ -129,6 +131,7 @@ class Dispatcher:
             self._connections.remove(conn)
         for _evt, conns in list(self._subscriptions.items()):
             conns.discard(conn)
+        self.set_all_log_levels(conn, 'off')
         self._active_connections.discard(conn)
 
     def register_module(self, moduleobj, modulename, export=True):
@@ -372,3 +375,19 @@ class Dispatcher:
             self._active_connections.discard(conn)
             # XXX: also check all entries in self._subscriptions?
         return (DISABLEEVENTSREPLY, None, None)
+
+    def send_log_msg(self, conn, modname, level, msg):
+        """send log message """
+        if conn in self._connections:
+            conn.send_reply((LOG_EVENT, '%s:%s' % (modname, level), msg))
+
+    def set_all_log_levels(self, conn, level):
+        for modobj in self._modules.values():
+            set_log_level(modobj, conn, level)
+
+    def handle_logging(self, conn, specifier, level):
+        if specifier and specifier != '.':
+            set_log_level(self._modules[specifier], conn, level)
+        else:
+            self.set_all_log_levels(conn, level)
+        return LOGGING_REPLY, specifier, level

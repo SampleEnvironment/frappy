@@ -65,6 +65,13 @@ ERRORPREFIX = 'error_'  # + specifier + json_extended_info(error_report)
 HELPREQUEST = 'help'  # literal
 HELPREPLY = 'helping'  # +line number +json_text
 
+LOGGING_REQUEST = 'logging'
+LOGGING_REPLY = 'logging'
+# + [module] + json string (loglevel)
+
+LOG_EVENT = 'log'
+# + [module:level] + json_string (message)
+
 # helper mapping to find the REPLY for a REQUEST
 # do not put IDENTREQUEST/IDENTREPLY here, as this needs anyway extra treatment
 REQUEST2REPLY = {
@@ -77,6 +84,7 @@ REQUEST2REPLY = {
     READREQUEST:          READREPLY,
     HEARTBEATREQUEST:     HEARTBEATREPLY,
     HELPREQUEST:          HELPREPLY,
+    LOGGING_REQUEST:      LOGGING_REPLY,
 }
 
 
@@ -89,6 +97,8 @@ HelpMessage = """Try one of the following:
             '%s <nonce>' to request a heartbeat response
             '%s' to activate async updates
             '%s' to deactivate updates
+            '%s [<module>] <loglevel>' to activate logging events
             """ % (IDENTREQUEST, DESCRIPTIONREQUEST, READREQUEST,
                    WRITEREQUEST, COMMANDREQUEST, HEARTBEATREQUEST,
-                   ENABLEEVENTSREQUEST, DISABLEEVENTSREQUEST)
+                   ENABLEEVENTSREQUEST, DISABLEEVENTSREQUEST,
+                   LOGGING_REQUEST)
