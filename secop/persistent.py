@@ -55,7 +55,7 @@ class MyClass(PersistentMixin, ...):
 import os
 import json
 
-from secop.lib import getGeneralConfig
+from secop.lib import generalConfig
 from secop.datatypes import EnumType
 from secop.params import Parameter, Property, Command
 from secop.modules import HasAccessibles
@@ -69,7 +69,7 @@ class PersistentParam(Parameter):
 class PersistentMixin(HasAccessibles):
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
-        persistentdir = os.path.join(getGeneralConfig()['logdir'], 'persistent')
+        persistentdir = os.path.join(generalConfig.logdir, 'persistent')
         os.makedirs(persistentdir, exist_ok=True)
         self.persistentFile = os.path.join(persistentdir, '%s.%s.json' % (self.DISPATCHER.equipment_id, self.name))
         self.initData = {}

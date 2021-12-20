@@ -32,7 +32,7 @@ import mlzlog
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-from secop.lib import getGeneralConfig
+from secop.lib import generalConfig
 from secop.server import Server
 
 
@@ -60,15 +60,21 @@ def parseArgv(argv):
     parser.add_argument('-c',
                         '--cfgfiles',
                         action='store',
-                        help="comma separated list of cfg files\n"
-                        "defaults to <name_of_the_instance>\n"
-                        "cfgfiles given without '.cfg' extension are searched in the configuration directory,"
+                        help="comma separated list of cfg files,\n"
+                        "defaults to <name_of_the_instance>.\n"
+                        "cfgfiles given without '.cfg' extension are searched in the configuration directory, "
                         "else they are treated as path names",
+                        default=None)
+    parser.add_argument('-g',
+                        '--gencfg',
+                        action='store',
+                        help="full path of general config file,\n"
+                        "defaults to env. variable FRAPPY_CONFIG_FILE\n",
                         default=None)
     parser.add_argument('-t',
                         '--test',
                         action='store_true',
-                        help='Check cfg files only',
+                        help='check cfg files only',
                         default=False)
     return parser.parse_args(argv)
 
@@ -80,7 +86,8 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
-    mlzlog.initLogging('secop', loglevel, getGeneralConfig()['logdir'])
+    generalConfig.init(args.gencfg)
+    mlzlog.initLogging('frappy', loglevel, generalConfig.logdir)
 
     srv = Server(args.name, mlzlog.log, cfgfiles=args.cfgfiles, interface=args.port, testonly=args.test)
 

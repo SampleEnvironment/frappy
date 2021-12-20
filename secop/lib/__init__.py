@@ -27,39 +27,79 @@ import socket
 import sys
 import threading
 import traceback
+from configparser import ConfigParser
 from os import environ, path
-
-repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
-
-if path.splitext(sys.executable)[1] == ".exe" and not path.basename(sys.executable).startswith('python'):
-    CONFIG = {
-        'piddir': './',
-        'logdir': './log',
-        'confdir': './',
-    }
-elif not path.exists(path.join(repodir, '.git')):
-    CONFIG = {
-        'piddir': '/var/run/secop',
-        'logdir': '/var/log',
-        'confdir': '/etc/secop',
-    }
-else:
-    CONFIG = {
-        'piddir': path.join(repodir, 'pid'),
-        'logdir': path.join(repodir, 'log'),
-        'confdir': path.join(repodir, 'cfg'),
-    }
-# overwrite with env variables SECOP_LOGDIR, SECOP_PIDDIR, SECOP_CONFDIR, if present
-for dirname in CONFIG:
-    CONFIG[dirname] = environ.get('SECOP_%s' % dirname.upper(), CONFIG[dirname])
-
-# this is not customizable
-CONFIG['basedir'] = repodir
-
-# TODO: if ever more general options are need, we should think about a general config file
 
 
 unset_value = object()
+
+
+class GeneralConfig:
+    def __init__(self):
+        self._config = None
+
+    def init(self, configfile=None):
+        cfg = {}
+        mandatory = 'piddir', 'logdir', 'confdir'
+        repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
+        # create default paths
+        if path.splitext(sys.executable)[1] == ".exe" and not path.basename(sys.executable).startswith('python'):
+            # special MS windows environment
+            cfg.update(piddir='./', logdir='./log', confdir='./')
+        elif path.exists(path.join(repodir, '.git')):
+            # running from git repo
+            cfg['confdir'] = path.join(repodir, 'cfg')
+            # take logdir and piddir from <repodir>/cfg/generalConfig.cfg
+        else:
+            # running on installed system (typically with systemd)
+            cfg.update(piddir='/var/run/frappy', logdir='/var/log', confdir='/etc/frappy')
+        if configfile is None:
+            configfile = environ.get('FRAPPY_CONFIG_FILE',
+                                     path.join(cfg['confdir'], 'generalConfig.cfg'))
+        if configfile and path.exists(configfile):
+            parser = ConfigParser()
+            parser.optionxform = str
+            parser.read([configfile])
+            # mandatory in a general config file:
+            cfg['logdir'] = cfg['piddir'] = None
+            cfg['confdir'] = path.dirname(configfile)
+            # only the FRAPPY section is relevant, other sections might be used by others
+            for key, value in parser['FRAPPY'].items():
+                if value.startswith('./'):
+                    cfg[key] = path.abspath(path.join(repodir, value))
+                else:
+                    # expand ~ to username, also in path lists separated with ':'
+                    cfg[key] = ':'.join(path.expanduser(v) for v in value.split(':'))
+        else:
+            for key in mandatory:
+                cfg[key] = environ.get('FRAPPY_%s' % key.upper(), cfg[key])
+        missing_keys = [key for key in mandatory if cfg[key] is None]
+        if missing_keys:
+            if path.exists(configfile):
+                raise KeyError('missing value for %s in %s' % (' and '.join(missing_keys), configfile))
+            raise FileNotFoundError(configfile)
+        # this is not customizable
+        cfg['basedir'] = repodir
+        self._config = cfg
+
+    def __getitem__(self, key):
+        try:
+            return self._config[key]
+        except TypeError:
+            raise TypeError('generalConfig.init() has to be called first') from None
+
+    def get(self, key, default=None):
+        try:
+            return self.__getitem__(key)
+        except KeyError:
+            return default
+
+    def __getattr__(self, key):
+        """goodie: use generalConfig.<key> instead of generalConfig.get('<key>')"""
+        return self.get(key)
+
+
+generalConfig = GeneralConfig()
 
 
 class lazy_property:
@@ -250,10 +290,6 @@ def closeSocket(sock, socket=socket):  # pylint: disable=redefined-outer-name
 def getfqdn(name=''):
     """Get fully qualified hostname."""
     return socket.getfqdn(name)
-
-
-def getGeneralConfig():
-    return CONFIG
 
 
 def formatStatusBits(sword, labels, start=0):

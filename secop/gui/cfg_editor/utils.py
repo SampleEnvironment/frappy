@@ -29,7 +29,7 @@ from secop.modules import Module
 from secop.params import Parameter
 from secop.properties import Property
 from secop.protocol.interface.tcp import TCPServer
-from secop.server import getGeneralConfig
+from secop.server import generalConfig
 
 uipath = path.dirname(__file__)
 
@@ -106,7 +106,7 @@ def get_file_paths(widget, open_file=True):
 
 def get_modules():
     modules = {}
-    base_path = getGeneralConfig()['basedir']
+    base_path = generalConfig.basedir
     # pylint: disable=too-many-nested-blocks
     for dirname in listdir(base_path):
         if dirname.startswith('secop_'):
@@ -156,7 +156,7 @@ def get_interface_class_from_name(name):
 def get_interfaces():
     # TODO class must be found out like for modules
     interfaces = []
-    interface_path = path.join(getGeneralConfig()['basedir'], 'secop',
+    interface_path = path.join(generalConfig.basedir, 'secop',
                                'protocol', 'interface')
     for filename in listdir(interface_path):
         if path.isfile(path.join(interface_path, filename)) and \

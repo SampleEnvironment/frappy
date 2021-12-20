@@ -33,7 +33,7 @@ import traceback
 from collections import OrderedDict
 
 from secop.errors import ConfigError, SECoPError
-from secop.lib import formatException, get_class, getGeneralConfig
+from secop.lib import formatException, get_class, generalConfig
 from secop.modules import Attached
 from secop.params import PREDEFINED_ACCESSIBLES
 
@@ -89,7 +89,6 @@ class Server:
         ...
         """
         self._testonly = testonly
-        cfg = getGeneralConfig()
 
         self.log = parent_logger.getChild(name, True)
         if not cfgfiles:
@@ -114,22 +113,21 @@ class Server:
         if ambiguous_sections:
             self.log.warning('ambiguous sections in %s: %r' % (cfgfiles, tuple(ambiguous_sections)))
         self._cfgfiles = cfgfiles
-        self._pidfile = os.path.join(cfg['piddir'], name + '.pid')
+        self._pidfile = os.path.join(generalConfig.piddir, name + '.pid')
 
     def loadCfgFile(self, cfgfile):
         if not cfgfile.endswith('.cfg'):
             cfgfile += '.cfg'
-        cfg = getGeneralConfig()
         if os.sep in cfgfile:  # specified as full path
             filename = cfgfile if os.path.exists(cfgfile) else None
         else:
-            for filename in [os.path.join(d, cfgfile) for d in cfg['confdir'].split(os.pathsep)]:
+            for filename in [os.path.join(d, cfgfile) for d in generalConfig.confdir.split(os.pathsep)]:
                 if os.path.exists(filename):
                     break
             else:
                 filename = None
         if filename is None:
-            raise ConfigError("Couldn't find cfg file %r in %s" % (cfgfile, cfg['confdir']))
+            raise ConfigError("Couldn't find cfg file %r in %s" % (cfgfile, generalConfig.confdir))
         self.log.debug('Parse config file %s ...' % filename)
         result = OrderedDict()
         parser = configparser.ConfigParser()
