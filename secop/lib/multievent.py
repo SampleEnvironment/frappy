@@ -21,41 +21,50 @@
 # *****************************************************************************
 
 import threading
+import time
+
+
+ETERNITY = 1e99
+
+
+class _SingleEvent:
+    """Single Event
+
+    remark: :meth:`wait` is not implemented on purpose
+    """
+    def __init__(self, multievent, timeout, name=None):
+        self.multievent = multievent
+        self.multievent.clear_(self)
+        self.name = name
+        if timeout is None:
+            self.deadline = ETERNITY
+        else:
+            self.deadline = time.monotonic() + timeout
+
+    def clear(self):
+        self.multievent.clear_(self)
+
+    def set(self):
+        self.multievent.set_(self)
+
+    def is_set(self):
+        return self in self.multievent.events
 
 
 class MultiEvent(threading.Event):
-    """Class implementing multi event objects.
+    """Class implementing multi event objects."""
 
-    meth:`new` creates Event like objects
-    meth:'wait` waits for all of them being set
-    """
-
-    class SingleEvent:
-        """Single Event
-
-        remark: :meth:`wait` is not implemented on purpose
-        """
-        def __init__(self, multievent):
-            self.multievent = multievent
-            self.multievent._clear(self)
-
-        def clear(self):
-            self.multievent._clear(self)
-
-        def set(self):
-            self.multievent._set(self)
-
-        def is_set(self):
-            return self in self.multievent.events
-
-    def __init__(self):
+    def __init__(self, default_timeout=None):
         self.events = set()
         self._lock = threading.Lock()
+        self.default_timeout = default_timeout or None  # treat 0 as None
+        self.name = None  # default event name
         super().__init__()
 
-    def new(self):
-        """create a new SingleEvent"""
-        return self.SingleEvent(self)
+    def new(self, timeout=None, name=None):
+        """create a single event like object"""
+        return _SingleEvent(self, timeout or self.default_timeout,
+                            name or self.name or '<unnamed>')
 
     def set(self):
         raise ValueError('a multievent must not be set directly')
@@ -63,7 +72,10 @@ class MultiEvent(threading.Event):
     def clear(self):
         raise ValueError('a multievent must not be cleared directly')
 
-    def _set(self, event):
+    def is_set(self):
+        return not self.events
+
+    def set_(self, event):
         """internal: remove event from the event list"""
         with self._lock:
             self.events.discard(event)
@@ -71,13 +83,36 @@ class MultiEvent(threading.Event):
                 return
             super().set()
 
-    def _clear(self, event):
+    def clear_(self, event):
         """internal: add event to the event list"""
         with self._lock:
             self.events.add(event)
             super().clear()
 
+    def deadline(self):
+        deadline = 0
+        for event in self.events:
+            deadline = max(event.deadline, deadline)
+        return None if deadline == ETERNITY else deadline
+
     def wait(self, timeout=None):
+        """wait for all events being set or timed out"""
         if not self.events:  # do not wait if events are empty
-            return
-        super().wait(timeout)
+            return True
+        deadline = self.deadline()
+        if deadline is not None:
+            deadline -= time.monotonic()
+            timeout = deadline if timeout is None else min(deadline, timeout)
+            if timeout <= 0:
+                return False
+        return super().wait(timeout)
+
+    def waiting_for(self):
+        return set(event.name for event in self.events)
+
+    def setfunc(self, timeout=None, name=None):
+        """create a new single event and return its set method
+
+        as a convenience method
+        """
+        return self.new(timeout, name).set
