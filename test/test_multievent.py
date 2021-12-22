@@ -26,8 +26,8 @@ from secop.lib.multievent import MultiEvent
 
 def test_without_timeout():
     m = MultiEvent()
-    s1 = m.setfunc(name='s1')
-    s2 = m.setfunc(name='s2')
+    s1 = m.get_trigger(name='s1')
+    s2 = m.get_trigger(name='s2')
     assert not m.wait(0)
     assert m.deadline() is None
     assert m.waiting_for() == {'s1', 's2'}
@@ -45,10 +45,10 @@ def test_with_timeout(monkeypatch):
     m = MultiEvent()
     assert m.deadline() == 0
     m.name = 's1'
-    s1 = m.setfunc(10)
+    s1 = m.get_trigger(10)
     assert m.deadline() == 1010
     m.name = 's2'
-    s2 = m.setfunc(20)
+    s2 = m.get_trigger(20)
     assert m.deadline() == 1020
     current_time += 21
     assert not m.wait(0)

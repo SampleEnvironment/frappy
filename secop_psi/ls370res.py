@@ -76,8 +76,8 @@ class Main(HasIodev, Drivable):
     def register_channel(self, modobj):
         self._channels[modobj.channel] = modobj
 
-    def startModule(self, started_callback):
-        started_callback()
+    def startModule(self, start_events):
+        super().startModule(start_events)
         for ch in range(1, 16):
             if ch not in self._channels:
                 self.sendRecv('INSET %d,0,0,0,0,0;INSET?%d' % (ch, ch))

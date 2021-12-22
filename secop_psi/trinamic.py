@@ -185,12 +185,12 @@ class Motor(PersistentMixin, HasIodev, Drivable):
             value = result * scale
         return value
 
-    def startModule(self, started_callback):
+    def startModule(self, start_events):
         # get encoder value from motor. at this stage self.encoder contains the persistent value
         encoder = self.get('encoder')
         encoder += self.zero
         self.fix_encoder(encoder)
-        super().startModule(started_callback)
+        super().startModule(start_events)
 
     def fix_encoder(self, encoder_from_hw):
         """fix encoder value

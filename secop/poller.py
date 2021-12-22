@@ -218,7 +218,7 @@ class Poller(PollerBase):
         """start poll loop
 
         To be called as a thread. After all parameters are polled once first,
-        started_callback is called. To be called in Module.start_module.
+        started_callback is called. To be called in Module.startModule.
 
         poll strategy:
         Slow polls are performed with lower priority than regular and dynamic polls.

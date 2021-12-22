@@ -144,10 +144,12 @@ class SecNode(Module):
     uri = Property('uri of a SEC node', datatype=StringType())
 
     def earlyInit(self):
+        super().earlyInit()
         self.secnode = SecopClient(self.uri, self.log)
 
-    def startModule(self, started_callback):
-        self.secnode.spawn_connect(started_callback)
+    def startModule(self, start_events):
+        super().startModule(start_events)
+        self.secnode.spawn_connect(start_events.get_trigger())
 
     @Command(StringType(), result=StringType())
     def request(self, msg):

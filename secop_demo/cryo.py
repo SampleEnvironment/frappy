@@ -111,6 +111,7 @@ class Cryostat(CryoBase):
                         group='stability')
 
     def initModule(self):
+        super().initModule()
         self._stopflag = False
         self._thread = mkthread(self.thread)
 

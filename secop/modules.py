@@ -257,6 +257,9 @@ class Module(HasAccessibles):
         self.name = name
         self.valueCallbacks = {}
         self.errorCallbacks = {}
+        self.earlyInitDone = False
+        self.initModuleDone = False
+        self.startModuleDone = False
         errors = []
 
         # handle module properties
@@ -523,11 +526,25 @@ class Module(HasAccessibles):
         return False
 
     def earlyInit(self):
-        # may be overriden in derived classes to init stuff
-        self.log.debug('empty %s.earlyInit()' % self.__class__.__name__)
+        """initialise module with stuff to be done before all modules are created"""
+        self.earlyInitDone = True
 
     def initModule(self):
-        self.log.debug('empty %s.initModule()' % self.__class__.__name__)
+        """initialise module with stuff to be done after all modules are created"""
+        self.initModuleDone = True
+
+    def startModule(self, start_events):
+        """runs after init of all modules
+
+        when a thread is started, a trigger function may signal that it
+        has finished its initial work
+        start_events.get_trigger(<timeout>) creates such a trigger and
+        registers it in the server for waiting
+        <timeout> defaults to 30 seconds
+        """
+        if self.writeDict:
+            mkthread(self.writeInitParams, start_events.get_trigger())
+        self.startModuleDone = True
 
     def pollOneParam(self, pname):
         """poll parameter <pname> with proper error handling"""
@@ -562,15 +579,6 @@ class Module(HasAccessibles):
         if started_callback:
             started_callback()
 
-    def startModule(self, started_callback):
-        """runs after init of all modules
-
-        started_callback to be called when the thread spawned by startModule
-        has finished its initial work
-        might return a timeout value, if different from default
-        """
-        mkthread(self.writeInitParams, started_callback)
-
 
 class Readable(Module):
     """basic readable module"""
@@ -590,13 +598,13 @@ class Readable(Module):
     pollinterval = Parameter('sleeptime between polls', FloatRange(0.1, 120),
                              default=5, readonly=False)
 
-    def startModule(self, started_callback):
+    def startModule(self, start_events):
         """start basic polling thread"""
         if self.pollerClass and issubclass(self.pollerClass, BasicPoller):
             # use basic poller for legacy code
-            mkthread(self.__pollThread, started_callback)
+            mkthread(self.__pollThread, start_events.get_trigger(timeout=30))
         else:
-            super().startModule(started_callback)
+            super().startModule(start_events)
 
     def __pollThread(self, started_callback):
         while True:

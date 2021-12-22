@@ -22,8 +22,6 @@
 # *****************************************************************************
 """test data types."""
 
-import threading
-
 import pytest
 
 from secop.datatypes import BoolType, FloatRange, StringType, IntRange
@@ -31,6 +29,7 @@ from secop.errors import ProgrammingError, ConfigError
 from secop.modules import Communicator, Drivable, Readable, Module
 from secop.params import Command, Parameter
 from secop.poller import BasicPoller
+from secop.lib.multievent import MultiEvent
 
 
 class DispatcherStub:
@@ -69,9 +68,9 @@ def test_Communicator():
     o = Communicator('communicator', LoggerStub(), {'.description':''}, ServerStub({}))
     o.earlyInit()
     o.initModule()
-    event = threading.Event()
-    o.startModule(event.set)
-    assert event.is_set() # event should be set immediately
+    event = MultiEvent()
+    o.startModule(event)
+    assert event.is_set()  # event should be set immediately
 
 
 def test_ModuleMagic():
@@ -175,8 +174,8 @@ def test_ModuleMagic():
             'value': 'first'}
     assert updates.pop('o1') == expectedBeforeStart
     o1.earlyInit()
-    event = threading.Event()
-    o1.startModule(event.set)
+    event = MultiEvent()
+    o1.startModule(event)
     event.wait()
     # should contain polled values
     expectedAfterStart = {'status': (Drivable.Status.IDLE, ''),
@@ -189,8 +188,8 @@ def test_ModuleMagic():
     expectedBeforeStart['a1'] = 2.7
     assert updates.pop('o2') == expectedBeforeStart
     o2.earlyInit()
-    event = threading.Event()
-    o2.startModule(event.set)
+    event = MultiEvent()
+    o2.startModule(event)
     event.wait()
     # value has changed type, b2 and a1 are written
     expectedAfterStart.update(value=0, b2=True, a1=2.7)

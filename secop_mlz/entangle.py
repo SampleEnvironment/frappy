@@ -376,8 +376,8 @@ class AnalogInput(PyTangoDevice, Readable):
     The AnalogInput handles all devices only delivering an analogue value.
     """
 
-    def startModule(self, started_callback):
-        super().startModule(started_callback)
+    def startModule(self, start_events):
+        super().startModule(start_events)
         try:
             # query unit from tango and update value property
             attrInfo = self._dev.attribute_query('value')
@@ -454,8 +454,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
         self._history = []  # will keep (timestamp, value) tuple
         self._timeout = None  # keeps the time at which we will timeout, or None
 
-    def startModule(self, started_callback):
-        super().startModule(started_callback)
+    def startModule(self, start_events):
+        super().startModule(start_events)
         # query unit from tango and update value property
         attrInfo = self._dev.attribute_query('value')
         # prefer configured unit if nothing is set on the Tango device, else

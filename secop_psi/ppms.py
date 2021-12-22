@@ -89,6 +89,7 @@ class Main(Communicator):
     pollerClass = Poller
 
     def earlyInit(self):
+        super().earlyInit()
         self.modules = {}
         self._ppms_device = ppmshw.QDevice(self.class_id)
         self.lock = threading.Lock()
@@ -132,6 +133,11 @@ class PpmsBase(HasIodev, Readable):
     """common base for all ppms modules"""
     iodev = Attached()
 
+    # polling is done by the main module
+    # and PPMS does not deliver really more fresh values when polled more often
+    value = Parameter(poll=False, needscfg=False)
+    status = Parameter(poll=False, needscfg=False)
+
     pollerClass = Poller
     enabled = True  # default, if no parameter enable is defined
     _last_settings = None  # used by several modules
@@ -142,22 +148,8 @@ class PpmsBase(HasIodev, Readable):
     pollinterval = Parameter(export=False)
 
     def initModule(self):
+        super().initModule()
         self._iodev.register(self)
-
-    def startModule(self, started_callback):
-        # no polls except on main module
-        started_callback()
-
-    def read_value(self):
-        # polling is done by the main module
-        # and PPMS does not deliver really more fresh values when polled more often
-        return Done
-
-    def read_status(self):
-        # polling is done by the main module
-        # and PPMS does not deliver really fresh status values anyway: the status is not
-        # changed immediately after a target change!
-        return Done
 
     def update_value_status(self, value, packed_status):
         # update value and status
@@ -175,7 +167,7 @@ class PpmsBase(HasIodev, Readable):
 class Channel(PpmsBase):
     """channel base class"""
 
-    value = Parameter('main value of channels', poll=True)
+    value = Parameter('main value of channels')
     enabled = Parameter('is this channel used?', readonly=False, poll=False,
                         datatype=BoolType(), default=False)
 
@@ -380,8 +372,8 @@ class Temp(PpmsBase, Drivable):
     # pylint: disable=invalid-name
     ApproachMode = Enum('ApproachMode', fast_settle=0, no_overshoot=1)
 
-    value = Parameter(datatype=FloatRange(unit='K'), poll=True)
-    status = Parameter(datatype=StatusType(Status), poll=True)
+    value = Parameter(datatype=FloatRange(unit='K'))
+    status = Parameter(datatype=StatusType(Status))
     target = Parameter(datatype=FloatRange(1.7, 402.0, unit='K'), poll=False, needscfg=False)
     setpoint = Parameter('intermediate set point',
                          datatype=FloatRange(1.7, 402.0, unit='K'), handler=temp)
@@ -568,8 +560,8 @@ class Field(PpmsBase, Drivable):
     PersistentMode = Enum('PersistentMode', persistent=0, driven=1)
     ApproachMode = Enum('ApproachMode', linear=0, no_overshoot=1, oscillate=2)
 
-    value = Parameter(datatype=FloatRange(unit='T'), poll=True)
-    status = Parameter(datatype=StatusType(Status), poll=True)
+    value = Parameter(datatype=FloatRange(unit='T'))
+    status = Parameter(datatype=StatusType(Status))
     target = Parameter(datatype=FloatRange(-15, 15, unit='T'), handler=field)
     ramp = Parameter('ramping speed', readonly=False, handler=field,
                      datatype=FloatRange(0.064, 1.19, unit='T/min'))
@@ -696,7 +688,7 @@ class Position(PpmsBase, Drivable):
     move = IOHandler('move', 'MOVE?', '%g,%g,%g')
     Status = Drivable.Status
 
-    value = Parameter(datatype=FloatRange(unit='deg'), poll=True)
+    value = Parameter(datatype=FloatRange(unit='deg'))
     target = Parameter(datatype=FloatRange(-720., 720., unit='deg'), handler=move)
     enabled = Parameter('is this channel used?', readonly=False, poll=False,
                         datatype=BoolType(), default=True)

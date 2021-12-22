@@ -110,7 +110,7 @@ class MultiEvent(threading.Event):
     def waiting_for(self):
         return set(event.name for event in self.events)
 
-    def setfunc(self, timeout=None, name=None):
+    def get_trigger(self, timeout=None, name=None):
         """create a new single event and return its set method
 
         as a convenience method

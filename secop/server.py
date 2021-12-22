@@ -27,13 +27,12 @@ import ast
 import configparser
 import os
 import sys
-import threading
-import time
 import traceback
 from collections import OrderedDict
 
 from secop.errors import ConfigError, SECoPError
 from secop.lib import formatException, get_class, generalConfig
+from secop.lib.multievent import MultiEvent
 from secop.modules import Attached
 from secop.params import PREDEFINED_ACCESSIBLES
 
@@ -267,6 +266,7 @@ class Server:
                     errors.append('error creating %s' % modname)
 
         poll_table = dict()
+        missing_super = set()
         # all objs created, now start them up and interconnect
         for modname, modobj in self.modules.items():
             self.log.info('registering module %r' % modname)
@@ -276,6 +276,9 @@ class Server:
                 modobj.pollerClass.add_to_table(poll_table, modobj)
             # also call earlyInit on the modules
             modobj.earlyInit()
+            if not modobj.earlyInitDone:
+                missing_super.add('%s was not called, probably missing super call'
+                                  % modobj.earlyInit.__qualname__)
 
         # handle attached modules
         for modname, modobj in self.modules.items():
@@ -291,11 +294,26 @@ class Server:
         for modname, modobj in self.modules.items():
             try:
                 modobj.initModule()
+                if not modobj.initModuleDone:
+                    missing_super.add('%s was not called, probably missing super call'
+                                      % modobj.initModule.__qualname__)
             except Exception as e:
                 if failure_traceback is None:
                     failure_traceback = traceback.format_exc()
                 errors.append('error initializing %s: %r' % (modname, e))
 
+        if self._testonly:
+            return
+        start_events = MultiEvent(default_timeout=30)
+        for modname, modobj in self.modules.items():
+            # startModule must return either a timeout value or None (default 30 sec)
+            start_events.name = 'module %s' % modname
+            modobj.startModule(start_events)
+            if not modobj.startModuleDone:
+                missing_super.add('%s was not called, probably missing super call'
+                                  % modobj.startModule.__qualname__)
+
+        errors.extend(missing_super)
         if errors:
             for errtxt in errors:
                 for line in errtxt.split('\n'):
@@ -307,23 +325,16 @@ class Server:
                 sys.stderr.write(failure_traceback)
             sys.exit(1)
 
-        if self._testonly:
-            return
-        start_events = []
-        for modname, modobj in self.modules.items():
-            event = threading.Event()
-            # startModule must return either a timeout value or None (default 30 sec)
-            timeout = modobj.startModule(started_callback=event.set) or 30
-            start_events.append((time.time() + timeout, 'module %s' % modname, event))
-        for poller in poll_table.values():
-            event = threading.Event()
+        for (_, pollname) , poller in poll_table.items():
+            start_events.name = 'poller %s' % pollname
             # poller.start must return either a timeout value or None (default 30 sec)
-            timeout = poller.start(started_callback=event.set) or 30
-            start_events.append((time.time() + timeout, repr(poller), event))
+            poller.start(start_events.get_trigger())
         self.log.info('waiting for modules and pollers being started')
-        for deadline, name, event in sorted(start_events):
-            if not event.wait(timeout=max(0, deadline - time.time())):
-                self.log.info('WARNING: timeout when starting %s' % name)
+        start_events.name = None
+        if not start_events.wait():
+            # some timeout happened
+            for name in start_events.waiting_for():
+                self.log.warning('timeout when starting %s' % name)
         self.log.info('all modules and pollers started')
         history_path = os.environ.get('FRAPPY_HISTORY')
         if history_path:

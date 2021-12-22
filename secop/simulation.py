@@ -60,6 +60,7 @@ class SimBase:
         return object.__new__(type('SimBase_%s' % devname, (cls,), attrs))
 
     def initModule(self):
+        super().initModule()
         self._sim_thread = mkthread(self._sim)
 
     def _sim(self):
