@@ -176,11 +176,17 @@ class HasAccessibles(HasProperties):
                     setattr(cls, 'write_' + pname, wrapped_wfunc)
                     wrapped_wfunc.__wrapped__ = True
 
-        # check information about Command's
+        # check for programming errors
         for attrname in cls.__dict__:
-            if attrname.startswith('do_'):
+            prefix, _, pname = attrname.partition('_')
+            if not pname:
+                continue
+            if prefix == 'do':
                 raise ProgrammingError('%r: old style command %r not supported anymore'
                                        % (cls.__name__, attrname))
+            if prefix in ('read', 'write') and not isinstance(accessibles.get(pname), Parameter):
+                raise ProgrammingError('%s.%s defined, but %r is no parameter'
+                                       % (cls.__name__, attrname, pname))
 
         res = {}
         # collect info about properties

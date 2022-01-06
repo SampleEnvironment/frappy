@@ -458,3 +458,23 @@ def test_command_none():
 
     assert 'stop' in Mod('o', logger, {'description': ''}, srv).accessibles
     assert 'stop' not in Mod2('o', logger, {'description': ''}, srv).accessibles
+
+
+def test_bad_method():
+    class Mod0(Drivable):  # pylint: disable=unused-variable
+        def write_target(self, value):
+            pass
+
+    with pytest.raises(ProgrammingError):
+        class Mod1(Drivable):  # pylint: disable=unused-variable
+            def write_taget(self, value):
+                pass
+
+    class Mod2(Drivable):  # pylint: disable=unused-variable
+        def read_value(self, value):
+            pass
+
+    with pytest.raises(ProgrammingError):
+        class Mod3(Drivable):  # pylint: disable=unused-variable
+            def read_valu(self, value):
+                pass
