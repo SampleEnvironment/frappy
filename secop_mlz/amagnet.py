@@ -137,7 +137,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
                                  '_current2field polynome not monotonic!')
 
     def initModule(self):
-        super(GarfieldMagnet, self).initModule()
+        super().initModule()
         self._enable = self.DISPATCHER.get_module(self.subdev_enable)
         self._symmetry = self.DISPATCHER.get_module(self.subdev_symmetry)
         self._polswitch = self.DISPATCHER.get_module(self.subdev_polswitch)
@@ -220,7 +220,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
             self._currentsource.read_value() *
             self._get_field_polarity())
 
-    def read_hw_status(self):
+    def readHwStatus(self):
         # called from SequencerMixin.read_status if no sequence is running
         if self._enable.value == 'Off':
             return self.Status.WARN, 'Disabled'

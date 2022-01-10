@@ -137,8 +137,8 @@ class SequencerMixin:
             if self._seq_fault_on_stop:
                 return self.Status.ERROR, self._seq_stopped
             return self.Status.WARN, self._seq_stopped
-        if hasattr(self, 'read_hw_status'):
-            return self.read_hw_status()
+        if hasattr(self, 'readHwStatus'):
+            return self.readHwStatus()
         return self.Status.IDLE, ''
 
     def stop(self):
