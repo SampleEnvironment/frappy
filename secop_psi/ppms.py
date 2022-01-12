@@ -168,7 +168,7 @@ class Channel(PpmsBase):
                   datatype=IntRange(1, 4), export=False)
 
     def earlyInit(self):
-        Readable.earlyInit(self)
+        super().earlyInit()
         if not self.channel:
             self.channel = self.name
 

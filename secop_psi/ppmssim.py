@@ -26,6 +26,7 @@ import time
 def num(string):
     return json.loads(string)
 
+
 class NamedList:
     def __init__(self, keys, *args, **kwargs):
         self.__keys__ = keys.split()
@@ -49,8 +50,10 @@ class NamedList:
     def __repr__(self):
         return ",".join("%.7g" % val for val in self.aslist())
 
+
 class PpmsSim:
     CHANNELS = 'st t mf pos r1 i1 r2 i2'.split()
+
     def __init__(self):
         self.status = NamedList('t mf ch pos', 1, 1, 1, 1)
         self.st = 0x1111
@@ -176,7 +179,6 @@ class PpmsSim:
                 if abs(self.t - self.temp.target) < 1:
                     self.status.t = 6 # outside tolerance
 
-
         if abs(self.pos - self.move.target) < 0.01:
             self.status.pos = 1
         else:
@@ -188,7 +190,6 @@ class PpmsSim:
         self.r2 = 1000 / self.t
         self.i2 = math.log(self.t)
         self.level.value = 100 - (self.time - self.start) * 0.01 % 100
-        # print('PROGRESS T=%.7g B=%.7g x=%.7g' % (self.t, self.mf, self.pos))
 
     def getdat(self, mask):
         mask = int(mask) & 0xff # all channels up to i2
@@ -197,6 +198,7 @@ class PpmsSim:
             if (1 << i) & mask:
                 output.append("%.7g" % getattr(self, chan))
         return ",".join(output)
+
 
 class QDevice:
     def __init__(self, classid):
@@ -224,6 +226,7 @@ class QDevice:
             self.sim.changed.add(name)
             result = "OK"
         return result
+
 
 def shutdown():
     pass

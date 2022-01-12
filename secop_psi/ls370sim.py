@@ -42,7 +42,6 @@ class Ls370Sim(Communicator):
         for fmt, v in self.CHANNEL_COMMANDS:
             for chan in range(1,17):
                 self._data[fmt % chan] = v
-        # mkthread(self.run)
 
     def communicate(self, command):
         self.comLog('> %s' % command)

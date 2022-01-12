@@ -253,6 +253,7 @@ class StringIO(IOBase):
         if not self.is_connected:
             self.read_is_connected()  # try to reconnect
             if not self._conn:
+                self.log.debug('can not connect to %r' % self.uri)
                 raise CommunicationSilentError('can not connect to %r' % self.uri)
         try:
             with self._lock:
@@ -410,7 +411,7 @@ class BytesIO(IOBase):
         :return: the full reply (replyheader + additional bytes)
 
         When the reply length is variable, :meth:`communicate` should be called
-        with the `replylen` argument set to minimum expected length of the reply.
+        with the `replylen` argument set to the minimum expected length of the reply.
         Typically this method determines then the length of additional bytes from
         the already received bytes (replyheader) and/or the request and calls
         :meth:`readBytes` to get the remaining bytes.

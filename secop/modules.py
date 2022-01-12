@@ -41,7 +41,7 @@ from secop.logging import RemoteLogHandler, HasComlog
 
 generalConfig.defaults['disable_value_range_check'] = False  # check for problematic value range by default
 
-Done = UniqueObject('already set')
+Done = UniqueObject('Done')
 """a special return value for a read/write function
 
 indicating that the setter is triggered already"""

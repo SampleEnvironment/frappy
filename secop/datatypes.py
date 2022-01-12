@@ -879,6 +879,8 @@ class StructOf(DataType):
     :param optional: a list of optional members
     :param members: names as keys and types as values for all members
     """
+    # Remark: assignment of parameters containing partial structs in their datatype
+    # are (and can) not be handled here! This has to be done manually in the write method
     def __init__(self, optional=None, **members):
         super().__init__()
         self.members = members

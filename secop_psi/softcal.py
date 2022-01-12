@@ -165,6 +165,7 @@ class Sensor(Readable):
     enablePoll = False
 
     def initModule(self):
+        super().initModule()
         self._rawsensor.registerCallbacks(self, ['status'])  # auto update status
         self._calib = CalCurve(self.calib)
 
