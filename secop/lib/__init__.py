@@ -94,9 +94,27 @@ class GeneralConfig:
         except KeyError:
             return default
 
+    def getint(self, key, default=None):
+        try:
+            return int(self.__getitem__(key))
+        except KeyError:
+            return default
+
     def __getattr__(self, key):
         """goodie: use generalConfig.<key> instead of generalConfig.get('<key>')"""
         return self.get(key)
+
+    def __setattr__(self, key, value):
+        if key == '_config':
+            super().__setattr__(key, value)
+            return
+        if hasattr(type(self), key):
+            raise AttributeError('can not set generalConfig.%s' % key)
+        self._config[key] = value  # for test purposes
+
+    @property
+    def initialized(self):
+        return bool(self._config)
 
 
 generalConfig = GeneralConfig()

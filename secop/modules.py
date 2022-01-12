@@ -36,6 +36,7 @@ from secop.lib.enum import Enum
 from secop.params import Accessible, Command, Parameter
 from secop.poller import BasicPoller, Poller
 from secop.properties import HasProperties, Property
+from secop.logging import RemoteLogHandler, HasComlog
 
 Done = object()  #: a special return value for a read/write function indicating that the setter is triggered already
 
@@ -124,20 +125,22 @@ class HasAccessibles(HasProperties):
 
                 def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
                     if rfunc:
-                        self.log.debug("calling %r" % rfunc)
+                        self.log.debug("call read_%s" % pname)
                         try:
                             value = rfunc(self)
-                            self.log.debug("rfunc(%s) returned %r" % (pname, value))
                             if value is Done:  # the setter is already triggered
-                                return getattr(self, pname)
+                                value = getattr(self, pname)
+                                self.log.debug("read_%s returned Done (%r)" % (pname, value))
+                                return value
+                            self.log.debug("read_%s returned %r" % (pname, value))
                         except Exception as e:
-                            self.log.debug("rfunc(%s) failed %r" % (pname, e))
+                            self.log.debug("read_%s failed %r" % (pname, e))
                             self.announceUpdate(pname, None, e)
                             raise
                     else:
                         # return cached value
-                        self.log.debug("rfunc(%s): return cached value" % pname)
                         value = self.accessibles[pname].value
+                        self.log.debug("return cached %s = %r" % (pname, value))
                     setattr(self, pname, value)  # important! trigger the setter
                     return value
 
@@ -158,16 +161,18 @@ class HasAccessibles(HasProperties):
                 if not wrapped:
 
                     def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
-                        self.log.debug("check validity of %s = %r" % (pname, value))
                         pobj = self.accessibles[pname]
-                        value = pobj.datatype(value)
                         if wfunc:
-                            self.log.debug('calling %s %r(%r)' % (wfunc.__name__, wfunc, value))
+                            self.log.debug("check and call write_%s(%r)" % (pname, value))
+                            value = pobj.datatype(value)
                             returned_value = wfunc(self, value)
                             if returned_value is Done:  # the setter is already triggered
                                 return getattr(self, pname)
                             if returned_value is not None:  # goodie: accept missing return value
                                 value = returned_value
+                        else:
+                            self.log.debug("check %s = %r" % (pname, value))
+                            value = pobj.datatype(value)
                         setattr(self, pname, value)
                         return value
 
@@ -266,6 +271,7 @@ class Module(HasAccessibles):
         self.earlyInitDone = False
         self.initModuleDone = False
         self.startModuleDone = False
+        self.remoteLogHandler = None
         errors = []
 
         # handle module properties
@@ -585,6 +591,16 @@ class Module(HasAccessibles):
         if started_callback:
             started_callback()
 
+    def setRemoteLogging(self, conn, level):
+        if self.remoteLogHandler is None:
+            for handler in self.log.handlers:
+                if isinstance(handler, RemoteLogHandler):
+                    self.remoteLogHandler = handler
+                    break
+            else:
+                raise ValueError('remote handler not found')
+        self.remoteLogHandler.set_conn_level(self, conn, level)
+
 
 class Readable(Module):
     """basic readable module"""
@@ -700,7 +716,7 @@ class Drivable(Writable):
         """cease driving, go to IDLE state"""
 
 
-class Communicator(Module):
+class Communicator(HasComlog, Module):
     """basic abstract communication module"""
 
     @Command(StringType(), result=StringType())

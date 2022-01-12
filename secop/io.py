@@ -57,6 +57,7 @@ class HasIodev(Module):
             if not ioname:
                 ioname = iodev or name + '_iodev'
                 iodev = self.iodevClass(ioname, srv.log.getChild(ioname), opts, srv)
+                iodev.callingModule = []
                 srv.modules[ioname] = iodev
                 self.iodevDict[self.uri] = ioname
             self.iodev = ioname
@@ -71,8 +72,13 @@ class HasIodev(Module):
             pass
         super().initModule()
 
-    def sendRecv(self, command):
-        return self._iodev.communicate(command)
+    def communicate(self, *args):
+        return self._iodev.communicate(*args)
+
+    def multicomm(self, *args):
+        return self._iodev.multicomm(*args)
+
+    sendRecv = communicate  # TODO: remove legacy stuff
 
 
 class IOBase(Communicator):
@@ -154,6 +160,9 @@ class IOBase(Communicator):
             if removeme:
                 self._reconnectCallbacks.pop(key)
 
+    def communicate(self, command):
+        return NotImplementedError
+
 
 class StringIO(IOBase):
     """line oriented communicator
@@ -234,15 +243,15 @@ class StringIO(IOBase):
                         if garbage is None:  # read garbage only once
                             garbage = self._conn.flush_recv()
                             if garbage:
-                                self.log.debug('garbage: %r', garbage)
+                                self.comLog('garbage: %r', garbage)
                         self._conn.send(cmd + self._eol_write)
-                        self.log.debug('send: %s', cmd + self._eol_write)
+                        self.comLog('> %s', cmd.decode(self.encoding))
                     reply = self._conn.readline(self.timeout)
                 except ConnectionClosed as e:
                     self.closeConnection()
                     raise CommunicationFailedError('disconnected') from None
                 reply = reply.decode(self.encoding)
-                self.log.debug('recv: %s', reply)
+                self.comLog('< %s', reply)
                 return reply
         except Exception as e:
             if str(e) == self._last_error:
@@ -291,6 +300,10 @@ def make_bytes(string):
     return bytes([int(c, 16) if HEX_CODE.match(c) else ord(c) for c in string.split()])
 
 
+def hexify(bytes_):
+    return ' '.join('%02x' % r for r in bytes_)
+
+
 class BytesIO(IOBase):
     identification = Property(
         """identification
@@ -330,14 +343,14 @@ class BytesIO(IOBase):
                         time.sleep(self.wait_before)
                     garbage = self._conn.flush_recv()
                     if garbage:
-                        self.log.debug('garbage: %r', garbage)
+                        self.comLog('garbage: %r', garbage)
                     self._conn.send(request)
-                    self.log.debug('send: %r', request)
+                    self.comLog('> %s', hexify(request))
                     reply = self._conn.readbytes(replylen, self.timeout)
                 except ConnectionClosed as e:
                     self.closeConnection()
                     raise CommunicationFailedError('disconnected') from None
-                self.log.debug('recv: %r', reply)
+                self.comLog('< %s', hexify(reply))
                 return self.getFullReply(request, reply)
         except Exception as e:
             if str(e) == self._last_error:
@@ -345,6 +358,15 @@ class BytesIO(IOBase):
             self._last_error = str(e)
             self.log.error(self._last_error)
             raise
+
+    @Command((ArrayOf(TupleOf(BLOBType(), IntRange(0)))), result=ArrayOf(BLOBType()))
+    def multicomm(self, requests):
+        """communicate multiple request/replies in one row"""
+        replies = []
+        with self._lock:
+            for request in requests:
+                replies.append(self.communicate(*request))
+        return replies
 
     def readBytes(self, nbytes):
         """read bytes

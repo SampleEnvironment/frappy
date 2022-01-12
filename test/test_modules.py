@@ -54,6 +54,7 @@ class LoggerStub:
     def debug(self, *args):
         print(*args)
     info = warning = exception = debug
+    handlers = []
 
 
 logger = LoggerStub()
@@ -65,7 +66,7 @@ class ServerStub:
 
 
 def test_Communicator():
-    o = Communicator('communicator', LoggerStub(), {'.description':''}, ServerStub({}))
+    o = Communicator('communicator', LoggerStub(), {'.description': ''}, ServerStub({}))
     o.earlyInit()
     o.initModule()
     event = MultiEvent()

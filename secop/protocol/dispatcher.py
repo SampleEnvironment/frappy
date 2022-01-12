@@ -45,7 +45,6 @@ from time import time as currenttime
 from secop.errors import NoSuchCommandError, NoSuchModuleError, \
     NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPServerError
 from secop.params import Parameter
-from secop.logging import set_log_level
 from secop.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
     HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY, \
@@ -84,6 +83,7 @@ class Dispatcher:
         # eventname is <modulename> or <modulename>:<parametername>
         self._subscriptions = {}
         self._lock = threading.RLock()
+        self.name = name
         self.restart = srv.restart
         self.shutdown = srv.shutdown
 
@@ -378,16 +378,16 @@ class Dispatcher:
 
     def send_log_msg(self, conn, modname, level, msg):
         """send log message """
-        if conn in self._connections:
-            conn.send_reply((LOG_EVENT, '%s:%s' % (modname, level), msg))
+        conn.send_reply((LOG_EVENT, '%s:%s' % (modname, level), msg))
 
     def set_all_log_levels(self, conn, level):
         for modobj in self._modules.values():
-            set_log_level(modobj, conn, level)
+            modobj.setRemoteLogging(conn, level)
 
     def handle_logging(self, conn, specifier, level):
         if specifier and specifier != '.':
-            set_log_level(self._modules[specifier], conn, level)
+            modobj = self._modules[specifier]
+            modobj.setRemoteLogging(conn, level)
         else:
             self.set_all_log_levels(conn, level)
         return LOGGING_REPLY, specifier, level

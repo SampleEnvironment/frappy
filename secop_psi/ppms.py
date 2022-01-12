@@ -100,8 +100,9 @@ class Main(Communicator):
     def communicate(self, command):
         """GPIB command"""
         with self.lock:
+            self.comLog('> %s' % command)
             reply = self._ppms_device.send(command)
-            self.log.debug("%s|%s", command, reply)
+            self.comLog("< %s", reply)
             return reply
 
     def read_data(self):

@@ -20,121 +20,256 @@
 #
 # *****************************************************************************
 
-
-from mlzlog import MLZLogger, Handler, INFO, DEBUG
+import pytest
+import mlzlog
 from secop.modules import Module
 from secop.protocol.dispatcher import Dispatcher
-
-
-class LogHandler(Handler):
-    def __init__(self, result):
-        super().__init__()
-        self.result = result
-
-    def emit(self, record):
-        self.result.append('%s:%s' % (record.levelname, record.getMessage()))
-
-
-class LogRecorder(MLZLogger):
-    def __init__(self, result):
-        super().__init__('root')
-        self.setLevel(INFO)
-        self.addHandler(LogHandler(result))
+from secop.protocol.interface import encode_msg_frame, decode_msg
+import secop.logging
+from secop.logging import logger, generalConfig, HasComlog
 
 
 class ServerStub:
     restart = None
     shutdown = None
 
+    def __init__(self):
+        self.dispatcher = Dispatcher('', logger.log.getChild('dispatcher'), {}, self)
+
 
 class Connection:
-    def __init__(self, dispatcher):
-        self.result = []
+    def __init__(self, name, dispatcher, result):
+        self.result = result
+        self.dispatcher = dispatcher
+        self.name = name
         dispatcher.add_connection(self)
 
     def send_reply(self, msg):
-        self.result.append(msg)
+        self.result.append(encode_msg_frame(*msg).strip().decode())
 
-    def check(self, *args):
-        assert self.result == list(args)
-        self.result[:] = []
-
-    def send(self, *request):
-        assert srv.dispatcher.handle_request(self, request) == request
+    def send(self, msg):
+        request = decode_msg(msg.encode())
+        assert self.dispatcher.handle_request(self, request) == request
 
 
-class Mod(Module):
-    def __init__(self, name):
-        self.result = []
-        super().__init__(name, LogRecorder(self.result), {'.description': ''}, srv)
-        srv.dispatcher.register_module(self, name, name)
+@pytest.fixture(name='init')
+def init_(monkeypatch):
+    logger.__init__()
 
-    def check(self, *args):
-        assert self.result == list(args)
-        self.result[:] = []
+    class Playground:
+        def __init__(self, console_level='debug', comlog=True, com_module=True):
+            self.result_dict = result_dict = dict(
+                console=[], comlog=[], conn1=[], conn2=[])
+
+            class ConsoleHandler(mlzlog.Handler):
+                def __init__(self, *args, **kwds):
+                    super().__init__()
+                    self.result = result_dict['console']
+
+                def emit(self, record):
+                    if record.name != 'frappy.dispatcher':
+                        self.result.append('%s %s %s' % (record.name, record.levelname, record.getMessage()))
+
+            class ComLogHandler(mlzlog.Handler):
+                def __init__(self, *args, **kwds):
+                    super().__init__()
+                    self.result = result_dict['comlog']
+
+                def emit(self, record):
+                    self.result.append('%s %s' % (record.name.split('.')[1], record.getMessage()))
+
+            class LogfileHandler(mlzlog.Handler):
+                def __init__(self, *args, **kwds):
+                    super().__init__()
+
+                def noop(self, *args):
+                    pass
+
+                close = flush = emit = noop
+
+            monkeypatch.setattr(mlzlog, 'ColoredConsoleHandler', ConsoleHandler)
+            monkeypatch.setattr(secop.logging, 'ComLogfileHandler', ComLogHandler)
+            monkeypatch.setattr(secop.logging, 'LogfileHandler', LogfileHandler)
+
+            class Mod(Module):
+                result = []
+
+                def __init__(self, name, srv, **kwds):
+                    kwds['description'] = ''
+                    super().__init__(name or 'mod', logger.log.getChild(name), kwds, srv)
+                    srv.dispatcher.register_module(self, name, name)
+                    self.result[:] = []
+
+                def earlyInit(self):
+                    pass
+
+            class Com(HasComlog, Mod):
+                def __init__(self, name, srv, **kwds):
+                    super().__init__(name, srv, **kwds)
+                    self.earlyInit()
+                    self.log.handlers[-1].result = result_dict['comlog']
+
+                def communicate(self, request):
+                    self.comLog('> %s', request)
+
+            generalConfig.init()
+            generalConfig.comlog = comlog
+            logger.init(console_level)
+            self.srv = ServerStub()
+
+            self.conn1 = Connection('conn1', self.srv.dispatcher, self.result_dict['conn1'])
+            self.conn2 = Connection('conn2', self.srv.dispatcher, self.result_dict['conn2'])
+            self.mod = Mod('mod', self.srv)
+            self.com = Com('com', self.srv, comlog=com_module)
+            for item in self.result_dict.values():
+                assert item == []
+
+        def check(self, both=None, **expected):
+            if both:
+                expected['conn1'] = expected['conn2'] = both
+            assert self.result_dict['console'] == expected.get('console', [])
+            assert self.result_dict['comlog'] == expected.get('comlog', [])
+            assert self.result_dict['conn1'] == expected.get('conn1', [])
+            assert self.result_dict['conn2'] == expected.get('conn2', [])
+            for item in self.result_dict.values():
+                item[:] = []
+
+        def comlog(self, flag):
+            logger.comlog = flag
+
+    yield Playground
+    # revert settings
+    generalConfig.__init__()
+    logger.__init__()
 
 
-srv = ServerStub()
-srv.dispatcher = Dispatcher('', LogRecorder([]), {}, srv)
-conn1 = Connection(srv.dispatcher)
-conn2 = Connection(srv.dispatcher)
-o1 = Mod('o1')
-o2 = Mod('o2')
+def test_mod_info(init):
+    p = init()
+    p.mod.log.info('i')
+    p.check(console=['frappy.mod INFO i'])
+    p.conn1.send('logging mod "debug"')
+    p.conn2.send('logging mod "info"')
+    p.mod.log.info('i')
+    p.check(console=['frappy.mod INFO i'], both=['log mod:info "i"'])
 
 
-def test_logging1():
-    # test normal logging
-    o1.log.setLevel(INFO)
-    o2.log.setLevel(DEBUG)
+def test_mod_debug(init):
+    p = init()
+    p.mod.log.debug('d')
+    p.check(console=['frappy.mod DEBUG d'])
+    p.conn1.send('logging mod "debug"')
+    p.conn2.send('logging mod "info"')
+    p.mod.log.debug('d')
+    p.check(console=['frappy.mod DEBUG d'], conn1=['log mod:debug "d"'])
 
-    o1.log.info('i1')
-    o1.log.debug('d1')
-    o2.log.info('i2')
-    o2.log.debug('d2')
 
-    o1.check('INFO:i1')
-    o2.check('INFO:i2', 'DEBUG:d2')
-    conn1.check()
-    conn2.check()
+def test_com_info(init):
+    p = init()
+    p.com.log.info('i')
+    p.check(console=['frappy.com INFO i'])
+    p.conn1.send('logging com "info"')
+    p.conn2.send('logging com "debug"')
+    p.com.log.info('i')
+    p.check(console=['frappy.com INFO i'], both=['log com:info "i"'])
 
-    # test remote logging on
-    conn1.send('logging', 'o1', 'debug')
-    conn2.send('logging', 'o1', 'info')
-    conn2.send('logging', 'o2', 'debug')
 
-    o1.log.info('i1')
-    o1.log.debug('d1')
-    o2.log.info('i2')
-    o2.log.debug('d2')
+def test_com_debug(init):
+    p = init()
+    p.com.log.debug('d')
+    p.check(console=['frappy.com DEBUG d'])
+    p.conn2.send('logging com "debug"')
+    p.com.log.debug('d')
+    p.check(console=['frappy.com DEBUG d'], conn2=['log com:debug "d"'])
 
-    o1.check('INFO:i1')
-    o2.check('INFO:i2', 'DEBUG:d2')
-    conn1.check(('log', 'o1:info', 'i1'), ('log', 'o1:debug', 'd1'))
-    conn2.check(('log', 'o1:info', 'i1'), ('log', 'o2:info', 'i2'), ('log', 'o2:debug', 'd2'))
 
-    # test all remote logging
-    conn1.send('logging', '', 'off')
-    conn2.send('logging', '', 'off')
+def test_com_com(init):
+    p = init()
+    p.com.communicate('x')
+    p.check(console=['frappy.com COMLOG > x'], comlog=['com > x'])
+    p.conn1.send('logging mod "debug"')
+    p.conn2.send('logging mod "info"')
+    p.conn2.send('logging com "debug"')
+    p.com.communicate('x')
+    p.check(console=['frappy.com COMLOG > x'], comlog=['com > x'], conn2=['log com:comlog "> x"'])
 
-    o1.log.info('i1')
-    o1.log.debug('d1')
-    o2.log.info('i2')
-    o2.log.debug('d2')
 
-    o1.check('INFO:i1')
-    o2.check('INFO:i2', 'DEBUG:d2')
-    conn1.check()
-    conn2.check()
+def test_main_info(init):
+    p = init(console_level='info')
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.check(comlog=['com > x'])
+    p.conn1.send('logging mod "debug"')
+    p.conn2.send('logging mod "info"')
+    p.conn2.send('logging com "debug"')
+    p.com.communicate('x')
+    p.check(comlog=['com > x'], conn2=['log com:comlog "> x"'])
 
-    # test all modules on, warning level
-    conn2.send('logging', '', 'warning')
 
-    o1.log.info('i1')
-    o1.log.warning('w1')
-    o2.log.info('i2')
-    o2.log.warning('w2')
+def test_comlog_off(init):
+    p = init(console_level='info', comlog=False)
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.check()
 
-    o1.check('INFO:i1', 'WARNING:w1')
-    o2.check('INFO:i2', 'WARNING:w2')
-    conn1.check()
-    conn2.check(('log', 'o1:warning', 'w1'), ('log', 'o2:warning', 'w2'))
+
+def test_comlog_module_off(init):
+    p = init(console_level='info', com_module=False)
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.check()
+
+
+def test_remote_all_off(init):
+    p = init()
+    p.conn1.send('logging mod "debug"')
+    p.conn2.send('logging mod "info"')
+    p.conn2.send('logging com "debug"')
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.mod.log.info('i')
+    checks = dict(
+        console=['frappy.mod DEBUG d', 'frappy.com COMLOG > x', 'frappy.mod INFO i'],
+        comlog=['com > x'],
+        conn1=['log mod:debug "d"', 'log mod:info "i"'],
+        conn2=['log com:comlog "> x"', 'log mod:info "i"'])
+    p.check(**checks)
+    p.conn1.send('logging  "off"')
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.mod.log.info('i')
+    checks.pop('conn1')
+    p.check(**checks)
+    p.conn2.send('logging . "off"')
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.mod.log.info('i')
+    checks.pop('conn2')
+    p.check(**checks)
+
+
+def test_remote_single_off(init):
+    p = init()
+    p.conn1.send('logging mod "debug"')
+    p.conn2.send('logging mod "info"')
+    p.conn2.send('logging com "debug"')
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.mod.log.info('i')
+    checks = dict(
+        console=['frappy.mod DEBUG d', 'frappy.com COMLOG > x', 'frappy.mod INFO i'],
+        comlog=['com > x'],
+        conn1=['log mod:debug "d"', 'log mod:info "i"'],
+        conn2=['log com:comlog "> x"', 'log mod:info "i"'])
+    p.check(**checks)
+    p.conn2.send('logging com "off"')
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.mod.log.info('i')
+    checks['conn2'] = ['log mod:info "i"']
+    p.check(**checks)
+    p.conn2.send('logging mod "off"')
+    p.mod.log.debug('d')
+    p.com.communicate('x')
+    p.mod.log.info('i')
+    checks['conn2'] = []
+    p.check(**checks)

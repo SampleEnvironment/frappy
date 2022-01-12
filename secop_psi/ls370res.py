@@ -71,6 +71,7 @@ class Main(HasIodev, Drivable):
     _channels = None  # dict <channel no> of <module object>
 
     def earlyInit(self):
+        super().earlyInit()
         self._channels = {}
 
     def register_channel(self, modobj):
@@ -166,6 +167,7 @@ class ResChannel(HasIodev, Readable):
     _trigger_read = False
 
     def initModule(self):
+        super().initModule()
         self._main = self.DISPATCHER.get_module(self.main)
         self._main.register_channel(self)
 
@@ -228,7 +230,7 @@ class ResChannel(HasIodev, Readable):
         if autorange:
             result['autorange'] = 'hard'
         # else: do not change autorange
-        self.log.info('%s range %r %r %r' % (self.name, rng, autorange, self.autorange))
+        self.log.debug('%s range %r %r %r' % (self.name, rng, autorange, self.autorange))
         if excoff:
             result.update(iexc=0, vexc=0)
         elif iscur:

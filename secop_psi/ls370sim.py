@@ -37,6 +37,7 @@ class Ls370Sim(Communicator):
     ]
 
     def earlyInit(self):
+        super().earlyInit()
         self._data = dict(self.OTHER_COMMANDS)
         for fmt, v in self.CHANNEL_COMMANDS:
             for chan in range(1,17):
@@ -44,6 +45,7 @@ class Ls370Sim(Communicator):
         # mkthread(self.run)
 
     def communicate(self, command):
+        self.comLog('> %s' % command)
         # simulation part, time independent
         for channel in range(1,17):
             _, _, _, _, excoff = self._data['RDGRNG?%d' % channel].split(',')
@@ -68,6 +70,6 @@ class Ls370Sim(Communicator):
                     if qcmd in self._data:
                         self._data[qcmd] = arg
                         break
-        #if command.startswith('R'):
-        #    print('> %s\t< %s' % (command, reply))
-        return ';'.join(reply)
+        reply = ';'.join(reply)
+        self.comLog('< %s' % reply)
+        return reply

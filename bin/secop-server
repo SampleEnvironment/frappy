@@ -27,12 +27,11 @@ import sys
 import argparse
 from os import path
 
-import mlzlog
-
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 from secop.lib import generalConfig
+from secop.logging import logger
 from secop.server import Server
 
 
@@ -87,9 +86,9 @@ def main(argv=None):
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
     generalConfig.init(args.gencfg)
-    mlzlog.initLogging('frappy', loglevel, generalConfig.logdir)
+    logger.init(loglevel)
 
-    srv = Server(args.name, mlzlog.log, cfgfiles=args.cfgfiles, interface=args.port, testonly=args.test)
+    srv = Server(args.name, logger.log, cfgfiles=args.cfgfiles, interface=args.port, testonly=args.test)
 
     if args.daemonize:
         srv.start()
