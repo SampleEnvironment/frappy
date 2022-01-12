@@ -49,11 +49,15 @@ Communication
     :show-inheritance:
     :members: communicate
 
-.. autoclass:: secop.stringio.StringIO
+.. autoclass:: secop.io.StringIO
     :show-inheritance:
     :members: communicate, multicomm
 
-.. autoclass:: secop.stringio.HasIodev
+.. autoclass:: secop.io.BytesIO
+    :show-inheritance:
+    :members: communicate, multicomm
+
+.. autoclass:: secop.io.HasIodev
     :show-inheritance:
 
 .. autoclass:: secop.iohandler.IOHandlerBase

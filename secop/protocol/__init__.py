@@ -19,4 +19,4 @@
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-"""SECoP protocl specific stuff"""
+"""SECoP protocol specific stuff"""

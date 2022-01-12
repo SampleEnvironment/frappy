@@ -74,29 +74,29 @@ SIMPLETYPES = {
 }
 
 
-def short_doc(datatype):
+def short_doc(datatype, internal=False):
     # pylint: disable=possibly-unused-variable
 
     def doc_EnumType(dt):
         return 'one of %s' % str(tuple(dt._enum.keys()))
 
     def doc_ArrayOf(dt):
-        return 'array of %s' % short_doc(dt.members)
+        return 'array of %s' % short_doc(dt.members, True)
 
     def doc_TupleOf(dt):
-        return 'tuple of (%s)' % ', '.join(short_doc(m) for m in dt.members)
+        return 'tuple of (%s)' % ', '.join(short_doc(m, True) for m in dt.members)
 
     def doc_CommandType(dt):
-        argument = short_doc(dt.argument) if dt.argument else ''
-        result = ' -> %s' % short_doc(dt.result) if dt.result else ''
+        argument = short_doc(dt.argument, True) if dt.argument else ''
+        result = ' -> %s' % short_doc(dt.result, True) if dt.result else ''
         return '(%s)%s' % (argument, result)  # return argument list only
 
     def doc_NoneOr(dt):
-        other = short_doc(dt.other)
+        other = short_doc(dt.other, True)
         return '%s or None' % other if other else None
 
     def doc_OrType(dt):
-        types = [short_doc(t) for t in dt.types]
+        types = [short_doc(t, True) for t in dt.types]
         if None in types:  # type is anyway broad: no doc
             return None
         return ' or '.join(types)
@@ -104,14 +104,17 @@ def short_doc(datatype):
     def doc_Stub(dt):
         return dt.name.replace('Type', '').replace('Range', '').lower()
 
-    clsname = datatype.__class__.__name__
+    def doc_BLOBType(dt):
+        return 'byte array'
+
+    clsname = type(datatype).__name__
     result = SIMPLETYPES.get(clsname)
     if result:
         return result
     fun = locals().get('doc_' + clsname)
     if fun:
         return fun(datatype)
-    return None  # broad type like ValueType: no doc
+    return clsname if internal else None  # broad types like ValueType: no doc
 
 
 def append_to_doc(cls, lines, itemcls, name, attrname, fmtfunc):
