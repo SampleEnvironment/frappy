@@ -31,9 +31,6 @@ from configparser import ConfigParser
 from os import environ, path
 
 
-unset_value = object()
-
-
 class GeneralConfig:
     def __init__(self):
         self._config = None
@@ -319,3 +316,11 @@ def formatStatusBits(sword, labels, start=0):
         if sword & (1 << i) and lbl:
             result.append(lbl)
     return result
+
+
+class UniqueObject:
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return 'UniqueObject(%r)' % self.name

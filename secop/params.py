@@ -31,8 +31,6 @@ from secop.datatypes import BoolType, CommandType, DataType, \
 from secop.errors import BadValueError, ProgrammingError
 from secop.properties import HasProperties, Property
 
-UNSET = object()  # an argument not given, not even None
-
 
 class Accessible(HasProperties):
     """base class for Parameter and Command

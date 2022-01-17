@@ -31,14 +31,17 @@ from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
     IntRange, StatusType, StringType, TextType, TupleOf
 from secop.errors import BadValueError, ConfigError, \
     ProgrammingError, SECoPError, SilentError, secop_error
-from secop.lib import formatException, mkthread
+from secop.lib import formatException, mkthread, UniqueObject
 from secop.lib.enum import Enum
 from secop.params import Accessible, Command, Parameter
 from secop.poller import BasicPoller, Poller
 from secop.properties import HasProperties, Property
 from secop.logging import RemoteLogHandler, HasComlog
 
-Done = object()  #: a special return value for a read/write function indicating that the setter is triggered already
+Done = UniqueObject('already set')
+"""a special return value for a read/write function
+
+indicating that the setter is triggered already"""
 
 
 class HasAccessibles(HasProperties):

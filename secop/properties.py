@@ -26,7 +26,10 @@
 import inspect
 
 from secop.errors import BadValueError, ConfigError, ProgrammingError
+from secop.lib import UniqueObject
 from secop.lib.py35compat import Object
+
+UNSET = UniqueObject('undefined value')  #: an unset value, not even None
 
 
 class HasDescriptors(Object):
@@ -37,9 +40,6 @@ class HasDescriptors(Object):
                if isinstance(v, tuple) and len(v) == 1 and hasattr(v[0], '__set_name__')]
         if bad:
             raise ProgrammingError('misplaced trailing comma after %s.%s' % (cls.__name__, '/'.join(bad)))
-
-
-UNSET = object()  # an unset value, not even None
 
 
 # storage for 'properties of a property'

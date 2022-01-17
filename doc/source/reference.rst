@@ -4,6 +4,8 @@ Reference
 Module Base Classes
 ...................
 
+.. autodata:: secop.modules.Done
+
 .. autoclass:: secop.modules.Module
     :members: earlyInit, initModule, startModule, pollerClass
 
