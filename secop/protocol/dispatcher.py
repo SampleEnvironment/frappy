@@ -238,13 +238,9 @@ class Dispatcher:
 
         # validate!
         value = pobj.datatype(value)
-        writefunc = getattr(moduleobj, 'write_%s' % pname, None)
         # note: exceptions are handled in handle_request, not here!
-        if writefunc:
-            # return value is ignored here, as it is automatically set on the pobj and broadcast
-            writefunc(value)
-        else:
-            setattr(moduleobj, pname, value)
+        getattr(moduleobj, 'write_' + pname)(value)
+        # return value is ignored here, as already handled
         return pobj.export_value(), dict(t=pobj.timestamp) if pobj.timestamp else {}
 
     def _getParameterValue(self, modulename, exportedname):
@@ -261,11 +257,9 @@ class Dispatcher:
             # raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
             return pobj.datatype.export_value(pobj.constant)
 
-        readfunc = getattr(moduleobj, 'read_%s' % pname, None)
-        if readfunc:
-            # should also update the pobj (via the setter from the metaclass)
-            # note: exceptions are handled in handle_request, not here!
-            readfunc()
+        # note: exceptions are handled in handle_request, not here!
+        getattr(moduleobj, 'read_' + pname)()
+        # return value is ignored here, as already handled
         return pobj.export_value(), dict(t=pobj.timestamp) if pobj.timestamp else {}
 
     #

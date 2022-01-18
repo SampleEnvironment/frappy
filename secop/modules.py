@@ -26,6 +26,7 @@
 import sys
 import time
 from collections import OrderedDict
+from functools import wraps
 
 from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
     IntRange, StatusType, StringType, TextType, TupleOf
@@ -37,6 +38,7 @@ from secop.params import Accessible, Command, Parameter
 from secop.poller import BasicPoller, Poller
 from secop.properties import HasProperties, Property
 from secop.logging import RemoteLogHandler, HasComlog
+
 
 Done = UniqueObject('already set')
 """a special return value for a read/write function
@@ -107,12 +109,14 @@ class HasAccessibles(HasProperties):
             # XXX: create getters for the units of params ??
 
             # wrap of reading/writing funcs
-            if isinstance(pobj, Command):
-                # nothing to do for now
+            if not isinstance(pobj, Parameter):
+                # nothing to do for Commands
                 continue
+
             rfunc = getattr(cls, 'read_' + pname, None)
+            # TODO: remove handler stuff here
             rfunc_handler = pobj.handler.get_read_func(cls, pname) if pobj.handler else None
-            wrapped = hasattr(rfunc, '__wrapped__')
+            wrapped = getattr(rfunc, 'wrapped', False)  # meaning: wrapped or auto generated
             if rfunc_handler:
                 if 'read_' + pname in cls.__dict__:
                     if pname in cls.__dict__:
@@ -126,73 +130,78 @@ class HasAccessibles(HasProperties):
             # create wrapper except when read function is already wrapped
             if not wrapped:
 
-                def wrapped_rfunc(self, pname=pname, rfunc=rfunc):
-                    if rfunc:
-                        self.log.debug("call read_%s" % pname)
+                if rfunc:
+
+                    @wraps(rfunc)  # handles __wrapped__ and __doc__
+                    def new_rfunc(self, pname=pname, rfunc=rfunc):
                         try:
                             value = rfunc(self)
-                            if value is Done:  # the setter is already triggered
-                                value = getattr(self, pname)
-                                self.log.debug("read_%s returned Done (%r)" % (pname, value))
-                                return value
-                            self.log.debug("read_%s returned %r" % (pname, value))
+                            self.log.debug("read_%s returned %r", pname, value)
                         except Exception as e:
-                            self.log.debug("read_%s failed %r" % (pname, e))
-                            self.announceUpdate(pname, None, e)
+                            self.log.debug("read_%s failed with %r", pname, e)
                             raise
-                    else:
-                        # return cached value
-                        value = self.accessibles[pname].value
-                        self.log.debug("return cached %s = %r" % (pname, value))
-                    setattr(self, pname, value)  # important! trigger the setter
-                    return value
+                        if value is Done:
+                            return getattr(self, pname)
+                        setattr(self, pname, value)  # important! trigger the setter
+                        return value
+                else:
 
-                if rfunc:
-                    wrapped_rfunc.__doc__ = rfunc.__doc__
-                setattr(cls, 'read_' + pname, wrapped_rfunc)
-                wrapped_rfunc.__wrapped__ = True
+                    def new_rfunc(self, pname=pname):
+                        return getattr(self, pname)
+
+                    new_rfunc.__doc__ = 'auto generated read method for ' + pname
+
+                new_rfunc.wrapped = True  # indicate to subclasses that no more wrapping is needed
+                setattr(cls, 'read_' + pname, new_rfunc)
 
             if not pobj.readonly:
                 wfunc = getattr(cls, 'write_' + pname, None)
-                wrapped = hasattr(wfunc, '__wrapped__')
+                wrapped = getattr(wfunc, 'wrapped', False)  # meaning: wrapped or auto generated
                 if (wfunc is None or wrapped) and pobj.handler:
                     # ignore the handler, if a write function is present
+                    # TODO: remove handler stuff here
                     wfunc = pobj.handler.get_write_func(pname)
                     wrapped = False
 
                 # create wrapper except when write function is already wrapped
                 if not wrapped:
 
-                    def wrapped_wfunc(self, value, pname=pname, wfunc=wfunc):
-                        pobj = self.accessibles[pname]
-                        if wfunc:
-                            self.log.debug("check and call write_%s(%r)" % (pname, value))
+                    if wfunc:
+
+                        @wraps(wfunc)  # handles __wrapped__ and __doc__
+                        def new_wfunc(self, value, pname=pname, wfunc=wfunc):
+                            pobj = self.accessibles[pname]
+                            self.log.debug('validate %r for %r', value, pname)
+                            # we do not need to handle errors here, we do not
+                            # want to make a parameter invalid, when a write failed
                             value = pobj.datatype(value)
                             returned_value = wfunc(self, value)
-                            if returned_value is Done:  # the setter is already triggered
+                            self.log.debug('write_%s(%r) returned %r', pname, value, returned_value)
+                            if returned_value is Done:
+                                # setattr(self, pname, getattr(self, pname))
                                 return getattr(self, pname)
-                            if returned_value is not None:  # goodie: accept missing return value
-                                value = returned_value
-                        else:
-                            self.log.debug("check %s = %r" % (pname, value))
-                            value = pobj.datatype(value)
-                        setattr(self, pname, value)
-                        return value
+                            setattr(self, pname, value)  # important! trigger the setter
+                            return value
+                    else:
 
-                    if wfunc:
-                        wrapped_wfunc.__doc__ = wfunc.__doc__
-                    setattr(cls, 'write_' + pname, wrapped_wfunc)
-                    wrapped_wfunc.__wrapped__ = True
+                        def new_wfunc(self, value, pname=pname):
+                            setattr(self, pname, value)
+                            return value
+
+                        new_wfunc.__doc__ = 'auto generated write method for ' + pname
+
+                    new_wfunc.wrapped = True  # indicate to subclasses that no more wrapping is needed
+                    setattr(cls, 'write_' + pname, new_wfunc)
 
         # check for programming errors
-        for attrname in cls.__dict__:
+        for attrname, attrvalue in cls.__dict__.items():
             prefix, _, pname = attrname.partition('_')
             if not pname:
                 continue
             if prefix == 'do':
                 raise ProgrammingError('%r: old style command %r not supported anymore'
                                        % (cls.__name__, attrname))
-            if prefix in ('read', 'write') and not isinstance(accessibles.get(pname), Parameter):
+            if prefix in ('read', 'write') and not getattr(attrvalue, 'wrapped', False):
                 raise ProgrammingError('%s.%s defined, but %r is no parameter'
                                        % (cls.__name__, attrname, pname))
 
@@ -394,7 +403,7 @@ class Module(HasAccessibles):
                                       'value and was not given in config!' % pname)
                     # we do not want to call the setter for this parameter for now,
                     # this should happen on the first read
-                    pobj.readerror = ConfigError('not initialized')
+                    pobj.readerror = ConfigError('parameter %r not initialized' % pname)
                     # above error will be triggered on activate after startup,
                     # when not all hardware parameters are read because of startup timeout
                     pobj.value = pobj.datatype(pobj.datatype.default)
@@ -459,11 +468,14 @@ class Module(HasAccessibles):
 
     def announceUpdate(self, pname, value=None, err=None, timestamp=None):
         """announce a changed value or readerror"""
+
+        # TODO: remove readerror 'property' and replace value with exception
         pobj = self.parameters[pname]
         timestamp = timestamp or time.time()
         changed = pobj.value != value
         try:
             # store the value even in case of error
+            # TODO: we should neither check limits nor convert string to float here
             pobj.value = pobj.datatype(value)
         except Exception as e:
             if not err:  # do not overwrite given error

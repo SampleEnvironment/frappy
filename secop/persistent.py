@@ -103,6 +103,7 @@ class PersistentMixin(HasAccessibles):
                 try:
                     value = pobj.datatype.import_value(self.persistentData[pname])
                     pobj.value = value
+                    pobj.readerror = None
                     if not pobj.readonly:
                         writeDict[pname] = value
                 except Exception as e:
@@ -144,5 +145,6 @@ class PersistentMixin(HasAccessibles):
 
     @Command()
     def factory_reset(self):
+        """reset to values from config / default values"""
         self.writeDict.update(self.initData)
         self.writeInitParams()

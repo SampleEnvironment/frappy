@@ -30,6 +30,7 @@ from secop.modules import Communicator, Drivable, Readable, Module
 from secop.params import Command, Parameter
 from secop.poller import BasicPoller
 from secop.lib.multievent import MultiEvent
+from secop.rwhandler import ReadHandler, WriteHandler
 
 
 class DispatcherStub:
@@ -51,8 +52,8 @@ class DispatcherStub:
 
 
 class LoggerStub:
-    def debug(self, *args):
-        print(*args)
+    def debug(self, fmt, *args):
+        print(fmt % args)
     info = warning = exception = debug
     handlers = []
 
@@ -109,6 +110,9 @@ def test_ModuleMagic():
 
         def read_value(self):
             return 'second'
+
+        def read_status(self):
+            return 'IDLE', 'ok'
 
     with pytest.raises(ProgrammingError):
         class Mod1(Module):  # pylint: disable=unused-variable
@@ -179,7 +183,7 @@ def test_ModuleMagic():
     o1.startModule(event)
     event.wait()
     # should contain polled values
-    expectedAfterStart = {'status': (Drivable.Status.IDLE, ''),
+    expectedAfterStart = {'status': (Drivable.Status.IDLE, 'ok'),
             'value': 'second'}
     assert updates.pop('o1') == expectedAfterStart
 
@@ -479,3 +483,95 @@ def test_bad_method():
         class Mod3(Drivable):  # pylint: disable=unused-variable
             def read_valu(self, value):
                 pass
+
+
+def test_generic_access():
+    class Mod(Module):
+        param = Parameter('handled param', StringType(), readonly=False)
+        unhandled = Parameter('unhandled param', StringType(), default='', readonly=False)
+        data = {'param': ''}
+
+        @ReadHandler(['param'])
+        def read_handler(self, pname):
+            value = self.data[pname]
+            setattr(self, pname, value)
+            return value
+
+        @WriteHandler(['param'])
+        def write_handler(self, pname, value):
+            value = value.lower()
+            self.data[pname] = value
+            setattr(self, pname, value)
+            return value
+
+    updates = {}
+    srv = ServerStub(updates)
+
+    obj = Mod('obj', logger, {'description': '', 'param': 'initial value'}, srv)
+    assert obj.param == 'initial value'
+    assert obj.write_param('Cheese') == 'cheese'
+    assert obj.write_unhandled('Cheese') == 'Cheese'
+    assert updates == {'obj': {'param': 'cheese', 'unhandled': 'Cheese'}}
+    updates.clear()
+    assert obj.write_param('Potato') == 'potato'
+    assert updates == {'obj': {'param': 'potato'}}
+    updates.clear()
+    assert obj.read_param() == 'potato'
+    assert obj.read_unhandled()
+    assert updates == {'obj': {'param': 'potato'}}
+    updates.clear()
+    assert updates == {}
+
+
+def test_duplicate_handler_name():
+    with pytest.raises(ProgrammingError):
+        class Mod(Module):  # pylint: disable=unused-variable
+            param = Parameter('handled param', StringType(), readonly=False)
+
+            @ReadHandler(['param'])
+            def handler(self, pname):
+                pass
+
+            @WriteHandler(['param'])
+            def handler(self, pname, value):  # pylint: disable=function-redefined
+                pass
+
+
+def test_handler_overwrites_method():
+    with pytest.raises(RuntimeError):
+        class Mod1(Module):  # pylint: disable=unused-variable
+            param = Parameter('handled param', StringType(), readonly=False)
+
+            @ReadHandler(['param'])
+            def read_handler(self, pname):
+                pass
+
+            def read_param(self):
+                pass
+
+    with pytest.raises(RuntimeError):
+        class Mod2(Module):  # pylint: disable=unused-variable
+            param = Parameter('handled param', StringType(), readonly=False)
+
+            @WriteHandler(['param'])
+            def write_handler(self, pname, value):
+                pass
+
+            def write_param(self, value):
+                pass
+
+
+def test_no_read_write():
+    class Mod(Module):
+        param = Parameter('test param', StringType(), readonly=False)
+
+    updates = {}
+    srv = ServerStub(updates)
+
+    obj = Mod('obj', logger, {'description': '', 'param': 'cheese'}, srv)
+    assert obj.param == 'cheese'
+    assert obj.read_param() == 'cheese'
+    assert updates == {'obj': {'param': 'cheese'}}
+    assert obj.write_param('egg') == 'egg'
+    assert obj.param == 'egg'
+    assert updates == {'obj': {'param': 'egg'}}

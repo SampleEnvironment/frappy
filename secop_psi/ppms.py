@@ -320,7 +320,7 @@ class Chamber(PpmsBase, Drivable):
         general_failure=15,
     )
 
-    value = Parameter(description='chamber state', handler=chamber,
+    value = Parameter(description='chamber state',  # handler=chamber,
                       datatype=EnumType(StatusCode))
     target = Parameter(description='chamber command', handler=chamber,
                        datatype=EnumType(Operation))
@@ -482,7 +482,7 @@ class Temp(PpmsBase, Drivable):
         if workingramp != 2 or not self._ramp_at_limit:
             self.log.debug('read back ramp %g %r' % (workingramp, self._ramp_at_limit))
             self.ramp = workingramp
-        result = dict(setpoint=setpoint, workingramp=workingramp)
+        result = dict(setpoint=setpoint, workingramp=workingramp, approachmode=approachmode)
         self.log.debug('analyze_temp %r %r' % (result, (self.target, self.ramp)))
         return result
 

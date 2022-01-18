@@ -24,13 +24,12 @@
 
 import time
 import struct
-from math import log10
 
 from secop.core import BoolType, Command, EnumType, FloatRange, IntRange, \
-    HasIodev, Parameter, Property, Drivable, PersistentMixin, PersistentParam
+    HasIodev, Parameter, Property, Drivable, PersistentMixin, PersistentParam, Done
 from secop.io import BytesIO
 from secop.errors import CommunicationFailedError, HardwareError, BadValueError, IsBusyError
-
+from secop.rwhandler import ReadHandler, WriteHandler
 
 MOTOR_STOP = 3
 MOVE = 4
@@ -52,26 +51,30 @@ MAX_ACCEL = 2047 * ACCEL_SCALE
 CURRENT_SCALE = 2.8/250
 ENCODER_RESOLUTION = 360 / 1024
 
+HW_ARGS = {
+    # <parameter name>: (address, scale factor)
+    'encoder_tolerance': (212, ANGLE_SCALE),
+    'speed': (4, SPEED_SCALE),
+    'minspeed': (130, SPEED_SCALE),
+    'currentspeed': (3, SPEED_SCALE),
+    'maxcurrent': (6, CURRENT_SCALE),
+    'standby_current': (7, CURRENT_SCALE,),
+    'acceleration': (5, ACCEL_SCALE),
+    'target_reached': (8, 1),
+    'move_status': (207, 1),
+    'error_bits': (208, 1),
+    'free_wheeling': (204, 0.01),
+    'power_down_delay': (214, 0.01),
+}
 
-class HwParam(PersistentParam):
-    adr = Property('parameter address', IntRange(0, 255), export=False)
-    scale = Property('scale factor (physical value / unit)', FloatRange(), export=False)
+# special handling (adjust zero):
+ENCODER_ADR = 209
+STEPPOS_ADR = 1
 
-    def __init__(self, description, datatype, adr, scale=1, poll=True,
-                 readonly=True, persistent=None, **kwds):
-        """hardware parameter"""
-        if persistent is None:
-            persistent = not readonly
-        if isinstance(datatype, FloatRange) and datatype.fmtstr == '%g':
-            datatype.fmtstr = '%%.%df' % max(0, 1 - int(log10(scale) + 0.01))
-        super().__init__(description, datatype, poll=poll, adr=adr, scale=scale,
-                         persistent=persistent, readonly=readonly, **kwds)
 
-    def copy(self):
-        res = HwParam(self.description, self.datatype.copy(), self.adr)
-        res.name = self.name
-        res.init(self.propertyValues)
-        return res
+def writable(*args, **kwds):
+    """convenience function to create writable hardware parameters"""
+    return PersistentParam(*args, readonly=False, poll=True, initwrite=True, **kwds)
 
 
 class Motor(PersistentMixin, HasIodev, Drivable):
@@ -79,41 +82,36 @@ class Motor(PersistentMixin, HasIodev, Drivable):
 
     value = Parameter('motor position', FloatRange(unit='deg', fmtstr='%.3f'))
     zero = PersistentParam('zero point', FloatRange(unit='$'), readonly=False, default=0)
-    encoder = HwParam('encoder reading', FloatRange(unit='$', fmtstr='%.1f'),
-                      209, ANGLE_SCALE, readonly=True, initwrite=False, persistent=True)
-    steppos = HwParam('position from motor steps', FloatRange(unit='$'),
-                      1, ANGLE_SCALE, readonly=True, initwrite=False)
+    encoder = PersistentParam('encoder reading', FloatRange(unit='$', fmtstr='%.1f'),
+                              readonly=True, initwrite=False, poll=True)
+    steppos = PersistentParam('position from motor steps', FloatRange(unit='$', fmtstr='%.3f'),
+                              readonly=True, initwrite=False, poll=True)
     target = Parameter('', FloatRange(unit='$'), default=0)
 
-    movelimit = Parameter('max. angle to drive in one go', FloatRange(unit='$'),
-                          readonly=False, default=360, group='more')
+    move_limit = Parameter('max. angle to drive in one go', FloatRange(unit='$'),
+                           readonly=False, default=360, group='more')
     tolerance = Parameter('positioning tolerance', FloatRange(unit='$'),
                           readonly=False, default=0.9)
-    encoder_tolerance = HwParam('the allowed deviation between steppos and encoder\n\nmust be > tolerance',
-                                FloatRange(0, 360., unit='$'),
-                                212, ANGLE_SCALE, readonly=False, group='more')
-    speed = HwParam('max. speed', FloatRange(0, MAX_SPEED, unit='$/sec'),
-                    4, SPEED_SCALE, readonly=False)
-    minspeed = HwParam('min. speed', FloatRange(0, MAX_SPEED, unit='$/sec'),
-                       130, SPEED_SCALE, readonly=False, default=SPEED_SCALE, group='motorparam')
-    currentspeed = HwParam('current speed', FloatRange(-MAX_SPEED, MAX_SPEED, unit='$/sec'),
-                           3, SPEED_SCALE, readonly=True, group='motorparam')
-    maxcurrent = HwParam('', FloatRange(0, 2.8, unit='A'),
-                         6, CURRENT_SCALE, readonly=False, group='motorparam')
-    standby_current = HwParam('', FloatRange(0, 2.8, unit='A'),
-                              7, CURRENT_SCALE, readonly=False, group='motorparam')
-    acceleration = HwParam('', FloatRange(4.6 * ACCEL_SCALE, MAX_ACCEL, unit='deg/s^2'),
-                           5, ACCEL_SCALE, readonly=False, group='motorparam')
-    target_reached = HwParam('', BoolType(), 8, group='hwstatus')
-    move_status = HwParam('', IntRange(0, 3),
-                          207, readonly=True, group='hwstatus')
-    error_bits = HwParam('', IntRange(0, 255),
-                         208, readonly=True, group='hwstatus')
-    # the doc says msec, but I believe the scale is 10 msec
-    free_wheeling = HwParam('', FloatRange(0, 60., unit='sec'),
-                            204, 0.01, default=0.1, readonly=False, group='motorparam')
-    power_down_delay = HwParam('', FloatRange(0, 60., unit='sec'),
-                               214, 0.01, default=0.1, readonly=False, group='motorparam')
+    encoder_tolerance = writable('the allowed deviation between steppos and encoder\n\nmust be > tolerance',
+                                 FloatRange(0, 360., unit='$', fmtstr='%.3f'), group='more')
+    speed = writable('max. speed', FloatRange(0, MAX_SPEED, unit='$/sec', fmtstr='%.1f'), default=40)
+    minspeed = writable('min. speed', FloatRange(0, MAX_SPEED, unit='$/sec', fmtstr='%.1f'),
+                        default=SPEED_SCALE, group='motorparam')
+    currentspeed = Parameter('current speed', FloatRange(-MAX_SPEED, MAX_SPEED, unit='$/sec', fmtstr='%.1f'),
+                             poll=True, group='motorparam')
+    maxcurrent = writable('', FloatRange(0, 2.8, unit='A', fmtstr='%.2f'),
+                          default=1.4, group='motorparam')
+    standby_current = writable('', FloatRange(0, 2.8, unit='A', fmtstr='%.2f'),
+                               default=0.1, group='motorparam')
+    acceleration = writable('', FloatRange(4.6 * ACCEL_SCALE, MAX_ACCEL, unit='deg/s^2', fmtstr='%.1f'),
+                            default=150., group='motorparam')
+    target_reached = Parameter('', BoolType(), poll=True, group='hwstatus')
+    move_status = Parameter('', IntRange(0, 3), poll=True, group='hwstatus')
+    error_bits = Parameter('', IntRange(0, 255), poll=True, group='hwstatus')
+    free_wheeling = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
+                             default=0.1, group='motorparam')
+    power_down_delay = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
+                                default=0.1, group='motorparam')
     baudrate = Parameter('', EnumType({'%d' % v: i for i, v in enumerate(BAUDRATES)}),
                          readonly=False, default=0, poll=True, visibility=3, group='more')
     pollinterval = Parameter(group='more')
@@ -133,7 +131,7 @@ class Motor(PersistentMixin, HasIodev, Drivable):
         :param value: if given, the parameter is written, else it is returned
         :return: the returned value
         """
-        if self._calcTimeout:
+        if self._calcTimeout and self._iodev._conn:
             self._calcTimeout = False
             baudrate = getattr(self._iodev._conn.connection, 'baudrate', None)
             if baudrate:
@@ -165,32 +163,18 @@ class Motor(PersistentMixin, HasIodev, Drivable):
             raise CommunicationFailedError('bad reply %r to command %s %d' % (reply, cmd, adr))
         return result
 
-    def get(self, pname):
-        """get parameter"""
-        pobj = self.parameters[pname]
-        value = self.comm(GET_AXIS_PAR, pobj.adr)
-        # do not apply scale when 1 (datatype might not be float)
-        return value if pobj.scale == 1 else value * pobj.scale
-
-    def set(self, pname, value, check=True):
-        """set parameter and check result"""
-        pobj = self.parameters[pname]
-        scale = pobj.scale
-        rawvalue = round(value / scale)
-        self.comm(SET_AXIS_PAR, pobj.adr, rawvalue)
-        if check:
-            result = self.comm(GET_AXIS_PAR, pobj.adr)
-            if result != rawvalue:
-                raise HardwareError('result does not match %d != %d' % (result, rawvalue))
-            value = result * scale
-        return value
-
     def startModule(self, start_events):
-        # get encoder value from motor. at this stage self.encoder contains the persistent value
-        encoder = self.get('encoder')
-        encoder += self.zero
-        self.fix_encoder(encoder)
         super().startModule(start_events)
+
+        def fix_encoder(self=self):
+            try:
+                # get encoder value from motor. at this stage self.encoder contains the persistent value
+                encoder = self._read_axispar(ENCODER_ADR, ANGLE_SCALE) + self.zero
+                self.fix_encoder(encoder)
+            except Exception as e:
+                self.log.error('fix_encoder failed with %r', e)
+
+        start_events.queue(fix_encoder)
 
     def fix_encoder(self, encoder_from_hw):
         """fix encoder value
@@ -204,14 +188,52 @@ class Motor(PersistentMixin, HasIodev, Drivable):
         # calculate nearest, most probable value
         adjusted_encoder = encoder_from_hw + round((self.encoder - encoder_from_hw) / 360.) * 360
         if abs(self.encoder - adjusted_encoder) >= self.encoder_tolerance:
-            # encoder module0 360 has changed
+            # encoder modulo 360 has changed
             self.log.error('saved encoder value (%.2f) does not match reading (%.2f %.2f)',
                            self.encoder, encoder_from_hw, adjusted_encoder)
             if adjusted_encoder != encoder_from_hw:
                 self.log.info('take next closest encoder value (%.2f)' % adjusted_encoder)
             self._need_reset = True
             self.status = self.Status.ERROR, 'saved encoder value does not match reading'
-        self.set('encoder', adjusted_encoder - self.zero, check=False)
+        self._write_axispar(adjusted_encoder - self.zero, ENCODER_ADR, ANGLE_SCALE, readback=False)
+
+    def _read_axispar(self, adr, scale=1):
+        value = self.comm(GET_AXIS_PAR, adr)
+        # do not apply scale when 1 (datatype might not be float)
+        return value if scale == 1 else value * scale
+
+    def _write_axispar(self, value, adr, scale=1, readback=True):
+        rawvalue = round(value / scale)
+        self.comm(SET_AXIS_PAR, adr, rawvalue)
+        if readback:
+            result = self.comm(GET_AXIS_PAR, adr)
+            if result != rawvalue:
+                raise HardwareError('result for adr=%d scale=%g does not match %g != %g'
+                                    % (adr, scale, result * scale, value))
+            return result * scale
+        return rawvalue * scale
+
+    @ReadHandler(HW_ARGS)
+    def read_hwparam(self, pname):
+        """handle read for HwParam"""
+        args = HW_ARGS[pname]
+        reply = self._read_axispar(*args)
+        try:
+            value = getattr(self, pname)
+        except Exception:
+            return reply
+        if reply != value:
+            if not self.parameters[pname].readonly:
+                # this should not happen
+                self.log.warning('hw parameter %s has changed from %r to %r, write again', pname, value, reply)
+                self._write_axispar(value, *args, readback=False)
+                reply = self._read_axispar(*args)
+        return reply
+
+    @WriteHandler(HW_ARGS)
+    def write_hwparam(self, pname, value):
+        """handler write for HwParam"""
+        return self._write_axispar(value, *HW_ARGS[pname])
 
     def read_value(self):
         encoder = self.read_encoder()
@@ -233,7 +255,7 @@ class Motor(PersistentMixin, HasIodev, Drivable):
                 self._need_reset = True
                 self.status = self.Status.ERROR, 'power loss'
                 # or should we just fix instead of error status?
-                # self.set('steppos', self.steppos - self.zero, check=False)
+                # self._write_axispar(self.steppos - self.zero, readback=False)
             self.comm(SET_GLOB_PAR, 255, 1, bank=2)  # set initialized flag
             self._started = 0
 
@@ -252,6 +274,7 @@ class Motor(PersistentMixin, HasIodev, Drivable):
         if oldpos != self.steppos or not (self.read_target_reached() or self.read_move_status()
                                           or self.read_error_bits()):
             return self.Status.BUSY, 'moving'
+        # TODO: handle the different errors from move_status and error_bits
         diff = self.target - self.encoder
         if abs(diff) <= self.tolerance:
             self._started = 0
@@ -262,8 +285,8 @@ class Motor(PersistentMixin, HasIodev, Drivable):
 
     def write_target(self, target):
         self.read_value()  # make sure encoder and steppos are fresh
-        if abs(target - self.encoder) > self.movelimit:
-            raise BadValueError('can not move more than %s deg' % self.movelimit)
+        if abs(target - self.encoder) > self.move_limit:
+            raise BadValueError('can not move more than %s deg' % self.move_limit)
         diff = self.encoder - self.steppos
         if self._need_reset:
             raise HardwareError('need reset (%s)' % self.status[1])
@@ -272,7 +295,7 @@ class Motor(PersistentMixin, HasIodev, Drivable):
                 self._need_reset = True
                 self.status = self.Status.ERROR, 'encoder does not match internal pos'
                 raise HardwareError('need reset (encoder does not match internal pos)')
-            self.set('steppos', self.encoder - self.zero)
+            self._write_axispar(self.encoder - self.zero, STEPPOS_ADR, ANGLE_SCALE)
         self._started = time.time()
         self.log.info('move to %.1f', target)
         self.comm(MOVE, 0, (target - self.zero) / ANGLE_SCALE)
@@ -280,80 +303,19 @@ class Motor(PersistentMixin, HasIodev, Drivable):
         return target
 
     def write_zero(self, value):
-        diff = value - self.zero
-        self.encoder += diff
-        self.steppos += diff
-        self.value += diff
-        return value
+        self.zero = value
+        self.read_value()  # apply zero to encoder, steppos and value
+        return Done
 
     def read_encoder(self):
-        return self.get('encoder') + self.zero
+        return self._read_axispar(ENCODER_ADR, ANGLE_SCALE) + self.zero
 
     def read_steppos(self):
-        return self.get('steppos') + self.zero
-
-    def read_encoder_tolerance(self):
-        return self.get('encoder_tolerance')
-
-    def write_encoder_tolerance(self, value):
-        return self.set('encoder_tolerance', value)
-
-    def read_target_reached(self):
-        return self.get('target_reached')
-
-    def read_speed(self):
-        return self.get('speed')
-
-    def write_speed(self, value):
-        return self.set('speed', value)
-
-    def read_minspeed(self):
-        return self.get('minspeed')
-
-    def write_minspeed(self, value):
-        return self.set('minspeed', value)
-
-    def read_currentspeed(self):
-        return self.get('currentspeed')
-
-    def read_acceleration(self):
-        return self.get('acceleration')
-
-    def write_acceleration(self, value):
-        return self.set('acceleration', value)
-
-    def read_maxcurrent(self):
-        return self.get('maxcurrent')
-
-    def write_maxcurrent(self, value):
-        return self.set('maxcurrent', value)
-
-    def read_standby_current(self):
-        return self.get('standby_current')
-
-    def write_standby_current(self, value):
-        return self.set('standby_current', value)
-
-    def read_free_wheeling(self):
-        return self.get('free_wheeling')
-
-    def write_free_wheeling(self, value):
-        return self.set('free_wheeling', value)
-
-    def read_power_down_delay(self):
-        return self.get('power_down_delay')
-
-    def write_power_down_delay(self, value):
-        return self.set('power_down_delay', value)
-
-    def read_move_status(self):
-        return self.get('move_status')
-
-    def read_error_bits(self):
-        return self.get('error_bits')
+        return self._read_axispar(STEPPOS_ADR, ANGLE_SCALE) + self.zero
 
     @Command(FloatRange())
     def set_zero(self, value):
+        """adjust zero"""
         self.write_zero(value - self.read_value())
 
     def read_baudrate(self):
@@ -374,7 +336,7 @@ class Motor(PersistentMixin, HasIodev, Drivable):
                 self._need_reset = False
                 self.status = self.Status.IDLE, 'ok'
                 return
-            self.set('steppos', self.encoder - self.zero, check=False)
+            self._write_axispar(self.encoder - self.zero, STEPPOS_ADR, ANGLE_SCALE, readback=False)
             self.comm(MOVE, 0, (self.encoder - self.zero) / ANGLE_SCALE)
             time.sleep(0.1)
             if itry > 5:
@@ -410,7 +372,7 @@ class Motor(PersistentMixin, HasIodev, Drivable):
         """get arbitrary motor parameter"""
         return self.comm(GET_AXIS_PAR, adr)
 
-    @Command((IntRange(), FloatRange()), result=IntRange())
+    @Command((IntRange(), IntRange()), result=IntRange())
     def set_axis_par(self, adr, value):
         """set arbitrary motor parameter"""
         return self.comm(SET_AXIS_PAR, adr, value)

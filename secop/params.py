@@ -196,7 +196,6 @@ class Parameter(Accessible):
             self.ownProperties = {k: getattr(self, k) for k in self.propertyDict}
 
     def __get__(self, instance, owner):
-        # not used yet
         if instance is None:
             return self
         return instance.parameters[self.name].value

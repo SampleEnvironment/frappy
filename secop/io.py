@@ -86,7 +86,7 @@ class IOBase(Communicator):
     uri = Property('hostname:portnumber', datatype=StringType())
     timeout = Parameter('timeout', datatype=FloatRange(0), default=2)
     wait_before = Parameter('wait time before sending', datatype=FloatRange(), default=0)
-    is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, poll=REGULAR)
+    is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, default=False, poll=REGULAR)
     pollinterval = Parameter('reconnect interval', datatype=FloatRange(0), readonly=False, default=10)
 
     _reconnectCallbacks = None
@@ -95,6 +95,7 @@ class IOBase(Communicator):
     _lock = None
 
     def earlyInit(self):
+        super().earlyInit()
         self._lock = threading.RLock()
 
     def connectStart(self):
