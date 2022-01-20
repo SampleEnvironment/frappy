@@ -216,9 +216,14 @@ class Dispatcher:
         if cobj is None:
             raise NoSuchCommandError('Module %r has no command %r' % (modulename, cname or exportedname))
 
+        if cobj.argument:
+            argument = cobj.argument.import_value(argument)
         # now call func
         # note: exceptions are handled in handle_request, not here!
-        return cobj.do(moduleobj, argument), dict(t=currenttime())
+        result = cobj.do(moduleobj, argument)
+        if cobj.result:
+            result = cobj.result.export_value(result)
+        return result, dict(t=currenttime())
 
     def _setParameterValue(self, modulename, exportedname, value):
         moduleobj = self.get_module(modulename)
