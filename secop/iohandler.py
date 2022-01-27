@@ -126,7 +126,7 @@ class CmdParser:
         try:
             argformat % ((0,) * len(casts))  # validate argformat
         except ValueError as e:
-            raise ValueError("%s in %r" % (e, argformat))
+            raise ValueError("%s in %r" % (e, argformat)) from None
 
     def format(self, *values):
         return self.fmt % values
@@ -242,7 +242,7 @@ class IOHandler(IOHandlerBase):
         contain the command separator at the end.
         """
         querycmd = self.make_query(module)
-        reply = module.sendRecv(changecmd + querycmd)
+        reply = module.communicate(changecmd + querycmd)
         return self.parse_reply(reply)
 
     def send_change(self, module, *values):
@@ -253,7 +253,7 @@ class IOHandler(IOHandlerBase):
         """
         changecmd = self.make_change(module, *values)
         if self.CMDSEPARATOR is None:
-            module.sendRecv(changecmd)  # ignore result
+            module.communicate(changecmd)  # ignore result
             return self.send_command(module)
         return self.send_command(module, changecmd + self.CMDSEPARATOR)
 

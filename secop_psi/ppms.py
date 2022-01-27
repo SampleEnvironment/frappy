@@ -40,10 +40,10 @@ from secop.datatypes import BoolType, EnumType, \
 from secop.errors import HardwareError
 from secop.lib import clamp
 from secop.lib.enum import Enum
-from secop.modules import Attached, Communicator, Done, \
+from secop.modules import Communicator, Done, \
     Drivable, Parameter, Property, Readable
 from secop.poller import Poller
-from secop.io import HasIodev
+from secop.io import HasIO
 
 try:
     import secop_psi.ppmswindows as ppmshw
@@ -130,10 +130,8 @@ class Main(Communicator):
         return data  # return data as string
 
 
-class PpmsBase(HasIodev, Readable):
+class PpmsBase(HasIO, Readable):
     """common base for all ppms modules"""
-    iodev = Attached()
-
     # polling is done by the main module
     # and PPMS does not deliver really more fresh values when polled more often
     value = Parameter(poll=False, needscfg=False)
@@ -150,7 +148,7 @@ class PpmsBase(HasIodev, Readable):
 
     def initModule(self):
         super().initModule()
-        self._iodev.register(self)
+        self.io.register(self)
 
     def update_value_status(self, value, packed_status):
         # update value and status
@@ -197,7 +195,7 @@ class UserChannel(Channel):
                           datatype=StringType(), export=False, default='')
 
     def write_enabled(self, enabled):
-        other = self._iodev.modules.get(self.linkenable, None)
+        other = self.io.modules.get(self.linkenable, None)
         if other:
             other.enabled = enabled
         return enabled

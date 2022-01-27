@@ -23,7 +23,7 @@
 """drivers for CCU4, the cryostat control unit at SINQ"""
 # the most common Frappy classes can be imported from secop.core
 from secop.core import EnumType, FloatRange, \
-    HasIodev, Parameter, Readable, StringIO
+    HasIO, Parameter, Readable, StringIO
 
 
 class CCU4IO(StringIO):
@@ -34,14 +34,13 @@ class CCU4IO(StringIO):
     identification = [('cid', r'CCU4.*')]
 
 
-# inheriting the HasIodev mixin creates us a private attribute *_iodev*
-# for talking with the hardware
+# inheriting HasIO allows us to use the communicate method for talking with the hardware
 # Readable as a base class defines the value and status parameters
-class HeLevel(HasIodev, Readable):
+class HeLevel(HasIO, Readable):
     """He Level channel of CCU4"""
 
     # define the communication class to create the IO module
-    iodevClass = CCU4IO
+    ioClass = CCU4IO
 
     # define or alter the parameters
     # as Readable.value exists already, we give only the modified property 'unit'
@@ -71,7 +70,7 @@ class HeLevel(HasIodev, Readable):
                     for changing a parameter
         :returns: the (new) value of the parameter
         """
-        name, txtvalue = self._iodev.communicate(cmd).split('=')
+        name, txtvalue = self.communicate(cmd).split('=')
         assert name == cmd.split('=')[0]  # check that we got a reply to our command
         return txtvalue  # Frappy will automatically convert the string to the needed data type
 

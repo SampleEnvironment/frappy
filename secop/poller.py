@@ -30,7 +30,7 @@ Usage examples:
         pollerClass = poller.Poller
         ...
 
-    modules having a parameter 'iodev' with the same value will share the same poller
+    modules having a parameter 'io' with the same value will share the same poller
 """
 
 import time
@@ -58,11 +58,11 @@ class PollerBase:
 
         table is a dict, with (<pollerClass>, <name>) as the key, and the
         poller as value.
-        <name> is module.iodev or module.name, if iodev is not present
+        <name> is module.io.name or module.name, if io is not present
         """
-        # for modules with the same iodev, a common poller is used,
-        # modules without iodev all get their own poller
-        name = getattr(module, 'iodev', module.name)
+        # for modules with the same io, a common poller is used,
+        # modules without io all get their own poller
+        name = getattr(module, 'io', module).name
         poller = table.get((cls, name), None)
         if poller is None:
             poller = cls(name)

@@ -26,7 +26,7 @@ import time
 import struct
 
 from secop.core import BoolType, Command, EnumType, FloatRange, IntRange, \
-    HasIodev, Parameter, Property, Drivable, PersistentMixin, PersistentParam, Done
+    HasIO, Parameter, Property, Drivable, PersistentMixin, PersistentParam, Done
 from secop.io import BytesIO
 from secop.errors import CommunicationFailedError, HardwareError, BadValueError, IsBusyError
 from secop.rwhandler import ReadHandler, WriteHandler
@@ -77,7 +77,7 @@ def writable(*args, **kwds):
     return PersistentParam(*args, readonly=False, poll=True, initwrite=True, **kwds)
 
 
-class Motor(PersistentMixin, HasIodev, Drivable):
+class Motor(PersistentMixin, HasIO, Drivable):
     address = Property('module address', IntRange(0, 255), default=1)
 
     value = Parameter('motor position', FloatRange(unit='deg', fmtstr='%.3f'))
@@ -116,7 +116,7 @@ class Motor(PersistentMixin, HasIodev, Drivable):
                          readonly=False, default=0, poll=True, visibility=3, group='more')
     pollinterval = Parameter(group='more')
 
-    iodevClass = BytesIO
+    ioClass = BytesIO
     fast_pollfactor = 0.001  # poll as fast as possible when busy
     _started = 0
     _calcTimeout = True
@@ -131,20 +131,20 @@ class Motor(PersistentMixin, HasIodev, Drivable):
         :param value: if given, the parameter is written, else it is returned
         :return: the returned value
         """
-        if self._calcTimeout and self._iodev._conn:
+        if self._calcTimeout and self.io._conn:
             self._calcTimeout = False
-            baudrate = getattr(self._iodev._conn.connection, 'baudrate', None)
+            baudrate = getattr(self.io._conn.connection, 'baudrate', None)
             if baudrate:
                 if baudrate not in BAUDRATES:
                     raise CommunicationFailedError('unsupported baud rate: %d' % baudrate)
-                self._iodev.timeout = 0.03 + 200 / baudrate
+                self.io.timeout = 0.03 + 200 / baudrate
 
         exc = None
         byt = struct.pack('>BBBBi', self.address, cmd, adr, bank, round(value))
         byt += bytes([sum(byt) & 0xff])
         for itry in range(3,0,-1):
             try:
-                reply = self._iodev.communicate(byt, 9)
+                reply = self.communicate(byt, 9)
                 if sum(reply[:-1]) & 0xff != reply[-1]:
                     raise CommunicationFailedError('checksum error')
                     # will try again

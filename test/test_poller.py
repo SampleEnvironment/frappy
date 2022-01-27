@@ -117,7 +117,10 @@ class Parameter:
 class Module:
     properties = {}
     pollerClass = Poller
-    iodev = 'common_iodev'
+
+    class io:
+        name = 'common_io'
+
     def __init__(self, name, pollinterval=5, fastfactor=0.25, slowfactor=4, busy=False,
                  counts=(), auto=None):
         '''create a dummy module
@@ -203,7 +206,7 @@ def test_Poller(modules):
                     count[pobj.polltype] += 1
                     pobj.reset()
         assert len(pollTable) == 1
-        poller = pollTable[(Poller, 'common_iodev')]
+        poller = pollTable[(Poller, 'common_io')]
         artime.stop = poller.stop
         poller._event = Event() # patch Event.wait
 

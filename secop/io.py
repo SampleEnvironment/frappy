@@ -29,56 +29,79 @@ import time
 import threading
 
 from secop.lib.asynconn import AsynConn, ConnectionClosed
-from secop.datatypes import ArrayOf, BLOBType, BoolType, FloatRange, IntRange, StringType, TupleOf, ValueType
-from secop.errors import CommunicationFailedError, CommunicationSilentError, ConfigError
+from secop.datatypes import ArrayOf, BLOBType, BoolType, FloatRange, IntRange, \
+    StringType, TupleOf, ValueType
+from secop.errors import CommunicationFailedError, CommunicationSilentError, \
+    ConfigError, ProgrammingError
 from secop.modules import Attached, Command, \
     Communicator, Done, Module, Parameter, Property
 from secop.poller import REGULAR
+from secop.lib import generalConfig
 
 
+generalConfig.defaults['legacy_hasiodev'] = False
 HEX_CODE = re.compile(r'[0-9a-fA-F][0-9a-fA-F]$')
 
 
-class HasIodev(Module):
+class HasIO(Module):
     """Mixin for modules using a communicator"""
-    iodev = Attached()
+    io = Attached()
     uri = Property('uri for automatic creation of the attached communication module',
                    StringType(), default='')
 
-    iodevDict = {}
+    ioDict = {}
+    ioClass = None
 
     def __init__(self, name, logger, opts, srv):
-        iodev = opts.get('iodev')
+        io = opts.get('io')
         super().__init__(name, logger, opts, srv)
         if self.uri:
             opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
                     'export': False}
-            ioname = self.iodevDict.get(self.uri)
+            ioname = self.ioDict.get(self.uri)
             if not ioname:
-                ioname = iodev or name + '_iodev'
-                iodev = self.iodevClass(ioname, srv.log.getChild(ioname), opts, srv)
-                iodev.callingModule = []
-                srv.modules[ioname] = iodev
-                self.iodevDict[self.uri] = ioname
-            self.iodev = ioname
-        elif not self.iodev:
-            raise ConfigError("Module %s needs a value for either 'uri' or 'iodev'" % name)
+                ioname = io or name + '_io'
+                io = self.ioClass(ioname, srv.log.getChild(ioname), opts, srv)  # pylint: disable=not-callable
+                io.callingModule = []
+                srv.modules[ioname] = io
+                self.ioDict[self.uri] = ioname
+            self.io = ioname
+        elif not io:
+            raise ConfigError("Module %s needs a value for either 'uri' or 'io'" % name)
 
     def initModule(self):
         try:
-            self._iodev.read_is_connected()
+            self.io.read_is_connected()
         except (CommunicationFailedError, AttributeError):
-            # AttributeError: for missing _iodev?
+            # AttributeError: read_is_connected is not required for an io object
             pass
         super().initModule()
 
     def communicate(self, *args):
-        return self._iodev.communicate(*args)
+        return self.io.communicate(*args)
 
     def multicomm(self, *args):
-        return self._iodev.multicomm(*args)
+        return self.io.multicomm(*args)
 
-    sendRecv = communicate  # TODO: remove legacy stuff
+
+class HasIodev(HasIO):
+    # TODO: remove this legacy mixin
+    iodevClass = None
+
+    @property
+    def _iodev(self):
+        return self.io
+
+    def __init__(self, name, logger, opts, srv):
+        self.ioClass = self.iodevClass
+        super().__init__(name, logger, opts, srv)
+        if generalConfig.legacy_hasiodev:
+            self.log.warn('using the HasIodev mixin is deprecated - use HasIO instead')
+        else:
+            self.log.error('legacy HasIodev no longer supported')
+            self.log.error('you may suppress this error message by running the server with --relaxed')
+            raise ProgrammingError('legacy HasIodev no longer supported')
+        self.sendRecv = self.communicate
 
 
 class IOBase(Communicator):

@@ -20,7 +20,7 @@
 # *****************************************************************************
 """Andeen Hagerling capacitance bridge"""
 
-from secop.core import Done, FloatRange, HasIodev, Parameter, Readable, StringIO
+from secop.core import Done, FloatRange, HasIO, Parameter, Readable, StringIO
 
 
 class Ah2700IO(StringIO):
@@ -28,19 +28,19 @@ class Ah2700IO(StringIO):
     timeout = 5
 
 
-class Capacitance(HasIodev, Readable):
+class Capacitance(HasIO, Readable):
 
     value = Parameter('capacitance', FloatRange(unit='pF'), poll=True)
     freq = Parameter('frequency', FloatRange(unit='Hz'), readonly=False, default=0)
     voltage = Parameter('voltage', FloatRange(unit='V'), readonly=False, default=0)
     loss = Parameter('loss', FloatRange(unit='deg'), default=0)
 
-    iodevClass = Ah2700IO
+    ioClass = Ah2700IO
 
     def parse_reply(self, reply):
         if reply.startswith('SI'):  # this is an echo
-            self.sendRecv('SERIAL ECHO OFF')
-            reply = self.sendRecv('SI')
+            self.communicate('SERIAL ECHO OFF')
+            reply = self.communicate('SI')
         if not reply.startswith('F='):  # this is probably an error message like "LOSS TOO HIGH"
             self.status = [self.Status.ERROR, reply]
             return
@@ -59,14 +59,14 @@ class Capacitance(HasIodev, Readable):
         if lossunit == 'DS':
             self.loss = loss
         else:  # the unit was wrong, we want DS = tan(delta), not NS = nanoSiemens
-            reply = self.sendRecv('UN DS').split()  # UN DS returns a reply similar to SI
+            reply = self.communicate('UN DS').split()  # UN DS returns a reply similar to SI
             try:
                 self.loss = reply[7]
             except IndexError:
                 pass  # don't worry, loss will be updated next time
 
     def read_value(self):
-        self.parse_reply(self.sendRecv('SI'))  # SI = single trigger
+        self.parse_reply(self.communicate('SI'))  # SI = single trigger
         return Done
 
     def read_freq(self):
@@ -77,14 +77,14 @@ class Capacitance(HasIodev, Readable):
         self.read_value()
         return Done
 
-    def read_volt(self):
+    def read_voltage(self):
         self.read_value()
         return Done
 
     def write_freq(self, value):
-        self.parse_reply(self.sendRecv('FR %g;SI' % value))
+        self.parse_reply(self.communicate('FR %g;SI' % value))
         return Done
 
-    def write_volt(self, value):
-        self.parse_reply(self.sendRecv('V %g;SI' % value))
+    def write_voltage(self, value):
+        self.parse_reply(self.communicate('V %g;SI' % value))
         return Done

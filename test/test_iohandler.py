@@ -120,7 +120,7 @@ def test_IOHandler():
         real = Parameter('a float value', FloatRange(), default=12.3, handler=group2, readonly=False)
         text = Parameter('a string value', StringType(), default='x', handler=group2, readonly=False)
 
-        def sendRecv(self, command):
+        def communicate(self, command):
             assert data.pop('command') == command
             return data.pop('reply')
 
@@ -146,7 +146,7 @@ def test_IOHandler():
     print(updates)
     updates.clear() # get rid of updates from initialisation
 
-    # for sendRecv
+    # for communicate
     data.push('command', 'SIMPLE?')
     data.push('reply', '4.51')
     # for analyze_group1
@@ -159,7 +159,7 @@ def test_IOHandler():
     assert updates.pop('simple') == 45.1
     assert not updates
 
-    # for sendRecv
+    # for communicate
     data.push('command', 'CMD?3')
     data.push('reply', '1.23,text,5')
     # for analyze_group2
@@ -172,7 +172,7 @@ def test_IOHandler():
     assert data.empty()
     assert not updates
 
-    # for sendRecv
+    # for communicate
     data.push('command', 'CMD?3')
     data.push('reply', '1.23,text,5')
     # for analyze_group2
@@ -183,7 +183,7 @@ def test_IOHandler():
     data.push('self', 12.3, 'string')
     data.push('new', 12.3, 'FOO')
     data.push('changed', 1.23, 'foo', 9)
-    # for sendRecv
+    # for communicate
     data.push('command', 'CMD 3,1.23,foo,9|CMD?3')
     data.push('reply', '1.23,foo,9')
     # for analyze_group2

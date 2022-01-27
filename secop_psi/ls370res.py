@@ -28,7 +28,7 @@ from secop.lib import formatStatusBits
 from secop.modules import Attached, Done, \
     Drivable, Parameter, Property, Readable
 from secop.poller import REGULAR, Poller
-from secop.io import HasIodev
+from secop.io import HasIO
 
 Status = Drivable.Status
 
@@ -58,7 +58,7 @@ class StringIO(secop.io.StringIO):
     wait_before = 0.05
 
 
-class Main(HasIodev, Drivable):
+class Main(HasIO, Drivable):
 
     value = Parameter('the current channel', poll=REGULAR, datatype=IntRange(0, 17))
     target = Parameter('channel to select', datatype=IntRange(0, 17))
@@ -66,7 +66,7 @@ class Main(HasIodev, Drivable):
     pollinterval = Parameter(default=1, export=False)
 
     pollerClass = Poller
-    iodevClass = StringIO
+    ioClass = StringIO
     _channel_changed = 0  # time of last channel change
     _channels = None  # dict <channel no> of <module object>
 
@@ -81,7 +81,7 @@ class Main(HasIodev, Drivable):
         super().startModule(start_events)
         for ch in range(1, 16):
             if ch not in self._channels:
-                self.sendRecv('INSET %d,0,0,0,0,0;INSET?%d' % (ch, ch))
+                self.communicate('INSET %d,0,0,0,0,0;INSET?%d' % (ch, ch))
 
     def read_value(self):
         channel, auto = scan.send_command(self)
@@ -114,7 +114,7 @@ class Main(HasIodev, Drivable):
 
     def write_target(self, channel):
         scan.send_change(self, channel, self.autoscan)
-        # self.sendRecv('SCAN %d,%d;SCAN?' % (channel, self.autoscan))
+        # self.communicate('SCAN %d,%d;SCAN?' % (channel, self.autoscan))
         if channel != self.value:
             self.value = 0
             self._channel_changed = time.time()
@@ -123,11 +123,11 @@ class Main(HasIodev, Drivable):
 
     def write_autoscan(self, value):
         scan.send_change(self, self.value, value)
-        # self.sendRecv('SCAN %d,%d;SCAN?' % (channel, self.autoscan))
+        # self.communicate('SCAN %d,%d;SCAN?' % (channel, self.autoscan))
         return value
 
 
-class ResChannel(HasIodev, Readable):
+class ResChannel(HasIO, Readable):
     """temperature channel on Lakeshore 336"""
 
     RES_RANGE = {key: i+1 for i, key in list(
@@ -142,7 +142,7 @@ class ResChannel(HasIodev, Readable):
                   for val in [2, 6.32, 20, 63.2, 200, 632]))}
 
     pollerClass = Poller
-    iodevClass = StringIO
+    ioClass = StringIO
     _main = None  # main module
     _last_range_change = 0  # time of last range change
 
@@ -183,7 +183,7 @@ class ResChannel(HasIodev, Readable):
                 return Done
             # we got here, when we missed the idle state of self._main
         self._trigger_read = False
-        result = self.sendRecv('RDGR?%d' % self.channel)
+        result = self.communicate('RDGR?%d' % self.channel)
         result = float(result)
         if self.autorange == 'soft':
             now = time.time()
@@ -216,9 +216,9 @@ class ResChannel(HasIodev, Readable):
     def read_status(self):
         if not self.enabled:
             return [self.Status.DISABLED, 'disabled']
-        if self.channel != self._main.value:
+        if self.channel != self.main.value:
             return Done
-        result = int(self.sendRecv('RDGST?%d' % self.channel))
+        result = int(self.communicate('RDGST?%d' % self.channel))
         result &= 0x37  # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistivities)
         statustext = ' '.join(formatStatusBits(result, STATUS_BIT_LABELS))
         if statustext:
@@ -283,5 +283,5 @@ class ResChannel(HasIodev, Readable):
     def write_enabled(self, value):
         inset.write(self, 'enabled', value)
         if value:
-            self._main.write_target(self.channel)
+            self.main.write_target(self.channel)
         return Done

@@ -22,7 +22,7 @@ CCU4 luckily has a very simple and logical protocol:
 .. code:: python
 
     # the most common Frappy classes can be imported from secop.core
-    from secop.core import Readable, Parameter, FloatRange, BoolType, StringIO, HasIodev
+    from secop.core import Readable, Parameter, FloatRange, BoolType, StringIO, HasIO
 
 
     class CCU4IO(StringIO):
@@ -34,14 +34,13 @@ CCU4 luckily has a very simple and logical protocol:
         identification = [('cid', r'CCU4.*')]
 
 
-    # inheriting the HasIodev mixin creates us a private attribute *_iodev*
-    # for talking with the hardware
+    # inheriting HasIO allows us to use the communicate method for talking with the hardware
     # Readable as a base class defines the value and status parameters
-    class HeLevel(HasIodev, Readable):
+    class HeLevel(HasIO, Readable):
         """He Level channel of CCU4"""
 
         # define the communication class to create the IO module
-        iodevClass = CCU4IO
+        ioClass = CCU4IO
 
         # define or alter the parameters
         # as Readable.value exists already, we give only the modified property 'unit'
@@ -49,7 +48,7 @@ CCU4 luckily has a very simple and logical protocol:
 
         def read_value(self):
             # method for reading the main value
-            reply = self._iodev.communicate('h')  # send 'h\n' and get the reply 'h=<value>\n'
+            reply = self.communicate('h')  # send 'h\n' and get the reply 'h=<value>\n'
             name, txtvalue = reply.split('=')
             assert name == 'h'  # check that we got a reply to our command
             return txtvalue  # the framework will automatically convert the string to a float
@@ -115,17 +114,17 @@ the status codes from the hardware to the standard SECoP status codes.
         }
 
         def read_status(self):
-            name, txtvalue = self._iodev.communicate('hsf').split('=')
+            name, txtvalue = self.communicate('hsf').split('=')
             assert name == 'hsf'
             return self.STATUS_MAP(int(txtvalue))
 
         def read_empty_length(self):
-            name, txtvalue = self._iodev.communicate('hem').split('=')
+            name, txtvalue = self.communicate('hem').split('=')
             assert name == 'hem'
             return txtvalue
 
         def write_empty_length(self, value):
-            name, txtvalue = self._iodev.communicate('hem=%g' % value).split('=')
+            name, txtvalue = self.communicate('hem=%g' % value).split('=')
             assert name == 'hem'
             return txtvalue
 
@@ -152,7 +151,7 @@ which means it might be worth to create a *query* method, and then the
                         for changing a parameter
             :returns: the (new) value of the parameter
             """
-            name, txtvalue = self._iodev.communicate(cmd).split('=')
+            name, txtvalue = self.communicate(cmd).split('=')
             assert name == cmd.split('=')[0]  # check that we got a reply to our command
             return txtvalue  # Frappy will automatically convert the string to the needed data type
 

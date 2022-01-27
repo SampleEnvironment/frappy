@@ -29,17 +29,17 @@ from secop.lib import get_class
 from secop.modules import Drivable, Module, Readable, Writable
 from secop.params import Command, Parameter
 from secop.properties import Property
-from secop.io import HasIodev
+from secop.io import HasIO
 
 
-class ProxyModule(HasIodev, Module):
+class ProxyModule(HasIO, Module):
     module = Property('remote module name', datatype=StringType(), default='')
 
     pollerClass = None
     _consistency_check_done = False
     _secnode = None
 
-    def iodevClass(self, name, logger, opts, srv):
+    def ioClass(self, name, logger, opts, srv):
         opts['description'] = 'secnode %s on %s' % (opts.get('module', name), opts['uri'])
         return SecNode(name, logger, opts, srv)
 
@@ -54,7 +54,7 @@ class ProxyModule(HasIodev, Module):
     def initModule(self):
         if not self.module:
             self.module = self.name
-        self._secnode = self._iodev.secnode
+        self._secnode = self.io.secnode
         self._secnode.register_callback(self.module, self.updateEvent,
                                         self.descriptiveDataChange, self.nodeStateChange)
         super().initModule()
@@ -227,5 +227,5 @@ def Proxy(name, logger, cfgdict, srv):
     remote_class = cfgdict.pop('remote_class')
     if 'description' not in cfgdict:
         cfgdict['description'] = 'remote module %s on %s' % (
-            cfgdict.get('module', name), cfgdict.get('iodev', '?'))
+            cfgdict.get('module', name), cfgdict.get('io', '?'))
     return proxy_class(remote_class)(name, logger, cfgdict, srv)

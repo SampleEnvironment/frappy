@@ -59,7 +59,7 @@ Communication
     :show-inheritance:
     :members: communicate, multicomm
 
-.. autoclass:: secop.io.HasIodev
+.. autoclass:: secop.io.HasIO
     :show-inheritance:
 
 .. autoclass:: secop.iohandler.IOHandlerBase

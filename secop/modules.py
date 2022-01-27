@@ -771,19 +771,19 @@ class Communicator(HasComlog, Module):
 
 
 class Attached(Property):
-    """a special property, defining an attached modle
+    """a special property, defining an attached module
 
     assign a module name to this property in the cfg file,
     and the server will create an attribute with this module
-
-    :param attrname: the name of the to be created attribute. if not given
-      the attribute name is the property name prepended by an underscore.
     """
-    # we can not put this to properties.py, as it needs datatypes
-    def __init__(self, attrname=None):
-        self.attrname = attrname
-        # we can not make it mandatory, as the check in Module.__init__ will be before auto-assign in HasIodev
-        super().__init__('attached module', StringType(), mandatory=False)
+    module = None
 
-    def __repr__(self):
-        return 'Attached(%s)' % (repr(self.attrname) if self.attrname else '')
+    def __init__(self, description='attached module'):
+        super().__init__(description, StringType(), mandatory=False)
+
+    def __get__(self, obj, owner):
+        if obj is None:
+            return self
+        if self.module is None:
+            self.module = obj.DISPATCHER.get_module(super().__get__(obj, owner))
+        return self.module

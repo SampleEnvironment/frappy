@@ -30,10 +30,9 @@ import sys
 import traceback
 from collections import OrderedDict
 
-from secop.errors import ConfigError, SECoPError
+from secop.errors import ConfigError
 from secop.lib import formatException, get_class, generalConfig
 from secop.lib.multievent import MultiEvent
-from secop.modules import Attached
 from secop.params import PREDEFINED_ACCESSIBLES
 
 try:
@@ -271,24 +270,17 @@ class Server:
         for modname, modobj in self.modules.items():
             self.log.info('registering module %r' % modname)
             self.dispatcher.register_module(modobj, modname, modobj.export)
-            if modobj.pollerClass is not None:
-                # a module might be explicitly excluded from polling by setting pollerClass to None
-                modobj.pollerClass.add_to_table(poll_table, modobj)
             # also call earlyInit on the modules
             modobj.earlyInit()
             if not modobj.earlyInitDone:
                 missing_super.add('%s was not called, probably missing super call'
                                   % modobj.earlyInit.__qualname__)
 
-        # handle attached modules
+        # handle polling
         for modname, modobj in self.modules.items():
-            for propname, propobj in modobj.propertyDict.items():
-                if isinstance(propobj, Attached):
-                    try:
-                        setattr(modobj, propobj.attrname or '_' + propname,
-                                self.dispatcher.get_module(getattr(modobj, propname)))
-                    except SECoPError as e:
-                        errors.append('module %s, attached %s: %s' % (modname, propname, str(e)))
+            if modobj.pollerClass is not None:
+                # a module might be explicitly excluded from polling by setting pollerClass to None
+                modobj.pollerClass.add_to_table(poll_table, modobj)
 
         # call init on each module after registering all
         for modname, modobj in self.modules.items():

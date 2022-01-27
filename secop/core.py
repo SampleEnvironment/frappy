@@ -36,5 +36,5 @@ from secop.params import Command, Parameter
 from secop.poller import AUTO, DYNAMIC, REGULAR, SLOW
 from secop.properties import Property
 from secop.proxy import Proxy, SecNode, proxy_class
-from secop.io import HasIodev, StringIO, BytesIO
+from secop.io import HasIO, StringIO, BytesIO, HasIodev  # TODO: remove HasIodev (legacy stuff)
 from secop.persistent import PersistentMixin, PersistentParam
