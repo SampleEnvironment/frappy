@@ -24,13 +24,14 @@
 
 import pytest
 
-from secop.datatypes import BoolType, FloatRange, StringType, IntRange
+from secop.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
 from secop.errors import ProgrammingError, ConfigError
 from secop.modules import Communicator, Drivable, Readable, Module
 from secop.params import Command, Parameter
 from secop.poller import BasicPoller
 from secop.lib.multievent import MultiEvent
 from secop.rwhandler import ReadHandler, WriteHandler
+from secop.lib import generalConfig
 
 
 class DispatcherStub:
@@ -54,7 +55,7 @@ class DispatcherStub:
 class LoggerStub:
     def debug(self, fmt, *args):
         print(fmt % args)
-    info = warning = exception = debug
+    info = warning = exception = error = debug
     handlers = []
 
 
@@ -88,6 +89,7 @@ def test_ModuleMagic():
         a1 = Parameter('a1', datatype=BoolType(), default=False)
         a2 = Parameter('a2', datatype=BoolType(), default=True)
         value = Parameter(datatype=StringType(), default='first')
+        target = Parameter(datatype=StringType(), default='')
 
         @Command(argument=BoolType(), result=BoolType())
         def cmd2(self, arg):
@@ -136,6 +138,7 @@ def test_ModuleMagic():
             return arg
 
         value = Parameter(datatype=FloatRange(unit='deg'))
+        target = Parameter(datatype=FloatRange(), default=0)
         a1 = Parameter(datatype=FloatRange(unit='$/s'), readonly=False)
         b2 = Parameter('<b2>', datatype=BoolType(), default=True,
                        poll=True, readonly=False, initwrite=True)
@@ -174,7 +177,7 @@ def test_ModuleMagic():
 
     # check for inital updates working properly
     o1 = Newclass1('o1', logger, {'.description':''}, srv)
-    expectedBeforeStart = {'target': 0.0, 'status': (Drivable.Status.IDLE, ''),
+    expectedBeforeStart = {'target': '', 'status': (Drivable.Status.IDLE, ''),
             'param1': False, 'param2': 1.0, 'a1': 0.0, 'a2': True, 'pollinterval': 5.0,
             'value': 'first'}
     assert updates.pop('o1') == expectedBeforeStart
@@ -191,6 +194,7 @@ def test_ModuleMagic():
     o2 = Newclass2('o2', logger, {'.description':'', 'a1': 2.7}, srv)
     # no update for b2, as this has to be written
     expectedBeforeStart['a1'] = 2.7
+    expectedBeforeStart['target'] = 0.0
     assert updates.pop('o2') == expectedBeforeStart
     o2.earlyInit()
     event = MultiEvent()
@@ -214,7 +218,7 @@ def test_ModuleMagic():
     # check '$' in unit works properly
     assert o2.parameters['a1'].datatype.unit == 'mm/s'
     cfg = Newclass2.configurables
-    assert set(cfg.keys()) == {'export', 'group', 'description',
+    assert set(cfg.keys()) == {'export', 'group', 'description', 'disable_value_range_check',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'b2', 'cmd2', 'value',
         'a1'}
@@ -575,3 +579,65 @@ def test_no_read_write():
     assert obj.write_param('egg') == 'egg'
     assert obj.param == 'egg'
     assert updates == {'obj': {'param': 'egg'}}
+
+
+def test_incompatible_value_target():
+    class Mod1(Drivable):
+        value = Parameter('', FloatRange(0, 10), default=0)
+        target = Parameter('', FloatRange(0, 11), default=0)
+
+    class Mod2(Drivable):
+        value = Parameter('', FloatRange(), default=0)
+        target = Parameter('', StringType(), default='')
+
+    class Mod3(Drivable):
+        value = Parameter('', FloatRange(), default=0)
+        target = Parameter('', ScaledInteger(1, 0, 10), default=0)
+
+    srv = ServerStub({})
+
+    with pytest.raises(ConfigError):
+        obj = Mod1('obj', logger, {'description': ''}, srv)  # pylint: disable=unused-variable
+
+    with pytest.raises(ProgrammingError):
+        obj = Mod2('obj', logger, {'description': ''}, srv)
+
+    obj = Mod3('obj', logger, {'description': ''}, srv)
+
+
+def test_problematic_value_range():
+    class Mod(Drivable):
+        value = Parameter('', FloatRange(0, 10), default=0)
+        target = Parameter('', FloatRange(0, 10), default=0)
+
+    srv = ServerStub({})
+
+    obj = Mod('obj', logger, {'description': '', 'value.max': 10.1}, srv)  # pylint: disable=unused-variable
+
+    with pytest.raises(ConfigError):
+        obj = Mod('obj', logger, {'description': ''}, srv)
+
+    class Mod2(Drivable):
+        value = Parameter('', FloatRange(), default=0)
+        target = Parameter('', FloatRange(), default=0)
+
+    obj = Mod2('obj', logger, {'description': ''}, srv)
+    obj = Mod2('obj', logger, {'description': '', 'target.min': 0, 'target.max': 10}, srv)
+
+    with pytest.raises(ConfigError):
+        obj = Mod('obj', logger, {
+            'value.min': 0, 'value.max': 10,
+            'target.min': 0, 'target.max': 10, 'description': ''}, srv)
+
+    obj = Mod('obj', logger, {'disable_value_range_check': True,
+        'value.min': 0, 'value.max': 10,
+        'target.min': 0, 'target.max': 10, 'description': ''}, srv)
+
+    generalConfig.defaults['disable_value_range_check'] = True
+
+    class Mod4(Drivable):
+        value = Parameter('', FloatRange(0, 10), default=0)
+        target = Parameter('', FloatRange(0, 10), default=0)
+    obj = Mod4('obj', logger, {
+        'value.min': 0, 'value.max': 10,
+        'target.min': 0, 'target.max': 10, 'description': ''}, srv)

@@ -49,7 +49,7 @@ class HasIodev(Module):
 
     def __init__(self, name, logger, opts, srv):
         iodev = opts.get('iodev')
-        Module.__init__(self, name, logger, opts, srv)
+        super().__init__(name, logger, opts, srv)
         if self.uri:
             opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
                     'export': False}

@@ -29,16 +29,18 @@ from collections import OrderedDict
 from functools import wraps
 
 from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
-    IntRange, StatusType, StringType, TextType, TupleOf
+    IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion
 from secop.errors import BadValueError, ConfigError, \
     ProgrammingError, SECoPError, SilentError, secop_error
-from secop.lib import formatException, mkthread, UniqueObject
+from secop.lib import formatException, mkthread, UniqueObject, generalConfig
 from secop.lib.enum import Enum
 from secop.params import Accessible, Command, Parameter
 from secop.poller import BasicPoller, Poller
 from secop.properties import HasProperties, Property
 from secop.logging import RemoteLogHandler, HasComlog
 
+
+generalConfig.defaults['disable_value_range_check'] = False  # check for problematic value range by default
 
 Done = UniqueObject('already set')
 """a special return value for a read/write function
@@ -475,9 +477,13 @@ class Module(HasAccessibles):
         changed = pobj.value != value
         try:
             # store the value even in case of error
-            # TODO: we should neither check limits nor convert string to float here
             pobj.value = pobj.datatype(value)
         except Exception as e:
+            if isinstance(e, DiscouragedConversion):
+                if DiscouragedConversion.log_message:
+                    self.log.error(str(e))
+                    self.log.error('you may disable this behaviour by running the server with --relaxed')
+                    DiscouragedConversion.log_message = False
             if not err:  # do not overwrite given error
                 err = e
         if err:
@@ -682,9 +688,29 @@ class Readable(Module):
 
 class Writable(Readable):
     """basic writable module"""
-
+    disable_value_range_check = Property('disable value range check', BoolType(), default=False)
     target = Parameter('target value of the module',
                        default=0, readonly=False, datatype=FloatRange(unit='$'))
+
+    def __init__(self, name, logger, cfgdict, srv):
+        super().__init__(name, logger, cfgdict, srv)
+        value_dt = self.parameters['value'].datatype
+        target_dt = self.parameters['target'].datatype
+        try:
+            # this handles also the cases where the limits on the value are more
+            # restrictive than on the target
+            target_dt.compatible(value_dt)
+        except Exception:
+            if type(value_dt) == type(target_dt):
+                raise ConfigError('the target range extends beyond the value range') from None
+            raise ProgrammingError('the datatypes of target and value are not compatible') from None
+        if isinstance(value_dt, FloatRange):
+            if (not self.disable_value_range_check and not generalConfig.disable_value_range_check
+                    and value_dt.problematic_range(target_dt)):
+                self.log.error('the value range must be bigger than the target range!')
+                self.log.error('you may disable this error message by running the server with --relaxed')
+                self.log.error('or by setting the disable_value_range_check property of the module to True')
+                raise ConfigError('the value range must be bigger than the target range')
 
 
 class Drivable(Writable):

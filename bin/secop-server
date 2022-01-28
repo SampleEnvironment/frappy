@@ -75,6 +75,11 @@ def parseArgv(argv):
                         action='store_true',
                         help='check cfg files only',
                         default=False)
+    parser.add_argument('-r',
+                        '--relaxed',
+                        action='store_true',
+                        help='no checking of problematic behaviour',
+                        default=False)
     return parser.parse_args(argv)
 
 
@@ -85,6 +90,9 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
+    if args.relaxed:
+        generalConfig.defaults['lazy_number_validation'] = True
+        generalConfig.defaults['disable_value_range_check'] = True
     generalConfig.init(args.gencfg)
     logger.init(loglevel)
 

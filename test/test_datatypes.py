@@ -28,7 +28,8 @@ import pytest
 from secop.datatypes import ArrayOf, BLOBType, BoolType, \
     CommandType, ConfigError, DataType, Enum, EnumType, FloatRange, \
     IntRange, ProgrammingError, ScaledInteger, StatusType, \
-    StringType, StructOf, TextType, TupleOf, get_datatype
+    StringType, StructOf, TextType, TupleOf, get_datatype, \
+    DiscouragedConversion
 from secop.lib import generalConfig
 
 
@@ -677,5 +678,5 @@ def test_lazy_validation(dt):
     generalConfig.defaults['lazy_number_validation'] = True
     dt('0')
     generalConfig.defaults['lazy_number_validation'] = False
-    with pytest.raises(ValueError):
+    with pytest.raises(DiscouragedConversion):
         dt('0')

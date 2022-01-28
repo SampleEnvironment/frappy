@@ -35,23 +35,18 @@ from secop.lib.enum import Enum
 from secop.parse import Parser
 from secop.properties import HasProperties, Property
 
-# Only export these classes for 'from secop.datatypes import *'
-__all__ = [
-    'DataType', 'get_datatype',
-    'FloatRange', 'IntRange', 'ScaledInteger',
-    'BoolType', 'EnumType',
-    'BLOBType', 'StringType', 'TextType',
-    'TupleOf', 'ArrayOf', 'StructOf',
-    'CommandType', 'StatusType',
-]
-
 # *DEFAULT* limits for IntRange/ScaledIntegers transport serialisation
 DEFAULT_MIN_INT = -16777216
 DEFAULT_MAX_INT = 16777216
 UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for any datatype size
-generalConfig.defaults['lazy_number_validation'] = True  # should be changed to False later
+generalConfig.defaults['lazy_number_validation'] = False
 
 Parser = Parser()
+
+
+class DiscouragedConversion(BadValueError):
+    """the discouraged conversion string - > float happened"""
+    log_message = True
 
 
 # base class for all DataTypes
@@ -64,7 +59,7 @@ class DataType(HasProperties):
     def __call__(self, value):
         """check if given value (a python obj) is valid for this datatype
 
-        returns the value or raises an appropriate exception"""
+        returns the (possibly converted) value or raises an appropriate exception"""
         raise NotImplementedError
 
     def from_string(self, text):
@@ -193,12 +188,15 @@ class FloatRange(DataType):
 
     def __call__(self, value):
         try:
-            if generalConfig.lazy_number_validation:
-                value = float(value)  # for legacy code
-            else:
-                value += 0.0  # do not accept strings here
+            value += 0.0  # do not accept strings here
         except Exception:
-            raise BadValueError('Can not convert %r to float' % value) from None
+            try:
+                value = float(value)
+            except Exception:
+                raise BadValueError('Can not convert %r to float' % value) from None
+            if not generalConfig.lazy_number_validation:
+                raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
+
         # map +/-infty to +/-max possible number
         value = clamp(-sys.float_info.max, value, sys.float_info.max)
 
@@ -236,6 +234,18 @@ class FloatRange(DataType):
             return ' '.join([self.fmtstr % value, unit])
         return self.fmtstr % value
 
+    def problematic_range(self, target_type):
+        """check problematic range
+
+        returns True when self.min or self.max is given, not 0 and equal to the same limit on target_type.
+        """
+        value_info = self.get_info()
+        target_info = target_type.get_info()
+        minval = value_info.get('min')  # None when -infinite
+        maxval = value_info.get('max')  # None when +infinite
+        return ((minval and minval == target_info.get('min')) or
+                (maxval and maxval == target_info.get('max')))
+
     def compatible(self, other):
         if not isinstance(other, (FloatRange, ScaledInteger)):
             raise BadValueError('incompatible datatypes')
@@ -269,13 +279,16 @@ class IntRange(DataType):
 
     def __call__(self, value):
         try:
-            if generalConfig.lazy_number_validation:
-                fvalue = float(value)  # for legacy code
-            else:
-                fvalue = value + 0.0  # do not accept strings here
+            fvalue = value + 0.0  # do not accept strings here
             value = int(value)
         except Exception:
-            raise BadValueError('Can not convert %r to int' % value) from None
+            try:
+                fvalue = float(value)
+                value = int(value)
+            except Exception:
+                raise BadValueError('Can not convert %r to int' % value) from None
+            if not generalConfig.lazy_number_validation:
+                raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
         if not self.min <= value <= self.max or round(fvalue) != fvalue:
             raise BadValueError('%r should be an int between %d and %d' %
                                 (value, self.min, self.max))
@@ -305,13 +318,15 @@ class IntRange(DataType):
         return '%d' % value
 
     def compatible(self, other):
-        if isinstance(other, IntRange):
+        if isinstance(other, (IntRange, FloatRange, ScaledInteger)):
             other(self.min)
             other(self.max)
             return
-        # this will accept some EnumType, BoolType
-        for i in range(self.min, self.max + 1):
-            other(i)
+        if isinstance(other, (EnumType, BoolType)):
+            # the following loop will not cycle more than the number of Enum elements
+            for i in range(self.min, self.max + 1):
+                other(i)
+        raise BadValueError('incompatible datatypes')
 
 
 class ScaledInteger(DataType):
@@ -376,12 +391,14 @@ class ScaledInteger(DataType):
 
     def __call__(self, value):
         try:
-            if generalConfig.lazy_number_validation:
-                value = float(value)  # for legacy code
-            else:
-                value += 0.0  # do not accept strings here
+            value += 0.0  # do not accept strings here
         except Exception:
-            raise BadValueError('Can not convert %r to float' % value) from None
+            try:
+                value = float(value)
+            except Exception:
+                raise BadValueError('Can not convert %r to float' % value) from None
+            if not generalConfig.lazy_number_validation:
+                raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
         prec = max(self.scale, abs(value * self.relative_resolution),
                    self.absolute_resolution)
         if self.min - prec <= value <= self.max + prec:
@@ -1128,37 +1145,26 @@ def floatargs(kwds):
 DATATYPES = dict(
     bool    = lambda **kwds:
         BoolType(),
-
     int     = lambda min, max, **kwds:
         IntRange(minval=min, maxval=max),
-
     scaled  = lambda scale, min, max, **kwds:
         ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **floatargs(kwds)),
-
     double  = lambda min=None, max=None, **kwds:
         FloatRange(minval=min, maxval=max, **floatargs(kwds)),
-
     blob    = lambda maxbytes, minbytes=0, **kwds:
         BLOBType(minbytes=minbytes, maxbytes=maxbytes),
-
     string  = lambda minchars=0, maxchars=None, isUTF8=False, **kwds:
         StringType(minchars=minchars, maxchars=maxchars, isUTF8=isUTF8),
-
     array   = lambda maxlen, members, minlen=0, pname='', **kwds:
         ArrayOf(get_datatype(members, pname), minlen=minlen, maxlen=maxlen),
-
     tuple   = lambda members, pname='', **kwds:
         TupleOf(*tuple((get_datatype(t, pname) for t in members))),
-
     enum    = lambda members, pname='', **kwds:
         EnumType(pname, members=members),
-
     struct  = lambda members, optional=None, pname='', **kwds:
         StructOf(optional, **dict((n, get_datatype(t, pname)) for n, t in list(members.items()))),
-
     command = lambda argument=None, result=None, pname='', **kwds:
         CommandType(get_datatype(argument, pname), get_datatype(result)),
-
     limit   = lambda members, pname='', **kwds:
         LimitsType(get_datatype(members, pname)),
 )
