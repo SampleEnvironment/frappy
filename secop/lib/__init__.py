@@ -32,8 +32,10 @@ from os import environ, path
 
 
 class GeneralConfig:
+
     def __init__(self):
         self._config = None
+        self.defaults = {}  #: default values. may be set before or after :meth:`init`
 
     def init(self, configfile=None):
         cfg = {}
@@ -82,7 +84,13 @@ class GeneralConfig:
     def __getitem__(self, key):
         try:
             return self._config[key]
+        except KeyError:
+            return self.defaults[key]
         except TypeError:
+            if key in self.defaults:
+                # accept retrieving defaults before init
+                # e.g. 'lazy_number_validation' in secop.datatypes
+                return self.defaults[key]
             raise TypeError('generalConfig.init() has to be called first') from None
 
     def get(self, key, default=None):
@@ -101,17 +109,13 @@ class GeneralConfig:
         """goodie: use generalConfig.<key> instead of generalConfig.get('<key>')"""
         return self.get(key)
 
-    def __setattr__(self, key, value):
-        if key == '_config':
-            super().__setattr__(key, value)
-            return
-        if hasattr(type(self), key):
-            raise AttributeError('can not set generalConfig.%s' % key)
-        self._config[key] = value  # for test purposes
-
     @property
     def initialized(self):
         return bool(self._config)
+
+    def testinit(self, **kwds):
+        """for test purposes"""
+        self._config = kwds
 
 
 generalConfig = GeneralConfig()

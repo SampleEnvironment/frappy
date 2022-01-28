@@ -112,8 +112,7 @@ def init_(monkeypatch):
                 def communicate(self, request):
                     self.comLog('> %s', request)
 
-            generalConfig.init()
-            generalConfig.comlog = comlog
+            generalConfig.testinit(logger_root='frappy', comlog=comlog)
             logger.init(console_level)
             self.srv = ServerStub()
 
@@ -139,7 +138,7 @@ def init_(monkeypatch):
 
     yield Playground
     # revert settings
-    generalConfig.__init__()
+    generalConfig.testinit()
     logger.__init__()
 
 

@@ -30,7 +30,7 @@ from base64 import b64decode, b64encode
 
 from secop.errors import BadValueError, \
     ConfigError, ProgrammingError, ProtocolError
-from secop.lib import clamp
+from secop.lib import clamp, generalConfig
 from secop.lib.enum import Enum
 from secop.parse import Parser
 from secop.properties import HasProperties, Property
@@ -49,6 +49,7 @@ __all__ = [
 DEFAULT_MIN_INT = -16777216
 DEFAULT_MAX_INT = 16777216
 UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for any datatype size
+generalConfig.defaults['lazy_number_validation'] = True  # should be changed to False later
 
 Parser = Parser()
 
@@ -192,7 +193,10 @@ class FloatRange(DataType):
 
     def __call__(self, value):
         try:
-            value = float(value)
+            if generalConfig.lazy_number_validation:
+                value = float(value)  # for legacy code
+            else:
+                value += 0.0  # do not accept strings here
         except Exception:
             raise BadValueError('Can not convert %r to float' % value) from None
         # map +/-infty to +/-max possible number
@@ -265,7 +269,10 @@ class IntRange(DataType):
 
     def __call__(self, value):
         try:
-            fvalue = float(value)
+            if generalConfig.lazy_number_validation:
+                fvalue = float(value)  # for legacy code
+            else:
+                fvalue = value + 0.0  # do not accept strings here
             value = int(value)
         except Exception:
             raise BadValueError('Can not convert %r to int' % value) from None
@@ -369,7 +376,10 @@ class ScaledInteger(DataType):
 
     def __call__(self, value):
         try:
-            value = float(value)
+            if generalConfig.lazy_number_validation:
+                value = float(value)  # for legacy code
+            else:
+                value += 0.0  # do not accept strings here
         except Exception:
             raise BadValueError('Can not convert %r to float' % value) from None
         prec = max(self.scale, abs(value * self.relative_resolution),

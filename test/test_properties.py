@@ -38,10 +38,10 @@ V_test_Property = [
     [Prop(StringType(), 'default', extname='extname', mandatory=False),
      dict(default='default', extname='extname', export=True, mandatory=False)
      ],
-    [Prop(IntRange(), '42', export=True, name='custom', mandatory=True),
+    [Prop(IntRange(), 42, export=True, name='custom', mandatory=True),
      dict(default=42, extname='_custom', export=True, mandatory=True),
      ],
-    [Prop(IntRange(), '42', export=True, name='name'),
+    [Prop(IntRange(), 42, export=True, name='name'),
      dict(default=42, extname='_name', export=True, mandatory=False)
      ],
     [Prop(IntRange(), 42, '_extname', mandatory=True),
@@ -85,12 +85,12 @@ def test_Property_basic():
         Property('')
     with pytest.raises(ValueError):
         Property('', 1)
-    Property('', IntRange(), '42', 'extname', False, False)
+    Property('', IntRange(), 42, 'extname', False, False)
 
 
 def test_Properties():
     class Cls(HasProperties):
-        aa = Property('', IntRange(0, 99), '42', export=True)
+        aa = Property('', IntRange(0, 99), 42, export=True)
         bb = Property('', IntRange(), 0, export=False)
 
     assert Cls.aa.default == 42

@@ -29,12 +29,14 @@ from secop.datatypes import ArrayOf, BLOBType, BoolType, \
     CommandType, ConfigError, DataType, Enum, EnumType, FloatRange, \
     IntRange, ProgrammingError, ScaledInteger, StatusType, \
     StringType, StructOf, TextType, TupleOf, get_datatype
+from secop.lib import generalConfig
 
 
 def copytest(dt):
     assert repr(dt) == repr(dt.copy())
     assert dt.export_datatype() == dt.copy().export_datatype()
     assert dt != dt.copy()
+
 
 def test_DataType():
     dt = DataType()
@@ -116,7 +118,6 @@ def test_IntRange():
         dt('1.3')
     dt(1)
     dt(0)
-    dt('1')
     with pytest.raises(ProgrammingError):
         IntRange('xc', 'Yx')
 
@@ -131,6 +132,7 @@ def test_IntRange():
     dt.setProperty('max', 0)
     with pytest.raises(ConfigError):
         dt.checkProperties()
+
 
 def test_ScaledInteger():
     dt = ScaledInteger(0.01, -3, 3)
@@ -407,6 +409,7 @@ def test_ArrayOf():
     dt = ArrayOf(EnumType('myenum', single=0), 5)
     copytest(dt)
 
+
 def test_TupleOf():
     # test constructor catching illegal arguments
     with pytest.raises(ValueError):
@@ -641,6 +644,7 @@ def test_oneway_compatible(dt, contained_in):
     with pytest.raises(ValueError):
         contained_in.compatible(dt)
 
+
 @pytest.mark.parametrize('dt1, dt2', [
     (FloatRange(-5.5, 5.5), ScaledInteger(10, -5.5, 5.5)),
     (IntRange(0,1), BoolType()),
@@ -649,6 +653,7 @@ def test_oneway_compatible(dt, contained_in):
 def test_twoway_compatible(dt1, dt2):
     dt1.compatible(dt1)
     dt2.compatible(dt2)
+
 
 @pytest.mark.parametrize('dt1, dt2', [
     (StringType(), FloatRange()),
@@ -665,3 +670,12 @@ def test_incompatible(dt1, dt2):
         dt1.compatible(dt2)
     with pytest.raises(ValueError):
         dt2.compatible(dt1)
+
+
+@pytest.mark.parametrize('dt', [FloatRange(), IntRange(), ScaledInteger(1)])
+def test_lazy_validation(dt):
+    generalConfig.defaults['lazy_number_validation'] = True
+    dt('0')
+    generalConfig.defaults['lazy_number_validation'] = False
+    with pytest.raises(ValueError):
+        dt('0')
