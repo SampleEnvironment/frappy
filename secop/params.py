@@ -216,6 +216,9 @@ class Parameter(Accessible):
                 self.export = '_' + self.name
             else:
                 raise ProgrammingError('can not use %r as name of a Parameter' % self.name)
+            if 'export' in self.ownProperties:
+                # avoid export=True overrides export=<name>
+                self.ownProperties['export'] = self.export
 
     def copy(self):
         """return a (deep) copy of ourselfs"""
@@ -381,6 +384,9 @@ class Command(Accessible):
                 self.export = '_' + name
             else:
                 raise ProgrammingError('can not use %r as name of a Command' % name) from None
+            if 'export' in self.ownProperties:
+                # avoid export=True overrides export=<name>
+                self.ownProperties['export'] = self.export
         if not self._inherit:
             for key, pobj in self.properties.items():
                 if key not in self.propertyValues:

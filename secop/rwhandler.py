@@ -105,7 +105,8 @@ class ReadHandler(Handler):
 
             wrapped.wrapped = True
             method = 'read_' + key
-            if hasattr(owner, method):
+            rfunc = getattr(owner, method, None)
+            if rfunc and not rfunc.wrapped:
                 raise ProgrammingError('superfluous method %s.%s (overwritten by ReadHandler)'
                                        % (owner.__name__, method))
             setattr(owner, method, wrapped)
@@ -129,7 +130,56 @@ class WriteHandler(Handler):
 
             wrapped.wrapped = True
             method = 'write_' + key
-            if hasattr(owner, method):
+            wfunc = getattr(owner, method, None)
+            if wfunc and not wfunc.wrapped:
+                raise ProgrammingError('superfluous method %s.%s (overwritten by WriteHandler)'
+                                       % (owner.__name__, method))
+            setattr(owner, method, wrapped)
+
+
+class WriteParameters(dict):
+    def __init__(self, modobj):
+        super().__init__()
+        self.obj = modobj
+
+    def __missing__(self, key):
+        try:
+            return self.obj.writeDict.pop(key)
+        except KeyError:
+            return getattr(self.obj, key)
+
+    def as_tuple(self, *keys):
+        """return values of given keys as a tuple"""
+        return tuple(self[k] for k in keys)
+
+
+class MultiWriteHandler(Handler):
+    """decorator for common write handler
+
+    calls the wrapped write method function with values as an argument.
+    - values[pname] returns the to be written value
+    - values['key'] returns a value taken from writeDict
+    - or, if not available return obj.key
+    - values.as_tuple() returns a tuple with the items in the same order as keys
+    """
+
+    def __set_name__(self, owner, name):
+        """create the wrapped write_* methods"""
+
+        self.method_names.discard(self.func.__qualname__)
+        for key in self.keys:
+
+            @wraps(self.func)
+            def wrapped(module, value, pname=key, func=self.func):
+                values = WriteParameters(module)
+                values[pname] = value
+                func(module, values)
+                return Done
+
+            wrapped.wrapped = True
+            method = 'write_' + key
+            wfunc = getattr(owner, method, None)
+            if wfunc and not wfunc.wrapped:
                 raise ProgrammingError('superfluous method %s.%s (overwritten by WriteHandler)'
                                        % (owner.__name__, method))
             setattr(owner, method, wrapped)
