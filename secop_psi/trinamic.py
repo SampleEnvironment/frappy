@@ -26,10 +26,12 @@ import time
 import struct
 
 from secop.core import BoolType, Command, EnumType, FloatRange, IntRange, \
-    HasIO, Parameter, Property, Drivable, PersistentMixin, PersistentParam, Done
+    HasIO, Parameter, Property, Drivable, PersistentMixin, PersistentParam, Done, \
+    IDLE, BUSY, ERROR
 from secop.io import BytesIO
 from secop.errors import CommunicationFailedError, HardwareError, BadValueError, IsBusyError
 from secop.rwhandler import ReadHandler, WriteHandler
+from secop.lib import formatStatusBits
 
 MOTOR_STOP = 3
 MOVE = 4
@@ -37,6 +39,8 @@ SET_AXIS_PAR = 5
 GET_AXIS_PAR = 6
 SET_GLOB_PAR = 9
 GET_GLOB_PAR = 10
+SET_IO = 14
+GET_IO = 15
 # STORE_GLOB_PAR = 11
 
 BAUDRATES = [9600, 0, 19200, 0, 38400, 57600, 0, 115200]
@@ -80,7 +84,8 @@ def writable(*args, **kwds):
 class Motor(PersistentMixin, HasIO, Drivable):
     address = Property('module address', IntRange(0, 255), default=1)
 
-    value = Parameter('motor position', FloatRange(unit='deg', fmtstr='%.3f'))
+    value = Parameter('motor position', FloatRange(unit='deg', fmtstr='%.3f'),
+                      needscfg=False)
     zero = PersistentParam('zero point', FloatRange(unit='$'), readonly=False, default=0)
     encoder = PersistentParam('encoder reading', FloatRange(unit='$', fmtstr='%.1f'),
                               readonly=True, initwrite=False)
@@ -88,12 +93,17 @@ class Motor(PersistentMixin, HasIO, Drivable):
                               readonly=True, initwrite=False)
     target = Parameter('', FloatRange(unit='$'), default=0)
 
-    move_limit = Parameter('max. angle to drive in one go', FloatRange(unit='$'),
+    move_limit = Parameter('max. angle to drive in one go when current above safe_current',
+                           FloatRange(unit='$'),
                            readonly=False, default=360, group='more')
+    safe_current = Parameter('motor current allowed for big steps', FloatRange(unit='A'),
+                             readonly=False, default=0.2, group='more')
     tolerance = Parameter('positioning tolerance', FloatRange(unit='$'),
                           readonly=False, default=0.9)
     encoder_tolerance = writable('the allowed deviation between steppos and encoder\n\nmust be > tolerance',
                                  FloatRange(0, 360., unit='$', fmtstr='%.3f'), group='more')
+    has_encoder = Parameter('whether encoder is used or not', BoolType(),
+                            readonly=False, default=True, group='more')
     speed = writable('max. speed', FloatRange(0, MAX_SPEED, unit='$/sec', fmtstr='%.1f'), default=40)
     minspeed = writable('min. speed', FloatRange(0, MAX_SPEED, unit='$/sec', fmtstr='%.1f'),
                         default=SPEED_SCALE, group='motorparam')
@@ -106,10 +116,16 @@ class Motor(PersistentMixin, HasIO, Drivable):
     acceleration = writable('', FloatRange(4.6 * ACCEL_SCALE, MAX_ACCEL, unit='deg/s^2', fmtstr='%.1f'),
                             default=150., group='motorparam')
     target_reached = Parameter('', BoolType(), group='hwstatus')
-    move_status = Parameter('', IntRange(0, 3), group='hwstatus')
+    move_status = Parameter('', EnumType(ok=0, stalled=1, encoder_deviation=2, stalled_and_encoder_deviation=3),
+                            group='hwstatus')
     error_bits = Parameter('', IntRange(0, 255), group='hwstatus')
+    home = Parameter('state of home switch (input 3)', BoolType())
+    has_home = Parameter('enable home and activate pullup resistor', BoolType(),
+                         default=True, initwrite=True, group='more')
+    auto_reset = Parameter('automatic reset after failure', BoolType(), readonly=False, default=False)
     free_wheeling = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
                              default=0.1, group='motorparam')
+
     power_down_delay = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
                                 default=0.1, group='motorparam')
     baudrate = Parameter('', EnumType({'%d' % v: i for i, v in enumerate(BAUDRATES)}),
@@ -117,22 +133,24 @@ class Motor(PersistentMixin, HasIO, Drivable):
     pollinterval = Parameter(group='more')
 
     ioClass = BytesIO
-    fast_pollfactor = 0.001  # not used any more, TODO: use a statemachine for running
-    _started = 0
-    _calcTimeout = True
+    fast_poll = 0.05
+    _run_mode = 0  # 0: idle, 1: driving, 2: stopping
+    _calc_timeout = True
     _need_reset = None
+    _last_change = 0
+    _loading = False  # True when loading parameters
 
     def comm(self, cmd, adr, value=0, bank=0):
         """set or get a parameter
 
         :param adr: parameter number
-        :param cmd: SET command (in the GET case, 1 is added to this)
+        :param cmd: instruction number (SET_* or GET_*)
         :param bank: the bank
         :param value: if given, the parameter is written, else it is returned
         :return: the returned value
         """
-        if self._calcTimeout and self.io._conn:
-            self._calcTimeout = False
+        if self._calc_timeout and self.io._conn:
+            self._calc_timeout = False
             baudrate = getattr(self.io._conn.connection, 'baudrate', None)
             if baudrate:
                 if baudrate not in BAUDRATES:
@@ -167,6 +185,8 @@ class Motor(PersistentMixin, HasIO, Drivable):
         super().startModule(start_events)
 
         def fix_encoder(self=self):
+            if not self.has_encoder:
+                return
             try:
                 # get encoder value from motor. at this stage self.encoder contains the persistent value
                 encoder = self._read_axispar(ENCODER_ADR, ANGLE_SCALE) + self.zero
@@ -174,7 +194,8 @@ class Motor(PersistentMixin, HasIO, Drivable):
             except Exception as e:
                 self.log.error('fix_encoder failed with %r', e)
 
-        start_events.queue(fix_encoder)
+        if self.has_encoder:
+            start_events.queue(fix_encoder)
 
     def fix_encoder(self, encoder_from_hw):
         """fix encoder value
@@ -194,7 +215,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
             if adjusted_encoder != encoder_from_hw:
                 self.log.info('take next closest encoder value (%.2f)' % adjusted_encoder)
             self._need_reset = True
-            self.status = self.Status.ERROR, 'saved encoder value does not match reading'
+            self.status = ERROR, 'saved encoder value does not match reading'
         self._write_axispar(adjusted_encoder - self.zero, ENCODER_ADR, ANGLE_SCALE, readback=False)
 
     def _read_axispar(self, adr, scale=1):
@@ -235,71 +256,123 @@ class Motor(PersistentMixin, HasIO, Drivable):
         """handler write for HwParam"""
         return self._write_axispar(value, *HW_ARGS[pname])
 
+    def doPoll(self):
+        self.read_status()  # read_value is called by read_status
+
     def read_value(self):
-        encoder = self.read_encoder()
         steppos = self.read_steppos()
+        encoder = self.read_encoder() if self.has_encoder else steppos
+        if self.has_home:
+            self.read_home()
         initialized = self.comm(GET_GLOB_PAR, 255, bank=2)
         if initialized:  # no power loss
             self.saveParameters()
-        else:  # just powered up
-            # get persistent values
-            writeDict = self.loadParameters()
+        elif not self._loading:  # just powered up
+            try:
+                self._loading = True
+                # get persistent values
+                writeDict = self.loadParameters()
+            finally:
+                self._loading = False
             self.log.info('set to previous saved values %r', writeDict)
             # self.encoder now contains the last known (persistent) value
             if self._need_reset is None:
-                if self.status[0] == self.Status.IDLE:
+                if self.status[0] == IDLE:
                     # server started, power cycled and encoder value matches last one
                     self.reset()
             else:
-                self.fix_encoder(encoder)
+                if self.has_encoder:
+                    self.fix_encoder(encoder)
                 self._need_reset = True
-                self.status = self.Status.ERROR, 'power loss'
+                self.status = ERROR, 'power loss'
                 # or should we just fix instead of error status?
                 # self._write_axispar(self.steppos - self.zero, readback=False)
             self.comm(SET_GLOB_PAR, 255, 1, bank=2)  # set initialized flag
-            self._started = 0
+            self._run_mode = 0
+            self.setFastPoll(False)
 
         return encoder if abs(encoder - steppos) > self.tolerance else steppos
 
     def read_status(self):
         oldpos = self.steppos
         self.read_value()  # make sure encoder and steppos are fresh
-        if not self._started:
-            if abs(self.encoder - self.steppos) > self.encoder_tolerance:
+        if not self._run_mode:
+            if self.has_encoder and abs(self.encoder - self.steppos) > self.encoder_tolerance:
                 self._need_reset = True
-                if self.status[0] != self.Status.ERROR:
+                if self.auto_reset:
+                    return IDLE, 'encoder does not match internal pos'
+                if self.status[0] != ERROR:
                     self.log.error('encoder (%.2f) does not match internal pos (%.2f)', self.encoder, self.steppos)
-                    return self.Status.ERROR, 'encoder does not match internal pos'
+                    return ERROR, 'encoder does not match internal pos'
             return self.status
-        if oldpos != self.steppos or not (self.read_target_reached() or self.read_move_status()
-                                          or self.read_error_bits()):
-            return self.Status.BUSY, 'moving'
-        # TODO: handle the different errors from move_status and error_bits
+        now = self.parameters['steppos'].timestamp
+        if self.steppos != oldpos:
+            self._last_change = now
+            return BUSY, 'stopping' if self._run_mode == 2 else 'moving'
+        if now < self._last_change + 0.3 and not (self.read_target_reached() or self.read_move_status()):
+            return BUSY, 'stopping' if self._run_mode == 2  else 'moving'
+        if self.target_reached:
+            reason = ''
+        elif self.move_status:
+            reason = self.move_status.name
+        elif self.error_bits:
+            reason = formatStatusBits(self.error_bits, (
+                'stallGuard', 'over_temp', 'over_temp_warn', 'short_A', 'short_B',
+                'open_load_A', 'open_load_B', 'standstill'))
+        else:
+            reason = 'unknown'
+        self.setFastPoll(False)
+        if self._run_mode == 2:
+            self.target = self.value  # indicate to customers that this was stopped
+            self._run_mode = 0
+            return IDLE, 'stopped'
+        self._run_mode = 0
         diff = self.target - self.encoder
         if abs(diff) <= self.tolerance:
-            self._started = 0
-            return self.Status.IDLE, ''
-        self.log.error('out of tolerance by %.3g', diff)
-        self._started = 0
-        return self.Status.ERROR, 'out of tolerance'
+            if reason:
+                self.log.warning('target reached, but move_status = %s', reason)
+            return IDLE, ''
+        if self.auto_reset:
+            self._need_reset = True
+            return IDLE, 'stalled: %s' % reason
+        self.log.error('out of tolerance by %.3g (%s)', diff, reason)
+        return ERROR, 'out of tolerance (%s)' % reason
 
     def write_target(self, target):
-        self.read_value()  # make sure encoder and steppos are fresh
-        if abs(target - self.encoder) > self.move_limit:
-            raise BadValueError('can not move more than %s deg' % self.move_limit)
-        diff = self.encoder - self.steppos
-        if self._need_reset:
-            raise HardwareError('need reset (%s)' % self.status[1])
+        for _ in range(2):  # for auto reset
+            self.read_value()  # make sure encoder and steppos are fresh
+            if self.maxcurrent >= self.safe_current + CURRENT_SCALE and (
+                    abs(target - self.encoder) > self.move_limit + self.tolerance):
+                # pylint: disable=bad-string-format-type
+                # pylint wrongly does not recognise encoder as a descriptor
+                raise BadValueError('can not move more than %g deg (%g -> %g)' %
+                                    (self.move_limit, self.encoder, target))
+            diff = self.encoder - self.steppos
+            if self._need_reset:
+                if self.auto_reset:
+                    if self.isBusy():
+                        self.stop()
+                        while self.isBusy():
+                            time.sleep(0.1)
+                            self.read_value()
+                    self.reset()
+                    if self.status[0] == IDLE:
+                        continue
+                    raise HardwareError('auto reset failed')
+                raise HardwareError('need reset (%s)' % self.status[1])
+            break
         if abs(diff) > self.tolerance:
-            if abs(diff) > self.encoder_tolerance:
+            if abs(diff) > self.encoder_tolerance and self.has_encoder:
                 self._need_reset = True
-                self.status = self.Status.ERROR, 'encoder does not match internal pos'
+                self.status = ERROR, 'encoder does not match internal pos'
                 raise HardwareError('need reset (encoder does not match internal pos)')
-            self._write_axispar(self.encoder - self.zero, STEPPOS_ADR, ANGLE_SCALE)
-        self._started = time.time()
-        self.log.info('move to %.1f', target)
+            self._write_axispar(self.encoder - self.zero, STEPPOS_ADR, ANGLE_SCALE, readback=False)
+        self._last_change = time.time()
+        self._run_mode = 1  # driving
+        self.setFastPoll(True, self.fast_poll)
+        self.log.debug('move to %.1f', target)
         self.comm(MOVE, 0, (target - self.zero) / ANGLE_SCALE)
-        self.status = self.Status.BUSY, 'changed target'
+        self.status = BUSY, 'changed target'
         return target
 
     def write_zero(self, value):
@@ -308,71 +381,67 @@ class Motor(PersistentMixin, HasIO, Drivable):
         return Done
 
     def read_encoder(self):
-        return self._read_axispar(ENCODER_ADR, ANGLE_SCALE) + self.zero
+        if self.has_encoder:
+            return self._read_axispar(ENCODER_ADR, ANGLE_SCALE) + self.zero
+        return self.read_steppos()
 
     def read_steppos(self):
         return self._read_axispar(STEPPOS_ADR, ANGLE_SCALE) + self.zero
 
+    def read_home(self):
+        return not self.comm(GET_IO, 255) & 8
+
+    def write_has_home(self, value):
+        """activate pullup resistor"""
+        return bool(self.comm(SET_IO, 0, value))
+
     @Command(FloatRange())
     def set_zero(self, value):
-        """adjust zero"""
-        self.write_zero(value - self.read_value())
+        """adapt zero to make current position equal to given value"""
+        raw = self.read_value() - self.zero
+        self.write_zero(value - raw)
 
     def read_baudrate(self):
         return self.comm(GET_GLOB_PAR, 65)
 
     def write_baudrate(self, value):
-        self.comm(SET_GLOB_PAR, 65, int(value))
+        """a baudrate change takes effect only after power cycle"""
+        return self.comm(SET_GLOB_PAR, 65, int(value))
 
     @Command()
     def reset(self):
         """set steppos to encoder value, if not within tolerance"""
-        if self._started:
+        if self._run_mode:
             raise IsBusyError('can not reset while moving')
         tol = ENCODER_RESOLUTION * 1.1
         for itry in range(10):
             diff = self.read_encoder() - self.read_steppos()
             if abs(diff) <= tol:
                 self._need_reset = False
-                self.status = self.Status.IDLE, 'ok'
+                self.status = IDLE, 'ok'
                 return
             self._write_axispar(self.encoder - self.zero, STEPPOS_ADR, ANGLE_SCALE, readback=False)
             self.comm(MOVE, 0, (self.encoder - self.zero) / ANGLE_SCALE)
             time.sleep(0.1)
             if itry > 5:
                 tol = self.tolerance
-        self.status = self.Status.ERROR, 'reset failed'
+        self.status = ERROR, 'reset failed'
         return
 
     @Command()
     def stop(self):
         """stop motor immediately"""
+        self._run_mode = 2  # stopping
         self.comm(MOTOR_STOP, 0)
-        self.status = self.Status.IDLE, 'stopped'
-        self._started = 0
+        self.status = BUSY, 'stopping'
+        self.setFastPoll(False)
 
-    @Command()
-    def step_forward(self):
-        """move one full step forwards
-
-        for quick tests
-        """
-        self.comm(MOVE, 1, FULL_STEP / ANGLE_SCALE)
-
-    @Command()
-    def step_back(self):
-        """move one full step backwards
-
-        for quick tests
-        """
-        self.comm(MOVE, 1, - FULL_STEP / ANGLE_SCALE)
-
-    @Command(IntRange(), result=IntRange())
+    @Command(IntRange(), result=IntRange(), export=False)
     def get_axis_par(self, adr):
         """get arbitrary motor parameter"""
         return self.comm(GET_AXIS_PAR, adr)
 
-    @Command((IntRange(), IntRange()), result=IntRange())
+    @Command((IntRange(), IntRange()), result=IntRange(), export=False)
     def set_axis_par(self, adr, value):
         """set arbitrary motor parameter"""
         return self.comm(SET_AXIS_PAR, adr, value)
