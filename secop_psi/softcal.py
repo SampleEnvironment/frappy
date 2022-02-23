@@ -160,9 +160,9 @@ class Sensor(Readable):
     pollinterval = Parameter(export=False)
     status = Parameter(default=(Readable.Status.ERROR, 'unintialized'))
 
-    pollerClass = None
     description = 'a calibrated sensor value'
     _value_error = None
+    enablePoll = False
 
     def initModule(self):
         self._rawsensor.registerCallbacks(self, ['status'])  # auto update status

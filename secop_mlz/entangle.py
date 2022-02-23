@@ -39,7 +39,7 @@ from secop.datatypes import ArrayOf, EnumType, FloatRange, \
 from secop.errors import CommunicationFailedError, \
     ConfigError, HardwareError, ProgrammingError
 from secop.lib import lazy_property
-from secop.modules import BasicPoller, Command, \
+from secop.modules import Command, \
     Drivable, Module, Parameter, Readable
 
 #####
@@ -156,8 +156,6 @@ class PyTangoDevice(Module):
     The PyTangoDevice uses an internal PyTango.DeviceProxy but wraps command
     execution and attribute operations with logging and exception mapping.
     """
-
-    pollerClass = BasicPoller
 
     # parameters
     comtries = Parameter('Maximum retries for communication',
@@ -425,7 +423,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
     userlimits = Parameter('User defined limits of device value',
                            datatype=LimitsType(FloatRange(unit='$')),
                            default=(float('-Inf'), float('+Inf')),
-                           readonly=False, poll=10,
+                           readonly=False,
                            )
     abslimits = Parameter('Absolute limits of device value',
                           datatype=LimitsType(FloatRange(unit='$')),
@@ -463,8 +461,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
         if attrInfo.unit != 'No unit':
             self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
 
-    def pollParams(self, nr=0):
-        super().pollParams(nr)
+    def doPoll(self):
+        super().doPoll()
         while len(self._history) > 2:
             # if history would be too short, break
             if self._history[-1][0] - self._history[1][0] <= self.window:
@@ -607,7 +605,6 @@ class Actuator(AnalogOutput):
                       )
     ramp = Parameter('The speed of changing the value',
                      readonly=False, datatype=FloatRange(0, unit='$/min'),
-                     poll=30,
                      )
 
     def read_speed(self):
@@ -686,16 +683,21 @@ class TemperatureController(Actuator):
                   )
     pid = Parameter('pid control Parameters',
                     datatype=TupleOf(FloatRange(), FloatRange(), FloatRange()),
-                    readonly=False, group='pid', poll=30,
+                    readonly=False, group='pid',
                     )
-    setpoint = Parameter('Current setpoint', datatype=FloatRange(unit='$'), poll=1,
+    setpoint = Parameter('Current setpoint', datatype=FloatRange(unit='$'),
                          )
-    heateroutput = Parameter('Heater output', datatype=FloatRange(), poll=1,
+    heateroutput = Parameter('Heater output', datatype=FloatRange(),
                              )
 
     # overrides
     precision = Parameter(default=0.1)
     ramp = Parameter(description='Temperature ramp')
+
+    def doPoll(self):
+        super().doPoll()
+        self.read_setpoint()
+        self.read_heateroutput()
 
     def read_ramp(self):
         return self._dev.ramp
@@ -750,12 +752,18 @@ class PowerSupply(Actuator):
 
     # parameters
     voltage = Parameter('Actual voltage',
-                        datatype=FloatRange(unit='V'), poll=-5)
+                        datatype=FloatRange(unit='V'))
     current = Parameter('Actual current',
-                        datatype=FloatRange(unit='A'), poll=-5)
+                        datatype=FloatRange(unit='A'))
 
     # overrides
     ramp = Parameter(description='Current/voltage ramp')
+
+    def doPoll(self):
+        super().doPoll()
+        # TODO: poll voltage and current faster when busy
+        self.read_voltage()
+        self.read_current()
 
     def read_ramp(self):
         return self._dev.ramp

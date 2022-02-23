@@ -35,7 +35,6 @@ from secop.errors import CommunicationFailedError, CommunicationSilentError, \
     ConfigError, ProgrammingError
 from secop.modules import Attached, Command, \
     Communicator, Done, Module, Parameter, Property
-from secop.poller import REGULAR
 from secop.lib import generalConfig
 
 
@@ -109,7 +108,7 @@ class IOBase(Communicator):
     uri = Property('hostname:portnumber', datatype=StringType())
     timeout = Parameter('timeout', datatype=FloatRange(0), default=2)
     wait_before = Parameter('wait time before sending', datatype=FloatRange(), default=0)
-    is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, default=False, poll=REGULAR)
+    is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, default=False)
     pollinterval = Parameter('reconnect interval', datatype=FloatRange(0), readonly=False, default=10)
 
     _reconnectCallbacks = None
@@ -132,6 +131,9 @@ class IOBase(Communicator):
         self._conn.disconnect()
         self._conn = None
         self.is_connected = False
+
+    def doPoll(self):
+        self.read_is_connected()
 
     def read_is_connected(self):
         """try to reconnect, when not connected

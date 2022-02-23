@@ -20,7 +20,7 @@
 # *****************************************************************************
 """Andeen Hagerling capacitance bridge"""
 
-from secop.core import Done, FloatRange, HasIO, Parameter, Readable, StringIO
+from secop.core import Done, FloatRange, HasIO, Parameter, Readable, StringIO, nopoll
 
 
 class Ah2700IO(StringIO):
@@ -30,7 +30,7 @@ class Ah2700IO(StringIO):
 
 class Capacitance(HasIO, Readable):
 
-    value = Parameter('capacitance', FloatRange(unit='pF'), poll=True)
+    value = Parameter('capacitance', FloatRange(unit='pF'))
     freq = Parameter('frequency', FloatRange(unit='Hz'), readonly=False, default=0)
     voltage = Parameter('voltage', FloatRange(unit='V'), readonly=False, default=0)
     loss = Parameter('loss', FloatRange(unit='deg'), default=0)
@@ -69,14 +69,17 @@ class Capacitance(HasIO, Readable):
         self.parse_reply(self.communicate('SI'))  # SI = single trigger
         return Done
 
+    @nopoll
     def read_freq(self):
         self.read_value()
         return Done
 
+    @nopoll
     def read_loss(self):
         self.read_value()
         return Done
 
+    @nopoll
     def read_voltage(self):
         self.read_value()
         return Done

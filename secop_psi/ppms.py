@@ -42,7 +42,6 @@ from secop.lib import clamp
 from secop.lib.enum import Enum
 from secop.modules import Communicator, Done, \
     Drivable, Parameter, Property, Readable
-from secop.poller import Poller
 from secop.io import HasIO
 from secop.rwhandler import CommonReadHandler, CommonWriteHandler
 
@@ -57,7 +56,7 @@ class Main(Communicator):
     """ppms communicator module"""
 
     pollinterval = Parameter('poll interval', FloatRange(), readonly=False, default=2)
-    data = Parameter('internal', StringType(), poll=True, export=True,  # export for test only
+    data = Parameter('internal', StringType(), export=True,  # export for test only
                      default="", readonly=True)
 
     class_id = Property('Quantum Design class id', StringType(), export=False)
@@ -69,8 +68,6 @@ class Main(Communicator):
     assert len(_channel_names) == 30
     _channel_to_index = dict(((channel, i) for i, channel in enumerate(_channel_names)))
     _status_bitpos = {'temp': 0, 'field': 4, 'chamber': 8, 'position': 12}
-
-    pollerClass = Poller
 
     def earlyInit(self):
         super().earlyInit()
@@ -88,6 +85,9 @@ class Main(Communicator):
             reply = self._ppms_device.send(command)
             self.comLog("< %s", reply)
             return reply
+
+    def doPoll(self):
+        self.read_data()
 
     def read_data(self):
         mask = 1  # always get packed_status
@@ -116,12 +116,9 @@ class Main(Communicator):
 
 class PpmsBase(HasIO, Readable):
     """common base for all ppms modules"""
-    # polling is done by the main module
-    # and PPMS does not deliver really more fresh values when polled more often
-    value = Parameter(poll=False, needscfg=False)
-    status = Parameter(poll=False, needscfg=False)
+    value = Parameter(needscfg=False)
+    status = Parameter(needscfg=False)
 
-    pollerClass = Poller
     enabled = True  # default, if no parameter enable is defined
     _last_settings = None  # used by several modules
     slow_pollfactor = 1
@@ -133,6 +130,11 @@ class PpmsBase(HasIO, Readable):
     def initModule(self):
         super().initModule()
         self.io.register(self)
+
+    def doPoll(self):
+        # polling is done by the main module
+        # and PPMS does not deliver really more fresh values when polled more often
+        pass
 
     def update_value_status(self, value, packed_status):
         # update value and status
@@ -157,7 +159,7 @@ class Channel(PpmsBase):
     """channel base class"""
 
     value = Parameter('main value of channels')
-    enabled = Parameter('is this channel used?', readonly=False, poll=False,
+    enabled = Parameter('is this channel used?', readonly=False,
                         datatype=BoolType(), default=False)
 
     channel = Property('channel name',
@@ -189,7 +191,7 @@ class UserChannel(Channel):
 class DriverChannel(Channel):
     """driver channel"""
 
-    current = Parameter('driver current', readonly=False, poll=True,  # poll only one parameter
+    current = Parameter('driver current', readonly=False,
                         datatype=FloatRange(0., 5000., unit='uA'))
     powerlimit = Parameter('power limit', readonly=False,
                            datatype=FloatRange(0., 1000., unit='uW'))
@@ -217,7 +219,7 @@ class DriverChannel(Channel):
 class BridgeChannel(Channel):
     """bridge channel"""
 
-    excitation = Parameter('excitation current', readonly=False, poll=True,  # poll only one parameter
+    excitation = Parameter('excitation current', readonly=False,
                            datatype=FloatRange(0.01, 5000., unit='uA'))
     powerlimit = Parameter('power limit', readonly=False,
                            datatype=FloatRange(0.001, 1000., unit='uW'))
@@ -263,9 +265,12 @@ class BridgeChannel(Channel):
 class Level(PpmsBase):
     """helium level"""
 
-    value = Parameter(datatype=FloatRange(unit='%'), poll=True)
+    value = Parameter(datatype=FloatRange(unit='%'))
 
     channel = 'level'
+
+    def doPoll(self):
+        self.read_value()
 
     def update_value_status(self, value, packed_status):
         pass
@@ -303,8 +308,8 @@ class Chamber(PpmsBase, Drivable):
     name2opcode = {k: v for _, _, _, v, k in code_table if k}
     opcode2name = {v: k for _, _, _, v, k in code_table if k}
     status_map = {v: (c, k.replace('_', ' ')) for v, c, k, _, _ in code_table}
-    value = Parameter(description='chamber state', datatype=EnumType(**value_codes), default=0, poll=True)
-    target = Parameter(description='chamber command', datatype=EnumType(**target_codes), default='noop', poll=True)
+    value = Parameter(description='chamber state', datatype=EnumType(**value_codes), default=0)
+    target = Parameter(description='chamber command', datatype=EnumType(**target_codes), default='noop')
 
     channel = 'chamber'
 
@@ -339,9 +344,9 @@ class Temp(PpmsBase, Drivable):
     )
     value = Parameter(datatype=FloatRange(unit='K'))
     status = Parameter(datatype=StatusType(Status))
-    target = Parameter(datatype=FloatRange(1.7, 402.0, unit='K'), poll=False, needscfg=False)
+    target = Parameter(datatype=FloatRange(1.7, 402.0, unit='K'), needscfg=False)
     setpoint = Parameter('intermediate set point',
-                         datatype=FloatRange(1.7, 402.0, unit='K'), poll=True)   # poll only one parameter
+                         datatype=FloatRange(1.7, 402.0, unit='K'))
     ramp = Parameter('ramping speed', readonly=False, default=0,
                      datatype=FloatRange(0, 20, unit='K/min'))
     workingramp = Parameter('intermediate ramp value',
@@ -509,7 +514,7 @@ class Field(PpmsBase, Drivable):
     )
     value = Parameter(datatype=FloatRange(unit='T'))
     status = Parameter(datatype=StatusType(Status))
-    target = Parameter(datatype=FloatRange(-15, 15, unit='T'), poll=True)  # poll only one parameter
+    target = Parameter(datatype=FloatRange(-15, 15, unit='T'))  # poll only one parameter
     ramp = Parameter('ramping speed', readonly=False,
                      datatype=FloatRange(0.064, 1.19, unit='T/min'), default=0.19)
     approachmode = Parameter('how to approach target', readonly=False,
@@ -640,8 +645,8 @@ class Position(PpmsBase, Drivable):
     Status = Drivable.Status
 
     value = Parameter(datatype=FloatRange(unit='deg'))
-    target = Parameter(datatype=FloatRange(-720., 720., unit='deg'), poll=True)  # poll only one parameter
-    enabled = Parameter('is this channel used?', readonly=False, poll=False,
+    target = Parameter(datatype=FloatRange(-720., 720., unit='deg'))
+    enabled = Parameter('is this channel used?', readonly=False,
                         datatype=BoolType(), default=True)
     speed = Parameter('motor speed', readonly=False, default=12,
                       datatype=FloatRange(0.8, 12, unit='deg/sec'))

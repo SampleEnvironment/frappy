@@ -35,9 +35,9 @@ from secop.io import HasIO
 class ProxyModule(HasIO, Module):
     module = Property('remote module name', datatype=StringType(), default='')
 
-    pollerClass = None
     _consistency_check_done = False
     _secnode = None
+    enablePoll = False
 
     def ioClass(self, name, logger, opts, srv):
         opts['description'] = 'secnode %s on %s' % (opts.get('module', name), opts['uri'])
@@ -123,7 +123,8 @@ class ProxyModule(HasIO, Module):
                 self.announceUpdate('status', newstatus)
 
     def checkProperties(self):
-        pass # skip
+        pass  # skip
+
 
 class ProxyReadable(ProxyModule, Readable):
     pass
@@ -184,7 +185,7 @@ def proxy_class(remote_class, name=None):
 
     for aname, aobj in rcls.accessibles.items():
         if isinstance(aobj, Parameter):
-            pobj = aobj.merge(dict(poll=False, handler=None, needscfg=False))
+            pobj = aobj.merge(dict(handler=None, needscfg=False))
             attrs[aname] = pobj
 
             def rfunc(self, pname=aname):

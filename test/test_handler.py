@@ -69,8 +69,8 @@ def test_handler():
     data = []
 
     class Mod(ModuleTest):
-        a = Parameter('', FloatRange(), readonly=False, poll=True)
-        b = Parameter('', FloatRange(), readonly=False, poll=True)
+        a = Parameter('', FloatRange(), readonly=False)
+        b = Parameter('', FloatRange(), readonly=False)
 
         @ReadHandler(['a', 'b'])
         def read_hdl(self, pname):
@@ -115,8 +115,8 @@ def test_common_handler():
     data = []
 
     class Mod(ModuleTest):
-        a = Parameter('', FloatRange(), readonly=False, poll=True)
-        b = Parameter('', FloatRange(), readonly=False, poll=True)
+        a = Parameter('', FloatRange(), readonly=False)
+        b = Parameter('', FloatRange(), readonly=False)
 
         @CommonReadHandler(['a', 'b'])
         def read_hdl(self):
@@ -164,8 +164,8 @@ def test_common_handler():
 
 def test_nopoll():
     class Mod1(ModuleTest):
-        a = Parameter('', FloatRange(), readonly=False, poll=True)
-        b = Parameter('', FloatRange(), readonly=False, poll=True)
+        a = Parameter('', FloatRange(), readonly=False)
+        b = Parameter('', FloatRange(), readonly=False)
 
         @ReadHandler(['a', 'b'])
         def read_hdl(self):
@@ -175,8 +175,8 @@ def test_nopoll():
     assert Mod1.read_b.poll is True
 
     class Mod2(ModuleTest):
-        a = Parameter('', FloatRange(), readonly=False, poll=True)
-        b = Parameter('', FloatRange(), readonly=False, poll=True)
+        a = Parameter('', FloatRange(), readonly=False)
+        b = Parameter('', FloatRange(), readonly=False)
 
         @CommonReadHandler(['a', 'b'])
         def read_hdl(self):
@@ -186,8 +186,8 @@ def test_nopoll():
     assert Mod2.read_b.poll is False
 
     class Mod3(ModuleTest):
-        a = Parameter('', FloatRange(), readonly=False, poll=True)
-        b = Parameter('', FloatRange(), readonly=False, poll=True)
+        a = Parameter('', FloatRange(), readonly=False)
+        b = Parameter('', FloatRange(), readonly=False)
 
         @ReadHandler(['a', 'b'])
         @nopoll
@@ -198,8 +198,8 @@ def test_nopoll():
     assert Mod3.read_b.poll is False
 
     class Mod4(ModuleTest):
-        a = Parameter('', FloatRange(), readonly=False, poll=True)
-        b = Parameter('', FloatRange(), readonly=False, poll=True)
+        a = Parameter('', FloatRange(), readonly=False)
+        b = Parameter('', FloatRange(), readonly=False)
 
         @nopoll
         @ReadHandler(['a', 'b'])

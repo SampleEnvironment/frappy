@@ -94,6 +94,7 @@ def main(argv=None):
         generalConfig.defaults['lazy_number_validation'] = True
         generalConfig.defaults['disable_value_range_check'] = True
         generalConfig.defaults['legacy_hasiodev'] = True
+        generalConfig.defaults['tolerate_poll_property'] = True
     generalConfig.init(args.gencfg)
     logger.init(loglevel)
 

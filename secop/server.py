@@ -264,7 +264,6 @@ class Server:
                         failure_traceback = traceback.format_exc()
                     errors.append('error creating %s' % modname)
 
-        poll_table = dict()
         missing_super = set()
         # all objs created, now start them up and interconnect
         for modname, modobj in self.modules.items():
@@ -275,12 +274,6 @@ class Server:
             if not modobj.earlyInitDone:
                 missing_super.add('%s was not called, probably missing super call'
                                   % modobj.earlyInit.__qualname__)
-
-        # handle polling
-        for modname, modobj in self.modules.items():
-            if modobj.pollerClass is not None:
-                # a module might be explicitly excluded from polling by setting pollerClass to None
-                modobj.pollerClass.add_to_table(poll_table, modobj)
 
         # call init on each module after registering all
         for modname, modobj in self.modules.items():
@@ -317,17 +310,13 @@ class Server:
                 sys.stderr.write(failure_traceback)
             sys.exit(1)
 
-        for (_, pollname) , poller in poll_table.items():
-            start_events.name = 'poller %s' % pollname
-            # poller.start must return either a timeout value or None (default 30 sec)
-            poller.start(start_events.get_trigger())
-        self.log.info('waiting for modules and pollers being started')
+        self.log.info('waiting for modules being started')
         start_events.name = None
         if not start_events.wait():
             # some timeout happened
             for name in start_events.waiting_for():
                 self.log.warning('timeout when starting %s' % name)
-        self.log.info('all modules and pollers started')
+        self.log.info('all modules started')
         history_path = os.environ.get('FRAPPY_HISTORY')
         if history_path:
             from secop_psi.historywriter import FrappyHistoryWriter  # pylint: disable=import-outside-toplevel

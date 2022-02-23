@@ -23,8 +23,8 @@
 """Define base classes for real Modules implemented in the server"""
 
 
-import sys
 import time
+import threading
 from collections import OrderedDict
 from functools import wraps
 
@@ -35,7 +35,6 @@ from secop.errors import BadValueError, ConfigError, \
 from secop.lib import formatException, mkthread, UniqueObject, generalConfig
 from secop.lib.enum import Enum
 from secop.params import Accessible, Command, Parameter
-from secop.poller import BasicPoller, Poller
 from secop.properties import HasProperties, Property
 from secop.logging import RemoteLogHandler, HasComlog
 
@@ -90,15 +89,18 @@ class HasAccessibles(HasProperties):
             else:
                 aobj.merge(merged_properties[aname])
             accessibles[aname] = aobj
+
         # rebuild order: (1) inherited items, (2) items from paramOrder, (3) new accessibles
         # move (2) to the end
-        for aname in list(cls.__dict__.get('paramOrder', ())):
+        paramOrder = cls.__dict__.get('paramOrder', ())
+        for aname in paramOrder:
             if aname in accessibles:
                 accessibles.move_to_end(aname)
                 # ignore unknown names
         # move (3) to the end
         for aname in new_names:
-            accessibles.move_to_end(aname)
+            if aname not in paramOrder:
+                accessibles.move_to_end(aname)
         # note: for python < 3.6 the order of inherited items is not ensured between
         # declarations within the same class
         cls.accessibles = accessibles
@@ -147,7 +149,7 @@ class HasAccessibles(HasProperties):
                         setattr(self, pname, value)  # important! trigger the setter
                         return value
 
-                    new_rfunc.poll = getattr(rfunc, 'poll', True) and pobj.poll
+                    new_rfunc.poll = getattr(rfunc, 'poll', True)
                 else:
 
                     def new_rfunc(self, pname=pname):
@@ -268,6 +270,9 @@ class Module(HasAccessibles):
                               extname='implementation')
     interface_classes = Property('offical highest interface-class of the module', ArrayOf(StringType()),
                                  extname='interface_classes')
+    pollinterval = Property('poll interval for parameters handled by doPoll', FloatRange(0.1, 120), default=5)
+    slowinterval = Property('poll interval for other parameters', FloatRange(0.1, 120), default=15)
+    enablePoll = True
 
     # properties, parameters and commands are auto-merged upon subclassing
     parameters = {}
@@ -275,7 +280,6 @@ class Module(HasAccessibles):
 
     # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
-    pollerClass = Poller  #: default poller used
 
     def __init__(self, name, logger, cfgdict, srv):
         # remember the dispatcher object (for the async callbacks)
@@ -289,6 +293,7 @@ class Module(HasAccessibles):
         self.initModuleDone = False
         self.startModuleDone = False
         self.remoteLogHandler = None
+        self.nextPollEvent = threading.Event()
         errors = []
 
         # handle module properties
@@ -333,13 +338,6 @@ class Module(HasAccessibles):
         for aname, aobj in self.accessibles.items():
             # make a copy of the Parameter/Command object
             aobj = aobj.copy()
-            if isinstance(aobj, Parameter):
-                # fix default properties poll and needscfg
-                if aobj.poll is None:
-                    aobj.poll = bool(aobj.handler)
-                if aobj.needscfg is None:
-                    aobj.needscfg = not aobj.poll
-
             if not self.export:  # do not export parameters of a module not exported
                 aobj.export = False
             if aobj.export:
@@ -578,22 +576,88 @@ class Module(HasAccessibles):
         registers it in the server for waiting
         <timeout> defaults to 30 seconds
         """
-        if self.writeDict:
-            mkthread(self.writeInitParams, start_events.get_trigger())
+        if self.enablePoll or self.writeDict:
+            # enablePoll == False: start poll thread for writing values from writeDict only
+            mkthread(self.__pollThread, start_events.get_trigger())
         self.startModuleDone = True
 
-    def pollOneParam(self, pname):
-        """poll parameter <pname> with proper error handling"""
+    def doPoll(self):
+        """polls important parameters like value and status
+
+        all other parameters are polled automatically
+        """
+
+    def triggerPollEvent(self, *args):  # args needed for valueCallback
+        """interrupts waiting between polls"""
+        self.nextPollEvent.set()  # trigger poll loop
+
+    def callPollFunc(self, rfunc):
+        """call read method with proper error handling"""
         try:
-            rfunc = getattr(self, 'read_' + pname)
-            if rfunc.poll:  # TODO: handle this in poller
-                rfunc()
+            rfunc()
         except SilentError:
             pass
         except SECoPError as e:
             self.log.error(str(e))
         except Exception:
             self.log.error(formatException())
+
+    def __pollThread(self, started_callback):
+        self.writeInitParams()
+        if not self.enablePoll:
+            return
+        polled_parameters = []
+        # collect and call all read functions a first time
+        for pname, pobj in self.parameters.items():
+            rfunc = getattr(self, 'read_' + pname)
+            if rfunc.poll:
+                polled_parameters.append((rfunc, pobj))
+                self.callPollFunc(rfunc)
+        started_callback()
+        last_slow = last_main = 0
+        last_error = None
+        error_count = 0
+        to_poll = ()
+        while True:
+            now = time.time()
+            wait_main = last_main + self.pollinterval - now
+            wait_slow = last_slow + self.slowinterval - now
+            wait_time = min(wait_main, wait_slow)
+            if wait_time > 0:
+                self.nextPollEvent.wait(wait_time)
+                self.nextPollEvent.clear()
+                # remark: if there would be a need to trigger polling all parameters,
+                # we might replace nextPollEvent by a Queue and act depending on the
+                # queued item
+                continue
+            # call doPoll, if due
+            if wait_main <= 0:
+                last_main = (now // self.pollinterval) * self.pollinterval
+                try:
+                    self.doPoll()
+                    if last_error and error_count > 1:
+                        self.log.info('recovered after %d calls to doPoll (%r)', error_count, last_error)
+                    last_error = None
+                except Exception as e:
+                    if type(e) != last_error:
+                        error_count = 0
+                        self.log.error('error in doPoll: %r', e)
+                    error_count += 1
+                    last_error = e
+                now = time.time()
+            # find ONE due slow poll and call it
+            loop = True
+            while loop:  # loops max. 2 times, when to_poll is at end
+                for rfunc, pobj in to_poll:
+                    if now > pobj.timestamp + self.slowinterval * 0.5:
+                        self.callPollFunc(rfunc)
+                        loop = False
+                        break
+                else:
+                    if now < last_slow + self.slowinterval:
+                        break
+                    last_slow = (now // self.slowinterval) * self.slowinterval
+                    to_poll = iter(polled_parameters)
 
     def writeInitParams(self, started_callback=None):
         """write values for parameters with configured values
@@ -640,55 +704,20 @@ class Readable(Module):
                   UNKNOWN=401,
                   )  #: status codes
 
-    value = Parameter('current value of the module', FloatRange(), poll=True)
+    value = Parameter('current value of the module', FloatRange())
     status = Parameter('current status of the module', TupleOf(EnumType(Status), StringType()),
-                       default=(Status.IDLE, ''), poll=True)
-    pollinterval = Parameter('sleeptime between polls', FloatRange(0.1, 120),
-                             default=5, readonly=False)
+                       default=(Status.IDLE, ''))
+    pollinterval = Parameter('default poll interval', FloatRange(0.1, 120),
+                             default=5, readonly=False, export=True)
 
-    def startModule(self, start_events):
-        """start basic polling thread"""
-        if self.pollerClass and issubclass(self.pollerClass, BasicPoller):
-            # use basic poller for legacy code
-            mkthread(self.__pollThread, start_events.get_trigger(timeout=30))
-        else:
-            super().startModule(start_events)
+    def earlyInit(self):
+        super().earlyInit()
+        # in case pollinterval is reduced a lot, we do not want to wait
+        self.valueCallbacks['pollinterval'].append(self.triggerPollEvent)
 
-    def __pollThread(self, started_callback):
-        while True:
-            try:
-                self.__pollThread_inner(started_callback)
-            except Exception as e:
-                self.log.exception(e)
-                self.status = (self.Status.ERROR, 'polling thread could not start')
-                started_callback()
-                print(formatException(0, sys.exc_info(), verbose=True))
-                time.sleep(10)
-
-    def __pollThread_inner(self, started_callback):
-        """super simple and super stupid per-module polling thread"""
-        self.writeInitParams()
-        i = 0
-        fastpoll = self.pollParams(i)
-        started_callback()
-        while True:
-            i += 1
-            try:
-                time.sleep(self.pollinterval * (0.1 if fastpoll else 1))
-            except TypeError:
-                time.sleep(min(self.pollinterval)
-                           if fastpoll else max(self.pollinterval))
-            fastpoll = self.pollParams(i)
-
-    def pollParams(self, nr=0):
-        # Just poll all parameters regularly where polling is enabled
-        for pname, pobj in self.parameters.items():
-            if not pobj.poll:
-                continue
-            if nr % abs(int(pobj.poll)) == 0:
-                # pollParams every 'pobj.pollParams' iteration
-                self.pollOneParam(pname)
-        return False
+    def doPoll(self):
+        self.read_value()
+        self.read_status()
 
 
 class Writable(Readable):
@@ -738,24 +767,6 @@ class Drivable(Writable):
         returns True when busy, but not finalizing
         """
         return 300 <= (status or self.status)[0] < 390
-
-    # improved polling: may poll faster if module is BUSY
-    def pollParams(self, nr=0):
-        # poll status first
-        self.read_status()
-        fastpoll = self.isBusy()
-        for pname, pobj in self.parameters.items():
-            if not pobj.poll:
-                continue
-            if pname == 'status':
-                # status was already polled above
-                continue
-            if ((int(pobj.poll) < 0) and fastpoll) or (
-                    nr % abs(int(pobj.poll))) == 0:
-                # poll always if pobj.poll is negative and fastpoll (i.e. Module is busy)
-                # otherwise poll every 'pobj.poll' iteration
-                self.pollOneParam(pname)
-        return fastpoll
 
     @Command(None, result=None)
     def stop(self):

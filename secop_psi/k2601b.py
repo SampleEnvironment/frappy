@@ -43,11 +43,11 @@ SOURCECMDS = {
 
 class SourceMeter(HasIO, Module):
 
-    resistivity = Parameter('readback resistivity', FloatRange(unit='Ohm'), poll=True)
-    power = Parameter('readback power', FloatRange(unit='W'), poll=True)
+    resistivity = Parameter('readback resistivity', FloatRange(unit='Ohm'))
+    power = Parameter('readback power', FloatRange(unit='W'))
     mode = Parameter('measurement mode', EnumType(off=0, current=1, voltage=2),
                      readonly=False, default=0)
-    active = Parameter('output enable', BoolType(), readonly=False, poll=True)
+    active = Parameter('output enable', BoolType(), readonly=False)
 
     ioClass = K2601bIO
 
@@ -76,10 +76,10 @@ class SourceMeter(HasIO, Module):
 class Current(HasIO, Writable):
     sourcemeter = Attached()
 
-    value = Parameter('measured current', FloatRange(unit='A'), poll=True)
-    target = Parameter('set current', FloatRange(unit='A'), poll=True)
+    value = Parameter('measured current', FloatRange(unit='A'))
+    target = Parameter('set current', FloatRange(unit='A'))
     active = Parameter('current is controlled', BoolType(), default=False)  # polled from Current/Voltage
-    limit = Parameter('current limit', FloatRange(0, 2.0, unit='A'), default=2, poll=True)
+    limit = Parameter('current limit', FloatRange(0, 2.0, unit='A'), default=2)
 
     def read_value(self):
         return self.communicate('print(smua.measure.i())')
@@ -119,10 +119,10 @@ class Current(HasIO, Writable):
 class Voltage(HasIO, Writable):
     sourcemeter = Attached()
 
-    value = Parameter('measured voltage', FloatRange(unit='V'), poll=True)
-    target = Parameter('set voltage', FloatRange(unit='V'), poll=True)
-    active = Parameter('voltage is controlled', BoolType(), poll=True)
-    limit = Parameter('current limit', FloatRange(0, 2.0, unit='V'), default=2, poll=True)
+    value = Parameter('measured voltage', FloatRange(unit='V'))
+    target = Parameter('set voltage', FloatRange(unit='V'))
+    active = Parameter('voltage is controlled', BoolType())
+    limit = Parameter('current limit', FloatRange(0, 2.0, unit='V'), default=2)
 
     def read_value(self):
         return self.communicate('print(smua.measure.v())')

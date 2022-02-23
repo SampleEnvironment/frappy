@@ -138,17 +138,18 @@ class HasProperties(HasDescriptors):
         # treat overriding properties with bare values
         for pn, po in properties.items():
             value = getattr(cls, pn, po)
-            if not isinstance(value, Property):  # attribute is a bare value
+            if not isinstance(value, (Property, HasProperties)):  # attribute may be a bare value
+                # HasProperties is a base class of Parameter -> allow a Parameter to override a Property ()
                 po = po.copy()
                 try:
+                    # try to apply bare value to Property
                     po.value = po.datatype(value)
                 except BadValueError:
-                    if pn in properties:
-                        if callable(value):
-                            raise ProgrammingError('method %s.%s collides with property of %s' %
-                                                   (cls.__name__, pn, base.__name__)) from None
-                        raise ProgrammingError('can not set property %s.%s to %r' %
-                                               (cls.__name__, pn, value)) from None
+                    if callable(value):
+                        raise ProgrammingError('method %s.%s collides with property of %s' %
+                                               (cls.__name__, pn, base.__name__)) from None
+                    raise ProgrammingError('can not set property %s.%s to %r' %
+                                           (cls.__name__, pn, value)) from None
                 cls.propertyDict[pn] = po
 
     def checkProperties(self):

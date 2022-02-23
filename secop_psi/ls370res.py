@@ -27,7 +27,6 @@ from secop.datatypes import BoolType, EnumType, FloatRange, IntRange
 from secop.lib import formatStatusBits
 from secop.modules import Attached, Done, \
     Drivable, Parameter, Property, Readable
-from secop.poller import REGULAR, Poller
 from secop.io import HasIO
 
 Status = Drivable.Status
@@ -60,12 +59,11 @@ class StringIO(secop.io.StringIO):
 
 class Main(HasIO, Drivable):
 
-    value = Parameter('the current channel', poll=REGULAR, datatype=IntRange(0, 17))
+    value = Parameter('the current channel', datatype=IntRange(0, 17))
     target = Parameter('channel to select', datatype=IntRange(0, 17))
     autoscan = Parameter('whether to scan automatically', datatype=BoolType(), readonly=False, default=False)
     pollinterval = Parameter(default=1, export=False)
 
-    pollerClass = Poller
     ioClass = StringIO
     _channel_changed = 0  # time of last channel change
     _channels = None  # dict <channel no> of <module object>
@@ -141,7 +139,6 @@ class ResChannel(HasIO, Readable):
         enumerate(mag % val for mag in ['%guV', '%gmV']
                   for val in [2, 6.32, 20, 63.2, 200, 632]))}
 
-    pollerClass = Poller
     ioClass = StringIO
     _main = None  # main module
     _last_range_change = 0  # time of last range change

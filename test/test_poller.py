@@ -21,18 +21,20 @@
 # *****************************************************************************
 """test poller."""
 
+import sys
+import threading
 import time
-from collections import OrderedDict
+import logging
 
 import pytest
 
-from secop.modules import Drivable
-from secop.poller import DYNAMIC, REGULAR, SLOW, Poller
+from secop.core import Module, Parameter, FloatRange, Readable, ReadHandler, nopoll
+from secop.lib.multievent import MultiEvent
 
-Status = Drivable.Status
 
 class Time:
-    STARTTIME = 1000 # artificial time zero
+    STARTTIME = 1000  # artificial time zero
+
     def __init__(self):
         self.reset()
         self.finish = float('inf')
@@ -61,190 +63,103 @@ class Time:
         self.seconds += seconds
         self.busytime += seconds
 
+
 artime = Time() # artificial test time
 
-@pytest.fixture(autouse=True)
-def patch_time(monkeypatch):
-    monkeypatch.setattr(time, 'time', artime.time)
+
+class Event(threading.Event):
+    def wait(self, timeout=None):
+        artime.sleep(max(0, timeout))
 
 
-class Event:
-    def __init__(self):
-        self.flag = False
+class DispatcherStub:
+    maxcycles = 10
 
-    def wait(self, timeout):
-        artime.sleep(max(0,timeout))
-
-    def set(self):
-        self.flag = True
-
-    def clear(self):
-        self.flag = False
-
-    def is_set(self):
-        return self.flag
-
-
-class Parameter:
-    def __init__(self, name, readonly, poll, polltype, interval):
-        self.poll = poll
-        self.polltype = polltype # used for check only
-        self.export = name
-        self.readonly = readonly
-        self.interval = interval
-        self.timestamp = 0
-        self.handler = None
-        self.reset()
-
-    def reset(self):
-        self.cnt = 0
-        self.span = 0
-        self.maxspan = 0
-
-    def rfunc(self):
-        artime.busy(artime.commtime)
+    def announce_update(self, modulename, pname, pobj):
         now = artime.time()
-        self.span = now - self.timestamp
-        self.maxspan = max(self.maxspan, self.span)
-        self.timestamp = now
-        self.cnt += 1
-        return True
-
-    def __repr__(self):
-        return 'Parameter(%s)' % ", ".join("%s=%r" % item for item in self.__dict__.items())
-
-
-class Module:
-    properties = {}
-    pollerClass = Poller
-
-    class io:
-        name = 'common_io'
-
-    def __init__(self, name, pollinterval=5, fastfactor=0.25, slowfactor=4, busy=False,
-                 counts=(), auto=None):
-        '''create a dummy module
-
-        nauto, ndynamic, nregular, nslow are the number of parameters of each polltype
-        '''
-        self.pollinterval = pollinterval
-        self.fast_pollfactor = fastfactor
-        self.slow_pollfactor = slowfactor
-        self.parameters = OrderedDict()
-        self.name = name
-        self.is_busy = busy
-        if auto is not None:
-            self.pvalue = self.addPar('value', True, auto or DYNAMIC, DYNAMIC)
-            # readonly = False should not matter:
-            self.pstatus = self.addPar('status', False, auto or DYNAMIC, DYNAMIC)
-            self.pregular = self.addPar('regular', True, auto or REGULAR, REGULAR)
-            self.pslow = self.addPar('slow', False, auto or SLOW, SLOW)
-            self.addPar('notpolled', True, False, 0)
-            self.counts = 'auto'
+        if hasattr(pobj, 'stat'):
+            pobj.stat.append(now)
         else:
-            ndynamic, nregular, nslow = counts
-            for i in range(ndynamic):
-                self.addPar('%s:d%d' % (name, i), True, DYNAMIC, DYNAMIC)
-            for i in range(nregular):
-                self.addPar('%s:r%d' % (name, i), True, REGULAR, REGULAR)
-            for i in range(nslow):
-                self.addPar('%s:s%d' % (name, i), False, SLOW, SLOW)
-            self.counts = counts
+            pobj.stat = [now]
+        self.maxcycles -= 1
+        if self.maxcycles <= 0:
+            self.finish_event.set()
+            sys.exit()  # stop thread
 
-    def addPar(self, name, readonly, poll, expected_polltype):
-        # self.count[polltype] += 1
-        expected_interval = self.pollinterval
-        if expected_polltype == SLOW:
-            expected_interval *= self.slow_pollfactor
-        elif expected_polltype == DYNAMIC and self.is_busy:
-            expected_interval *= self.fast_pollfactor
-        pobj = Parameter(name, readonly, poll, expected_polltype, expected_interval)
-        setattr(self, 'read_' + pobj.export, pobj.rfunc)
-        self.parameters[pobj.export] = pobj
-        return pobj
 
-    def isBusy(self):
-        return self.is_busy
+class ServerStub:
+    def __init__(self):
+        self.dispatcher = DispatcherStub()
 
-    def pollOneParam(self, pname):
-        getattr(self, 'read_' + pname)()
 
-    def writeInitParams(self):
-        pass
+class Base(Module):
+    def __init__(self):
+        srv = ServerStub()
+        super().__init__('mod', logging.getLogger('dummy'), dict(description=''), srv)
+        self.dispatcher = srv.dispatcher
+        self.nextPollEvent = Event()
 
-    def __repr__(self):
-        rdict = self.__dict__.copy()
-        rdict.pop('parameters')
-        return 'Module(%r, counts=%r, f=%r, pollinterval=%g, is_busy=%r)' % (self.name,
-            self.counts, (self.fast_pollfactor, self.slow_pollfactor, 1),
-            self.pollinterval, self.is_busy)
+    def run(self, maxcycles):
+        self.dispatcher.maxcycles = maxcycles
+        self.dispatcher.finish_event = threading.Event()
+        self.startModule(MultiEvent())
+        self.dispatcher.finish_event.wait(1)
 
-module_list = [
-        [Module('x', 3.0, 0.125, 10, False, auto=True),
-         Module('y', 3.0, 0.125, 10, False, auto=False)],
-        [Module('a', 1.0, 0.25, 4, True, (5, 5, 10)),
-         Module('b', 2.0, 0.25, 4, True, (5, 5, 50))],
-        [Module('c', 1.0, 0.25, 4, False, (5, 0, 0))],
-        [Module('d', 1.0, 0.25, 4, True, (0, 9, 0))],
-        [Module('e', 1.0, 0.25, 4, True, (0, 0, 9))],
-        [Module('f', 1.0, 0.25, 4, True, (0, 0, 0))],
-    ]
-@pytest.mark.parametrize('modules', module_list)
-def test_Poller(modules):
-    # check for proper timing
 
-    for overloaded in False, True:
-        artime.reset()
-        count = {DYNAMIC: 0, REGULAR: 0, SLOW: 0}
-        maxspan = {DYNAMIC: 0, REGULAR: 0, SLOW: 0}
-        pollTable = dict()
-        for module in modules:
-            Poller.add_to_table(pollTable, module)
-            for pobj in module.parameters.values():
-                if pobj.poll:
-                    maxspan[pobj.polltype] = max(maxspan[pobj.polltype], pobj.interval)
-                    count[pobj.polltype] += 1
-                    pobj.reset()
-        assert len(pollTable) == 1
-        poller = pollTable[(Poller, 'common_io')]
-        artime.stop = poller.stop
-        poller._event = Event() # patch Event.wait
+class Mod1(Base, Readable):
+    param1 = Parameter('', FloatRange())
+    param2 = Parameter('', FloatRange())
+    param3 = Parameter('', FloatRange())
+    param4 = Parameter('', FloatRange())
 
-        assert (sum(count.values()) > 0) == bool(poller)
+    @ReadHandler(('param1', 'param2', 'param3'))
+    def read_param(self, name):
+        artime.sleep(1.0)
+        return 0
 
-        def started_callback(modules=modules):
-            for module in modules:
-                for pobj in module.parameters.values():
-                    assert pobj.cnt == bool(pobj.poll) # all parameters have to be polled once
-                    pobj.reset() # set maxspan and cnt to 0
+    @nopoll
+    def read_param4(self):
+        return 0
 
-        if overloaded:
-            # overloaded scenario
-            artime.commtime = 1.0
-            ncycles = 10
-            if count[SLOW] > 0:
-                cycletime = (count[REGULAR] + 1) * count[SLOW] * 2
-            else:
-                cycletime = max(count[REGULAR], count[DYNAMIC]) * 2
-            artime.reset(cycletime * ncycles * 1.01)  # poller will quit given time
-            poller.run(started_callback)
-            total = artime.time() - artime.STARTTIME
-            for module in modules:
-                for pobj in module.parameters.values():
-                    if pobj.poll:
-                        # average_span = total / (pobj.cnt + 1)
-                        assert total / (pobj.cnt + 1) <= max(cycletime, pobj.interval * 1.1)
-        else:
-            # normal scenario
-            artime.commtime = 0.001
-            artime.reset(max(maxspan.values()) * 5) # poller will quit given time
-            poller.run(started_callback)
-            total = artime.time() - artime.STARTTIME
-            for module in modules:
-                for pobj in module.parameters.values():
-                    if pobj.poll:
-                        assert pobj.cnt > 0
-                        assert pobj.maxspan <= maxspan[pobj.polltype] * 1.1
-                        assert (pobj.cnt + 1) * pobj.interval >= total * 0.99
-                        assert abs(pobj.span - pobj.interval) < 0.01
-                        pobj.reset()
+    def read_status(self):
+        artime.sleep(1.0)
+        return 0
+
+    def read_value(self):
+        artime.sleep(1.0)
+        return 0
+
+
+@pytest.mark.parametrize(
+    'ncycles, pollinterval, slowinterval, mspan, pspan',
+    [  # normal case:                    5+-1     15+-1
+     (    60,            5,          15, (4, 6), (14, 16)),
+     # pollinterval faster then reading: mspan max 3 s (polls of value, status and ONE other parameter)
+     (    60,            1,           5, (1, 3), (5, 16)),
+    ])
+def test_poll(ncycles, pollinterval, slowinterval, mspan, pspan, monkeypatch):
+    monkeypatch.setattr(time, 'time', artime.time)
+    artime.reset()
+    m = Mod1()
+    m.pollinterval = pollinterval
+    m.slowInterval = slowinterval
+    m.run(ncycles)
+    assert not hasattr(m.parameters['param4'], 'stat')
+    for pname in ['value', 'status']:
+        pobj = m.parameters[pname]
+        lowcnt = 0
+        for t1, t2 in zip(pobj.stat[1:], pobj.stat[2:-1]):
+            if t2 - t1 < mspan[0]:
+                print(t2 - t1)
+                lowcnt += 1
+            assert t2 - t1 <= mspan[1]
+        assert lowcnt <= 1
+    for pname in ['param1', 'param2', 'param3']:
+        pobj = m.parameters[pname]
+        lowcnt = 0
+        for t1, t2 in zip(pobj.stat[1:], pobj.stat[2:-1]):
+            if t2 - t1 < pspan[0]:
+                print(pname, t2 - t1)
+                lowcnt += 1
+            assert t2 - t1 <= pspan[1]
+        assert lowcnt <= 1

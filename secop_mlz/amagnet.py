@@ -31,7 +31,7 @@ import math
 from secop.datatypes import ArrayOf, FloatRange, StringType, StructOf, TupleOf
 from secop.errors import ConfigError, DisabledError
 from secop.lib.sequence import SequencerMixin, Step
-from secop.modules import BasicPoller, Drivable, Parameter
+from secop.modules import Drivable, Parameter
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):
@@ -47,9 +47,6 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     the symmetry setting selects which.
     """
 
-    pollerClass = BasicPoller
-
-
     # parameters
     subdev_currentsource = Parameter('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False)
     subdev_enable = Parameter('Switch to set for on/off', datatype=StringType(), readonly=True, export=False)
@@ -57,10 +54,10 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     subdev_symmetry = Parameter('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False)
     userlimits = Parameter('User defined limits of device value',
                        datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
-                       default=(float('-Inf'), float('+Inf')), readonly=False, poll=10)
+                       default=(float('-Inf'), float('+Inf')), readonly=False)
     abslimits = Parameter('Absolute limits of device value',
                       datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
-                      default=(-0.5, 0.5), poll=True,
+                      default=(-0.5, 0.5),
                       )
     precision = Parameter('Precision of the device value (allowed deviation '
                       'of stable values from target)',
@@ -71,7 +68,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     calibration = Parameter('Coefficients for calibration '
                         'function: [c0, c1, c2, c3, c4] calculates '
                         'B(I) = c0*I + c1*erf(c2*I) + c3*atan(c4*I)'
-                        ' in T', poll=1,
+                        ' in T',
                         datatype=ArrayOf(FloatRange(), 5, 5),
                         default=(1.0, 0.0, 0.0, 0.0, 0.0))
     calibrationtable = Parameter('Map of Coefficients for calibration per symmetry setting',

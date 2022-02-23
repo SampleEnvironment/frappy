@@ -22,15 +22,15 @@
 # *****************************************************************************
 """test data types."""
 
+import sys
+import threading
 import pytest
 
 from secop.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
 from secop.errors import ProgrammingError, ConfigError
 from secop.modules import Communicator, Drivable, Readable, Module
 from secop.params import Command, Parameter
-from secop.poller import BasicPoller
-from secop.lib.multievent import MultiEvent
-from secop.rwhandler import ReadHandler, WriteHandler
+from secop.rwhandler import ReadHandler, WriteHandler, nopoll
 from secop.lib import generalConfig
 
 
@@ -67,11 +67,19 @@ class ServerStub:
         self.dispatcher = DispatcherStub(updates)
 
 
+class DummyMultiEvent(threading.Event):
+    def get_trigger(self):
+        def trigger(event=self):
+            event.set()
+            sys.exit()
+        return trigger
+
+
 def test_Communicator():
     o = Communicator('communicator', LoggerStub(), {'.description': ''}, ServerStub({}))
     o.earlyInit()
     o.initModule()
-    event = MultiEvent()
+    event = DummyMultiEvent()
     o.startModule(event)
     assert event.is_set()  # event should be set immediately
 
@@ -96,8 +104,6 @@ def test_ModuleMagic():
             """another stuff"""
             return not arg
 
-        pollerClass = BasicPoller
-
         def read_param1(self):
             return True
 
@@ -107,6 +113,7 @@ def test_ModuleMagic():
         def read_a1(self):
             return True
 
+        @nopoll
         def read_a2(self):
             return True
 
@@ -140,8 +147,10 @@ def test_ModuleMagic():
         value = Parameter(datatype=FloatRange(unit='deg'))
         target = Parameter(datatype=FloatRange(), default=0)
         a1 = Parameter(datatype=FloatRange(unit='$/s'), readonly=False)
+        # remark: it might be a programming error to override the datatype
+        # and not overriding the read_* method. This is not checked!
         b2 = Parameter('<b2>', datatype=BoolType(), default=True,
-                       poll=True, readonly=False, initwrite=True)
+                       readonly=False, initwrite=True)
 
         def write_a1(self, value):
             self._a1_written = value
@@ -182,12 +191,13 @@ def test_ModuleMagic():
             'value': 'first'}
     assert updates.pop('o1') == expectedBeforeStart
     o1.earlyInit()
-    event = MultiEvent()
+    event = DummyMultiEvent()
     o1.startModule(event)
     event.wait()
     # should contain polled values
-    expectedAfterStart = {'status': (Drivable.Status.IDLE, 'ok'),
-            'value': 'second'}
+    expectedAfterStart = {
+        'status': (Drivable.Status.IDLE, 'ok'), 'value': 'second',
+        'param1': True, 'param2': 0.0, 'a1': True}
     assert updates.pop('o1') == expectedAfterStart
 
     # check in addition if parameters are written
@@ -197,11 +207,12 @@ def test_ModuleMagic():
     expectedBeforeStart['target'] = 0.0
     assert updates.pop('o2') == expectedBeforeStart
     o2.earlyInit()
-    event = MultiEvent()
+    event = DummyMultiEvent()
     o2.startModule(event)
     event.wait()
     # value has changed type, b2 and a1 are written
-    expectedAfterStart.update(value=0, b2=True, a1=2.7)
+    expectedAfterStart.update(value=0, b2=True, a1=True)
+    # ramerk: a1=True: this behaviour is a Porgamming error
     assert updates.pop('o2') == expectedAfterStart
     assert o2._a1_written == 2.7
     assert o2._b2_written is True
@@ -218,13 +229,15 @@ def test_ModuleMagic():
     # check '$' in unit works properly
     assert o2.parameters['a1'].datatype.unit == 'mm/s'
     cfg = Newclass2.configurables
-    assert set(cfg.keys()) == {'export', 'group', 'description', 'disable_value_range_check',
+    assert set(cfg.keys()) == {
+        'export', 'group', 'description', 'disable_value_range_check',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
-        'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'b2', 'cmd2', 'value',
-        'a1'}
-    assert set(cfg['value'].keys()) == {'group', 'export', 'relative_resolution',
+        'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'slowinterval', 'b2',
+        'cmd2', 'value', 'a1'}
+    assert set(cfg['value'].keys()) == {
+        'group', 'export', 'relative_resolution',
         'visibility', 'unit', 'default', 'datatype', 'fmtstr',
-        'absolute_resolution', 'poll', 'max', 'min', 'readonly', 'constant',
+        'absolute_resolution', 'max', 'min', 'readonly', 'constant',
         'description', 'needscfg'}
 
     # check on the level of classes

@@ -26,10 +26,11 @@
 import inspect
 
 from secop.datatypes import BoolType, CommandType, DataType, \
-    DataTypeType, EnumType, IntRange, NoneOr, OrType, \
+    DataTypeType, EnumType, NoneOr, OrType, \
     StringType, StructOf, TextType, TupleOf, ValueType
 from secop.errors import BadValueError, ProgrammingError
 from secop.properties import HasProperties, Property
+from secop.lib import generalConfig
 
 
 class Accessible(HasProperties):
@@ -132,24 +133,9 @@ class Parameter(Accessible):
           * True: exported, name automatic.
           * a string: exported with custom name''', OrType(BoolType(), StringType()),
         export=False, default=True)
-    poll = Property(
-        '''[internal] polling indicator
-
-           may be:
-
-             * None (omitted): will be converted to True/False if handler is/is not None
-             * False or 0 (never poll this parameter)
-             * True or 1 (AUTO), converted to SLOW (readonly=False)
-               DYNAMIC (*status* and *value*) or REGULAR (else)
-             * 2 (SLOW), polled with lower priority and a multiple of pollinterval
-             * 3 (REGULAR), polled with pollperiod
-             * 4 (DYNAMIC), if BUSY, with a fraction of pollinterval,
-               else polled with pollperiod
-           ''', NoneOr(IntRange()),
-        export=False, default=None)
     needscfg = Property(
         '[internal] needs value in config', NoneOr(BoolType()),
-        export=False, default=None)
+        export=False, default=False)
     optional = Property(
         '[internal] is this parameter optional?', BoolType(),
         export=False, settable=False, default=False)
@@ -169,6 +155,8 @@ class Parameter(Accessible):
 
     def __init__(self, description=None, datatype=None, inherit=True, **kwds):
         super().__init__()
+        if 'poll' in kwds and generalConfig.tolerate_poll_property:
+            kwds.pop('poll')
         if datatype is None:
             # collect datatype properties. these are not applied, as we have no datatype
             self.ownProperties = {k: kwds.pop(k) for k in list(kwds) if k not in self.propertyDict}

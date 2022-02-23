@@ -27,13 +27,10 @@ from time import sleep
 
 from secop.datatypes import FloatRange
 from secop.lib import mkthread
-from secop.modules import BasicPoller, Drivable, \
-    Module, Parameter, Readable, Writable, Command
+from secop.modules import Drivable, Module, Parameter, Readable, Writable, Command
 
 
 class SimBase:
-    pollerClass = BasicPoller
-
     def __new__(cls, devname, logger, cfgdict, dispatcher):
         extra_params = cfgdict.pop('extra_params', '') or cfgdict.pop('.extra_params', '')
         attrs = {}
@@ -120,7 +117,7 @@ class SimDrivable(SimReadable, Drivable):
             self._value = self.target
         speed *= self.interval
         try:
-            self.pollParams(0)
+            self.doPoll()
         except Exception:
             pass
 
@@ -133,7 +130,7 @@ class SimDrivable(SimReadable, Drivable):
                 self._value = self.target
             sleep(self.interval)
             try:
-                self.pollParams(0)
+                self.doPoll()
             except Exception:
                 pass
         self.status = self.Status.IDLE, ''

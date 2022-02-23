@@ -26,6 +26,7 @@ import pytest
 from secop.datatypes import FloatRange, IntRange, StringType, ValueType
 from secop.errors import BadValueError, ConfigError, ProgrammingError
 from secop.properties import HasProperties, Property
+from secop.core import Parameter
 
 
 def Prop(*args, name=None, **kwds):
@@ -149,16 +150,24 @@ def test_Property_override():
     assert o2.a == 3
 
     with pytest.raises(ProgrammingError) as e:
-        class cx(c): # pylint: disable=unused-variable
+        class cx(c):  # pylint: disable=unused-variable
             def a(self):
                 pass
     assert 'collides with' in str(e.value)
 
     with pytest.raises(ProgrammingError) as e:
-        class cz(c): # pylint: disable=unused-variable
+        class cy(c):  # pylint: disable=unused-variable
             a = 's'
 
     assert 'can not set' in str(e.value)
+
+    with pytest.raises(ProgrammingError) as e:
+        class cz(c):  # pylint: disable=unused-variable
+            a = 's'
+
+    class cp(c):  # pylint: disable=unused-variable
+        # overriding a Property with a Parameter is allowed
+        a = Parameter('x', IntRange())
 
 
 def test_Properties_mro():

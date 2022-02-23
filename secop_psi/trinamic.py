@@ -74,7 +74,7 @@ STEPPOS_ADR = 1
 
 def writable(*args, **kwds):
     """convenience function to create writable hardware parameters"""
-    return PersistentParam(*args, readonly=False, poll=True, initwrite=True, **kwds)
+    return PersistentParam(*args, readonly=False, initwrite=True, **kwds)
 
 
 class Motor(PersistentMixin, HasIO, Drivable):
@@ -83,9 +83,9 @@ class Motor(PersistentMixin, HasIO, Drivable):
     value = Parameter('motor position', FloatRange(unit='deg', fmtstr='%.3f'))
     zero = PersistentParam('zero point', FloatRange(unit='$'), readonly=False, default=0)
     encoder = PersistentParam('encoder reading', FloatRange(unit='$', fmtstr='%.1f'),
-                              readonly=True, initwrite=False, poll=True)
+                              readonly=True, initwrite=False)
     steppos = PersistentParam('position from motor steps', FloatRange(unit='$', fmtstr='%.3f'),
-                              readonly=True, initwrite=False, poll=True)
+                              readonly=True, initwrite=False)
     target = Parameter('', FloatRange(unit='$'), default=0)
 
     move_limit = Parameter('max. angle to drive in one go', FloatRange(unit='$'),
@@ -98,26 +98,26 @@ class Motor(PersistentMixin, HasIO, Drivable):
     minspeed = writable('min. speed', FloatRange(0, MAX_SPEED, unit='$/sec', fmtstr='%.1f'),
                         default=SPEED_SCALE, group='motorparam')
     currentspeed = Parameter('current speed', FloatRange(-MAX_SPEED, MAX_SPEED, unit='$/sec', fmtstr='%.1f'),
-                             poll=True, group='motorparam')
+                             group='motorparam')
     maxcurrent = writable('', FloatRange(0, 2.8, unit='A', fmtstr='%.2f'),
                           default=1.4, group='motorparam')
     standby_current = writable('', FloatRange(0, 2.8, unit='A', fmtstr='%.2f'),
                                default=0.1, group='motorparam')
     acceleration = writable('', FloatRange(4.6 * ACCEL_SCALE, MAX_ACCEL, unit='deg/s^2', fmtstr='%.1f'),
                             default=150., group='motorparam')
-    target_reached = Parameter('', BoolType(), poll=True, group='hwstatus')
-    move_status = Parameter('', IntRange(0, 3), poll=True, group='hwstatus')
-    error_bits = Parameter('', IntRange(0, 255), poll=True, group='hwstatus')
+    target_reached = Parameter('', BoolType(), group='hwstatus')
+    move_status = Parameter('', IntRange(0, 3), group='hwstatus')
+    error_bits = Parameter('', IntRange(0, 255), group='hwstatus')
     free_wheeling = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
                              default=0.1, group='motorparam')
     power_down_delay = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
                                 default=0.1, group='motorparam')
     baudrate = Parameter('', EnumType({'%d' % v: i for i, v in enumerate(BAUDRATES)}),
-                         readonly=False, default=0, poll=True, visibility=3, group='more')
+                         readonly=False, default=0, visibility=3, group='more')
     pollinterval = Parameter(group='more')
 
     ioClass = BytesIO
-    fast_pollfactor = 0.001  # poll as fast as possible when busy
+    fast_pollfactor = 0.001  # not used any more, TODO: use a statemachine for running
     _started = 0
     _calcTimeout = True
     _need_reset = None

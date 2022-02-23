@@ -153,7 +153,7 @@ class SequencerMixin:
             self._seq_error = str(e)
         finally:
             self._seq_thread = None
-            self.pollParams(0)
+            self.doPoll()
 
     def _seq_thread_inner(self, seq, store_init):
         store = Namespace()

@@ -33,8 +33,9 @@ from secop.lib.enum import Enum
 from secop.modules import Attached, Communicator, \
     Done, Drivable, Module, Readable, Writable
 from secop.params import Command, Parameter
-from secop.poller import AUTO, DYNAMIC, REGULAR, SLOW
 from secop.properties import Property
 from secop.proxy import Proxy, SecNode, proxy_class
 from secop.io import HasIO, StringIO, BytesIO, HasIodev  # TODO: remove HasIodev (legacy stuff)
 from secop.persistent import PersistentMixin, PersistentParam
+from secop.rwhandler import ReadHandler, WriteHandler, CommonReadHandler, \
+    CommonWriteHandler, nopoll
