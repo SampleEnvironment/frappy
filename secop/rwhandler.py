@@ -27,17 +27,17 @@ Example 1: combined read/write for multiple parameters
 
     PID_PARAMS = ['p', 'i', 'd']
 
-    @ReadHandler(PID_PARAMS)
-    def read_pid(self, pname):
+    @CommonReadHandler(PID_PARAMS)
+    def read_pid(self):
         self.p, self.i, self.d = self.get_pid_from_hw()
-        return Done  # Done is indicating that the parameters are already assigned
+        # no return value
 
-    @WriteHandler(PID_PARAMS)
-    def write_pid(self, pname, value):
-        pid = self.get_pid_from_hw()  # assume this returns a list
-        pid[PID_PARAMS.index(pname)] = value
-        self.put_pid_to_hw(pid)
-        return self.read_pid()
+    @CommonWriteHandler(PID_PARAMS)
+    def write_pid(self, values):
+        # values is a dict[pname] of value, we convert it to a tuple here
+        self.put_pid_to_hw(values.as_tuple('p', 'i', 'd''))   # or .as_tuple(*PID_PARAMS)
+        self.read_pid()
+        # no return value
 
 Example 2: addressable HW parameters
 
@@ -62,6 +62,8 @@ class Handler:
     func = None
     method_names = set()  # this is shared among all instances of handlers!
     wrapped = True  # allow to use read_* or write_* as name of the decorated method
+    prefix = None  # 'read_' or 'write_'
+    poll = None
 
     def __init__(self, keys):
         """initialize the decorator
@@ -86,55 +88,77 @@ class Handler:
             return self
         return self.func.__get__(obj, owner)
 
-
-class ReadHandler(Handler):
-    """decorator for read methods"""
-
     def __set_name__(self, owner, name):
-        """create the wrapped read_* methods"""
+        """create the wrapped read_* or write_* methods"""
 
         self.method_names.discard(self.func.__qualname__)
         for key in self.keys:
-
-            @wraps(self.func)
-            def wrapped(module, pname=key, func=self.func):
-                value = func(module, pname)
-                if value is not Done:
-                    setattr(module, pname, value)
-                return value
-
+            wrapped = self.wrap(key)
+            method_name = self.prefix + key
             wrapped.wrapped = True
-            method = 'read_' + key
-            rfunc = getattr(owner, method, None)
-            if rfunc and not rfunc.wrapped:
-                raise ProgrammingError('superfluous method %s.%s (overwritten by ReadHandler)'
-                                       % (owner.__name__, method))
-            setattr(owner, method, wrapped)
+            if self.poll is not None:
+                # wrapped.poll is False when the nopoll decorator is applied either to self.func or to self
+                wrapped.poll = getattr(wrapped, 'poll', self.poll)
+            func = getattr(owner, method_name, None)
+            if func and not func.wrapped:
+                raise ProgrammingError('superfluous method %s.%s (overwritten by %s)'
+                                       % (owner.__name__, method_name, self.__class__.__name__))
+            setattr(owner, method_name, wrapped)
+
+    def wrap(self, key):
+        """create wrapped method from self.func
+
+        with name self.prefix + key"""
+        raise NotImplementedError
+
+
+class ReadHandler(Handler):
+    """decorator for read handler methods"""
+    prefix = 'read_'
+    poll = True
+
+    def wrap(self, key):
+        def method(module, pname=key, func=self.func):
+            value = func(module, pname)
+            if value is not Done:
+                setattr(module, pname, value)
+            return value
+        return wraps(self.func)(method)
+
+
+class CommonReadHandler(ReadHandler):
+    """decorator for a handler reading several parameters in one go"""
+    def __init__(self, keys):
+        """initialize the decorator
+
+        :param keys: parameter names (an iterable)
+        """
+        super().__init__(keys)
+        self.first_key = next(iter(keys))
+
+    def wrap(self, key):
+        def method(module, func=self.func):
+            ret = func(module)
+            if ret not in (None, Done):
+                raise ProgrammingError('a method wrapped with CommonReadHandler must not return any value')
+
+        method = wraps(self.func)(method)
+        method.poll = self.poll if key == self.first_key else False
+        return method
 
 
 class WriteHandler(Handler):
-    """decorator for write methods"""
+    """decorator for write handler methods"""
+    prefix = 'write_'
 
-    def __set_name__(self, owner, name):
-        """create the wrapped write_* methods"""
-
-        self.method_names.discard(self.func.__qualname__)
-        for key in self.keys:
-
-            @wraps(self.func)
-            def wrapped(module, value, pname=key, func=self.func):
-                value = func(module, pname, value)
-                if value is not Done:
-                    setattr(module, pname, value)
-                return value
-
-            wrapped.wrapped = True
-            method = 'write_' + key
-            wfunc = getattr(owner, method, None)
-            if wfunc and not wfunc.wrapped:
-                raise ProgrammingError('superfluous method %s.%s (overwritten by WriteHandler)'
-                                       % (owner.__name__, method))
-            setattr(owner, method, wrapped)
+    def wrap(self, key):
+        @wraps(self.func)
+        def method(module, value, pname=key, func=self.func):
+            value = func(module, pname, value)
+            if value is not Done:
+                setattr(module, pname, value)
+            return value
+        return method
 
 
 class WriteParameters(dict):
@@ -153,33 +177,30 @@ class WriteParameters(dict):
         return tuple(self[k] for k in keys)
 
 
-class MultiWriteHandler(Handler):
+class CommonWriteHandler(WriteHandler):
     """decorator for common write handler
 
     calls the wrapped write method function with values as an argument.
     - values[pname] returns the to be written value
     - values['key'] returns a value taken from writeDict
-    - or, if not available return obj.key
+      or, if not available return obj.key
     - values.as_tuple() returns a tuple with the items in the same order as keys
     """
 
-    def __set_name__(self, owner, name):
-        """create the wrapped write_* methods"""
+    def wrap(self, key):
+        @wraps(self.func)
+        def method(module, value, pname=key, func=self.func):
+            values = WriteParameters(module)
+            values[pname] = value
+            ret = func(module, values)
+            if ret not in (None, Done):
+                raise ProgrammingError('a method wrapped with CommonWriteHandler must not return any value')
+            # remove pname from writeDict. this was not removed in WriteParameters, as it was not missing
+            module.writeDict.pop(pname, None)
+        return method
 
-        self.method_names.discard(self.func.__qualname__)
-        for key in self.keys:
 
-            @wraps(self.func)
-            def wrapped(module, value, pname=key, func=self.func):
-                values = WriteParameters(module)
-                values[pname] = value
-                func(module, values)
-                return Done
-
-            wrapped.wrapped = True
-            method = 'write_' + key
-            wfunc = getattr(owner, method, None)
-            if wfunc and not wfunc.wrapped:
-                raise ProgrammingError('superfluous method %s.%s (overwritten by WriteHandler)'
-                                       % (owner.__name__, method))
-            setattr(owner, method, wrapped)
+def nopoll(func):
+    """decorator to indicate that a read method is not to be polled"""
+    func.poll = False
+    return func

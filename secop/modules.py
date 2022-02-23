@@ -146,11 +146,14 @@ class HasAccessibles(HasProperties):
                             return getattr(self, pname)
                         setattr(self, pname, value)  # important! trigger the setter
                         return value
+
+                    new_rfunc.poll = getattr(rfunc, 'poll', True) and pobj.poll
                 else:
 
                     def new_rfunc(self, pname=pname):
                         return getattr(self, pname)
 
+                    new_rfunc.poll = False
                     new_rfunc.__doc__ = 'auto generated read method for ' + pname
 
                 new_rfunc.wrapped = True  # indicate to subclasses that no more wrapping is needed
@@ -582,7 +585,9 @@ class Module(HasAccessibles):
     def pollOneParam(self, pname):
         """poll parameter <pname> with proper error handling"""
         try:
-            getattr(self, 'read_' + pname)()
+            rfunc = getattr(self, 'read_' + pname)
+            if rfunc.poll:  # TODO: handle this in poller
+                rfunc()
         except SilentError:
             pass
         except SECoPError as e:

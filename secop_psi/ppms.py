@@ -44,7 +44,7 @@ from secop.modules import Communicator, Done, \
     Drivable, Parameter, Property, Readable
 from secop.poller import Poller
 from secop.io import HasIO
-from secop.rwhandler import ReadHandler, MultiWriteHandler
+from secop.rwhandler import CommonReadHandler, CommonWriteHandler
 
 try:
     import secop_psi.ppmswindows as ppmshw
@@ -146,6 +146,12 @@ class PpmsBase(HasIO, Readable):
             self.value = value
             self.status = (self.Status.IDLE, '')
 
+    def comm_write(self, command):
+        """write command and check if result is OK"""
+        reply = self.communicate(command)
+        if reply != 'OK':
+            raise HardwareError('bad reply %r to command %r' % (reply, command))
+
 
 class Channel(PpmsBase):
     """channel base class"""
@@ -190,23 +196,22 @@ class DriverChannel(Channel):
 
     param_names = 'current', 'powerlimit'
 
-    @ReadHandler(param_names)
-    def read_params(self, pname=None):
+    @CommonReadHandler(param_names)
+    def read_params(self):
         no, self.current, self.powerlimit = literal_eval(
             self.communicate('DRVOUT? %d' % self.no))
         if self.no != no:
             raise HardwareError('DRVOUT command: channel number in reply does not match')
-        return Done
 
-    @MultiWriteHandler(param_names)
+    @CommonWriteHandler(param_names)
     def write_params(self, values):
         """write parameters
 
         :param values: a dict like object containing the parameters to be written
         """
         self.read_params()  # make sure parameters are up to date
-        self.set_params('DRVOUT %(no)d,%(current)g,%(powerlimit)g' % values)
-        return self.read_params(None)  # read back
+        self.comm_write('DRVOUT %(no)d,%(current)g,%(powerlimit)g' % values)
+        self.read_params()  # read back
 
 
 class BridgeChannel(Channel):
@@ -225,8 +230,8 @@ class BridgeChannel(Channel):
 
     param_names = 'enabled', 'enabled', 'powerlimit', 'dcflag', 'readingmode', 'voltagelimit'
 
-    @ReadHandler(param_names)
-    def read_params(self, pname=None):
+    @CommonReadHandler(param_names)
+    def read_params(self):
         no, excitation, powerlimit, self.dcflag, self.readingmode, voltagelimit = literal_eval(
             self.communicate('BRIDGE? %d' % self.no))
         if self.no != no:
@@ -238,9 +243,8 @@ class BridgeChannel(Channel):
             self.powerlimit = powerlimit
         if voltagelimit:
             self.voltagelimit = voltagelimit
-        return Done
 
-    @MultiWriteHandler(param_names)
+    @CommonWriteHandler(param_names)
     def write_params(self, values):
         """write parameters
 
@@ -251,9 +255,9 @@ class BridgeChannel(Channel):
             values['excitation'] = 0
             values['powerlimit'] = 0
             values['voltagelimit'] = 0
-        assert self.communicate('BRIDGE %(no)d,%(enabled)g,%(powerlimit)g,%(dcflag)d,'
-                                '%(readingmode)d,%(voltagelimit)g' % values) == 'OK'
-        return self.read_params()  # read back
+        self.comm_write('BRIDGE %(no)d,%(enabled)g,%(powerlimit)g,%(dcflag)d,'
+                        '%(readingmode)d,%(voltagelimit)g' % values)
+        self.read_params()  # read back
 
 
 class Level(PpmsBase):
@@ -371,13 +375,13 @@ class Temp(PpmsBase, Drivable):
 
     param_names = 'setpoint', 'workingramp', 'approachmode'
 
-    @ReadHandler(param_names)
-    def read_params(self, pname):
+    @CommonReadHandler(param_names)
+    def read_params(self):
         settings = literal_eval(self.communicate('TEMP?'))
         if settings == self._last_settings:
             # update parameters only on change, as 'ramp' and 'approachmode' are
             # not always sent to the hardware
-            return Done
+            return
         self.setpoint, self.workingramp, self.approachmode = self._last_settings = settings
         if self.setpoint != 10 or not self._wait_at10:
             self.log.debug('read back target %g %r' % (self.setpoint, self._wait_at10))
@@ -385,7 +389,6 @@ class Temp(PpmsBase, Drivable):
         if self.workingramp != 2 or not self._ramp_at_limit:
             self.log.debug('read back ramp %g %r' % (self.workingramp, self._ramp_at_limit))
             self.ramp = self.workingramp
-        return Done
 
     def _write_params(self, setpoint, ramp, approachmode):
         wait_at10 = False
@@ -403,8 +406,8 @@ class Temp(PpmsBase, Drivable):
         self.calc_expected(setpoint, ramp)
         self.log.debug(
             'change_temp v %r s %r r %r w %r l %r' % (self.value, setpoint, ramp, wait_at10, ramp_at_limit))
-        assert self.communicate('TEMP %g,%g,%d' % (setpoint, ramp, approachmode)) == 'OK'
-        self.read_params('')
+        self.comm_write('TEMP %g,%g,%d' % (setpoint, ramp, approachmode))
+        self.read_params()
 
     def update_value_status(self, value, packed_status):
         if value is None:
@@ -534,23 +537,22 @@ class Field(PpmsBase, Drivable):
 
     param_names = 'target', 'ramp', 'approachmode', 'persistentmode'
 
-    @ReadHandler(param_names)
-    def read_params(self, pname):
+    @CommonReadHandler(param_names)
+    def read_params(self):
         settings = literal_eval(self.communicate('FIELD?'))
         # print('last_settings tt %s' % repr(self._last_settings))
         if settings == self._last_settings:
             # we update parameters only on change, as 'ramp' and 'approachmode' are
             # not always sent to the hardware
-            return Done
+            return
         target, ramp, self.approachmode, self.persistentmode = self._last_settings = settings
         self.target = round(target * 1e-4, 7)
         self.ramp = ramp * 6e-3
-        return Done
 
     def _write_params(self, target, ramp, approachmode, persistentmode):
-        assert self.communicate('FIELD %g,%g,%d,%d' % (
-            target * 1e+4, ramp / 6e-3, approachmode, persistentmode)) == 'OK'
-        self.read_params('')
+        self.comm_write('FIELD %g,%g,%d,%d' % (
+            target * 1e+4, ramp / 6e-3, approachmode, persistentmode))
+        self.read_params()
 
     def update_value_status(self, value, packed_status):
         if value is None:
@@ -659,21 +661,20 @@ class Position(PpmsBase, Drivable):
 
     param_names = 'target', 'speed'
 
-    @ReadHandler(param_names)
-    def read_params(self, pname):
+    @CommonReadHandler(param_names)
+    def read_params(self):
         settings = literal_eval(self.communicate('MOVE?'))
         if settings == self._last_settings:
             # we update parameters only on change, as 'speed' is
             # not always sent to the hardware
-            return Done
+            return
         self.target, _, speed = self._last_settings = settings
         self.speed = (15 - speed) * 0.8
-        return Done
 
     def _write_params(self, target, speed):
         speed = int(round(min(14, max(0, 15 - speed / 0.8)), 0))
-        assert self.communicate('MOVE %g,%d,%d' % (target, 0, speed)) == 'OK'
-        return self.read_params('')
+        self.comm_write('MOVE %g,%d,%d' % (target, 0, speed))
+        return self.read_params()
 
     def update_value_status(self, value, packed_status):
         if not self.enabled:
