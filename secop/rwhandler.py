@@ -53,9 +53,17 @@ Example 2: addressable HW parameters
         return self.get_hw_register(HW_ADDR[pname])
 """
 
-from functools import wraps
+import functools
 from secop.modules import Done
 from secop.errors import ProgrammingError
+
+
+def wraps(func):
+    """decorator to copy function attributes of wrapped function"""
+    # we modify the default here:
+    # copy __doc__ , __module___ and attributes from __dict__
+    # but not __name__ and __qualname__
+    return functools.wraps(func, assigned=('__doc__', '__module__'))
 
 
 class Handler:
@@ -120,9 +128,11 @@ class ReadHandler(Handler):
     def wrap(self, key):
         def method(module, pname=key, func=self.func):
             value = func(module, pname)
-            if value is not Done:
-                setattr(module, pname, value)
+            if value is Done:
+                return getattr(module, pname)
+            setattr(module, pname, value)
             return value
+
         return wraps(self.func)(method)
 
 
@@ -137,13 +147,14 @@ class CommonReadHandler(ReadHandler):
         self.first_key = next(iter(keys))
 
     def wrap(self, key):
-        def method(module, func=self.func):
+        def method(module, pname=key, func=self.func):
             ret = func(module)
             if ret not in (None, Done):
                 raise ProgrammingError('a method wrapped with CommonReadHandler must not return any value')
+            return getattr(module, pname)
 
         method = wraps(self.func)(method)
-        method.poll = self.poll if key == self.first_key else False
+        method.poll = self.poll and getattr(method, 'poll', True) if key == self.first_key else False
         return method
 
 

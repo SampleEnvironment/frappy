@@ -23,7 +23,7 @@
 
 from secop.rwhandler import ReadHandler, WriteHandler, \
     CommonReadHandler, CommonWriteHandler, nopoll
-from secop.core import Module, Parameter, FloatRange
+from secop.core import Module, Parameter, FloatRange, Done
 
 
 class DispatcherStub:
@@ -104,6 +104,10 @@ def test_handler():
     assert m.b == 7
     assert data.pop() == 'b'
 
+    data.append(Done)
+    assert m.read_b() == 7
+    assert data.pop() == 'b'
+
     assert data == []
 
 
@@ -141,13 +145,16 @@ def test_common_handler():
     assert data.pop() == 'write_hdl'
 
     data.append((3, 4))
-    m.read_a()
+    assert m.read_a() == 3
     assert m.a == 3
     assert m.b == 4
     assert data.pop() == 'read_hdl'
+    data.append((5, 6))
+    assert m.read_b() == 6
+    assert data.pop() == 'read_hdl'
 
     data.append((1.1, 2.2))
-    m.read_b()
+    assert m.read_b() == 2.2
     assert m.a == 1.1
     assert m.b == 2.2
     assert data.pop() == 'read_hdl'
@@ -201,3 +208,27 @@ def test_nopoll():
 
     assert Mod4.read_a.poll is False
     assert Mod4.read_b.poll is False
+
+    class Mod5(ModuleTest):
+        a = Parameter('', FloatRange(), readonly=False)
+        b = Parameter('', FloatRange(), readonly=False)
+
+        @CommonReadHandler(['a', 'b'])
+        @nopoll
+        def read_hdl(self):
+            pass
+
+    assert Mod5.read_a.poll is False
+    assert Mod5.read_b.poll is False
+
+    class Mod6(ModuleTest):
+        a = Parameter('', FloatRange(), readonly=False)
+        b = Parameter('', FloatRange(), readonly=False)
+
+        @nopoll
+        @CommonReadHandler(['a', 'b'])
+        def read_hdl(self):
+            pass
+
+    assert Mod6.read_a.poll is False
+    assert Mod6.read_b.poll is False
