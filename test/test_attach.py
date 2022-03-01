@@ -75,4 +75,6 @@ def test_attach():
     assert m.propertyValues['att'] == 'a'
     srv.dispatcher.register_module(a, 'a')
     srv.dispatcher.register_module(m, 'm')
+    assert m.att == 'a'
+    m.attachedModules = {'att': a}
     assert m.att == a

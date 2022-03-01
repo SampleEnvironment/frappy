@@ -280,6 +280,7 @@ class Module(HasAccessibles):
 
     # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
+    attachedModules = None
 
     def __init__(self, name, logger, cfgdict, srv):
         # remember the dispatcher object (for the async callbacks)
@@ -649,11 +650,11 @@ class Module(HasAccessibles):
                         self.log.info('recovered after %d calls to doPoll (%r)', error_count, last_error)
                     last_error = None
                 except Exception as e:
-                    if type(e) != last_error:
+                    if repr(e) != last_error:
                         error_count = 0
                         self.log.error('error in doPoll: %r', e)
                     error_count += 1
-                    last_error = e
+                    last_error = repr(e)
                 now = time.time()
             # find ONE due slow poll and call it
             loop = True
@@ -803,14 +804,15 @@ class Attached(Property):
     assign a module name to this property in the cfg file,
     and the server will create an attribute with this module
     """
-    module = None
-
-    def __init__(self, description='attached module'):
+    def __init__(self, basecls=Module, description='attached module'):
+        self.basecls = basecls
         super().__init__(description, StringType(), mandatory=False)
 
     def __get__(self, obj, owner):
         if obj is None:
             return self
-        if self.module is None:
-            self.module = obj.DISPATCHER.get_module(super().__get__(obj, owner))
-        return self.module
+        if obj.attachedModules is None:
+            # return the name of the module (called from Server on startup)
+            return super().__get__(obj, owner)
+        # return the module (called after startup)
+        return obj.attachedModules[self.name]

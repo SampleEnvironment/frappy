@@ -30,10 +30,11 @@ import sys
 import traceback
 from collections import OrderedDict
 
-from secop.errors import ConfigError
+from secop.errors import ConfigError, SECoPError
 from secop.lib import formatException, get_class, generalConfig
 from secop.lib.multievent import MultiEvent
 from secop.params import PREDEFINED_ACCESSIBLES
+from secop.modules import Attached
 
 try:
     from daemon import DaemonContext
@@ -275,6 +276,23 @@ class Server:
                 missing_super.add('%s was not called, probably missing super call'
                                   % modobj.earlyInit.__qualname__)
 
+        # handle attached modules
+        for modname, modobj in self.modules.items():
+            attached_modules = {}
+            for propname, propobj in modobj.propertyDict.items():
+                if isinstance(propobj, Attached):
+                    try:
+                        attname = getattr(modobj, propname)
+                        attobj = self.dispatcher.get_module(attname)
+                        if isinstance(attobj, propobj.basecls):
+                            attached_modules[propname] = attobj
+                        else:
+                            errors.append('attached module %s=%r must inherit from %r'
+                                          % (propname, attname, propobj.basecls.__qualname__))
+                    except SECoPError as e:
+                        errors.append('module %s, attached %s: %s' % (modname, propname, str(e)))
+            modobj.attachedModules = attached_modules
+
         # call init on each module after registering all
         for modname, modobj in self.modules.items():
             try:
@@ -287,18 +305,17 @@ class Server:
                     failure_traceback = traceback.format_exc()
                 errors.append('error initializing %s: %r' % (modname, e))
 
-        if self._testonly:
-            return
-        start_events = MultiEvent(default_timeout=30)
-        for modname, modobj in self.modules.items():
-            # startModule must return either a timeout value or None (default 30 sec)
-            start_events.name = 'module %s' % modname
-            modobj.startModule(start_events)
-            if not modobj.startModuleDone:
-                missing_super.add('%s was not called, probably missing super call'
-                                  % modobj.startModule.__qualname__)
+        if not self._testonly:
+            start_events = MultiEvent(default_timeout=30)
+            for modname, modobj in self.modules.items():
+                # startModule must return either a timeout value or None (default 30 sec)
+                start_events.name = 'module %s' % modname
+                modobj.startModule(start_events)
+                if not modobj.startModuleDone:
+                    missing_super.add('%s was not called, probably missing super call'
+                                      % modobj.startModule.__qualname__)
+            errors.extend(missing_super)
 
-        errors.extend(missing_super)
         if errors:
             for errtxt in errors:
                 for line in errtxt.split('\n'):
@@ -310,6 +327,8 @@ class Server:
                 sys.stderr.write(failure_traceback)
             sys.exit(1)
 
+        if self._testonly:
+            return
         self.log.info('waiting for modules being started')
         start_events.name = None
         if not start_events.wait():
