@@ -127,11 +127,12 @@ class ReadHandler(Handler):
 
     def wrap(self, key):
         def method(module, pname=key, func=self.func):
-            value = func(module, pname)
-            if value is Done:
-                return getattr(module, pname)
-            setattr(module, pname, value)
-            return value
+            with module.accessLock:
+                value = func(module, pname)
+                if value is Done:
+                    return getattr(module, pname)
+                setattr(module, pname, value)
+                return value
 
         return wraps(self.func)(method)
 
@@ -148,10 +149,11 @@ class CommonReadHandler(ReadHandler):
 
     def wrap(self, key):
         def method(module, pname=key, func=self.func):
-            ret = func(module)
-            if ret not in (None, Done):
-                raise ProgrammingError('a method wrapped with CommonReadHandler must not return any value')
-            return getattr(module, pname)
+            with module.accessLock:
+                ret = func(module)
+                if ret not in (None, Done):
+                    raise ProgrammingError('a method wrapped with CommonReadHandler must not return any value')
+                return getattr(module, pname)
 
         method = wraps(self.func)(method)
         method.poll = self.poll and getattr(method, 'poll', True) if key == self.first_key else False
@@ -165,10 +167,11 @@ class WriteHandler(Handler):
     def wrap(self, key):
         @wraps(self.func)
         def method(module, value, pname=key, func=self.func):
-            value = func(module, pname, value)
-            if value is not Done:
-                setattr(module, pname, value)
-            return value
+            with module.accessLock:
+                value = func(module, pname, value)
+                if value is not Done:
+                    setattr(module, pname, value)
+                return value
         return method
 
 
@@ -201,13 +204,14 @@ class CommonWriteHandler(WriteHandler):
     def wrap(self, key):
         @wraps(self.func)
         def method(module, value, pname=key, func=self.func):
-            values = WriteParameters(module)
-            values[pname] = value
-            ret = func(module, values)
-            if ret not in (None, Done):
-                raise ProgrammingError('a method wrapped with CommonWriteHandler must not return any value')
-            # remove pname from writeDict. this was not removed in WriteParameters, as it was not missing
-            module.writeDict.pop(pname, None)
+            with module.accessLock:
+                values = WriteParameters(module)
+                values[pname] = value
+                ret = func(module, values)
+                if ret not in (None, Done):
+                    raise ProgrammingError('a method wrapped with CommonWriteHandler must not return any value')
+                # remove pname from writeDict. this was not removed in WriteParameters, as it was not missing
+                module.writeDict.pop(pname, None)
         return method
 
 

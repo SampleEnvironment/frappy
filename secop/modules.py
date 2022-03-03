@@ -25,6 +25,7 @@
 
 import time
 from queue import Queue, Empty
+import threading
 from collections import OrderedDict
 from functools import wraps
 
@@ -136,16 +137,17 @@ class HasAccessibles(HasProperties):
 
                     @wraps(rfunc)  # handles __wrapped__ and __doc__
                     def new_rfunc(self, pname=pname, rfunc=rfunc):
-                        try:
-                            value = rfunc(self)
-                            self.log.debug("read_%s returned %r", pname, value)
-                        except Exception as e:
-                            self.log.debug("read_%s failed with %r", pname, e)
-                            raise
-                        if value is Done:
-                            return getattr(self, pname)
-                        setattr(self, pname, value)  # important! trigger the setter
-                        return value
+                        with self.accessLock:
+                            try:
+                                value = rfunc(self)
+                                self.log.debug("read_%s returned %r", pname, value)
+                            except Exception as e:
+                                self.log.debug("read_%s failed with %r", pname, e)
+                                raise
+                            if value is Done:
+                                return getattr(self, pname)
+                            setattr(self, pname, value)  # important! trigger the setter
+                            return value
 
                     new_rfunc.poll = getattr(rfunc, 'poll', True)
                 else:
@@ -175,18 +177,19 @@ class HasAccessibles(HasProperties):
 
                         @wraps(wfunc)  # handles __wrapped__ and __doc__
                         def new_wfunc(self, value, pname=pname, wfunc=wfunc):
-                            pobj = self.accessibles[pname]
-                            self.log.debug('validate %r for %r', value, pname)
-                            # we do not need to handle errors here, we do not
-                            # want to make a parameter invalid, when a write failed
-                            new_value = pobj.datatype(value)
-                            new_value = wfunc(self, new_value)
-                            self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
-                            if new_value is Done:
-                                # setattr(self, pname, getattr(self, pname))
-                                return getattr(self, pname)
-                            setattr(self, pname, new_value)  # important! trigger the setter
-                            return new_value
+                            with self.accessLock:
+                                pobj = self.accessibles[pname]
+                                self.log.debug('validate %r for %r', value, pname)
+                                # we do not need to handle errors here, we do not
+                                # want to make a parameter invalid, when a write failed
+                                new_value = pobj.datatype(value)
+                                new_value = wfunc(self, new_value)
+                                self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
+                                if new_value is Done:
+                                    # setattr(self, pname, getattr(self, pname))
+                                    return getattr(self, pname)
+                                setattr(self, pname, new_value)  # important! trigger the setter
+                                return new_value
                     else:
 
                         def new_wfunc(self, value, pname=pname):
@@ -293,6 +296,7 @@ class Module(HasAccessibles):
         self.startModuleDone = False
         self.remoteLogHandler = None
         self.changePollinterval = Queue()  # used for waiting between polls and transmit info to the thread
+        self.accessLock = threading.RLock()
         errors = []
 
         # handle module properties
@@ -468,45 +472,46 @@ class Module(HasAccessibles):
     def announceUpdate(self, pname, value=None, err=None, timestamp=None):
         """announce a changed value or readerror"""
 
-        # TODO: remove readerror 'property' and replace value with exception
-        pobj = self.parameters[pname]
-        timestamp = timestamp or time.time()
-        changed = pobj.value != value
-        try:
-            # store the value even in case of error
-            pobj.value = pobj.datatype(value)
-        except Exception as e:
-            if isinstance(e, DiscouragedConversion):
-                if DiscouragedConversion.log_message:
-                    self.log.error(str(e))
-                    self.log.error('you may disable this behaviour by running the server with --relaxed')
-                    DiscouragedConversion.log_message = False
-            if not err:  # do not overwrite given error
-                err = e
-        if err:
-            err = secop_error(err)
-            if str(err) == str(pobj.readerror):
-                return  # do call updates for repeated errors
-        elif not changed and timestamp < (pobj.timestamp or 0) + self.omit_unchanged_within:
-            # no change within short time -> omit
-            return
-        pobj.timestamp = timestamp or time.time()
-        pobj.readerror = err
-        if pobj.export:
-            self.DISPATCHER.announce_update(self.name, pname, pobj)
-        if err:
-            callbacks = self.errorCallbacks
-            arg = err
-        else:
-            callbacks = self.valueCallbacks
-            arg = value
-        cblist = callbacks[pname]
-        for cb in cblist:
+        with self.accessLock:
+            # TODO: remove readerror 'property' and replace value with exception
+            pobj = self.parameters[pname]
+            timestamp = timestamp or time.time()
+            changed = pobj.value != value
             try:
-                cb(arg)
-            except Exception:
-                # print(formatExtendedTraceback())
-                pass
+                # store the value even in case of error
+                pobj.value = pobj.datatype(value)
+            except Exception as e:
+                if isinstance(e, DiscouragedConversion):
+                    if DiscouragedConversion.log_message:
+                        self.log.error(str(e))
+                        self.log.error('you may disable this behaviour by running the server with --relaxed')
+                        DiscouragedConversion.log_message = False
+                if not err:  # do not overwrite given error
+                    err = e
+            if err:
+                err = secop_error(err)
+                if str(err) == str(pobj.readerror):
+                    return  # no updates for repeated errors
+            elif not changed and timestamp < (pobj.timestamp or 0) + self.omit_unchanged_within:
+                # no change within short time -> omit
+                return
+            pobj.timestamp = timestamp or time.time()
+            pobj.readerror = err
+            if pobj.export:
+                self.DISPATCHER.announce_update(self.name, pname, pobj)
+            if err:
+                callbacks = self.errorCallbacks
+                arg = err
+            else:
+                callbacks = self.valueCallbacks
+                arg = value
+            cblist = callbacks[pname]
+            for cb in cblist:
+                try:
+                    cb(arg)
+                except Exception:
+                    # print(formatExtendedTraceback())
+                    pass
 
     def registerCallbacks(self, modobj, autoupdate=()):
         """register callbacks to another module <modobj>
