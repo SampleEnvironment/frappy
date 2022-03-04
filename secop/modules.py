@@ -24,7 +24,7 @@
 
 
 import time
-import threading
+from queue import Queue, Empty
 from collections import OrderedDict
 from functools import wraps
 
@@ -293,7 +293,7 @@ class Module(HasAccessibles):
         self.initModuleDone = False
         self.startModuleDone = False
         self.remoteLogHandler = None
-        self.nextPollEvent = threading.Event()
+        self.changePollinterval = Queue()  # used for waiting between polls and transmit info to the thread
         errors = []
 
         # handle module properties
@@ -587,9 +587,17 @@ class Module(HasAccessibles):
         all other parameters are polled automatically
         """
 
-    def triggerPollEvent(self, *args):  # args needed for valueCallback
-        """interrupts waiting between polls"""
-        self.nextPollEvent.set()  # trigger poll loop
+    def setFastPoll(self, pollinterval):
+        """change poll interval
+
+        :param pollinterval: a new (typically lower) pollinterval
+            special values: True: set to 0.25 (default fast poll interval)
+            False: set to self.pollinterval (value for idle)
+        """
+        if pollinterval is False:
+            self.changePollinterval.put(self.pollinterval)
+            return
+        self.changePollinterval.put(0.25 if pollinterval is True else pollinterval)
 
     def callPollFunc(self, rfunc):
         """call read method with proper error handling"""
@@ -614,25 +622,27 @@ class Module(HasAccessibles):
                 polled_parameters.append((rfunc, pobj))
                 self.callPollFunc(rfunc)
         started_callback()
+        pollinterval = self.pollinterval
         last_slow = last_main = 0
         last_error = None
         error_count = 0
         to_poll = ()
         while True:
             now = time.time()
-            wait_main = last_main + self.pollinterval - now
+            wait_main = last_main + pollinterval - now
             wait_slow = last_slow + self.slowinterval - now
             wait_time = min(wait_main, wait_slow)
             if wait_time > 0:
-                self.nextPollEvent.wait(wait_time)
-                self.nextPollEvent.clear()
-                # remark: if there would be a need to trigger polling all parameters,
-                # we might replace nextPollEvent by a Queue and act depending on the
-                # queued item
+                try:
+                    result = self.changePollinterval.get(timeout=wait_time)
+                except Empty:
+                    result = None
+                if result is not None:
+                    pollinterval = result
                 continue
             # call doPoll, if due
             if wait_main <= 0:
-                last_main = (now // self.pollinterval) * self.pollinterval
+                last_main = (now // pollinterval) * pollinterval
                 try:
                     self.doPoll()
                     if last_error and error_count > 1:
@@ -712,8 +722,9 @@ class Readable(Module):
 
     def earlyInit(self):
         super().earlyInit()
-        # in case pollinterval is reduced a lot, we do not want to wait
-        self.valueCallbacks['pollinterval'].append(self.triggerPollEvent)
+        # trigger a poll interval change when self.pollinterval changes.
+        # self.setFastPoll with a float argument does the job here
+        self.valueCallbacks['pollinterval'].append(self.setFastPoll)
 
     def doPoll(self):
         self.read_value()

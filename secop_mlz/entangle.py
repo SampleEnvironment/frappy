@@ -507,13 +507,14 @@ class AnalogOutput(PyTangoDevice, Drivable):
         if self._isAtTarget():
             self._timeout = None
             self._moving = False
-            return super().read_status()
-        if self._timeout:
-            if self._timeout < currenttime():
-                return self.Status.UNSTABLE, 'timeout after waiting for stable value'
-        if self._moving:
-            return (self.Status.BUSY, 'moving')
-        return (self.Status.IDLE, 'stable')
+            status = super().read_status()
+        else:
+            if self._timeout and self._timeout < currenttime():
+                status = self.Status.UNSTABLE, 'timeout after waiting for stable value'
+            else:
+                status = (self.Status.BUSY, 'moving') if self._moving else (self.Status.IDLE, 'stable')
+        self.setFastPoll(self.isBusy(status))
+        return status
 
     @property
     def absmin(self):
@@ -578,7 +579,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         # do not clear the history here:
         #    - if the target is not changed by more than precision, there is no need to wait
         # self._history = []
-        self.read_status()  # poll our status to keep it updated
+        self.read_status()  # poll our status to keep it updated (this will also set fast poll)
         return self.read_target()
 
     def _hw_wait(self):
@@ -850,9 +851,15 @@ class DigitalOutput(PyTangoDevice, Drivable):
     def read_value(self):
         return self._dev.value  # mapping is done by datatype upon export()
 
+    def read_status(self):
+        status = self.read_status()
+        self.setFastPoll(self.isBusy(status))
+        return status
+
     def write_target(self, value):
         self._dev.value = value
         self.read_value()
+        self.read_status()  # this will also set fast poll
         return self.read_target()
 
     def read_target(self):
