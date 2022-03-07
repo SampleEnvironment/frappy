@@ -18,12 +18,18 @@
 # Module authors:
 #   Markus Zolliker <markus.zolliker@psi.ch>
 # *****************************************************************************
-"""Keithley 2601B source meter
+"""Keithley 2601B 4 quadrant source meter
 
-not tested yet"""
+not tested yet
 
-from secop.core import Attached, BoolType, EnumType, FloatRange, \
-    HasIO, Module, Parameter, StringIO, Writable
+* switching between voltage and current happens by setting their target
+* switching output off by setting the active parameter of the controlling
+  module to False.
+* setting the active parameter to True raises an error
+"""
+
+from secop.core import Attached, BoolType, Done, EnumType, FloatRange, \
+    HasIO, Module, Parameter, Readable, StringIO, Writable
 
 
 class K2601bIO(StringIO):
@@ -31,46 +37,76 @@ class K2601bIO(StringIO):
 
 
 SOURCECMDS = {
+    0: 'reset()'
+       ' smua.source.output = 0 print("ok")',
     1: 'reset()'
-       'smua.source.func = smua.OUTPUT_DCVOLTS '
-       'display.smua.measure.func = display.MEASURE_DCAMP '
-       'smua.source.autorangev = 1',
+       ' smua.source.func = smua.OUTPUT_DCAMPS'
+       ' display.smua.measure.func = display.MEASURE_VOLTS'
+       ' smua.source.autorangei = 1'
+       ' smua.source.output = 1 print("ok")',
     2: 'reset()'
-       'smua.source.func = smua.OUTPUT_DCAMPS '
-       'smua.source.autorangei = 1',
+       ' smua.source.func = smua.OUTPUT_DCVOLTS'
+       ' display.smua.measure.func = display.MEASURE_DCAMPS'
+       ' smua.source.autorangev = 1'
+       ' smua.source.output = 1 print("ok")',
 }
 
 
 class SourceMeter(HasIO, Module):
-
-    resistivity = Parameter('readback resistivity', FloatRange(unit='Ohm'))
-    power = Parameter('readback power', FloatRange(unit='W'))
+    export = False  # export for tests only
     mode = Parameter('measurement mode', EnumType(off=0, current=1, voltage=2),
-                     readonly=False, default=0)
-    active = Parameter('output enable', BoolType(), readonly=False)
+                     readonly=False, export=False)
+    ilimit = Parameter('current limit', FloatRange(0, 2.0, unit='A'), default=2)
+    vlimit = Parameter('voltage limit', FloatRange(0, 2.0, unit='V'), default=2)
 
     ioClass = K2601bIO
 
-    def read_resistivity(self):
-        return self.communicate('print(smua.measure.r())')
-
-    def read_power(self):
-        return self.communicate('print(smua.measure.p())')
-
-    def read_active(self):
-        return self.communicate('print(smua.source.output)')
-
-    def write_active(self, value):
-        return self.communicate('smua.source.output = %d print(smua.source.output)' % value)
-
-    # for now, mode will not be read from hardware
+    def read_mode(self):
+        return float(self.communicate('print((smua.source.func+1)*smua.source.output)'))
 
     def write_mode(self, value):
-        if value == 0:
-            self.write_active(0)
-        else:
-            self.communicate(SOURCECMDS[value] + ' print(0)')
-        return value
+        if value == 'current':
+            self.write_vlimit(self.vlimit)
+        elif value == 'voltage':
+            self.write_ilimit(self.ilimit)
+        assert self.communicate(SOURCECMDS[value]) == 'ok'
+        return self.read_mode()
+
+    def read_ilimit(self):
+        if self.mode == 'current':
+            return self.ilimit
+        return float(self.communicate('print(smua.source.limiti)'))
+
+    def write_ilimit(self, value):
+        if self.mode == 'current':
+            return self.ilimit
+        return float(self.communicate('smua.source.limiti = %g print(smua.source.limiti)' % value))
+
+    def read_vlimit(self):
+        if self.mode == 'voltage':
+            return self.ilimit
+        return float(self.communicate('print(smua.source.limitv)'))
+
+    def write_vlimit(self, value):
+        if self.mode == 'voltage':
+            return self.ilimit
+        return float(self.communicate('smua.source.limitv = %g print(smua.source.limitv)' % value))
+
+
+class Power(HasIO, Readable):
+    value = Parameter('readback power', FloatRange(unit='W'))
+    ioClass = K2601bIO
+
+    def read_value(self):
+        return float(self.communicate('print(smua.measure.p())'))
+
+
+class Resistivity(HasIO, Readable):
+    value = Parameter('readback resistivity', FloatRange(unit='Ohm'))
+    ioClass = K2601bIO
+
+    def read_value(self):
+        return float(self.communicate('print(smua.measure.r())'))
 
 
 class Current(HasIO, Writable):
@@ -78,42 +114,44 @@ class Current(HasIO, Writable):
 
     value = Parameter('measured current', FloatRange(unit='A'))
     target = Parameter('set current', FloatRange(unit='A'))
-    active = Parameter('current is controlled', BoolType(), default=False)  # polled from Current/Voltage
+    active = Parameter('current is controlled', BoolType(), default=False)
     limit = Parameter('current limit', FloatRange(0, 2.0, unit='A'), default=2)
 
+    def initModule(self):
+        self.sourcemeter.registerCallbacks(self)
+
     def read_value(self):
-        return self.communicate('print(smua.measure.i())')
+        return float(self.communicate('print(smua.measure.i())'))
 
     def read_target(self):
-        return self.communicate('print(smua.source.leveli)')
+        return float(self.communicate('print(smua.source.leveli)'))
 
     def write_target(self, value):
-        if not self.active:
-            raise ValueError('current source is disabled')
-        if value > self.limit:
+        if value > self.sourcemeter.ilimit:
             raise ValueError('current exceeds limit')
-        return self.communicate('smua.source.leveli = %g print(smua.source.leveli)' % value)
+        value = float(self.communicate('smua.source.leveli = %g print(smua.source.leveli)' % value))
+        if not self.active:
+            self.sourcemeter.write_mode('current')   # triggers update_mode -> set active to True
+        return value
 
     def read_limit(self):
-        if self.active:
-            return self.limit
-        return self.communicate('print(smua.source.limiti)')
+        return self.sourcemeter.read_ilimit()
 
     def write_limit(self, value):
-        if self.active:
-            return value
-        return self.communicate('smua.source.limiti = %g print(smua.source.limiti)' % value)
+        return self.sourcemeter.write_ilimit(value)
 
-    def read_active(self):
-        return self.sourcemeter.mode == 1 and self.sourcemeter.read_active()
+    def update_mode(self, mode):
+        # will be called whenever the attached sourcemeters mode changes
+        self.active = mode == 'current'
 
     def write_active(self, value):
-        if self.sourcemeter.mode != 1:
-            if value:
-                self.sourcemeter.write_mode(1)  # switch to current
-            else:
-                return 0
-        return self.sourcemeter.write_active(value)
+        self.sourcemeter.read_mode()
+        if value == self.value:
+            return Done
+        if value:
+            raise ValueError('activate only by setting target')
+        self.sourcemeter.write_mode('off')   # triggers update_mode -> set active to False
+        return Done
 
 
 class Voltage(HasIO, Writable):
@@ -122,38 +160,40 @@ class Voltage(HasIO, Writable):
     value = Parameter('measured voltage', FloatRange(unit='V'))
     target = Parameter('set voltage', FloatRange(unit='V'))
     active = Parameter('voltage is controlled', BoolType())
-    limit = Parameter('current limit', FloatRange(0, 2.0, unit='V'), default=2)
+    limit = Parameter('voltage limit', FloatRange(0, 2.0, unit='V'), default=2)
+
+    def initModule(self):
+        self.sourcemeter.registerCallbacks(self)
 
     def read_value(self):
-        return self.communicate('print(smua.measure.v())')
+        return float(self.communicate('print(smua.measure.v())'))
 
     def read_target(self):
-        return self.communicate('print(smua.source.levelv)')
+        return float(self.communicate('print(smua.source.levelv)'))
 
     def write_target(self, value):
-        if not self.active:
-            raise ValueError('voltage source is disabled')
-        if value > self.limit:
+        if value > self.sourcemeter.vlimit:
             raise ValueError('voltage exceeds limit')
-        return self.communicate('smua.source.levelv = %g print(smua.source.levelv)' % value)
+        value = float(self.communicate('smua.source.levelv = %g print(smua.source.levelv)' % value))
+        if not self.active:
+            self.sourcemeter.write_mode('voltage')  # triggers update_mode -> set active to True
+        return value
 
     def read_limit(self):
-        if self.active:
-            return self.limit
-        return self.communicate('print(smua.source.limitv)')
+        return self.sourcemeter.read_vlimit()
 
     def write_limit(self, value):
-        if self.active:
-            return value
-        return self.communicate('smua.source.limitv = %g print(smua.source.limitv)' % value)
+        return self.sourcemeter.write_vlimit(value)
 
-    def read_active(self):
-        return self.sourcemeter.mode == 2 and self.sourcemeter.read_active()
+    def update_mode(self, mode):
+        # will be called whenever the attached sourcemeters mode changes
+        self.active = mode == 'voltage'
 
     def write_active(self, value):
-        if self.sourcemeter.mode != 2:
-            if value:
-                self.sourcemeter.write_mode(2)  # switch to voltage
-            else:
-                return 0
-        return self.sourcemeter.write_active(value)
+        self.sourcemeter.read_mode()
+        if value == self.value:
+            return Done
+        if value:
+            raise ValueError('activate only by setting target')
+        self.sourcemeter.write_mode('off')  # triggers update_mode -> set active to False
+        return Done
