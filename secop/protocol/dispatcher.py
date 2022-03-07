@@ -125,14 +125,21 @@ class Dispatcher:
         """registers new connection"""
         self._connections.append(conn)
 
-    def remove_connection(self, conn):
-        """removes now longer functional connection"""
-        if conn in self._connections:
-            self._connections.remove(conn)
+    def reset_connection(self, conn):
+        """remove all subscriptions for a connection
+
+        to be called on the identification message
+        """
         for _evt, conns in list(self._subscriptions.items()):
             conns.discard(conn)
         self.set_all_log_levels(conn, 'off')
         self._active_connections.discard(conn)
+
+    def remove_connection(self, conn):
+        """removes now longer functional connection"""
+        if conn in self._connections:
+            self._connections.remove(conn)
+        self.reset_connection(conn)
 
     def register_module(self, moduleobj, modulename, export=True):
         self.log.debug('registering module %r as %s (export=%r)' %
@@ -299,6 +306,10 @@ class Dispatcher:
         self.log.error('should have been handled in the interface!')
 
     def handle__ident(self, conn, specifier, data):
+        # Remark: the following line is needed due to issue 66.
+        self.reset_connection(conn)
+        # The other stuff in issue 66 ('error_closed' message), has to be implemented
+        # if and when frappy will support serial server connections
         return (IDENTREPLY, None, None)
 
     def handle_describe(self, conn, specifier, data):
