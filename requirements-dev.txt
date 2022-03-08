@@ -1,6 +1,8 @@
 # doc
 sphinx_rtd_theme
 Sphinx>=1.2.1
+# for generating docu
+markdown>=2.6
 # test suite
 pytest
 pytest-randomly>=1.1
