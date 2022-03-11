@@ -149,7 +149,7 @@ def test_ModuleMagic():
         a1 = Parameter(datatype=FloatRange(unit='$/s'), readonly=False)
         # remark: it might be a programming error to override the datatype
         # and not overriding the read_* method. This is not checked!
-        b2 = Parameter('<b2>', datatype=BoolType(), default=True,
+        b2 = Parameter('<b2>', datatype=StringType(), default='empty',
                        readonly=False, initwrite=True)
 
         def write_a1(self, value):
@@ -157,6 +157,7 @@ def test_ModuleMagic():
             return value
 
         def write_b2(self, value):
+            value = value.upper()
             self._b2_written = value
             return value
 
@@ -211,11 +212,11 @@ def test_ModuleMagic():
     o2.startModule(event)
     event.wait()
     # value has changed type, b2 and a1 are written
-    expectedAfterStart.update(value=0, b2=True, a1=True)
+    expectedAfterStart.update(value=0, b2='EMPTY', a1=True)
     # ramerk: a1=True: this behaviour is a Porgamming error
     assert updates.pop('o2') == expectedAfterStart
     assert o2._a1_written == 2.7
-    assert o2._b2_written is True
+    assert o2._b2_written == 'EMPTY'
 
     assert not updates
 

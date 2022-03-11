@@ -283,12 +283,13 @@ class Server:
                 if isinstance(propobj, Attached):
                     try:
                         attname = getattr(modobj, propname)
-                        attobj = self.dispatcher.get_module(attname)
-                        if isinstance(attobj, propobj.basecls):
-                            attached_modules[propname] = attobj
-                        else:
-                            errors.append('attached module %s=%r must inherit from %r'
-                                          % (propname, attname, propobj.basecls.__qualname__))
+                        if attname:  # attached module specified in cfg file
+                            attobj = self.dispatcher.get_module(attname)
+                            if isinstance(attobj, propobj.basecls):
+                                attached_modules[propname] = attobj
+                            else:
+                                errors.append('attached module %s=%r must inherit from %r'
+                                              % (propname, attname, propobj.basecls.__qualname__))
                     except SECoPError as e:
                         errors.append('module %s, attached %s: %s' % (modname, propname, str(e)))
             modobj.attachedModules = attached_modules

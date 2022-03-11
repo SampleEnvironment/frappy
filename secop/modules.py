@@ -181,14 +181,14 @@ class HasAccessibles(HasProperties):
                             self.log.debug('validate %r for %r', value, pname)
                             # we do not need to handle errors here, we do not
                             # want to make a parameter invalid, when a write failed
-                            value = pobj.datatype(value)
-                            returned_value = wfunc(self, value)
-                            self.log.debug('write_%s(%r) returned %r', pname, value, returned_value)
-                            if returned_value is Done:
+                            new_value = pobj.datatype(value)
+                            new_value = wfunc(self, new_value)
+                            self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
+                            if new_value is Done:
                                 # setattr(self, pname, getattr(self, pname))
                                 return getattr(self, pname)
-                            setattr(self, pname, value)  # important! trigger the setter
-                            return value
+                            setattr(self, pname, new_value)  # important! trigger the setter
+                            return new_value
                     else:
 
                         def new_wfunc(self, value, pname=pname):
@@ -201,14 +201,14 @@ class HasAccessibles(HasProperties):
                     setattr(cls, 'write_' + pname, new_wfunc)
 
         # check for programming errors
-        for attrname, attrvalue in cls.__dict__.items():
+        for attrname in dir(cls):
             prefix, _, pname = attrname.partition('_')
             if not pname:
                 continue
             if prefix == 'do':
                 raise ProgrammingError('%r: old style command %r not supported anymore'
                                        % (cls.__name__, attrname))
-            if prefix in ('read', 'write') and not getattr(attrvalue, 'wrapped', False):
+            if prefix in ('read', 'write') and not getattr(getattr(cls, attrname), 'wrapped', False):
                 raise ProgrammingError('%s.%s defined, but %r is no parameter'
                                        % (cls.__name__, attrname, pname))
 
@@ -804,9 +804,9 @@ class Attached(Property):
     assign a module name to this property in the cfg file,
     and the server will create an attribute with this module
     """
-    def __init__(self, basecls=Module, description='attached module'):
+    def __init__(self, basecls=Module, description='attached module', mandatory=True):
         self.basecls = basecls
-        super().__init__(description, StringType(), mandatory=False)
+        super().__init__(description, StringType(), mandatory=mandatory)
 
     def __get__(self, obj, owner):
         if obj is None:
@@ -815,4 +815,4 @@ class Attached(Property):
             # return the name of the module (called from Server on startup)
             return super().__get__(obj, owner)
         # return the module (called after startup)
-        return obj.attachedModules[self.name]
+        return obj.attachedModules.get(self.name)  # return None if not given
