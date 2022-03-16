@@ -31,7 +31,7 @@ from secop.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
 from secop.iohandler import IOHandler, IOHandlerBase
 from secop.lib.enum import Enum
 from secop.modules import Attached, Communicator, \
-    Done, Drivable, Module, Readable, Writable
+    Done, Drivable, Module, Readable, Writable, HasAccessibles
 from secop.params import Command, Parameter
 from secop.properties import Property
 from secop.proxy import Proxy, SecNode, proxy_class
@@ -39,3 +39,8 @@ from secop.io import HasIO, StringIO, BytesIO, HasIodev  # TODO: remove HasIodev
 from secop.persistent import PersistentMixin, PersistentParam
 from secop.rwhandler import ReadHandler, WriteHandler, CommonReadHandler, \
     CommonWriteHandler, nopoll
+
+ERROR = Drivable.Status.ERROR
+WARN = Drivable.Status.WARN
+BUSY = Drivable.Status.BUSY
+IDLE = Drivable.Status.IDLE

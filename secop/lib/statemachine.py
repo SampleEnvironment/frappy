@@ -178,7 +178,9 @@ class StateMachine:
                 if self.stop_exc:
                     raise self.stop_exc
             except Exception as e:
-                self.log.info('%r raised in state %r', e, self.status_string)
+                # Stop and Restart are not unusual -> no warning
+                log = self.log.debug if isinstance(e, Stop) else self.log.warning
+                log('%r raised in state %r', e, self.status_string)
                 self.last_error = e
                 ret = self.cleanup(self)
                 self.log.debug('cleanup %r %r %r', self.cleanup, self.last_error, ret)

@@ -22,7 +22,7 @@
 # *****************************************************************************
 """Define validated data types."""
 
-# pylint: disable=abstract-method
+# pylint: disable=abstract-method, too-many-lines
 
 
 import sys
@@ -454,7 +454,10 @@ class EnumType(DataType):
         super().__init__()
         if members is not None:
             kwds.update(members)
-        self._enum = Enum(enum_or_name, **kwds)
+        if isinstance(enum_or_name, str):
+            self._enum = Enum(enum_or_name, kwds)  # allow 'self' as name
+        else:
+            self._enum = Enum(enum_or_name, **kwds)
         self.default = self._enum[self._enum.members[0]]
 
     def copy(self):

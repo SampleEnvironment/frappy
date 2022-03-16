@@ -72,7 +72,7 @@ class HeLevel(HasIO, Readable):
         """
         name, txtvalue = self.communicate(cmd).split('=')
         assert name == cmd.split('=')[0]  # check that we got a reply to our command
-        return txtvalue  # Frappy will automatically convert the string to the needed data type
+        return float(txtvalue)
 
     def read_value(self):
         return self.query('h')

@@ -161,8 +161,8 @@ class HasAccessibles(HasProperties):
                 new_rfunc.wrapped = True  # indicate to subclasses that no more wrapping is needed
                 setattr(cls, 'read_' + pname, new_rfunc)
 
-            if not pobj.readonly:
-                wfunc = getattr(cls, 'write_' + pname, None)
+            wfunc = getattr(cls, 'write_' + pname, None)
+            if not pobj.readonly or wfunc:  # allow write_ method even when pobj is not readonly
                 wrapped = getattr(wfunc, 'wrapped', False)  # meaning: wrapped or auto generated
                 if (wfunc is None or wrapped) and pobj.handler:
                     # ignore the handler, if a write function is present
@@ -392,9 +392,8 @@ class Module(HasAccessibles):
                 continue
 
             if pname in cfgdict:
-                if not pobj.readonly and pobj.initwrite is not False:
+                if pobj.initwrite is not False and hasattr(self, 'write_' + pname):
                     # parameters given in cfgdict have to call write_<pname>
-                    # TODO: not sure about readonly (why not a parameter which can only be written from config?)
                     try:
                         pobj.value = pobj.datatype(cfgdict[pname])
                         self.writeDict[pname] = pobj.value
@@ -417,10 +416,8 @@ class Module(HasAccessibles):
                     except BadValueError as e:
                         # this should not happen, as the default is already checked in Parameter
                         raise ProgrammingError('bad default for %s:%s: %s' % (name, pname, e)) from None
-                    if pobj.initwrite and not pobj.readonly:
+                    if pobj.initwrite and hasattr(self, 'write_' + pname):
                         # we will need to call write_<pname>
-                        # if this is not desired, the default must not be given
-                        # TODO: not sure about readonly (why not a parameter which can only be written from config?)
                         pobj.value = value
                         self.writeDict[pname] = value
                     else:

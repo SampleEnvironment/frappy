@@ -75,7 +75,7 @@ class PersistentMixin(HasAccessibles):
         self.initData = {}
         for pname in self.parameters:
             pobj = self.parameters[pname]
-            if not pobj.readonly and getattr(pobj, 'persistent', 0):
+            if hasattr(self, 'write_' + pname) and getattr(pobj, 'persistent', 0):
                 self.initData[pname] = pobj.value
                 if pobj.persistent == 'auto':
                     def cb(value, m=self):

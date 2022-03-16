@@ -64,6 +64,7 @@ def test_EnumMember():
     assert a != 3
     assert a == 1
 
+
 def test_Enum():
     e1 = Enum('e1')
     e2 = Enum('e2', e1, a=1, b=3)
@@ -75,3 +76,4 @@ def test_Enum():
     assert e2.b > e3.a
     assert e3.c >= e2.a
     assert e3.b <= e2.b
+    assert Enum({'self': 0, 'other': 1})('self') == 0

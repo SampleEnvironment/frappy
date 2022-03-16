@@ -23,8 +23,7 @@
 
 from secop.client import SecopClient, decode_msg, encode_msg_frame
 from secop.datatypes import StringType
-from secop.errors import BadValueError, \
-    CommunicationFailedError, ConfigError, make_secop_error
+from secop.errors import BadValueError, CommunicationFailedError, ConfigError
 from secop.lib import get_class
 from secop.modules import Drivable, Module, Readable, Writable
 from secop.params import Command, Parameter
@@ -47,8 +46,6 @@ class ProxyModule(HasIO, Module):
         if parameter not in self.parameters:
             return  # ignore unknown parameters
         # should be done here: deal with clock differences
-        if readerror:
-            readerror = make_secop_error(*readerror)
         self.announceUpdate(parameter, value, readerror, timestamp)
 
     def initModule(self):
@@ -201,7 +198,7 @@ def proxy_class(remote_class, name=None):
                 def wfunc(self, value, pname=aname):
                     value, _, readerror = self._secnode.setParameter(self.name, pname, value)
                     if readerror:
-                        raise make_secop_error(*readerror)
+                        raise readerror
                     return value
 
                 attrs['write_' + aname] = wfunc
