@@ -39,8 +39,6 @@ from secop.properties import HasProperties, Property
 from secop.logging import RemoteLogHandler, HasComlog
 
 
-generalConfig.defaults['disable_value_range_check'] = False  # check for problematic value range by default
-
 Done = UniqueObject('Done')
 """a special return value for a read/write function
 

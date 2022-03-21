@@ -39,7 +39,6 @@ from secop.properties import HasProperties, Property
 DEFAULT_MIN_INT = -16777216
 DEFAULT_MAX_INT = 16777216
 UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for any datatype size
-generalConfig.defaults['lazy_number_validation'] = False
 
 Parser = Parser()
 

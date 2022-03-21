@@ -38,7 +38,6 @@ from secop.modules import Attached, Command, \
 from secop.lib import generalConfig
 
 
-generalConfig.defaults['legacy_hasiodev'] = False
 HEX_CODE = re.compile(r'[0-9a-fA-F][0-9a-fA-F]$')
 
 
