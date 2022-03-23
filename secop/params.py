@@ -32,6 +32,8 @@ from secop.errors import BadValueError, ProgrammingError
 from secop.properties import HasProperties, Property
 from secop.lib import generalConfig
 
+generalConfig.set_default('tolerate_poll_property', False)
+
 
 class Accessible(HasProperties):
     """base class for Parameter and Command

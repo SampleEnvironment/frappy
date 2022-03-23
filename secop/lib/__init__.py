@@ -32,12 +32,28 @@ from os import environ, path
 
 
 class GeneralConfig:
+    """generalConfig holds server configuration items
+
+    generalConfig.init is to be called before starting the server.
+    Accessing generalConfig.<key> raises an error, when generalConfig.init is
+    not yet called, except when a default for <key> is set.
+    For tests and for imports from client code, a module may access generalConfig
+    without calling generalConfig.init before. For this, it should call
+    generalConfig.set_default on import to define defaults for the needed keys.
+    """
 
     def __init__(self):
         self._config = None
         self.defaults = {}  #: default values. may be set before or after :meth:`init`
 
     def init(self, configfile=None):
+        """init default server configuration
+
+        :param configfile: if present, keys and values from the [FRAPPY] section are read
+
+        if configfile is not given, it tries to guess the location of the configfile
+        or determine 'piddir', 'logdir', 'confdir' and 'basedir' from the environment.
+        """
         cfg = {}
         mandatory = 'piddir', 'logdir', 'confdir'
         repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
@@ -82,6 +98,11 @@ class GeneralConfig:
         self._config = cfg
 
     def __getitem__(self, key):
+        """access for keys known to exist
+
+        :param key: the key (raises an error when key is not available)
+        :return: the value
+        """
         try:
             return self._config[key]
         except KeyError:
@@ -94,12 +115,14 @@ class GeneralConfig:
             raise TypeError('generalConfig.init() has to be called first') from None
 
     def get(self, key, default=None):
+        """access for keys not known to exist"""
         try:
             return self.__getitem__(key)
         except KeyError:
             return default
 
     def getint(self, key, default=None):
+        """access and convert to int"""
         try:
             return int(self.__getitem__(key))
         except KeyError:
@@ -112,6 +135,11 @@ class GeneralConfig:
     @property
     def initialized(self):
         return bool(self._config)
+
+    def set_default(self, key, value):
+        """set a default value, in case not set already"""
+        if key not in self.defaults:
+            self.defaults[key] = value
 
     def testinit(self, **kwds):
         """for test purposes"""

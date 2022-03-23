@@ -35,6 +35,8 @@ from secop.lib.enum import Enum
 from secop.parse import Parser
 from secop.properties import HasProperties, Property
 
+generalConfig.set_default('lazy_number_validation', False)
+
 # *DEFAULT* limits for IntRange/ScaledIntegers transport serialisation
 DEFAULT_MIN_INT = -16777216
 DEFAULT_MAX_INT = 16777216

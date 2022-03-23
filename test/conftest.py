@@ -1,12 +1,6 @@
 # content of conftest.py
 
 import pytest
-from secop.lib import generalConfig
-
-
-@pytest.fixture(scope="session", autouse=True)
-def general_config():
-    generalConfig.testinit()
 
 
 @pytest.fixture(scope="module")
