@@ -118,6 +118,7 @@ class IOBase(Communicator):
 
     def earlyInit(self):
         super().earlyInit()
+        self._reconnectCallbacks = {}
         self._lock = threading.RLock()
 
     def connectStart(self):
@@ -171,10 +172,7 @@ class IOBase(Communicator):
 
         if the callback fails or returns False, it is cleared
         """
-        if self._reconnectCallbacks is None:
-            self._reconnectCallbacks = {name: func}
-        else:
-            self._reconnectCallbacks[name] = func
+        self._reconnectCallbacks[name] = func
 
     def callCallbacks(self):
         for key, cb in list(self._reconnectCallbacks.items()):

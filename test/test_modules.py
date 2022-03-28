@@ -69,6 +69,7 @@ class ServerStub:
 
 class DummyMultiEvent(threading.Event):
     def get_trigger(self):
+
         def trigger(event=self):
             event.set()
             sys.exit()
@@ -80,8 +81,9 @@ def test_Communicator():
     o.earlyInit()
     o.initModule()
     event = DummyMultiEvent()
+    o.initModule()
     o.startModule(event)
-    assert event.is_set()  # event should be set immediately
+    assert event.wait(timeout=0.1)
 
 
 def test_ModuleMagic():
@@ -193,8 +195,9 @@ def test_ModuleMagic():
     assert updates.pop('o1') == expectedBeforeStart
     o1.earlyInit()
     event = DummyMultiEvent()
+    o1.initModule()
     o1.startModule(event)
-    event.wait()
+    assert event.wait(timeout=0.1)
     # should contain polled values
     expectedAfterStart = {
         'status': (Drivable.Status.IDLE, 'ok'), 'value': 'second',
@@ -209,8 +212,9 @@ def test_ModuleMagic():
     assert updates.pop('o2') == expectedBeforeStart
     o2.earlyInit()
     event = DummyMultiEvent()
+    o2.initModule()
     o2.startModule(event)
-    event.wait()
+    assert event.wait(timeout=0.1)
     # value has changed type, b2 and a1 are written
     expectedAfterStart.update(value=0, b2='EMPTY', a1=True)
     # ramerk: a1=True: this behaviour is a Porgamming error

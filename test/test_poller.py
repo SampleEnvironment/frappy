@@ -23,6 +23,7 @@
 
 import sys
 import threading
+from time import time as current_time
 import time
 import logging
 
@@ -33,43 +34,19 @@ from secop.lib.multievent import MultiEvent
 
 
 class Time:
-    STARTTIME = 1000  # artificial time zero
-
+    """artificial time, forwarded on sleep instead of waiting"""
     def __init__(self):
-        self.reset()
-        self.finish = float('inf')
-        self.stop = lambda : None
-        self.commtime = 0.05 # time needed for 1 poll
-
-    def reset(self, lifetime=10):
-        self.seconds = self.STARTTIME
-        self.idletime = 0.0
-        self.busytime = 0.0
-        self.finish = self.STARTTIME + lifetime
+        self.offset = 0
 
     def time(self):
-        if self.seconds > self.finish:
-            self.finish = float('inf')
-            self.stop()
-        return self.seconds
+        return current_time() + self.offset
 
     def sleep(self, seconds):
         assert 0 <= seconds <= 24*3600
-        self.idletime += seconds
-        self.seconds += seconds
-
-    def busy(self, seconds):
-        assert seconds >= 0
-        self.seconds += seconds
-        self.busytime += seconds
+        self.offset += seconds
 
 
-artime = Time() # artificial test time
-
-
-class Event(threading.Event):
-    def wait(self, timeout=None):
-        artime.sleep(max(0, timeout))
+artime = Time()  # artificial test time
 
 
 class DispatcherStub:
@@ -97,13 +74,25 @@ class Base(Module):
         srv = ServerStub()
         super().__init__('mod', logging.getLogger('dummy'), dict(description=''), srv)
         self.dispatcher = srv.dispatcher
-        self.nextPollEvent = Event()
 
     def run(self, maxcycles):
         self.dispatcher.maxcycles = maxcycles
         self.dispatcher.finish_event = threading.Event()
+        self.initModule()
+
+        def wait(timeout=None, base=self.triggerPoll):
+            """simplified simulation
+
+            when an event is already set return True, else forward artificial time
+            """
+            if base.is_set():
+                return True
+            artime.sleep(max(0.0, 99.9 if timeout is None else timeout))
+            return base.is_set()
+
+        self.triggerPoll.wait = wait
         self.startModule(MultiEvent())
-        self.dispatcher.finish_event.wait(1)
+        assert self.dispatcher.finish_event.wait(1)
 
 
 class Mod1(Base, Readable):
@@ -132,14 +121,13 @@ class Mod1(Base, Readable):
 
 @pytest.mark.parametrize(
     'ncycles, pollinterval, slowinterval, mspan, pspan',
-    [  # normal case:                    5+-1     15+-1
-     (    60,            5,          15, (4, 6), (14, 16)),
-     # pollinterval faster then reading: mspan max 3 s (polls of value, status and ONE other parameter)
-     (    60,            1,           5, (1, 3), (5, 16)),
+    [  # normal case:
+     (    60,            5,          15, (4.9, 5.1), (14, 16)),
+     # pollinterval faster then reading: mspan max ~ 3 s (polls of value, status and ONE other parameter)
+     (    60,            1,           5, (0.9, 3.1), (5, 17)),
     ])
 def test_poll(ncycles, pollinterval, slowinterval, mspan, pspan, monkeypatch):
     monkeypatch.setattr(time, 'time', artime.time)
-    artime.reset()
     m = Mod1()
     m.pollinterval = pollinterval
     m.slowInterval = slowinterval
@@ -148,18 +136,18 @@ def test_poll(ncycles, pollinterval, slowinterval, mspan, pspan, monkeypatch):
     for pname in ['value', 'status']:
         pobj = m.parameters[pname]
         lowcnt = 0
+        print(pname, [t2 - t1 for t1, t2 in zip(pobj.stat[1:], pobj.stat[2:-1])])
         for t1, t2 in zip(pobj.stat[1:], pobj.stat[2:-1]):
             if t2 - t1 < mspan[0]:
-                print(t2 - t1)
                 lowcnt += 1
             assert t2 - t1 <= mspan[1]
-        assert lowcnt <= 1
+        assert lowcnt <= 2
     for pname in ['param1', 'param2', 'param3']:
         pobj = m.parameters[pname]
         lowcnt = 0
+        print(pname, [t2 - t1 for t1, t2 in zip(pobj.stat[1:], pobj.stat[2:-1])])
         for t1, t2 in zip(pobj.stat[1:], pobj.stat[2:-1]):
             if t2 - t1 < pspan[0]:
-                print(pname, t2 - t1)
                 lowcnt += 1
             assert t2 - t1 <= pspan[1]
-        assert lowcnt <= 1
+        assert lowcnt <= 2

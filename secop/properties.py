@@ -136,10 +136,11 @@ class HasProperties(HasDescriptors):
             properties.update({k: v for k, v in base.__dict__.items() if isinstance(v, Property)})
         cls.propertyDict = properties
         # treat overriding properties with bare values
-        for pn, po in properties.items():
+        for pn, po in list(properties.items()):
             value = getattr(cls, pn, po)
-            if not isinstance(value, (Property, HasProperties)):  # attribute may be a bare value
-                # HasProperties is a base class of Parameter -> allow a Parameter to override a Property ()
+            if isinstance(value, HasProperties):  # value is a Parameter, allow override
+                properties.pop(pn)
+            elif not isinstance(value, Property):  # attribute may be a bare value
                 po = po.copy()
                 try:
                     # try to apply bare value to Property
