@@ -20,8 +20,8 @@
 #
 # *****************************************************************************
 
-from secop.core import Parameter, FloatRange, BUSY, IDLE, WARN, ERROR
-from secop.lib.statemachine import StateMachine, Retry
+from secop.core import Parameter, FloatRange, BUSY, IDLE, WARN
+from secop.lib.statemachine import StateMachine, Retry, Stop
 
 
 class HasConvergence:
@@ -51,17 +51,25 @@ class HasConvergence:
         then the timeout event happens after this time + <settling_time> + <timeout>.
         ''', FloatRange(0, unit='sec'), readonly=False, default=3600)
     status = Parameter('status determined from convergence checks', default=(IDLE, ''))
+    convergence_state = None
 
     def earlyInit(self):
         super().earlyInit()
-        self.convergence_state = StateMachine(threaded=False, logger=self.log, spent_inside=0)
+        self.convergence_state = StateMachine(threaded=False, logger=self.log,
+                                              cleanup=self.cleanup, spent_inside=0)
+
+    def cleanup(self, state):
+        state.default_cleanup(state)
+        if self.stopped:
+            if self.stopped is Stop:  # and not Restart
+                self.status = WARN, 'stopped'
+        else:
+            self.status = WARN, repr(state.last_error)
 
     def doPoll(self):
         super().doPoll()
         state = self.convergence_state
         state.cycle()
-        if not state.is_active and state.last_error is not None:
-            self.status = ERROR, repr(state.last_error)
 
     def get_min_slope(self, dif):
         slope = getattr(self, 'workingramp', 0) or getattr(self, 'ramp', 0)
@@ -80,7 +88,6 @@ class HasConvergence:
     def start_state(self):
         """to be called from write_target"""
         self.convergence_state.start(self.state_approach)
-        self.convergence_state.cycle()
 
     def state_approach(self, state):
         """approaching, checking progress (busy)"""
@@ -105,8 +112,6 @@ class HasConvergence:
 
     def state_inside(self, state):
         """inside tolerance, still busy"""
-        if state.init:
-            self.status = BUSY, 'inside tolerance'
         dif, tol = self.get_dif_tol()
         if dif > tol:
             return self.state_outside
@@ -114,18 +119,20 @@ class HasConvergence:
         if state.spent_inside > self.settling_time:
             self.status = IDLE, 'reached target'
             return self.state_stable
+        if state.init:
+            self.status = BUSY, 'inside tolerance'
         return Retry()
 
     def state_outside(self, state):
         """temporarely outside tolerance, busy"""
-        if state.init:
-            self.status = BUSY, 'outside tolerance'
         dif, tol = self.get_dif_tol()
         if dif < tol:
             return self.state_inside
         if state.now > state.timeout_base + self.settling_time + self.timeout:
             self.status = WARN, 'settling timeout'
             return self.state_instable
+        if state.init:
+            self.status = BUSY, 'outside tolerance'
         # do not reset the settling time on occasional outliers, count backwards instead
         state.spent_inside = max(0.0, state.spent_inside - state.delta())
         return Retry()

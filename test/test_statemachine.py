@@ -112,7 +112,7 @@ def test_stop():
         s.cycle()
     s.stop()
     s.cycle()
-    assert isinstance(s.last_error, Stop)
+    assert s.last_error is Stop
     assert s.state is None
 
 
