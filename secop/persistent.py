@@ -72,15 +72,16 @@ class PersistentMixin(HasAccessibles):
         persistentdir = os.path.join(generalConfig.logdir, 'persistent')
         os.makedirs(persistentdir, exist_ok=True)
         self.persistentFile = os.path.join(persistentdir, '%s.%s.json' % (self.DISPATCHER.equipment_id, self.name))
-        self.initData = {}
+        self.initData = {}  # "factory" settings
         for pname in self.parameters:
             pobj = self.parameters[pname]
-            if hasattr(self, 'write_' + pname) and getattr(pobj, 'persistent', 0):
-                self.initData[pname] = pobj.value
-                if pobj.persistent == 'auto':
+            flag = getattr(pobj, 'persistent', 0)
+            if flag:
+                if flag == 'auto':
                     def cb(value, m=self):
                         m.saveParameters()
                     self.valueCallbacks[pname].append(cb)
+                self.initData[pname] = pobj.value
         self.writeDict.update(self.loadParameters(write=False))
 
     def loadParameters(self, write=True):

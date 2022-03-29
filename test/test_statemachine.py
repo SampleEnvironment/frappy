@@ -78,7 +78,6 @@ def test_fun():
     s.cycle()  # do nothing
     assert s.step == 0
     s.start(rise, level=0, direction=0)
-    s.cycle()
     for i in range(1, 4):
         assert s.status == 'rise'
         assert s.step == i
@@ -100,7 +99,6 @@ def test_fun():
 def test_max_chain():
     s = StateMachine(step=0, status='', threaded=False, logger=LoggerStub())
     s.start(fall, level=999+1, direction=0)
-    s.cycle()
     assert isinstance(s.last_error, RuntimeError)
     assert s.state is None
 

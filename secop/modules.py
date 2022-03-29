@@ -736,15 +736,19 @@ class Module(HasAccessibles):
             value = self.writeDict.pop(pname, Done)
             # in the mean time, a poller or handler might already have done it
             if value is not Done:
-                try:
-                    self.log.debug('initialize parameter %s', pname)
-                    getattr(self, 'write_' + pname)(value)
-                except SilentError:
-                    pass
-                except SECoPError as e:
-                    self.log.error(str(e))
-                except Exception:
-                    self.log.error(formatException())
+                wfunc = getattr(self, 'write_' + pname, None)
+                if wfunc is None:
+                    setattr(self, pname, value)
+                else:
+                    try:
+                        self.log.debug('initialize parameter %s', pname)
+                        wfunc(value)
+                    except SilentError:
+                        pass
+                    except SECoPError as e:
+                        self.log.error(str(e))
+                    except Exception:
+                        self.log.error(formatException())
         if started_callback:
             started_callback()
 

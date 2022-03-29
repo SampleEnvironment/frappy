@@ -177,9 +177,9 @@ class StateMachine:
 
         :return: a delay or None when idle
         """
-        if self.state is None:
-            return None
         with self._lock:
+            if self.state is None:
+                return None
             for _ in range(999):
                 self.now = time.time()
                 try:
@@ -236,7 +236,7 @@ class StateMachine:
                 pass
             delay = self.cycle()
 
-    def _start(self, state, first_delay, **kwds):
+    def _start(self, state, **kwds):
         self._restart = None
         self._idle_event.clear()
         self.last_error = None
@@ -245,10 +245,12 @@ class StateMachine:
         self._new_state(state)
         self.start_time = self.now
         self._last_time = self.now
+        first_delay = self.cycle()  # important: call once (e.g. set status to busy)
         if self._threaded:
             if self._thread is None or not self._thread.is_alive():
                 # restart thread if dead (may happen when cleanup failed)
-                self._thread = mkthread(self._run, first_delay)
+                if first_delay is not None:
+                    self._thread = mkthread(self._run, first_delay)
             else:
                 self.trigger(first_delay)
 
@@ -269,11 +271,9 @@ class StateMachine:
                     self.last_error = self.stopped
                     self.cleanup(self)  # ignore return state on restart
                     self.stopped = False
-                delay = self.cycle()
-                self._start(state, delay, **kwds)
+                    self._start(state, **kwds)
         else:
-            delay = self.cycle()  # important: call once (e.g. set status to busy)
-            self._start(state, delay, **kwds)
+            self._start(state, **kwds)
 
     def stop(self):
         """stop machine, go to idle state
