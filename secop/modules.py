@@ -31,7 +31,7 @@ from functools import wraps
 from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
     IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion
 from secop.errors import BadValueError, ConfigError, \
-    ProgrammingError, SECoPError, SilentError, secop_error
+    ProgrammingError, SECoPError, secop_error
 from secop.lib import formatException, mkthread, UniqueObject, generalConfig
 from secop.lib.enum import Enum
 from secop.params import Accessible, Command, Parameter
@@ -233,7 +233,7 @@ class PollInfo:
         self.interval = pollinterval
         self.last_main = 0
         self.last_slow = 0
-        self.last_error = None
+        self.last_error = {}  # dict [<name of poll func>] of (None or str(last exception))
         self.polled_parameters = []
         self.fast_flag = False
         self.trigger_event = trigger_event
@@ -633,12 +633,19 @@ class Module(HasAccessibles):
         """call read method with proper error handling"""
         try:
             rfunc()
-        except SilentError:
-            pass
-        except SECoPError as e:
-            self.log.error(str(e))
-        except Exception:
-            self.log.error(formatException())
+            self.pollInfo.last_error[rfunc.__name__] = None
+        except Exception as e:
+            name = rfunc.__name__
+            if str(e) != self.pollInfo.last_error.get(name):
+                self.pollInfo.last_error[name] = str(e)
+                if isinstance(e, SECoPError):
+                    if e.silent:
+                        self.log.debug('%s: %s', name, str(e))
+                    else:
+                        self.log.error('%s: %s', name, str(e))
+                else:
+                    # uncatched error: this is more serious
+                    self.log.error('%s: %s', name, formatException())
 
     def __pollThread(self, modules, started_callback):
         """poll thread body
@@ -693,25 +700,14 @@ class Module(HasAccessibles):
                 pinfo = mobj.pollInfo
                 if now > pinfo.last_main + pinfo.interval:
                     pinfo.last_main = (now // pinfo.interval) * pinfo.interval
-                    try:
-                        mobj.doPoll()
-                        pinfo.last_error = None
-                    except Exception as e:
-                        if str(e) != str(pinfo.last_error) and not isinstance(e, SilentError):
-                            mobj.log.error('doPoll: %r', e)
-                        pinfo.last_error = e
+                    mobj.callPollFunc(mobj.doPoll)
                 now = time.time()
             # find ONE due slow poll and call it
             loop = True
             while loop:  # loops max. 2 times, when to_poll is at end
                 for mobj, rfunc, pobj in to_poll:
                     if now > pobj.timestamp + mobj.slowinterval * 0.5:
-                        try:
-                            prev_err = pobj.readerror
-                            rfunc()
-                        except Exception as e:
-                            if not isinstance(e, SilentError) and str(pobj.readerror) != str(prev_err):
-                                mobj.log.error('%s: %r', pobj.name, e)
+                        mobj.callPollFunc(rfunc)
                         loop = False  # one poll done
                         break
                 else:
@@ -744,10 +740,11 @@ class Module(HasAccessibles):
                     try:
                         self.log.debug('initialize parameter %s', pname)
                         wfunc(value)
-                    except SilentError:
-                        pass
                     except SECoPError as e:
-                        self.log.error(str(e))
+                        if e.silent:
+                            self.log.debug('%s: %s', pname, str(e))
+                        else:
+                            self.log.error('%s: %s', pname, str(e))
                     except Exception:
                         self.log.error(formatException())
         if started_callback:

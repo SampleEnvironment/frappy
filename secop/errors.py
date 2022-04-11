@@ -17,12 +17,14 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """Define (internal) SECoP Errors"""
 
 
 class SECoPError(RuntimeError):
+    silent = False   # silent = True indicates that the error is already logged
 
     def __init__(self, *args, **kwds):
         super().__init__()
@@ -32,7 +34,8 @@ class SECoPError(RuntimeError):
 
     def __repr__(self):
         args = ', '.join(map(repr, self.args))
-        kwds = ', '.join(['%s=%r' % i for i in list(self.__dict__.items())])
+        kwds = ', '.join(['%s=%r' % i for i in list(self.__dict__.items())
+                          if i[0] != 'silent'])
         res = []
         if args:
             res.append(args)
@@ -102,14 +105,6 @@ class CommunicationFailedError(SECoPError):
     pass
 
 
-class SilentError(SECoPError):
-    pass
-
-
-class CommunicationSilentError(SilentError, CommunicationFailedError):
-    name = 'CommunicationFailed'
-
-
 class IsBusyError(SECoPError):
     pass
 
@@ -123,7 +118,7 @@ class DisabledError(SECoPError):
 
 
 class HardwareError(SECoPError):
-    pass
+    name = 'HardwareError'
 
 
 def make_secop_error(name, text):

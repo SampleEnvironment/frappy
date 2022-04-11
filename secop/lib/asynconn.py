@@ -167,7 +167,7 @@ class AsynTcp(AsynConn):
             uri = uri[6:]
         try:
             self.connection = tcpSocket(uri, self.defaultport, self.timeout)
-        except (ConnectionRefusedError, socket.gaierror) as e:
+        except (ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
             # indicate that retrying might make sense
             raise CommunicationFailedError(str(e)) from None
 

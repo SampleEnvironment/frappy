@@ -31,8 +31,7 @@ import threading
 from secop.lib.asynconn import AsynConn, ConnectionClosed
 from secop.datatypes import ArrayOf, BLOBType, BoolType, FloatRange, IntRange, \
     StringType, TupleOf, ValueType
-from secop.errors import CommunicationFailedError, CommunicationSilentError, \
-    ConfigError, ProgrammingError
+from secop.errors import CommunicationFailedError, ConfigError, ProgrammingError
 from secop.modules import Attached, Command, \
     Communicator, Done, Module, Parameter, Property
 from secop.lib import generalConfig
@@ -40,6 +39,10 @@ from secop.lib import generalConfig
 generalConfig.set_default('legacy_hasiodev', False)
 
 HEX_CODE = re.compile(r'[0-9a-fA-F][0-9a-fA-F]$')
+
+
+class SilentError(CommunicationFailedError):
+    silent = True
 
 
 class HasIO(Module):
@@ -151,11 +154,10 @@ class IOBase(Communicator):
                 self.callCallbacks()
                 return Done
         except Exception as e:
-            if str(e) == self._last_error:
-                raise CommunicationSilentError(str(e)) from e
-            self._last_error = str(e)
-            self.log.error(self._last_error)
-            raise
+            if str(e) != self._last_error:
+                self._last_error = str(e)
+                self.log.error(self._last_error)
+            raise SilentError(repr(e)) from e
         return Done
 
     def write_is_connected(self, value):
@@ -249,10 +251,10 @@ class StringIO(IOBase):
         """
         command = command.encode(self.encoding)
         if not self.is_connected:
+            # do not try to reconnect here
+            # read_is_connected is doing this when called by its poller
             self.read_is_connected()  # try to reconnect
-            if not self._conn:
-                self.log.debug('can not connect to %r' % self.uri)
-                raise CommunicationSilentError('can not connect to %r' % self.uri)
+            raise SilentError('disconnected') from None
         try:
             with self._lock:
                 # read garbage and wait before send
@@ -279,11 +281,12 @@ class StringIO(IOBase):
                 self.comLog('< %s', reply)
                 return reply
         except Exception as e:
-            if str(e) == self._last_error:
-                raise CommunicationSilentError(str(e)) from None
-            self._last_error = str(e)
-            self.log.error(self._last_error)
-            raise
+            if self._conn is None:
+                raise SilentError('disconnected') from None
+            if repr(e) != self._last_error:
+                self._last_error = str(e)
+                self.log.error(self._last_error)
+            raise SilentError(repr(e)) from e
 
     @Command(ArrayOf(StringType()), result=ArrayOf(StringType()))
     def multicomm(self, commands):
@@ -357,9 +360,10 @@ class BytesIO(IOBase):
     def communicate(self, request, replylen):  # pylint: disable=arguments-differ
         """send a request and receive (at least) <replylen> bytes as reply"""
         if not self.is_connected:
+            # do not try to reconnect here
+            # read_is_connected is doing this when called by its poller
             self.read_is_connected()  # try to reconnect
-            if not self._conn:
-                raise CommunicationSilentError('can not connect to %r' % self.uri)
+            raise SilentError('disconnected') from None
         try:
             with self._lock:
                 # read garbage and wait before send
@@ -378,11 +382,12 @@ class BytesIO(IOBase):
                 self.comLog('< %s', hexify(reply))
                 return self.getFullReply(request, reply)
         except Exception as e:
-            if str(e) == self._last_error:
-                raise CommunicationSilentError(str(e)) from None
-            self._last_error = str(e)
-            self.log.error(self._last_error)
-            raise
+            if self._conn is None:
+                raise SilentError('disconnected') from None
+            if repr(e) != self._last_error:
+                self._last_error = str(e)
+                self.log.error(self._last_error)
+            raise SilentError(repr(e)) from e
 
     @Command((ArrayOf(TupleOf(BLOBType(), IntRange(0)))), result=ArrayOf(BLOBType()))
     def multicomm(self, requests):
