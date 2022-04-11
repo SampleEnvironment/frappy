@@ -318,7 +318,8 @@ class Module(HasAccessibles):
         self.initModuleDone = False
         self.startModuleDone = False
         self.remoteLogHandler = None
-        self.accessLock = threading.RLock()
+        self.accessLock = threading.RLock()  # for read_* / write_* methods
+        self.updateLock = threading.RLock()  # for announceUpdate
         self.polledModules = []  # modules polled by thread started in self.startModules
         errors = []
 
@@ -495,7 +496,7 @@ class Module(HasAccessibles):
     def announceUpdate(self, pname, value=None, err=None, timestamp=None):
         """announce a changed value or readerror"""
 
-        with self.accessLock:
+        with self.updateLock:
             # TODO: remove readerror 'property' and replace value with exception
             pobj = self.parameters[pname]
             timestamp = timestamp or time.time()

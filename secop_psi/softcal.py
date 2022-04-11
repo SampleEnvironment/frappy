@@ -191,7 +191,7 @@ class Sensor(Readable):
 
     def initModule(self):
         super().initModule()
-        self._rawsensor.registerCallbacks(self, ['status'])  # auto update status
+        self.rawsensor.registerCallbacks(self, ['status'])  # auto update status
         self._calib = CalCurve(self.calib)
         if self.description == '_':
             self.description = '%r calibrated with curve %r' % (self.rawsensor, self.calib)
@@ -220,4 +220,4 @@ class Sensor(Readable):
             self.status = self.Status.ERROR, self._value_error
 
     def read_value(self):
-        return self._calib(self._rawsensor.read_value())
+        return self._calib(self.rawsensor.read_value())

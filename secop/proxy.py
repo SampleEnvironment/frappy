@@ -33,6 +33,7 @@ from secop.io import HasIO
 
 class ProxyModule(HasIO, Module):
     module = Property('remote module name', datatype=StringType(), default='')
+    status = Parameter('connection status', Readable.status.datatype)  # add status even when not a Readable
 
     _consistency_check_done = False
     _secnode = None
@@ -182,11 +183,12 @@ def proxy_class(remote_class, name=None):
 
     for aname, aobj in rcls.accessibles.items():
         if isinstance(aobj, Parameter):
-            pobj = aobj.merge(dict(handler=None, needscfg=False))
+            pobj = aobj.copy()
+            pobj.merge(dict(handler=None, needscfg=False))
             attrs[aname] = pobj
 
             def rfunc(self, pname=aname):
-                value, _, readerror = self._secnode.getParameter(self.name, pname)
+                value, _, readerror = self._secnode.getParameter(self.name, pname, True)
                 if readerror:
                     raise readerror
                 return value
