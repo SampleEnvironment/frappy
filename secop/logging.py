@@ -86,7 +86,6 @@ class RemoteLogHandler(mlzlog.Handler):
 class LogfileHandler(mlzlog.LogfileHandler):
 
     def __init__(self, logdir, rootname, max_days=0):
-        self.logdir = logdir
         self.rootname = rootname
         self.max_days = max_days
         super().__init__(logdir, rootname)
@@ -94,6 +93,11 @@ class LogfileHandler(mlzlog.LogfileHandler):
     def emit(self, record):
         if record.levelno != COMLOG:
             super().emit(record)
+
+    def getChild(self, name):
+        child = type(self)(dirname(self.baseFilename), name, self.max_days)
+        child.setLevel(self.level)
+        return child
 
     def doRollover(self):
         super().doRollover()
@@ -157,8 +161,6 @@ class MainLogger:
         if self.logdir:
             logfile_days = generalConfig.getint('logfile_days')
             logfile_handler = LogfileHandler(self.logdir, self.rootname, max_days=logfile_days)
-            if generalConfig.logfile_days:
-                logfile_handler.max_days = int(generalConfig.logfile_days)
             logfile_handler.setLevel(LOG_LEVELS[generalConfig.get('logfile_level', 'info')])
             self.log.addHandler(logfile_handler)
 
