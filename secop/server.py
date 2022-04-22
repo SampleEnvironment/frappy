@@ -89,9 +89,11 @@ class Server:
         """
         self._testonly = testonly
 
-        self.log = parent_logger.getChild(name, True)
         if not cfgfiles:
             cfgfiles = name
+        # sanitize name (in case it is a cfgfile)
+        name = os.path.splitext(os.path.basename(name))[0]
+        self.log = parent_logger.getChild(name, True)
         merged_cfg = OrderedDict()
         ambiguous_sections = set()
         for cfgfile in cfgfiles.split(','):
