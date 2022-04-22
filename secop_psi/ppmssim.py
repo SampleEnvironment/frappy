@@ -52,7 +52,10 @@ class NamedList:
 
 
 class PpmsSim:
-    CHANNELS = 'st t mf pos r1 i1 r2 i2'.split()
+    CHANNELS = {
+        0: 'st', 1: 't', 2: 'mf', 3: 'pos', 4: 'r1', 5: 'i1', 6: 'r2', 7: 'i2',
+        23: 'ts',
+    }
 
     def __init__(self):
         self.status = NamedList('t mf ch pos', 1, 1, 1, 1)
@@ -75,6 +78,7 @@ class PpmsSim:
         self.i1 = 0
         self.r2 = 0
         self.i2 = 0
+        self.ts = self.t + 0.1
         self.time = int(time.time())
         self.start = self.time
         self.mf_start = 0
@@ -189,12 +193,13 @@ class PpmsSim:
         self.i1 = self.t % 10.0
         self.r2 = 1000 / self.t
         self.i2 = math.log(self.t)
+        self.ts = self.t + 0.1
         self.level.value = 100 - (self.time - self.start) * 0.01 % 100
 
     def getdat(self, mask):
-        mask = int(mask) & 0xff # all channels up to i2
+        mask = int(mask) & 0x8000ff  # all channels up to i2 plus ts
         output = ['%d' % mask, '%.2f' % (time.time() - self.start)]
-        for i, chan in enumerate(self.CHANNELS):
+        for i, chan in self.CHANNELS.items():
             if (1 << i) & mask:
                 output.append("%.7g" % getattr(self, chan))
         return ",".join(output)
