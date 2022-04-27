@@ -20,8 +20,6 @@
 # *****************************************************************************
 """Keithley 2601B 4 quadrant source meter
 
-not tested yet
-
 * switching between voltage and current happens by setting their target
 * switching output off by setting the active parameter of the controlling
   module to False.
@@ -41,7 +39,7 @@ SOURCECMDS = {
        ' smua.source.output = 0 print("ok")',
     1: 'reset()'
        ' smua.source.func = smua.OUTPUT_DCAMPS'
-       ' display.smua.measure.func = display.MEASURE_VOLTS'
+       ' display.smua.measure.func = display.MEASURE_DCVOLTS'
        ' smua.source.autorangei = 1'
        ' smua.source.output = 1 print("ok")',
     2: 'reset()'
@@ -65,11 +63,11 @@ class SourceMeter(HasIO, Module):
         return float(self.communicate('print((smua.source.func+1)*smua.source.output)'))
 
     def write_mode(self, value):
+        assert self.communicate(SOURCECMDS[value]) == 'ok'
         if value == 'current':
             self.write_vlimit(self.vlimit)
         elif value == 'voltage':
             self.write_ilimit(self.ilimit)
-        assert self.communicate(SOURCECMDS[value]) == 'ok'
         return self.read_mode()
 
     def read_ilimit(self):
@@ -118,6 +116,7 @@ class Current(HasIO, Writable):
     limit = Parameter('current limit', FloatRange(0, 2.0, unit='A'), default=2)
 
     def initModule(self):
+        super().initModule()
         self.sourcemeter.registerCallbacks(self)
 
     def read_value(self):
@@ -129,9 +128,9 @@ class Current(HasIO, Writable):
     def write_target(self, value):
         if value > self.sourcemeter.ilimit:
             raise ValueError('current exceeds limit')
-        value = float(self.communicate('smua.source.leveli = %g print(smua.source.leveli)' % value))
         if not self.active:
             self.sourcemeter.write_mode('current')   # triggers update_mode -> set active to True
+        value = float(self.communicate('smua.source.leveli = %g print(smua.source.leveli)' % value))
         return value
 
     def read_limit(self):
@@ -163,6 +162,7 @@ class Voltage(HasIO, Writable):
     limit = Parameter('voltage limit', FloatRange(0, 2.0, unit='V'), default=2)
 
     def initModule(self):
+        super().initModule()
         self.sourcemeter.registerCallbacks(self)
 
     def read_value(self):
@@ -174,9 +174,9 @@ class Voltage(HasIO, Writable):
     def write_target(self, value):
         if value > self.sourcemeter.vlimit:
             raise ValueError('voltage exceeds limit')
-        value = float(self.communicate('smua.source.levelv = %g print(smua.source.levelv)' % value))
         if not self.active:
             self.sourcemeter.write_mode('voltage')  # triggers update_mode -> set active to True
+        value = float(self.communicate('smua.source.levelv = %g print(smua.source.levelv)' % value))
         return value
 
     def read_limit(self):
