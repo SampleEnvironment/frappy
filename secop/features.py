@@ -17,6 +17,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 """Define Mixin Features for real Modules implemented in the server"""
@@ -24,12 +25,91 @@
 
 from secop.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, StringType, StructOf, TupleOf
-from secop.modules import Command, HasAccessibles, Parameter
+from secop.core import Command, Done, Drivable, Feature, \
+    Parameter, Property, PersistentParam, Readable
+from secop.errors import BadValueError, ConfigError
+from secop.lib import clamp
 
 
-class Feature(HasAccessibles):
-    """all things belonging to a small, predefined functionality influencing the working of a module"""
+# --- proposals, to be used at SINQ (not agreed as standard yet) ---
 
+class HasOffset(Feature):
+    """has an offset parameter
+
+    implementation to be done in the subclass
+    """
+    offset = PersistentParam('offset (physical value + offset = HW value)',
+                             FloatRange(unit='deg'), readonly=False, default=0)
+
+    def write_offset(self, value):
+        self.offset = value
+        if isinstance(self, HasLimits):
+            self.read_limits()
+        if isinstance(self, Readable):
+            self.read_value()
+        if isinstance(self, Drivable):
+            self.read_target()
+        self.saveParameters()
+        return Done
+
+
+class HasLimits(Feature):
+    """user limits
+
+    implementation to be done in the subclass
+
+    for a drivable, abslimits is roughly the same as the target datatype limits,
+    except for the offset
+    """
+    abslimits = Property('abs limits (raw values)', default=(-9e99, 9e99), extname='abslimits', export=True,
+                         datatype=TupleOf(FloatRange(unit='deg'), FloatRange(unit='deg')))
+    limits = PersistentParam('user limits', readonly=False, default=(-9e99, 9e99), initwrite=True,
+                             datatype=TupleOf(FloatRange(unit='deg'), FloatRange(unit='deg')))
+    _limits = None
+
+    def apply_offset(self, sign, *values):
+        if isinstance(self, HasOffset):
+            return tuple(v + sign * self.offset for v in values)
+        return values
+
+    def earlyInit(self):
+        super().earlyInit()
+        # make limits valid
+        _limits = self.apply_offset(1, *self.limits)
+        self._limits = tuple(clamp(self.abslimits[0], v, self.abslimits[1]) for v in _limits)
+        self.read_limits()
+
+    def checkProperties(self):
+        pname = 'target' if isinstance(self, Drivable) else 'value'
+        dt = self.parameters[pname].datatype
+        min_, max_ = self.abslimits
+        t_min, t_max = self.apply_offset(1, dt.min, dt.max)
+        if t_min > max_ or t_max < min_:
+            raise ConfigError('abslimits not within %s range' % pname)
+        self.abslimits = clamp(t_min, min_, t_max), clamp(t_min, max_, t_max)
+        super().checkProperties()
+
+    def read_limits(self):
+        return self.apply_offset(-1, *self._limits)
+
+    def write_limits(self, value):
+        min_, max_ = self.apply_offset(-1, *self.abslimits)
+        if not min_ <= value[0] <= value[1] <= max_:
+            if value[0] > value[1]:
+                raise BadValueError('invalid interval: %r' % value)
+            raise BadValueError('limits not within abs limits [%g, %g]' % (min_, max_))
+        self.limits = value
+        self.saveParameters()
+        return Done
+
+    def check_limits(self, value):
+        """check if value is valid"""
+        min_, max_ = self.limits
+        if not min_ <= value <= max_:
+            raise BadValueError('limits violation: %g outside [%g, %g]' % (value, min_, max_))
+
+
+# --- not used, not tested yet ---
 
 class HAS_PID(Feature):
     # note: implementors should either use p,i,d or pid, but ECS must be handle both cases
@@ -56,7 +136,6 @@ class HAS_PID(Feature):
     output = Parameter('(optional) output of pid-control', datatype=FloatRange(0), optional=True, readonly=False)
 
 
-
 class Has_PIDTable(HAS_PID):
 
     # parameters
@@ -67,8 +146,6 @@ class Has_PIDTable(HAS_PID):
                           d=FloatRange(0),
                           _heater_range=FloatRange(0),
                           _base_output=FloatRange(0),),),), optional=True)  # struct may include 'heaterrange'
-
-
 
 
 class HAS_Persistent(Feature):
@@ -85,11 +162,10 @@ class HAS_Persistent(Feature):
                                 default=0, readonly=False)
     is_persistent =   Parameter('current state of persistence',
                                 datatype=BoolType(), optional=True)
-    stored_value =    Parameter('current persistence value, often used as the modules value',
-                                datatype='main', unit='$', optional=True)
-    driven_value =    Parameter('driven value (outside value, syncs with stored_value if non-persistent)',
-                                datatype='main', unit='$' )
-
+    # stored_value =    Parameter('current persistence value, often used as the modules value',
+    #                             datatype='main', unit='$', optional=True)
+    # driven_value =    Parameter('driven value (outside value, syncs with stored_value if non-persistent)',
+    #                             datatype='main', unit='$' )
 
 
 class HAS_Tolerance(Feature):
@@ -105,13 +181,11 @@ class HAS_Tolerance(Feature):
                            optional=True)
 
 
-
 class HAS_Timeout(Feature):
 
     # parameters
     timeout = Parameter('timeout for movement',
                         datatype=FloatRange(0), default=0, unit='s')
-
 
 
 class HAS_Pause(Feature):
@@ -139,13 +213,11 @@ class HAS_Ramp(Feature):
                          readonly=True, )
 
 
-
 class HAS_Speed(Feature):
 
     # parameters
     speed = Parameter('(maximum) speed of movement (of the main value)',
                        unit='$/s', datatype=FloatRange(0))
-
 
 
 class HAS_Accel(HAS_Speed):
@@ -157,7 +229,6 @@ class HAS_Accel(HAS_Speed):
                        datatype=FloatRange(0), optional=True)
 
 
-
 class HAS_MotorCurrents(Feature):
 
     # parameters
@@ -167,9 +238,8 @@ class HAS_MotorCurrents(Feature):
                              datatype=FloatRange(0), optional=True)
 
 
-
 class HAS_Curve(Feature):
     # proposed, not yet agreed upon!
 
     # parameters
-    curve = Parameter('Calibration curve', datatype=StringType(80), default='<unset>')
+    curve = Parameter('Calibration curve', datatype=StringType(), default='<unset>')

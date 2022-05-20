@@ -228,6 +228,14 @@ class HasAccessibles(HasProperties):
         cls.configurables = res
 
 
+class Feature(HasAccessibles):
+    """all things belonging to a small, predefined functionality influencing the working of a module
+
+    a mixin with Feature as a direct base class is recognized as a SECoP feature
+    and reported in the module property 'features'
+    """
+
+
 class PollInfo:
     def __init__(self, pollinterval, trigger_event):
         self.interval = pollinterval
@@ -292,6 +300,7 @@ class Module(HasAccessibles):
                               extname='implementation')
     interface_classes = Property('offical highest interface-class of the module', ArrayOf(StringType()),
                                  extname='interface_classes')
+    features = Property('list of features', ArrayOf(StringType()), extname='features')
     pollinterval = Property('poll interval for parameters handled by doPoll', FloatRange(0.1, 120), default=5)
     slowinterval = Property('poll interval for other parameters', FloatRange(0.1, 120), default=15)
     enablePoll = True
@@ -350,10 +359,10 @@ class Module(HasAccessibles):
         #    b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')]
         # list of only the 'highest' secop module class
         self.interface_classes = [
-            b.__name__ for b in mycls.__mro__ if b.__module__.startswith('secop.modules')][0:1]
+            b.__name__ for b in mycls.__mro__ if issubclass(Drivable, b)][0:1]
 
         # handle Features
-        # XXX: todo
+        self.features = [b.__name__ for b in mycls.__mro__ if Feature in b.__bases__]
 
         # handle accessibles
         # 1) make local copies of parameter objects

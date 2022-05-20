@@ -31,7 +31,7 @@ from secop.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
 from secop.iohandler import IOHandler, IOHandlerBase
 from secop.lib.enum import Enum
 from secop.modules import Attached, Communicator, \
-    Done, Drivable, Module, Readable, Writable, HasAccessibles
+    Done, Drivable, Feature, Module, Readable, Writable, HasAccessibles
 from secop.params import Command, Parameter
 from secop.properties import Property
 from secop.proxy import Proxy, SecNode, proxy_class

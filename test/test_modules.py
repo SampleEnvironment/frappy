@@ -235,7 +235,7 @@ def test_ModuleMagic():
     assert o2.parameters['a1'].datatype.unit == 'mm/s'
     cfg = Newclass2.configurables
     assert set(cfg.keys()) == {
-        'export', 'group', 'description', 'disable_value_range_check',
+        'export', 'group', 'description', 'disable_value_range_check', 'features',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'slowinterval', 'b2',
         'cmd2', 'value', 'a1'}
