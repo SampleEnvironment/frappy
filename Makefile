@@ -38,7 +38,7 @@ doc:
 	$(MAKE) -C doc html
 
 lint:
-	pylint -j 0 -f colorized -r n --rcfile=.pylintrc secop secop_* test
+	pylint -f colorized -r n --rcfile=.pylintrc secop secop_* test
 
 isort:
 	@find test -name '*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py

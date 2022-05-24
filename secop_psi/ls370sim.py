@@ -34,6 +34,7 @@ class Ls370Sim(Communicator):
     OTHER_COMMANDS = [
         ('*IDN?', 'LSCI,MODEL370,370184,05302003'),
         ('SCAN?', '3,1'),
+        ('*OPC?', '1'),
     ]
 
     def earlyInit(self):

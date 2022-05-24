@@ -597,7 +597,7 @@ class Module(HasAccessibles):
                 self.io.polledModules.append(self)
             else:
                 self.triggerPoll = threading.Event()
-                self.polledModules = [self]
+                self.polledModules.append(self)
 
     def startModule(self, start_events):
         """runs after init of all modules
