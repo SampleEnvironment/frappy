@@ -509,10 +509,11 @@ class Module(HasAccessibles):
             # TODO: remove readerror 'property' and replace value with exception
             pobj = self.parameters[pname]
             timestamp = timestamp or time.time()
-            changed = pobj.value != value
             try:
+                value = pobj.datatype(value)
+                changed = pobj.value != value
                 # store the value even in case of error
-                pobj.value = pobj.datatype(value)
+                pobj.value = value
             except Exception as e:
                 if isinstance(e, DiscouragedConversion):
                     if DiscouragedConversion.log_message:

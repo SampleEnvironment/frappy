@@ -760,7 +760,7 @@ class ArrayOf(DataType):
 
     def __call__(self, value):
         """validate an external representation to an internal one"""
-        if isinstance(value, (tuple, list)):
+        try:
             # check number of elements
             if self.minlen is not None and len(value) < self.minlen:
                 raise BadValueError(
@@ -771,8 +771,9 @@ class ArrayOf(DataType):
                     'Array too big, holds at most %d elements!' % self.minlen)
             # apply subtype valiation to all elements and return as list
             return tuple(self.members(elem) for elem in value)
-        raise BadValueError(
-            'Can not convert %s to ArrayOf DataType!' % repr(value))
+        except TypeError:
+            raise BadValueError('%s can not be converted to ArrayOf DataType!'
+                                % type(value).__name__) from None
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
