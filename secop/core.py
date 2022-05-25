@@ -28,7 +28,6 @@
 # pylint: disable=unused-import
 from secop.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
     FloatRange, IntRange, ScaledInteger, StringType, StructOf, TupleOf
-from secop.iohandler import IOHandler, IOHandlerBase
 from secop.lib.enum import Enum
 from secop.modules import Attached, Communicator, \
     Done, Drivable, Feature, Module, Readable, Writable, HasAccessibles

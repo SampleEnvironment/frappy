@@ -184,7 +184,7 @@ def proxy_class(remote_class, name=None):
     for aname, aobj in rcls.accessibles.items():
         if isinstance(aobj, Parameter):
             pobj = aobj.copy()
-            pobj.merge(dict(handler=None, needscfg=False))
+            pobj.merge(dict(needscfg=False))
             attrs[aname] = pobj
 
             def rfunc(self, pname=aname):

@@ -141,9 +141,6 @@ class Parameter(Accessible):
     optional = Property(
         '[internal] is this parameter optional?', BoolType(),
         export=False, settable=False, default=False)
-    handler = Property(
-        '[internal] overload the standard read and write functions', ValueType(),
-        export=False, default=None, settable=False)
     initwrite = Property(
         '''[internal] write this parameter on initialization
 

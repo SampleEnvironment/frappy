@@ -117,21 +117,9 @@ class HasAccessibles(HasProperties):
                 continue
 
             rfunc = getattr(cls, 'read_' + pname, None)
-            # TODO: remove handler stuff here
-            rfunc_handler = pobj.handler.get_read_func(cls, pname) if pobj.handler else None
-            wrapped = getattr(rfunc, 'wrapped', False)  # meaning: wrapped or auto generated
-            if rfunc_handler:
-                if 'read_' + pname in cls.__dict__:
-                    if pname in cls.__dict__:
-                        raise ProgrammingError("parameter '%s' can not have a handler "
-                                               "and read_%s" % (pname, pname))
-                    # read_<pname> overwrites inherited handler
-                else:
-                    rfunc = rfunc_handler
-                wrapped = False
 
-            # create wrapper except when read function is already wrapped
-            if not wrapped:
+            # create wrapper except when read function is already wrapped or auto generatoed
+            if not getattr(rfunc, 'wrapped', False):
 
                 if rfunc:
 
@@ -164,15 +152,8 @@ class HasAccessibles(HasProperties):
 
             wfunc = getattr(cls, 'write_' + pname, None)
             if not pobj.readonly or wfunc:  # allow write_ method even when pobj is not readonly
-                wrapped = getattr(wfunc, 'wrapped', False)  # meaning: wrapped or auto generated
-                if (wfunc is None or wrapped) and pobj.handler:
-                    # ignore the handler, if a write function is present
-                    # TODO: remove handler stuff here
-                    wfunc = pobj.handler.get_write_func(pname)
-                    wrapped = False
-
-                # create wrapper except when write function is already wrapped
-                if not wrapped:
+                # create wrapper except when write function is already wrapped or auto generated
+                if not getattr(wfunc, 'wrapped', False):
 
                     if wfunc:
 
