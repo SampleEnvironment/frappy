@@ -77,3 +77,9 @@ def test_Enum():
     assert e3.c >= e2.a
     assert e3.b <= e2.b
     assert Enum({'self': 0, 'other': 1})('self') == 0
+
+
+def test_Enum_bool():
+    e = Enum('OffOn', off=0, on=1)
+    assert bool(e(0)) is False
+    assert bool(e(1)) is True

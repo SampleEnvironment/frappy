@@ -106,6 +106,9 @@ class EnumMember:
     def __repr__(self):
         return '<%s%s (%d)>' % (self.enum.name + '.' if self.enum.name else '', self.name, self.value)
 
+    def __bool__(self):
+        return bool(self.value)
+
     # numeric operations: delegate to int. Do we really need any of those?
     def __add__(self, other):
         return self.value.__add__(other.value if isinstance(other, EnumMember) else other)
@@ -242,7 +245,7 @@ class Enum(dict):
     name = ''
 
     def __init__(self, name='', parent=None, **kwds):
-        super(Enum, self).__init__()
+        super().__init__()
         if isinstance(name, (dict, Enum)) and parent is None:
             # swap if only parent is given as positional argument
             name, parent = '', name
@@ -309,17 +312,17 @@ class Enum(dict):
         try:
             return self[key]
         except KeyError as e:
-            raise AttributeError(str(e))
+            raise AttributeError(str(e)) from None
 
     def __setattr__(self, key, value):
         if self.name and key != 'name':
             raise TypeError('Enum %r can not be changed!' % self.name)
-        super(Enum, self).__setattr__(key, value)
+        super().__setattr__(key, value)
 
     def __setitem__(self, key, value):
         if self.name:
             raise TypeError('Enum %r can not be changed!' % self.name)
-        super(Enum, self).__setitem__(key, value)
+        super().__setitem__(key, value)
 
     def __delitem__(self, key):
         raise TypeError('Enum %r can not be changed!' % self.name)
