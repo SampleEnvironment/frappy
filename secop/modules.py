@@ -30,7 +30,7 @@ from functools import wraps
 
 from secop.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
     IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion
-from secop.errors import BadValueError, ConfigError, \
+from secop.errors import BadValueError, CommunicationFailedError, ConfigError, \
     ProgrammingError, SECoPError, secop_error
 from secop.lib import formatException, mkthread, UniqueObject, generalConfig
 from secop.lib.enum import Enum
@@ -620,7 +620,7 @@ class Module(HasAccessibles):
             self.pollInfo.interval = fast_interval if flag else self.pollinterval
             self.pollInfo.trigger()
 
-    def callPollFunc(self, rfunc):
+    def callPollFunc(self, rfunc, raise_com_failed=False):
         """call read method with proper error handling"""
         try:
             rfunc()
@@ -637,6 +637,8 @@ class Module(HasAccessibles):
                 else:
                     # uncatched error: this is more serious
                     self.log.error('%s: %s', name, formatException())
+            if raise_com_failed and isinstance(e, CommunicationFailedError):
+                raise
 
     def __pollThread(self, modules, started_callback):
         """poll thread body
@@ -661,7 +663,7 @@ class Module(HasAccessibles):
                 trg.set()
             self.registerReconnectCallback('trigger_polls', trigger_all)
 
-        # collect and call all read functions a first time
+        # collect all read functions
         for mobj in modules:
             pinfo = mobj.pollInfo = PollInfo(mobj.pollinterval, self.triggerPoll)
             # trigger a poll interval change when self.pollinterval changes.
@@ -672,7 +674,16 @@ class Module(HasAccessibles):
                 rfunc = getattr(mobj, 'read_' + pname)
                 if rfunc.poll:
                     pinfo.polled_parameters.append((mobj, rfunc, pobj))
-                    mobj.callPollFunc(rfunc)
+        # call all read functions a first time
+        try:
+            for m in modules:
+                for mobj, rfunc, _ in m.pollInfo.polled_parameters:
+                    mobj.callPollFunc(rfunc, raise_com_failed=True)
+        except CommunicationFailedError as e:
+            # when communication failed, probably all parameters and may be more modules are affected.
+            # as this would take a lot of time (summed up timeouts), we do not continue
+            # trying and let the server accept connections, further polls might success later
+            self.log.error('communication failure on startup: %s', e)
         started_callback()
         to_poll = ()
         while True:

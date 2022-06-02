@@ -71,14 +71,6 @@ class HasIO(Module):
         elif not io:
             raise ConfigError("Module %s needs a value for either 'uri' or 'io'" % name)
 
-    def initModule(self):
-        try:
-            self.io.read_is_connected()
-        except (CommunicationFailedError, AttributeError):
-            # AttributeError: read_is_connected is not required for an io object
-            pass
-        super().initModule()
-
     def communicate(self, *args):
         return self.io.communicate(*args)
 
@@ -118,6 +110,7 @@ class IOBase(Communicator):
     _conn = None
     _last_error = None
     _lock = None
+    _last_connect_attempt = 0
 
     def earlyInit(self):
         super().earlyInit()
@@ -168,6 +161,17 @@ class IOBase(Communicator):
             self.closeConnection()
             return False
         return self.read_is_connected()
+
+    def check_connection(self):
+        """called before communicate"""
+        if not self.is_connected:
+            now = time.time()
+            if now >= self._last_connect_attempt + self.pollinterval:
+                # we do not try to reconnect more often than pollinterval
+                _last_connect_attempt = now
+                if self.read_is_connected():
+                    return
+            raise SilentError('disconnected') from None
 
     def registerReconnectCallback(self, name, func):
         """register reconnect callback
@@ -250,11 +254,7 @@ class StringIO(IOBase):
         wait_before is respected for end_of_lines within a command.
         """
         command = command.encode(self.encoding)
-        if not self.is_connected:
-            # do not try to reconnect here
-            # read_is_connected is doing this when called by its poller
-            self.read_is_connected()  # try to reconnect
-            raise SilentError('disconnected') from None
+        self.check_connection()
         try:
             with self._lock:
                 # read garbage and wait before send
@@ -359,11 +359,7 @@ class BytesIO(IOBase):
     @Command((BLOBType(), IntRange(0)), result=BLOBType())
     def communicate(self, request, replylen):  # pylint: disable=arguments-differ
         """send a request and receive (at least) <replylen> bytes as reply"""
-        if not self.is_connected:
-            # do not try to reconnect here
-            # read_is_connected is doing this when called by its poller
-            self.read_is_connected()  # try to reconnect
-            raise SilentError('disconnected') from None
+        self.check_connection()
         try:
             with self._lock:
                 # read garbage and wait before send
