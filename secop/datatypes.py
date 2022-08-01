@@ -130,10 +130,11 @@ class Stub(DataType):
 
     this workaround because datatypes need properties with datatypes defined later
     """
-    def __init__(self, datatype_name, *args):
+    def __init__(self, datatype_name, *args, **kwds):
         super().__init__()
         self.name = datatype_name
         self.args = args
+        self.kwds = kwds
 
     def __call__(self, value):
         """validate"""
@@ -151,7 +152,7 @@ class Stub(DataType):
                 for prop in dtcls.propertyDict.values():
                     stub = prop.datatype
                     if isinstance(stub, cls):
-                        prop.datatype = globals()[stub.name](*stub.args)
+                        prop.datatype = globals()[stub.name](*stub.args, **stub.kwds)
 
 
 # SECoP types:
@@ -165,7 +166,7 @@ class FloatRange(DataType):
     """
     min = Property('low limit', Stub('FloatRange'), extname='min', default=-sys.float_info.max)
     max = Property('high limit', Stub('FloatRange'), extname='max', default=sys.float_info.max)
-    unit = Property('physical unit', Stub('StringType'), extname='unit', default='')
+    unit = Property('physical unit', Stub('StringType', isUTF8=True), extname='unit', default='')
     fmtstr = Property('format string', Stub('StringType'), extname='fmtstr', default='%g')
     absolute_resolution = Property('absolute resolution', Stub('FloatRange', 0),
                                    extname='absolute_resolution', default=0.0)
@@ -343,7 +344,7 @@ class ScaledInteger(DataType):
     scale = Property('scale factor', FloatRange(sys.float_info.min), extname='scale', mandatory=True)
     min = Property('low limit', FloatRange(), extname='min', mandatory=True)
     max = Property('high limit', FloatRange(), extname='max', mandatory=True)
-    unit = Property('physical unit', Stub('StringType'), extname='unit', default='')
+    unit = Property('physical unit', Stub('StringType', isUTF8=True), extname='unit', default='')
     fmtstr = Property('format string', Stub('StringType'), extname='fmtstr', default='%g')
     absolute_resolution = Property('absolute resolution', FloatRange(0),
                                    extname='absolute_resolution', default=0.0)
