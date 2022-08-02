@@ -28,6 +28,9 @@ Here we support devices which fulfill the official
 MLZ TANGO interface for the respective device classes.
 """
 
+# pylint: disable=too-many-lines
+
+
 import re
 import threading
 from time import sleep
@@ -173,7 +176,7 @@ class PyTangoDevice(Module):
     tango_status_mapping = {
         PyTango.DevState.ON:     Drivable.Status.IDLE,
         PyTango.DevState.ALARM:  Drivable.Status.WARN,
-        PyTango.DevState.OFF:    Drivable.Status.ERROR,
+        PyTango.DevState.OFF:    Drivable.Status.DISABLED,
         PyTango.DevState.FAULT:  Drivable.Status.ERROR,
         PyTango.DevState.MOVING: Drivable.Status.BUSY,
     }
@@ -504,6 +507,9 @@ class AnalogOutput(PyTangoDevice, Drivable):
         return stable and at_target
 
     def read_status(self):
+        _st, _sts = super().read_status()
+        if _st == Readable.Status.DISABLED:
+            return _st, _sts
         if self._isAtTarget():
             self._timeout = None
             self._moving = False
