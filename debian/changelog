@@ -1,3 +1,66 @@
+secop-core (0.13.0) focal; urgency=medium
+
+  [ Georg Brandl ]
+  * debian: fix email addresses in changelog
+
+  [ Markus Zolliker ]
+  * various small changes
+  * automatic saving of persistent parameters
+  * add more tests and fixes for command inheritance
+  * entangle.AnalogOutput: fix window mechanism
+  * remote logging (issue 46)
+  * add timeouts to MultiEvents
+  * introduce general config file
+  * improve handling of module init methods
+  * check for bad read_* and write_* methods
+  * change name of read_hw_status method in sequencer mixin
+  * fix doc (stringio - > io)
+  * enhance logging
+  * UniqueObject
+  * ReadHandler and WriteHandler decorators
+  * do not convert string to float
+  * check for problematic value range
+  * unify name and module on Attached property
+  * ppms: replace IOHandler by Read/WriteHandler
+  * fix handling commands
+  * common read/write handlers
+  * implement a state machine
+  * proper return value in handler read_* methods
+  * new poll mechanism
+  * support for fast poll when busy
+  * various small fixes
+  * reset connection on identification
+  * improve softcal
+  * move markdown to requirements-dev.txt
+  * improve k2601b driver
+  * fix and improved Attached
+  * fix error in write wrapper and more
+  * support write_ method on readonly param and more
+  * init generalConfig.defaults only in secop-server
+  * HasConvergence mixin
+  * avoid race conditions in read_*/write_* methods
+  * reintroduced individual init of generalConfig.defaults
+  * fix statemachine
+  * use a common poller thread for modules sharing io
+  * motor valve using trinamic motor
+  * improved trinamic driver
+  * fix error in secop.logging
+  * avoid deadlock in proxy
+  * improve poller error handling
+  * support for OI mercury series
+  * add 'ts' to the ppms simulation
+  * allow a configfile path as single argument to secop-server
+  * fix keithley 2601b after tests
+  * channel switcher for Lakeshore 370 with scanner
+  * feature implementation
+  * allow to convert numpy arrays to ArrayOf
+  * remove IOHandler stuff
+
+  [ Enrico Faulhaber ]
+  * default unit to UTF8
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 02 Aug 2022 09:47:06 +0200
+
 secop-core (0.12.4) focal; urgency=medium
 
   * fix command inheritance
