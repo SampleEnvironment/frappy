@@ -680,3 +680,23 @@ def test_lazy_validation(dt):
     generalConfig.defaults['lazy_number_validation'] = False
     with pytest.raises(DiscouragedConversion):
         dt('0')
+
+
+mytuple = TupleOf(ScaledInteger(0.1, 0, 10, unit='$'), FloatRange(unit='$/min'))
+myarray = ArrayOf(mytuple)
+
+
+@pytest.mark.parametrize('unit, dt', [
+    ('m', FloatRange(unit='$/sec')),
+    ('A', mytuple),
+    ('V', myarray),
+    ('X', StructOf(a=myarray, b=mytuple)),
+])
+def test_main_unit(unit, dt):
+    fixed_dt = dt.copy()
+    fixed_dt.set_main_unit(unit)
+    before = repr(dt.export_datatype())
+    after = repr(fixed_dt.export_datatype())
+    assert '$' in before
+    assert before != after
+    assert before.replace('$', unit) == after

@@ -457,10 +457,12 @@ class Module(HasAccessibles):
             aobj.finish()
 
         # Modify units AFTER applying the cfgdict
-        for pname, pobj in self.parameters.items():
-            dt = pobj.datatype
-            if '$' in dt.unit:
-                dt.setProperty('unit', dt.unit.replace('$', self.parameters['value'].datatype.unit))
+        mainvalue = self.parameters.get('value')
+        if mainvalue:
+            mainunit = mainvalue.datatype.unit
+            if mainunit:
+                for pname, pobj in self.parameters.items():
+                    pobj.datatype.set_main_unit(mainunit)
 
         # 6) check complete configuration of * properties
         if not errors:

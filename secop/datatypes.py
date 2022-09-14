@@ -124,6 +124,9 @@ class DataType(HasProperties):
         """
         raise NotImplementedError
 
+    def set_main_unit(self, unit):
+        """replace $ in unit by argument"""
+
 
 class Stub(DataType):
     """incomplete datatype, to be replaced with a proper one later during module load
@@ -155,9 +158,17 @@ class Stub(DataType):
                         prop.datatype = globals()[stub.name](*stub.args, **stub.kwds)
 
 
+class HasUnit:
+    unit = Property('physical unit', Stub('StringType', isUTF8=True), extname='unit', default='')
+
+    def set_main_unit(self, unit):
+        if '$' in self.unit:
+            self.setProperty('unit', self.unit.replace('$', unit))
+
+
 # SECoP types:
 
-class FloatRange(DataType):
+class FloatRange(HasUnit, DataType):
     """(restricted) float type
 
     :param minval: (property **min**)
@@ -166,7 +177,6 @@ class FloatRange(DataType):
     """
     min = Property('low limit', Stub('FloatRange'), extname='min', default=-sys.float_info.max)
     max = Property('high limit', Stub('FloatRange'), extname='max', default=sys.float_info.max)
-    unit = Property('physical unit', Stub('StringType', isUTF8=True), extname='unit', default='')
     fmtstr = Property('format string', Stub('StringType'), extname='fmtstr', default='%g')
     absolute_resolution = Property('absolute resolution', Stub('FloatRange', 0),
                                    extname='absolute_resolution', default=0.0)
@@ -331,7 +341,7 @@ class IntRange(DataType):
         raise BadValueError('incompatible datatypes')
 
 
-class ScaledInteger(DataType):
+class ScaledInteger(HasUnit, DataType):
     """scaled integer (= fixed resolution float) type
 
     :param minval: (property **min**)
@@ -344,7 +354,6 @@ class ScaledInteger(DataType):
     scale = Property('scale factor', FloatRange(sys.float_info.min), extname='scale', mandatory=True)
     min = Property('low limit', FloatRange(), extname='min', mandatory=True)
     max = Property('high limit', FloatRange(), extname='max', mandatory=True)
-    unit = Property('physical unit', Stub('StringType', isUTF8=True), extname='unit', default='')
     fmtstr = Property('format string', Stub('StringType'), extname='fmtstr', default='%g')
     absolute_resolution = Property('absolute resolution', FloatRange(0),
                                    extname='absolute_resolution', default=0.0)
@@ -806,6 +815,9 @@ class ArrayOf(DataType):
         except AttributeError:
             raise BadValueError('incompatible datatypes') from None
 
+    def set_main_unit(self, unit):
+        self.members.set_main_unit(unit)
+
 
 class TupleOf(DataType):
     """data structure with fields of inhomogeneous type
@@ -871,6 +883,10 @@ class TupleOf(DataType):
             raise BadValueError('incompatible datatypes')
         for a, b in zip(self.members, other.members):
             a.compatible(b)
+
+    def set_main_unit(self, unit):
+        for member in self.members:
+            member.set_main_unit(unit)
 
 
 class ImmutableDict(dict):
@@ -960,6 +976,10 @@ class StructOf(DataType):
                 raise BadValueError('incompatible datatypes')
         except (AttributeError, TypeError, KeyError):
             raise BadValueError('incompatible datatypes') from None
+
+    def set_main_unit(self, unit):
+        for member in self.members.values():
+            member.set_main_unit(unit)
 
 
 class CommandType(DataType):
