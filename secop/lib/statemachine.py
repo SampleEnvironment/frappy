@@ -132,7 +132,8 @@ class StateMachine:
         :return: None (for custom cleanup functions this might be a new state)
         """
         if state.stopped:  # stop or restart
-            state.log.debug('%sed in state %r', repr(state.stopped).lower(), state.status_string)
+            verb = 'stopped' if state.stopped is Stop else 'restarted'
+            state.log.debug('%s in state %r', verb, state.status_string)
         else:
             state.log.warning('%r raised in state %r', state.last_error, state.status_string)
 
@@ -196,7 +197,7 @@ class StateMachine:
                     self.log.debug('called %r %sexc=%r', self.cleanup,
                                    'ret=%r ' % ret if ret else '', e)
                 if ret is None:
-                    self.log.debug('state: None')
+                    self.log.debug('state: None after cleanup')
                     self.state = None
                     self._idle_event.set()
                     return None
@@ -270,8 +271,8 @@ class StateMachine:
                 if self.stopped:  # cleanup is not yet done
                     self.last_error = self.stopped
                     self.cleanup(self)  # ignore return state on restart
-                    self.stopped = False
-                    self._start(state, **kwds)
+                self.stopped = False
+                self._start(state, **kwds)
         else:
             self._start(state, **kwds)
 
