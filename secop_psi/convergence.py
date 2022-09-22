@@ -60,8 +60,8 @@ class HasConvergence:
 
     def cleanup(self, state):
         state.default_cleanup(state)
-        if self.stopped:
-            if self.stopped is Stop:  # and not Restart
+        if state.stopped:
+            if state.stopped is Stop:  # and not Restart
                 self.status = WARN, 'stopped'
         else:
             self.status = WARN, repr(state.last_error)
@@ -78,11 +78,11 @@ class HasConvergence:
         return dif / self.timeout  # assume exponential decay of dif, with time constant <tolerance>
 
     def get_dif_tol(self):
-        self.read_value()
+        value = self.read_value()
         tol = self.tolerance
         if not tol:
-            tol = 0.01 * max(abs(self.target), abs(self.value))
-        dif = abs(self.target - self.value)
+            tol = 0.01 * max(abs(self.target), abs(value))
+        dif = abs(self.target - value)
         return dif, tol
 
     def start_state(self):
@@ -91,6 +91,7 @@ class HasConvergence:
 
     def state_approach(self, state):
         """approaching, checking progress (busy)"""
+        state.spent_inside = 0
         dif, tol = self.get_dif_tol()
         if dif < tol:
             state.timeout_base = state.now
@@ -101,7 +102,6 @@ class HasConvergence:
             state.timeout_base = state.now
             state.dif_crit = dif  # criterium for resetting timeout base
             self.status = BUSY, 'approaching'
-        state.spent_inside = 0
         state.dif_crit -= self.get_min_slope(dif) * state.delta()
         if dif < state.dif_crit:  # progress is good: reset timeout base
             state.timeout_base = state.now
@@ -157,3 +157,16 @@ class HasConvergence:
         else:
             state.spent_inside = max(0, state.spent_inside - state.delta())
         return Retry()
+
+    def state_interrupt(self, state):
+        """stopping"""
+        self.status = IDLE, 'stopped'  # stop called
+        return self.state_instable
+
+    def stop(self):
+        """set to idle when busy
+
+        does not stop control!
+        """
+        if self.isBusy():
+            self.convergence_state.start(self.state_interrupt)
