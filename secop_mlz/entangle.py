@@ -376,6 +376,12 @@ class AnalogInput(PyTangoDevice, Readable):
     """
     The AnalogInput handles all devices only delivering an analogue value.
     """
+    __main_unit = None
+
+    def applyMainUnit(self, mainunit):
+        # called from __init__ method
+        # replacement of '$' by main unit must be done later
+        self.__main_unit = mainunit
 
     def startModule(self, start_events):
         super().startModule(start_events)
@@ -386,8 +392,11 @@ class AnalogInput(PyTangoDevice, Readable):
             # update
             if attrInfo.unit != 'No unit':
                 self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
+                self.__main_unit = attrInfo.unit
         except Exception as e:
             self.log.error(e)
+        if self.__main_unit:
+            super().applyMainUnit(self.__main_unit)
 
     def read_value(self):
         return self._dev.value

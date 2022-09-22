@@ -461,8 +461,7 @@ class Module(HasAccessibles):
         if mainvalue:
             mainunit = mainvalue.datatype.unit
             if mainunit:
-                for pname, pobj in self.parameters.items():
-                    pobj.datatype.set_main_unit(mainunit)
+                self.applyMainUnit(mainunit)
 
         # 6) check complete configuration of * properties
         if not errors:
@@ -484,6 +483,11 @@ class Module(HasAccessibles):
 
     def __getitem__(self, item):
         return self.accessibles.__getitem__(item)
+
+    def applyMainUnit(self, mainunit):
+        """replace $ in units of parameters by mainunit"""
+        for pobj in self.parameters.values():
+            pobj.datatype.set_main_unit(mainunit)
 
     def announceUpdate(self, pname, value=None, err=None, timestamp=None):
         """announce a changed value or readerror"""

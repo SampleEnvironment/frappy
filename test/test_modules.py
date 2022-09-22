@@ -659,3 +659,39 @@ def test_problematic_value_range():
     obj = Mod4('obj', logger, {
         'value.min': 0, 'value.max': 10,
         'target.min': 0, 'target.max': 10, 'description': ''}, srv)
+
+
+@pytest.mark.parametrize('config, dynamicunit, finalunit, someunit', [
+    ({}, 'K', 'K', 'K'),
+    ({'value.unit': 'K'}, 'C', 'C', 'C'),
+    ({'value.unit': 'K'}, '', 'K', 'K'),
+    ({'value.unit': 'K', 'someparam.unit': 'A'}, 'C', 'C', 'A'),
+])
+def test_deferred_main_unit(config, dynamicunit, finalunit, someunit):
+    # this pattern is used in secop_mlz.entangle.AnalogInput
+    class Mod(Drivable):
+        ramp = Parameter('', datatype=FloatRange(unit='$/min'))
+        someparam = Parameter('', datatype=FloatRange(unit='$'))
+        __main_unit = None
+
+        def applyMainUnit(self, mainunit):
+            # called from __init__ method
+            # replacement of '$' by main unit must be done later
+            self.__main_unit = mainunit
+
+        def startModule(self, start_events):
+            super().startModule(start_events)
+            if dynamicunit:
+                self.accessibles['value'].datatype.setProperty('unit', dynamicunit)
+                self.__main_unit = dynamicunit
+            if self.__main_unit:
+                super().applyMainUnit(self.__main_unit)
+
+    srv = ServerStub({})
+    m = Mod('m', logger, {'description': '', **config}, srv)
+    m.startModule(None)
+    assert m.parameters['value'].datatype.unit == finalunit
+    assert m.parameters['target'].datatype.unit == finalunit
+    assert m.parameters['ramp'].datatype.unit == finalunit + '/min'
+    # when someparam.unit is configured, this differs from finalunit
+    assert m.parameters['someparam'].datatype.unit == someunit
