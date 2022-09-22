@@ -129,7 +129,7 @@ class PersistentMixin(HasAccessibles):
                 if getattr(v, 'persistent', False)}
         if data != self.persistentData:
             self.persistentData = data
-            persistentdir = os.path.basename(self.persistentFile)
+            persistentdir = os.path.dirname(self.persistentFile)
             tmpfile = self.persistentFile + '.tmp'
             if not os.path.isdir(persistentdir):
                 os.makedirs(persistentdir, exist_ok=True)
