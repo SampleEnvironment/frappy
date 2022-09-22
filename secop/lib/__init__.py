@@ -51,8 +51,17 @@ class GeneralConfig:
 
         :param configfile: if present, keys and values from the [FRAPPY] section are read
 
-        if configfile is not given, it tries to guess the location of the configfile
-        or determine 'piddir', 'logdir', 'confdir' and 'basedir' from the environment.
+        default values for 'piddir', 'logdir' and 'confdir' are guessed from the
+        location of this source file and from sys.executable.
+
+        if configfile is not given, the general config file is determined by
+        the env. variable FRAPPY_CONFIG_FILE or <confdir>/generalConfig.cfg is used
+
+        if a configfile is given, the values from the FRAPPY section are
+        overriding above defaults
+
+        finally, the env. variables FRAPPY_PIDDIR, FRAPPY_LOGDIR and FRAPPY_CONFDIR
+        are overriding these values when given
         """
         cfg = {}
         mandatory = 'piddir', 'logdir', 'confdir'
@@ -69,15 +78,19 @@ class GeneralConfig:
             # running on installed system (typically with systemd)
             cfg.update(piddir='/var/run/frappy', logdir='/var/log', confdir='/etc/frappy')
         if configfile is None:
-            configfile = environ.get('FRAPPY_CONFIG_FILE',
-                                     path.join(cfg['confdir'], 'generalConfig.cfg'))
-        if configfile and path.exists(configfile):
+            configfile = environ.get('FRAPPY_CONFIG_FILE')
+            if configfile:
+                configfile = path.expanduser(configfile)
+                if not path.exists(configfile):
+                    raise FileNotFoundError(configfile)
+            else:
+                configfile = path.join(cfg['confdir'], 'generalConfig.cfg')
+                if not path.exists(configfile):
+                    configfile = None
+        if configfile:
             parser = ConfigParser()
             parser.optionxform = str
             parser.read([configfile])
-            # mandatory in a general config file:
-            cfg['logdir'] = cfg['piddir'] = None
-            cfg['confdir'] = path.dirname(configfile)
             # only the FRAPPY section is relevant, other sections might be used by others
             for key, value in parser['FRAPPY'].items():
                 if value.startswith('./'):
@@ -85,14 +98,15 @@ class GeneralConfig:
                 else:
                     # expand ~ to username, also in path lists separated with ':'
                     cfg[key] = ':'.join(path.expanduser(v) for v in value.split(':'))
-        else:
-            for key in mandatory:
-                cfg[key] = environ.get('FRAPPY_%s' % key.upper(), cfg[key])
+            if cfg.get('confdir') is None:
+                cfg['confdir'] = path.dirname(configfile)
+        for key in mandatory:
+            cfg[key] = environ.get('FRAPPY_%s' % key.upper(), cfg.get(key))
         missing_keys = [key for key in mandatory if cfg[key] is None]
         if missing_keys:
-            if path.exists(configfile):
+            if configfile:
                 raise KeyError('missing value for %s in %s' % (' and '.join(missing_keys), configfile))
-            raise FileNotFoundError(configfile)
+            raise KeyError('missing %s' % ' and '.join('FRAPPY_%s' % k.upper() for k in missing_keys))
         # this is not customizable
         cfg['basedir'] = repodir
         self._config = cfg
