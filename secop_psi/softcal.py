@@ -27,7 +27,8 @@ from os.path import basename, dirname, exists, join
 import numpy as np
 from scipy.interpolate import splev, splrep  # pylint: disable=import-error
 
-from secop.core import Attached, BoolType, Parameter, Readable, StringType, FloatRange
+from secop.core import Attached, BoolType, Parameter, Readable, StringType, \
+    FloatRange, Done
 
 
 def linear(x):
@@ -182,7 +183,6 @@ class Sensor(Readable):
 
     description = 'a calibrated sensor value'
     _value_error = None
-    enablePoll = False
 
     def checkProperties(self):
         if 'description' not in self.propertyValues:
@@ -195,6 +195,9 @@ class Sensor(Readable):
         self._calib = CalCurve(self.calib)
         if self.description == '_':
             self.description = '%r calibrated with curve %r' % (self.rawsensor, self.calib)
+
+    def doPoll(self):
+        self.read_status()
 
     def write_calib(self, value):
         self._calib = CalCurve(value)
@@ -221,3 +224,7 @@ class Sensor(Readable):
 
     def read_value(self):
         return self._calib(self.rawsensor.read_value())
+
+    def read_status(self):
+        self.update_status(self.rawsensor.status)
+        return Done
