@@ -47,7 +47,7 @@ class SilentError(CommunicationFailedError):
 
 class HasIO(Module):
     """Mixin for modules using a communicator"""
-    io = Attached()
+    io = Attached(mandatory=False)  # either io or uri must be given
     uri = Property('uri for automatic creation of the attached communication module',
                    StringType(), default='')
 
