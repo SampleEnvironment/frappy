@@ -356,7 +356,7 @@ class SecopClient(ProxyClient):
         except ConnectionClosed:
             pass
         except Exception as e:
-            self.log.error('rxthread ended with %s' % e)
+            self.log.error('rxthread ended with %r', e)
         self._rxthread = None
         self.disconnect(False)
         if self._shutdown:
@@ -490,7 +490,7 @@ class SecopClient(ProxyClient):
 
     def _unhandled_message(self, action, ident, data):
         if not self.callback(None, 'unhandledMessage', action, ident, data):
-            self.log.warning('unhandled message: %s %s %r' % (action, ident, data))
+            self.log.warning('unhandled message: %s %s %r', action, ident, data)
 
     def _set_state(self, online, state=None):
         # remark: reconnecting is treated as online

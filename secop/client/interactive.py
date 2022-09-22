@@ -23,10 +23,11 @@
 
 import sys
 import time
-import json
+import re
 from queue import Queue
 from secop.client import SecopClient
 from secop.errors import SECoPError
+from secop.datatypes import get_datatype
 
 USAGE = """
 Usage:
@@ -58,10 +59,15 @@ class Logger:
             if lev == loglevel:
                 func = self.emit
             setattr(self, lev, func)
+        self._minute = 0
 
-    @staticmethod
-    def emit(fmt, *args, **kwds):
-        print(str(fmt) % args)
+    def emit(self, fmt, *args, **kwds):
+        now = time.time()
+        minute = now // 60
+        if minute != self._minute:
+            self._minute = minute
+            print(time.strftime('--- %H:%M:%S ---', time.localtime(now)))
+        print('%6.3f' % (now % 60.0), str(fmt) % args)
 
     @staticmethod
     def noop(fmt, *args, **kwds):
@@ -77,6 +83,8 @@ class PrettyFloat(float):
 
 
 class Module:
+    _log_pattern = re.compile('.*')
+
     def __init__(self, name, secnode):
         self._name = name
         self._secnode = secnode
@@ -89,15 +97,12 @@ class Module:
 
     def _one_line(self, pname, minwid=0):
         """return <module>.<param> = <value> truncated to one line"""
+        param = getattr(type(self), pname)
         try:
             value = getattr(self, pname)
-            # make floats appear with 7 digits only
-            r = repr(json.loads(json.dumps(value), parse_float=PrettyFloat))
+            r = param.format(value)
         except Exception as e:
             r = repr(e)
-        unit = getattr(type(self), pname).unit
-        if unit:
-            r += ' %s' % unit
         pname = pname.ljust(minwid)
         vallen = 113 - len(self._name) - len(pname)
         if len(r) > vallen:
@@ -174,13 +179,21 @@ class Module:
             '\n'.join(self._one_line(k, wid) for k in self._parameters),
             ', '.join(k + '()' for k in self._commands))
 
+    def logging(self, level='comlog', pattern='.*'):
+        self._log_pattern = re.compile(pattern)
+        self._secnode.request('logging', self._name, level)
+
+    def handle_log_message_(self, data):
+        if self._log_pattern.match(data):
+            self._secnode.log.info('%s: %r', self._name, data)
+
 
 class Param:
-    def __init__(self, name, unit=None):
+    def __init__(self, name, datainfo):
         self.name = name
         self.prev = None
         self.prev_time = 0
-        self.unit = unit
+        self.datatype = get_datatype(datainfo)
 
     def __get__(self, obj, owner):
         if obj is None:
@@ -197,6 +210,9 @@ class Param:
             obj._secnode.setParameter(obj._name, self.name, value)
         except SECoPError as e:
             obj._secnode.log.error(repr(e))
+
+    def format(self, value):
+        return self.datatype.format_value(value)
 
 
 class Command:
@@ -250,14 +266,24 @@ class Client(SecopClient):
                 self.log.info('overwrite module %s', modname)
             attrs = {}
             for pname, pinfo in moddesc['parameters'].items():
-                unit = pinfo['datainfo'].get('unit')
-                attrs[pname] = Param(pname, unit)
+                attrs[pname] = Param(pname, pinfo['datainfo'])
             for cname in moddesc['commands']:
                 attrs[cname] = Command(cname, modname, self)
             mobj = type('M_%s' % modname, (Module,), attrs)(modname, self)
             if 'status' in mobj._parameters:
                 self.register_callback((modname, 'status'), updateEvent=mobj._status_value_update)
                 self.register_callback((modname, 'value'), updateEvent=mobj._status_value_update)
-
             setattr(main, modname, mobj)
+        self.register_callback(None, self.unhandledMessage)
         self.log.info('%s', USAGE)
+
+    def unhandledMessage(self, action, ident, data):
+        """handle logging messages"""
+        if action == 'log':
+            modname = ident.split(':')[0]
+            modobj = getattr(main, modname, None)
+            if modobj:
+                modobj.handle_log_message_(data)
+                return
+            self.log.info('module %s not found', modname)
+        self.log.info('unhandled: %s %s %r', action, ident, data)
