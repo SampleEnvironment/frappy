@@ -152,7 +152,7 @@ def describe_dev_error(exc):
     return fulldesc
 
 
-class PyTangoDevice(Module):
+class BasePyTangoDevice:
     """
     Basic PyTango device.
 
@@ -356,6 +356,15 @@ class PyTangoDevice(Module):
         self.log.debug('PyTango error: %s', fulldesc)
         raise exclass(self, fulldesc)
 
+    @Command(argument=None, result=None)
+    def reset(self):
+        """Tango reset command"""
+        self._dev.Reset()
+
+
+class PyTangoDevice(BasePyTangoDevice):
+    """Base for "normal" devices with status."""
+
     def read_status(self):
         # Query status code and string
         tangoState = self._dev.State()
@@ -365,11 +374,6 @@ class PyTangoDevice(Module):
         myState = self.tango_status_mapping.get(tangoState, Drivable.Status.UNKNOWN)
 
         return (myState, tangoStatus)
-
-    @Command(argument=None, result=None)
-    def reset(self):
-        """Tango reset command"""
-        self._dev.Reset()
 
 
 class AnalogInput(PyTangoDevice, Readable):
@@ -943,7 +947,7 @@ class PartialDigitalOutput(NamedDigitalOutput):
         return self.read_target()
 
 
-class StringIO(PyTangoDevice, Module):
+class StringIO(BasePyTangoDevice, Module):
     """StringIO abstracts communication over a hardware bus that sends and
     receives strings.
     """
