@@ -140,7 +140,7 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def on_actionAdd_SEC_node_triggered(self):
         host, ok = QInputDialog.getText(self, 'Add SEC node',
-                                        'Enter SEC node hostname:')
+                                        'Enter SEC node URI (or just hostname:port):')
 
         if not ok:
             return
