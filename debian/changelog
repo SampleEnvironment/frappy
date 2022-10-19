@@ -1,3 +1,17 @@
+secop-core (0.14.0) focal; urgency=medium
+
+  * add simple interactive python client
+  * fix undefined status in softcal
+  * improve HasConvergence mixin
+  * fix bug in persistent.py
+  * fix bug when restarting statemachine
+  * improve general config
+  * improvements on interactive client
+  * apply main unit also in structured types
+  * HasIO: automatic creation of io from uri fails
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Wed, 19 Oct 2022 11:31:50 +0200
+
 secop-core (0.13.1) focal; urgency=medium
 
   [ Markus Zolliker ]
