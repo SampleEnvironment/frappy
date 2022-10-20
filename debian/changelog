@@ -1,3 +1,15 @@
+secop-core (0.14.1) focal; urgency=medium
+
+  [ Markus Zolliker ]
+  * secop_psi.entangle.AnalogInput: fix main value
+
+  [ Georg Brandl ]
+  * gui: clarify needed input for "add sec node" dialog
+  * mlz: avoid error on import due to consistency check
+  * Makefile: fix Jenkins host
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Thu, 20 Oct 2022 14:04:07 +0200
+
 secop-core (0.14.0) focal; urgency=medium
 
   * add simple interactive python client
