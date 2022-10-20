@@ -25,16 +25,16 @@
 
 import os
 import sys
-import fnmatch
 from os import path
 
-from secop.lib import getGeneralConfig
+from secop.lib import generalConfig
+
 
 def main():
     normal_dir = sys.argv[1]
 
-    global_config = getGeneralConfig()
-    config_dir = global_config['confdir']
+    generalConfig.init()
+    config_dir = generalConfig['confdir']
 
     secop_unit = '/lib/systemd/system/secop@.service'
     wants_dir = normal_dir + '/secop.target.wants'
