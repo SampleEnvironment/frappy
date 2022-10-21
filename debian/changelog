@@ -684,7 +684,7 @@ secop-core (0.5.0) unstable; urgency=low
   * fix amagnet
   * add info about Meeting @PSI
   * fix typo and include comment from Niklas
-  * playground: give sequencermixin a loopcounter (per step)
+  * give sequencermixin a loopcounter (per step)
 
   [ Frank Wutzler ]
   * describe SECoP motivation discussed in meeting 2017-11-27

@@ -4,7 +4,7 @@ properties([
                               daysToKeepStr: '',
                               numToKeepStr: '50')),
     parameters([
-         string(defaultValue: 'sine2020/secop/playground',
+         string(defaultValue: 'secop/frappy',
                 description: '', name: 'GERRIT_PROJECT'),
          string(defaultValue: 'master',
                 description: '', name: 'GERRIT_BRANCH'),
