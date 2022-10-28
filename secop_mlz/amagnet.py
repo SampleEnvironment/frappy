@@ -48,35 +48,45 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     """
 
     # parameters
-    subdev_currentsource = Parameter('(bipolar) Powersupply', datatype=StringType(), readonly=True, export=False)
-    subdev_enable = Parameter('Switch to set for on/off', datatype=StringType(), readonly=True, export=False)
-    subdev_polswitch = Parameter('Switch to set for polarity', datatype=StringType(), readonly=True, export=False)
-    subdev_symmetry = Parameter('Switch to read for symmetry', datatype=StringType(), readonly=True, export=False)
+    subdev_currentsource = Parameter('(bipolar) Powersupply',
+                                     datatype=StringType(),
+                                     readonly=True, export=False)
+    subdev_enable = Parameter('Switch to set for on/off',
+                              datatype=StringType(), readonly=True,
+                              export=False)
+    subdev_polswitch = Parameter('Switch to set for polarity',
+                                 datatype=StringType(), readonly=True,
+                                 export=False)
+    subdev_symmetry = Parameter('Switch to read for symmetry',
+                                datatype=StringType(), readonly=True,
+                                export=False)
     userlimits = Parameter('User defined limits of device value',
-                       datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
-                       default=(float('-Inf'), float('+Inf')), readonly=False)
+                           datatype=TupleOf(FloatRange(unit='$'),
+                                            FloatRange(unit='$')),
+                           default=(float('-Inf'), float('+Inf')),
+                           readonly=False)
     abslimits = Parameter('Absolute limits of device value',
-                      datatype=TupleOf(FloatRange(unit='$'), FloatRange(unit='$')),
-                      default=(-0.5, 0.5),
-                      )
+                          datatype=TupleOf(FloatRange(unit='$'),
+                                           FloatRange(unit='$')),
+                          default=(-0.5, 0.5))
     precision = Parameter('Precision of the device value (allowed deviation '
-                      'of stable values from target)',
-                      datatype=FloatRange(0.001, unit='$'), default=0.001, readonly=False,
-                      )
+                          'of stable values from target)',
+                          datatype=FloatRange(0.001, unit='$'), default=0.001,
+                          readonly=False,)
     ramp = Parameter('Target rate of field change per minute', readonly=False,
-                 datatype=FloatRange(unit='$/min'), default=1.0)
-    calibration = Parameter('Coefficients for calibration '
-                        'function: [c0, c1, c2, c3, c4] calculates '
-                        'B(I) = c0*I + c1*erf(c2*I) + c3*atan(c4*I)'
-                        ' in T',
-                        datatype=ArrayOf(FloatRange(), 5, 5),
-                        default=(1.0, 0.0, 0.0, 0.0, 0.0))
-    calibrationtable = Parameter('Map of Coefficients for calibration per symmetry setting',
-                             datatype=StructOf(symmetric=ArrayOf(FloatRange(), 5, 5),
-                                               short=ArrayOf(
-                                                   FloatRange(), 5, 5),
-                                               asymmetric=ArrayOf(FloatRange(), 5, 5)), export=False)
-
+                     datatype=FloatRange(unit='$/min'), default=1.0)
+    calibration = Parameter('Coefficients for calibration function: '
+                            '[c0, c1, c2, c3, c4] calculates '
+                            'B(I) = c0*I + c1*erf(c2*I) + c3*atan(c4*I) in T',
+                            datatype=ArrayOf(FloatRange(), 5, 5),
+                            default=(1.0, 0.0, 0.0, 0.0, 0.0))
+    calibrationtable = Parameter('Map of Coefficients for calibration per '
+                                 'symmetry setting',
+                                 datatype=StructOf(
+                                     symmetric=ArrayOf(FloatRange(), 5, 5),
+                                     short=ArrayOf(FloatRange(), 5, 5),
+                                     asymmetric=ArrayOf(FloatRange(), 5, 5)),
+                                 export=False)
 
     def _current2field(self, current, *coefficients):
         """Return field in T for given current in A.
@@ -130,8 +140,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
                 trycurr = (maxcurr - mincurr) * ratio + mincurr
                 self.log.debug('current for %g T is %g A', field, trycurr)
                 return trycurr  # interpolated
-        raise ConfigError(self,
-                                 '_current2field polynome not monotonic!')
+        raise ConfigError(self, '_current2field polynome not monotonic!')
 
     def initModule(self):
         super().initModule()
