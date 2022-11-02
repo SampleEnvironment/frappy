@@ -30,8 +30,6 @@ def changedFiles = '';
 
 def run_pylint(pyver) {
   stage ('pylint-' + pyver) {
-    def cpylint = "RUNNING"  
-    gerritPostCheck(["jenkins:pylint_${pyver}": cpylint])  
     def status = 'OK'
     changedFiles = sh returnStdout: true, script: '''\
 #!/bin/bash
@@ -45,14 +43,14 @@ git diff HEAD~1... --name-only --diff-filter=ARCM -- \\*.py
 pip install -r requirements-dev.txt
 pip install -r requirements.txt
 pip install isort pylint
-python3 setup.py develop
+pip install -e .
 export PYTHONIOENCODING=utf8
 
 echo "$changedFiles"
 if [[  -n "$changedFiles" ]]; then
    set -o pipefail
    pylint $changedFiles | tee pylint_results.txt
-   isort -df $changedFiles | tee isort_results.txt
+   isort --df $changedFiles | tee isort_results.txt
 fi
 """
     withCredentials([string(credentialsId: 'GERRITHTTP',
@@ -69,16 +67,11 @@ fi
     } // credentials
 
     echo "pylint result: $res"
-    this.verifyresult.put('pylint'+pyver, 1)
-    cpylint = "SUCCESSFUL"
     if ( res != 0 ) {
         currentBuild.result='FAILURE'
-        this.verifyresult.put('pylint'+ pyver, -1)
         status = 'FAILURE'
-        cpylint = "FAILED"
     }
 
-    gerritPostCheck(["jenkins:pylint_${pyver}": cpylint])  
     archiveArtifacts([allowEmptyArchive: true,
                           artifacts: 'pylint-*.txt'])
     recordIssues([enabledForFailure: true,
@@ -98,14 +91,11 @@ fi
 
 def run_tests(pyver) {
     stage('Test:' + pyver) {
-        def cpytest = "RUNNING"
-        gerritPostCheck(["jenkins:pytest_${pyver}":"RUNNING"])
         writeFile file: 'setup.cfg', text: '''
 [tool:pytest]
 addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
 
     def status = "OK"
-    verifyresult.put(pyver, 0)
     try {
         timeout(5) {
             sh '''\
@@ -113,19 +103,14 @@ addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
 . /home/jenkins/secopvenv/bin/activate
 pip install -r requirements-dev.txt
 pip install -r requirements.txt
-python3 setup.py develop
+pip install -e .
 make test
 '''
-        verifyresult.put(pyver, 1)
-        cpytest = "SUCCESSFUL"
         }
     } catch (all) {
         currentBuild.result = 'FAILURE'
         status = 'FAILURE'
-        cpytest= "FAILED"
-        verifyresult.put(pyver, -1)
     }
-    gerritPostCheck(["jenkins:pytest_${pyver}":cpytest])
 
     step([$class: 'JUnitResultArchiver', allowEmptyResults: true,
           keepLongStdio: true, testResults: 'pytest.xml'])
@@ -136,14 +121,12 @@ make test
 }
 
 def run_docs() {
-    def cdocs  = "RUNNING"
-    gerritPostCheck(["jenkins:docs":cdocs])
     stage('prepare') {
         sh '''
         . /home/jenkins/secopvenv/bin/activate
         pip install -r requirements-dev.txt
         pip install -r requirements.txt
-        python3 setup.py develop
+        pip install -e .
         '''
     }
 
@@ -185,9 +168,7 @@ def run_docs() {
 
     stage('store html doc for build') {
         publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'doc/_build/html', reportFiles: 'index.html', reportName: 'Built documentation', reportTitles: ''])
-        cdocs = "SUCCESSFUL"
     }
-    gerritPostCheck(["jenkins:docs":cdocs])
 }
 
 

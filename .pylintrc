@@ -38,26 +38,20 @@ confidence=
 # multiple time.
 disable=missing-docstring
         ,locally-disabled
-        ,locally-enabled
         ,fixme
         ,no-member
-        ,bad-whitespace
         ,wrong-import-position
         ,ungrouped-imports
         ,import-self
-        ,bad-continuation
         ,protected-access
         ,unused-argument
         ,duplicate-code
         ,attribute-defined-outside-init
         ,access-member-before-definition
-        ,no-self-use
         ,broad-except
         ,unneeded-not
         ,unidiomatic-typecheck
         ,undefined-loop-variable
-        ,redefined-variable-type
-        ,deprecated-lambda
 
 [REPORTS]
 
@@ -67,10 +61,6 @@ disable=missing-docstring
 
 msg-template={path}:{line}: [{msg_id}({symbol}), {obj}] {msg}
 
-# Put messages in a separate file for each module / package specified on the
-# command line instead of printing them on stdout. Reports (if any) will be
-# written in a file name "pylint_global.[txt|html]".
-files-output=no
 
 # Tells whether to display a full report or only the messages
 reports=no
@@ -98,9 +88,6 @@ additional-builtins=
 
 [BASIC]
 
-# List of builtins function names that should not be used, separated by a comma
-#bad-functions=map,filter,apply,input
-bad-functions=apply,input
 
 # Regular expression which should only match correct module names
 module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9_]+))$
@@ -154,12 +141,6 @@ notes=FIXME,XXX,TODO
 
 # Maximum number of characters on a single line.
 max-line-length=132
-
-# List of optional constructs for which whitespace checking is disabled. `dict-
-# separator` is used to allow tabulation in dicts, etc.: {1  : 1,\n222: 2}.
-# `trailing-comma` allows a space between comma and closing bracket: (a, ).
-# `empty-line` allows space-only lines.
-no-space-check=trailing-comma,dict-separator
 
 # Maximum number of lines in a module
 max-module-lines=1000
