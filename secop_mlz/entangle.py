@@ -28,8 +28,7 @@ Here we support devices which fulfill the official
 MLZ TANGO interface for the respective device classes.
 """
 
-# pylint: disable=too-many-lines
-
+# pylint: disable=too-many-lines, consider-using-f-string
 
 import re
 import threading
@@ -520,18 +519,18 @@ class AnalogOutput(PyTangoDevice, Drivable):
         return stable and at_target
 
     def read_status(self):
-        _st, _sts = super().read_status()
-        if _st == Readable.Status.DISABLED:
-            return _st, _sts
+        status = super().read_status()
+        if status[0] in (Readable.Status.DISABLED, Readable.Status.ERROR):
+            self.setFastPoll(False)
+            return status
         if self._isAtTarget():
             self._timeout = None
             self._moving = False
-            status = super().read_status()
         else:
             if self._timeout and self._timeout < currenttime():
                 status = self.Status.UNSTABLE, 'timeout after waiting for stable value'
-            else:
-                status = (self.Status.BUSY, 'moving') if self._moving else (self.Status.IDLE, 'stable')
+            elif self._moving:
+                status = (self.Status.BUSY, 'moving: ' + status[1])
         self.setFastPoll(self.isBusy(status))
         return status
 
