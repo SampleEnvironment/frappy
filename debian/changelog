@@ -1,3 +1,19 @@
+secop-core (0.14.3) focal; urgency=medium
+
+  [ Enrico Faulhaber ]
+  * change repo to secop/frappy
+
+  [ Georg Brandl ]
+  * secop_mlz/amagnet: formatting fixup
+
+  [ Bjoern Pedersen ]
+  * Upgrade for ci
+
+  [ Enrico Faulhaber ]
+  * MLZ/entangle: fix AnalogOutput.read_status()
+
+ -- Enrico Faulhaber <jenkins@frm2.tum.de>  Thu, 03 Nov 2022 13:51:52 +0100
+
 secop-core (0.14.2) focal; urgency=medium
 
   * systemd generator: adapt to changed config API
