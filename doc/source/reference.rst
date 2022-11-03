@@ -62,11 +62,19 @@ Communication
 .. autoclass:: secop.io.HasIO
     :show-inheritance:
 
-.. autoclass:: secop.iohandler.IOHandlerBase
+.. autoclass:: secop.rwhandler.ReadHandler
     :show-inheritance:
     :members:
 
-.. autoclass:: secop.iohandler.IOHandler
+.. autoclass:: secop.rwhandler.CommonReadHandler
+    :show-inheritance:
+    :members:
+
+.. autoclass:: secop.rwhandler.WriteHandler
+    :show-inheritance:
+    :members:
+
+.. autoclass:: secop.rwhandler.CommonWriteHandler
     :show-inheritance:
     :members:
 
