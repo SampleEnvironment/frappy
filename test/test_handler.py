@@ -21,9 +21,9 @@
 # *****************************************************************************
 
 
-from secop.rwhandler import ReadHandler, WriteHandler, \
+from frappy.rwhandler import ReadHandler, WriteHandler, \
     CommonReadHandler, CommonWriteHandler, nopoll
-from secop.core import Module, Parameter, FloatRange, Done
+from frappy.core import Module, Parameter, FloatRange, Done
 
 
 class DispatcherStub:

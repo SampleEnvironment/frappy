@@ -4,85 +4,85 @@ Reference
 Module Base Classes
 ...................
 
-.. autodata:: secop.modules.Done
+.. autodata:: frappy.modules.Done
 
-.. autoclass:: secop.modules.Module
+.. autoclass:: frappy.modules.Module
     :members: earlyInit, initModule, startModule
 
-.. autoclass:: secop.modules.Readable
+.. autoclass:: frappy.modules.Readable
     :members: Status
 
-.. autoclass:: secop.modules.Writable
+.. autoclass:: frappy.modules.Writable
 
-.. autoclass:: secop.modules.Drivable
+.. autoclass:: frappy.modules.Drivable
     :members: Status, isBusy, isDriving, stop
 
 
 Parameters, Commands and Properties
 ...................................
 
-.. autoclass:: secop.params.Parameter
-.. autoclass:: secop.params.Command
-.. autoclass:: secop.properties.Property
-.. autoclass:: secop.modules.Attached
+.. autoclass:: frappy.params.Parameter
+.. autoclass:: frappy.params.Command
+.. autoclass:: frappy.properties.Property
+.. autoclass:: frappy.modules.Attached
     :show-inheritance:
 
 
 Datatypes
 .........
 
-.. autoclass:: secop.datatypes.FloatRange
-.. autoclass:: secop.datatypes.IntRange
-.. autoclass:: secop.datatypes.BoolType
-.. autoclass:: secop.datatypes.ScaledInteger
-.. autoclass:: secop.datatypes.EnumType
-.. autoclass:: secop.datatypes.StringType
-.. autoclass:: secop.datatypes.TupleOf
-.. autoclass:: secop.datatypes.ArrayOf
-.. autoclass:: secop.datatypes.StructOf
-.. autoclass:: secop.datatypes.BLOBType
+.. autoclass:: frappy.datatypes.FloatRange
+.. autoclass:: frappy.datatypes.IntRange
+.. autoclass:: frappy.datatypes.BoolType
+.. autoclass:: frappy.datatypes.ScaledInteger
+.. autoclass:: frappy.datatypes.EnumType
+.. autoclass:: frappy.datatypes.StringType
+.. autoclass:: frappy.datatypes.TupleOf
+.. autoclass:: frappy.datatypes.ArrayOf
+.. autoclass:: frappy.datatypes.StructOf
+.. autoclass:: frappy.datatypes.BLOBType
 
 
 
 Communication
 .............
 
-.. autoclass:: secop.modules.Communicator
+.. autoclass:: frappy.modules.Communicator
     :show-inheritance:
     :members: communicate
 
-.. autoclass:: secop.io.StringIO
+.. autoclass:: frappy.io.StringIO
     :show-inheritance:
     :members: communicate, multicomm
 
-.. autoclass:: secop.io.BytesIO
+.. autoclass:: frappy.io.BytesIO
     :show-inheritance:
     :members: communicate, multicomm
 
-.. autoclass:: secop.io.HasIO
+.. autoclass:: frappy.io.HasIO
     :show-inheritance:
 
-.. autoclass:: secop.rwhandler.ReadHandler
-    :show-inheritance:
-    :members:
-
-.. autoclass:: secop.rwhandler.CommonReadHandler
+.. autoclass:: frappy.rwhandler.ReadHandler
     :show-inheritance:
     :members:
 
-.. autoclass:: secop.rwhandler.WriteHandler
+.. autoclass:: frappy.rwhandler.CommonReadHandler
     :show-inheritance:
     :members:
 
-.. autoclass:: secop.rwhandler.CommonWriteHandler
+.. autoclass:: frappy.rwhandler.WriteHandler
+    :show-inheritance:
+    :members:
+
+.. autoclass:: frappy.rwhandler.CommonWriteHandler
     :show-inheritance:
     :members:
 
 
 Exception classes
-.....................--
+.................
 
-.. automodule:: secop.errors
+.. automodule:: frappy.errors
     :members:
 
 .. include:: server.rst

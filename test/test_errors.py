@@ -21,10 +21,10 @@
 # *****************************************************************************
 """test data types."""
 
-import secop.errors
+import frappy.errors
 
 
 def test_errors():
-    """check consistence of secop.errors.EXCEPTIONS"""
-    for e in secop.errors.EXCEPTIONS.values():
-        assert secop.errors.EXCEPTIONS[e().name] == e
+    """check consistence of frappy.errors.EXCEPTIONS"""
+    for e in frappy.errors.EXCEPTIONS.values():
+        assert frappy.errors.EXCEPTIONS[e().name] == e

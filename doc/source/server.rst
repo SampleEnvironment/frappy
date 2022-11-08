@@ -27,12 +27,12 @@ All other sections define the SECoP modules. The section name itself is the modu
 mandatory fields are **class** and **description**. **class** is a path to the Python class
 from there the module is instantiated, separated with dots. In the following example the class
 **HeLevel** used by the **helevel** module can be found in the PSI facility subdirectory
-secop_psi in the python module file ccu4.py:
+frappy_psi in the python module file ccu4.py:
 
 .. code::
 
     [helevel]
-    class = secop_psi.ccu4.HeLevel
+    class = frappy_psi.ccu4.HeLevel
     description = this is the He level sensor of the main reservoir
     empty = 380
     empty.export = False
@@ -50,11 +50,11 @@ the SECoP interface.
 Starting
 ........
 
-The Frappy server can be started via the **bin/secop-server** script.
+The Frappy server can be started via the **bin/frappy-server** script.
 
 .. parsed-literal::
 
-    usage: secop-server [-h] [-v | -q] [-d] name
+    usage: frappy-server [-h] [-v | -q] [-d] name
 
     Manage a Frappy server
 

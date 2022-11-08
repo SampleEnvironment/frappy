@@ -29,28 +29,28 @@ from os import listdir, path
 
 from setuptools import find_packages, setup
 
-import secop.version
+import frappy.version
 
-scripts = glob(path.join('bin', 'secop-*'))
+scripts = glob(path.join('bin', 'frappy-*'))
 
-uidir = path.join(path.dirname(__file__), 'secop', 'gui', 'ui')
+uidir = path.join(path.dirname(__file__), 'frappy', 'gui', 'ui')
 uis = [path.join('gui', 'ui', entry) for entry in listdir(uidir)]
 
 setup(
-    name='secop-core',
-    version=secop.version.get_version(),
+    name='frappy-core',
+    version=frappy.version.get_version(),
     license='GPL',
     author='Enrico Faulhaber',
     author_email='enrico.faulhaber@frm2.tum.de',
     description='SECoP Playground core system',
     packages=find_packages(exclude=['test']),
-    package_data={'secop': ['RELEASE-VERSION'] + uis},
+    package_data={'frappy': ['RELEASE-VERSION'] + uis},
     data_files=[
-        ('/lib/systemd/system-generators', ['etc/secop-generator']),
-        ('/lib/systemd/system', ['etc/secop@.service',
-                                 'etc/secop.target',
+        ('/lib/systemd/system-generators', ['etc/frappy-generator']),
+        ('/lib/systemd/system', ['etc/frappy@.service',
+                                 'etc/frappy.target',
                                 ]),
-        ('/var/log/secop', []),
+        ('/var/log/frappy', []),
     ],
     scripts=scripts,
     classifiers=[

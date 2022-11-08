@@ -22,11 +22,11 @@
 
 import pytest
 import mlzlog
-from secop.modules import Module
-from secop.protocol.dispatcher import Dispatcher
-from secop.protocol.interface import encode_msg_frame, decode_msg
-import secop.logging
-from secop.logging import logger, generalConfig, HasComlog
+from frappy.modules import Module
+from frappy.protocol.dispatcher import Dispatcher
+from frappy.protocol.interface import encode_msg_frame, decode_msg
+import frappy.logging
+from frappy.logging import logger, generalConfig, HasComlog
 
 
 class ServerStub:
@@ -89,8 +89,8 @@ def init_(monkeypatch):
                 close = flush = emit = noop
 
             monkeypatch.setattr(mlzlog, 'ColoredConsoleHandler', ConsoleHandler)
-            monkeypatch.setattr(secop.logging, 'ComLogfileHandler', ComLogHandler)
-            monkeypatch.setattr(secop.logging, 'LogfileHandler', LogfileHandler)
+            monkeypatch.setattr(frappy.logging, 'ComLogfileHandler', ComLogHandler)
+            monkeypatch.setattr(frappy.logging, 'LogfileHandler', LogfileHandler)
 
             class Mod(Module):
                 result = []

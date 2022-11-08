@@ -25,12 +25,12 @@
 # no fixtures needed
 import pytest
 
-from secop.datatypes import ArrayOf, BLOBType, BoolType, \
+from frappy.datatypes import ArrayOf, BLOBType, BoolType, \
     CommandType, ConfigError, DataType, Enum, EnumType, FloatRange, \
     IntRange, ProgrammingError, ScaledInteger, StatusType, \
     StringType, StructOf, TextType, TupleOf, get_datatype, \
     DiscouragedConversion
-from secop.lib import generalConfig
+from frappy.lib import generalConfig
 
 
 def copytest(dt):

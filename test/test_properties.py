@@ -23,10 +23,10 @@
 
 import pytest
 
-from secop.datatypes import FloatRange, IntRange, StringType, ValueType
-from secop.errors import BadValueError, ConfigError, ProgrammingError
-from secop.properties import HasProperties, Property
-from secop.core import Parameter
+from frappy.datatypes import FloatRange, IntRange, StringType, ValueType
+from frappy.errors import BadValueError, ConfigError, ProgrammingError
+from frappy.properties import HasProperties, Property
+from frappy.core import Parameter
 
 
 def Prop(*args, name=None, **kwds):

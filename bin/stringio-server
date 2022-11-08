@@ -42,7 +42,7 @@ import ast
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-from secop.lib import get_class, formatException
+from frappy.lib import get_class, formatException
 
 class LineHandler(asyncore.dispatcher_with_send):
 
@@ -136,7 +136,7 @@ for arg in sys.argv[1:]:
         pass
     opts[k] = v
 verbose = opts.pop('verbose', False)
-opts['cls'] = 'secop_psi.ls370sim.Ls370Sim'
+opts['cls'] = 'frappy_psi.ls370sim.Ls370Sim'
 opts['port'] = 4567
 if len(args) > 2:
     raise ValueError('do not know about: %s' % ' '.join(args[2:]))

@@ -57,10 +57,10 @@ to provide to the user.
 Programming a Driver
 --------------------
 
-Programming a driver means extending one of the base classes like :class:`secop.modules.Readable`
-or :class:`secop.modules.Drivable`. The parameters are defined in the dict :py:attr:`parameters`, as a
-class attribute of the extended class, using the :class:`secop.params.Parameter` constructor, or in case
-of altering the properties of an inherited parameter, :class:`secop.params.Override`.
+Programming a driver means extending one of the base classes like :class:`frappy.modules.Readable`
+or :class:`frappy.modules.Drivable`. The parameters are defined in the dict :py:attr:`parameters`, as a
+class attribute of the extended class, using the :class:`frappy.params.Parameter` constructor, or in case
+of altering the properties of an inherited parameter, :class:`frappy.params.Override`.
 
 Parameters usually need a method :meth:`read_<name>()`
 implementing the code to retrieve their value from the hardware. Writeable parameters

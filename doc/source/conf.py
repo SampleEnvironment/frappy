@@ -27,7 +27,7 @@ from os import path
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..', '..')))
 
-from secop.version import get_version
+from frappy.version import get_version
 
 
 # -- General configuration ------------------------------------------------
@@ -213,7 +213,7 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-from secop.lib.classdoc import class_doc_handler
+from frappy.lib.classdoc import class_doc_handler
 
 def setup(app):
     app.connect('autodoc-process-docstring', class_doc_handler)

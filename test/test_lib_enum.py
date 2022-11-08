@@ -25,7 +25,7 @@
 # no fixtures needed
 import pytest
 
-from secop.lib.enum import Enum, EnumMember
+from frappy.lib.enum import Enum, EnumMember
 
 
 def test_EnumMember():

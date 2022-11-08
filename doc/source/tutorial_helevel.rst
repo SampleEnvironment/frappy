@@ -8,7 +8,7 @@ meter, as this is the simplest module.
 As mentioned in the introduction, we have to code the access to the hardware (driver),
 and the Frappy framework will deal with the SECoP interface. The code for the driver is
 located in a subdirectory named after the facility or institute programming the driver
-in our case *secop_psi*. We create a file named from the electronic device CCU4 we use
+in our case *frappy_psi*. We create a file named from the electronic device CCU4 we use
 here for the He level reading.
 
 CCU4 luckily has a very simple and logical protocol:
@@ -17,12 +17,12 @@ CCU4 luckily has a very simple and logical protocol:
 * ``<name>\n`` reads the parameter named ``<name>``
 * in both cases, the reply is ``<name>=<value>\n``
 
-``secop_psi/ccu4.py``:
+``frappy_psi/ccu4.py``:
 
 .. code:: python
 
-    # the most common Frappy classes can be imported from secop.core
-    from secop.core import Readable, Parameter, FloatRange, BoolType, StringIO, HasIO
+    # the most common Frappy classes can be imported from frappy.core
+    from frappy.core import Readable, Parameter, FloatRange, BoolType, StringIO, HasIO
 
 
     class CCU4IO(StringIO):
@@ -54,7 +54,7 @@ CCU4 luckily has a very simple and logical protocol:
             return txtvalue  # the framework will automatically convert the string to a float
 
 
-The class :class:`secop_psi.ccu4.CCU4IO`, an extension of (:class:`secop.stringio.StringIO`)
+The class :class:`frappy_psi.ccu4.CCU4IO`, an extension of (:class:`frappy.stringio.StringIO`)
 serves as communication class.
 
 :Note:
@@ -183,7 +183,7 @@ which means it might be worth to create a *query* method, and then the
 :Note:
 
     It make sense to unify *empty_length* and *full_length* to one parameter *calibration*,
-    as a :class:`secop.datatypes.StructOf` with members *empty_length* and *full_length*:
+    as a :class:`frappy.datatypes.StructOf` with members *empty_length* and *full_length*:
 
     .. code:: python
 
@@ -196,7 +196,7 @@ which means it might be worth to create a *query* method, and then the
     For simplicity we stay with two float parameters for this tutorial.
 
 
-The full documentation of the example can be found here: :class:`secop_psi.ccu4.HeLevel`
+The full documentation of the example can be found here: :class:`frappy_psi.ccu4.HeLevel`
 
 
 Configuration
@@ -220,7 +220,7 @@ We choose the name *example_cryo* and create therefore a configuration file
 
     [helev]
     description = He level of the cryostat He reservoir
-    class = secop_psi.ccu4.HeLevel
+    class = frappy_psi.ccu4.HeLevel
     uri = linse-moxa-4.psi.ch:3001
     empty_length = 380
     full_length = 0

@@ -21,7 +21,7 @@
 # *****************************************************************************
 
 import time
-from secop.lib.multievent import MultiEvent
+from frappy.lib.multievent import MultiEvent
 
 
 def test_without_timeout():

@@ -7,10 +7,10 @@ Frappy Programming Guide
    introduction
    tutorial
    reference
-   secop_psi
-   secop_demo
-   secop_mlz
-   secop_ess
+   frappy_psi
+   frappy_demo
+   frappy_mlz
+   frappy_ess
 
 * :ref:`genindex`
 

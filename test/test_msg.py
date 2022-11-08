@@ -23,8 +23,8 @@
 
 import pytest
 
-import secop.protocol.messages as m
-from secop.protocol.interface import decode_msg, encode_msg_frame
+import frappy.protocol.messages as m
+from frappy.protocol.interface import decode_msg, encode_msg_frame
 
 # args are: msg tuple, msg bytes
 MSG = [

@@ -26,12 +26,12 @@ import sys
 import threading
 import pytest
 
-from secop.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
-from secop.errors import ProgrammingError, ConfigError
-from secop.modules import Communicator, Drivable, Readable, Module
-from secop.params import Command, Parameter
-from secop.rwhandler import ReadHandler, WriteHandler, nopoll
-from secop.lib import generalConfig
+from frappy.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
+from frappy.errors import ProgrammingError, ConfigError
+from frappy.modules import Communicator, Drivable, Readable, Module
+from frappy.params import Command, Parameter
+from frappy.rwhandler import ReadHandler, WriteHandler, nopoll
+from frappy.lib import generalConfig
 
 
 class DispatcherStub:
@@ -668,7 +668,7 @@ def test_problematic_value_range():
     ({'value.unit': 'K', 'someparam.unit': 'A'}, 'C', 'C', 'A'),
 ])
 def test_deferred_main_unit(config, dynamicunit, finalunit, someunit):
-    # this pattern is used in secop_mlz.entangle.AnalogInput
+    # this pattern is used in frappy_mlz.entangle.AnalogInput
     class Mod(Drivable):
         ramp = Parameter('', datatype=FloatRange(unit='$/min'))
         someparam = Parameter('', datatype=FloatRange(unit='$'))

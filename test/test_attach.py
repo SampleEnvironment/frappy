@@ -20,8 +20,8 @@
 #
 # *****************************************************************************
 
-from secop.modules import Module, Attached
-from secop.protocol.dispatcher import Dispatcher
+from frappy.modules import Module, Attached
+from frappy.protocol.dispatcher import Dispatcher
 
 
 # class DispatcherStub:

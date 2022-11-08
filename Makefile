@@ -4,11 +4,15 @@
 all: clean doc
 
 demo:
-	@bin/secop-server -q demo &
-	@bin/secop-server -q test &
-	@bin/secop-server -q cryo &
-	@bin/secop-gui localhost:10767 localhost:10768 localhost:10769
-	@ps aux|grep [s]ecop-server|awk '{print $$2}'|xargs kill
+	# Make spawns a new shell for each command. 
+	# Save each PID in temporary file
+	@rm -f frappydemo.PID || true
+	@{ bin/frappy-server -q demo & echo $$! >> frappydemo.PID; }
+	@{ bin/frappy-server -q test & echo $$! >> frappydemo.PID; }
+	@{ bin/frappy-server -q cryo & echo $$! >> frappydemo.PID; }
+	@bin/frappy-gui localhost:10767 localhost:10768 localhost:10769
+	@cat frappydemo.PID | xargs kill || true
+	@rm frappydemo.PID
 
 build:
 	python3 setup.py build
@@ -32,18 +36,18 @@ test-verbose:
 	python3 $(shell which pytest) -v test -s
 
 test-coverage:
-	python3 $(shell which pytest) -v test --cov=secop
+	python3 $(shell which pytest) -v test --cov=frappy
 
 doc:
 	$(MAKE) -C doc html
 
 lint:
-	pylint -f colorized -r n --rcfile=.pylintrc secop secop_* test
+	pylint -f colorized -r n --rcfile=.pylintrc frappy frappy_* test
 
 isort:
 	@find test -name '*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py
-	@find secop -name '*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py
-	@find . -wholename './secop_*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py
+	@find frappy -name '*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py
+	@find . -wholename './frappy_*.py' -print0 | xargs -0 isort -e -m 2 -w 80 -ns __init__.py
 
 release-patch:
 	MODE="patch" $(MAKE) release

@@ -200,16 +200,16 @@ node("dockerhost") {
        sh '''#!/bin/bash
         git worktree add tmpmaster origin/master
         cd tmpmaster
-        docker build --target base --tag secop_base:latest ci
-        docker build --target docs --tag secop_docs:latest ci
+        docker build --target base --tag frappy_base:latest ci
+        docker build --target docs --tag frappy_docs:latest ci
         cd ..
         rm -rf tmpmaster
         '''
    }
 
     stage('execute tests') {
-    def img = docker.image('secop_base:latest')
-    def docimg = docker.image('secop_docs:latest')
+    def img = docker.image('frappy_base:latest')
+    def docimg = docker.image('frappy_docs:latest')
 
     parallel 'Test': {
         img.inside {
@@ -227,7 +227,7 @@ node("dockerhost") {
             if (GERRIT_EVENT_TYPE == 'change-merged')
             {
                 sh '''
-                rsync -rlv doc/_build/* /ictrlsrv/share/public/doc/secop
+                rsync -rlv doc/_build/* /ictrlsrv/share/public/doc/frappy
                 '''
             }
         }}

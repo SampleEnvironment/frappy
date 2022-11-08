@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+# pylint: disable=invalid-name
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#
+# *****************************************************************************
+
+import sys
+import argparse
+from os import path
+
+# Add import path for inplace usage
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+from frappy.lib import generalConfig
+from frappy.logging import logger
+from frappy.server import Server
+
+
+def parseArgv(argv):
+    parser = argparse.ArgumentParser(description="Manage a SECoP server")
+    loggroup = parser.add_mutually_exclusive_group()
+    loggroup.add_argument("-v", "--verbose",
+                          help="Output lots of diagnostic information",
+                          action='store_true', default=False)
+    loggroup.add_argument("-q", "--quiet", help="suppress non-error messages",
+                          action='store_true', default=False)
+    parser.add_argument("name",
+                        type=str,
+                        help="Name of the instance.\n",)
+    parser.add_argument('-d',
+                        '--daemonize',
+                        action='store_true',
+                        help='Run as daemon',
+                        default=False)
+    parser.add_argument('-p',
+                        '--port',
+                        action='store',
+                        help='server port or uri',
+                        default=None)
+    parser.add_argument('-c',
+                        '--cfgfiles',
+                        action='store',
+                        help="comma separated list of cfg files,\n"
+                        "defaults to <name_of_the_instance>.\n"
+                        "cfgfiles given without '.cfg' extension are searched in the configuration directory, "
+                        "else they are treated as path names",
+                        default=None)
+    parser.add_argument('-g',
+                        '--gencfg',
+                        action='store',
+                        help="full path of general config file,\n"
+                        "defaults to env. variable FRAPPY_CONFIG_FILE\n",
+                        default=None)
+    parser.add_argument('-t',
+                        '--test',
+                        action='store_true',
+                        help='check cfg files only',
+                        default=False)
+    parser.add_argument('-r',
+                        '--relaxed',
+                        action='store_true',
+                        help='no checking of problematic behaviour',
+                        default=False)
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    args = parseArgv(argv[1:])
+
+    loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
+    generalConfig.defaults = {k: args.relaxed for k in (
+        'lazy_number_validation', 'disable_value_range_check', 'legacy_hasiodev', 'tolerate_poll_property')}
+    generalConfig.init(args.gencfg)
+    logger.init(loglevel)
+
+    srv = Server(args.name, logger.log, cfgfiles=args.cfgfiles, interface=args.port, testonly=args.test)
+
+    if args.daemonize:
+        srv.start()
+    else:
+        try:
+            srv.run()
+        except KeyboardInterrupt:
+            pass
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

@@ -21,7 +21,7 @@
 # *****************************************************************************
 
 
-from secop.lib.statemachine import StateMachine, Stop, Retry
+from frappy.lib.statemachine import StateMachine, Stop, Retry
 
 
 def rise(state):

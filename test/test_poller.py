@@ -29,8 +29,8 @@ import logging
 
 import pytest
 
-from secop.core import Module, Parameter, FloatRange, Readable, ReadHandler, nopoll
-from secop.lib.multievent import MultiEvent
+from frappy.core import Module, Parameter, FloatRange, Readable, ReadHandler, nopoll
+from frappy.lib.multievent import MultiEvent
 
 
 class Time:

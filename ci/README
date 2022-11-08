@@ -10,10 +10,10 @@ The Dockerfile defines two images:
 
 To create the images:
 
-  docker build --target <base|docs> --tag secop_<base|docs>:latest .
+  docker build --target <base|docs> --tag frappy_<base|docs>:latest .
 
 To test images interactivly:
-  docker run -u jenkins -i -t secop<base|docs> /bin/bash
+  docker run -u jenkins -i -t frappy<base|docs> /bin/bash
 
 The Jenkinsfile uses this Dockerfile (only approved checked-in versions from master)
 to build the images (a rebuild will only happen if the Dockerfile is changed as docker
