@@ -39,7 +39,7 @@ from secop.gui.util import Value, loadUi
 class NodeCtrl(QWidget):
 
     def __init__(self, node, parent=None):
-        super(NodeCtrl, self).__init__(parent)
+        super().__init__(parent)
         loadUi(self, 'nodectrl.ui')
 
         self._node = node
@@ -189,7 +189,7 @@ class NodeCtrl(QWidget):
 class ReadableWidget(QWidget):
 
     def __init__(self, node, module, parent=None):
-        super(ReadableWidget, self).__init__(parent)
+        super().__init__(parent)
         self._node = node
         self._module = module
 

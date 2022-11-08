@@ -542,7 +542,7 @@ def test_generic_access():
     assert obj.read_unhandled()
     assert updates == {'obj': {'param': 'potato'}}
     updates.clear()
-    assert updates == {}
+    assert not updates
 
 
 def test_duplicate_handler_name():

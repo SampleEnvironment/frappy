@@ -144,7 +144,7 @@ class CalCurve:
 
         try:
             parser = cls(**args)
-            with open(filename) as f:
+            with open(filename, encoding='utf-8') as f:
                 for line in f:
                     parser.parse(line)
         except Exception as e:

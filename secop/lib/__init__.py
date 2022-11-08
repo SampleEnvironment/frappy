@@ -131,14 +131,14 @@ class GeneralConfig:
     def get(self, key, default=None):
         """access for keys not known to exist"""
         try:
-            return self.__getitem__(key)
+            return self[key]
         except KeyError:
             return default
 
     def getint(self, key, default=None):
         """access and convert to int"""
         try:
-            return int(self.__getitem__(key))
+            return int(self[key])
         except KeyError:
             return default
 

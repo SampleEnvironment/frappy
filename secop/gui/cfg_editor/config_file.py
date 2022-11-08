@@ -76,7 +76,7 @@ def write_config(file_name, tree_widget):
                 temp_itm_lines[key] = dict_value
             itm_lines.clear()
             itm_lines.update(temp_itm_lines)
-    with open(file_name, 'w') as configfile:
+    with open(file_name, 'w', encoding='utf-8') as configfile:
         configfile.write('\n'.join(itm_lines.values()))
 
 
@@ -88,7 +88,8 @@ def read_config(file_path):
     node.addChild(ifs)
     node.addChild(mods)
     config = configparser.ConfigParser()
-    config.read_file(open(file_path))
+    with open(file_path, encoding='utf-8') as config_file:
+        config.read_file(config_file)
 
     for section in config.sections():
         kind = section.split(' ', 1)[0]
@@ -155,8 +156,8 @@ def get_value(config, section, option):
 
 
 def get_comments(node, ifs, mods, file_path):
-    configfile = open(file_path, 'r')
-    all_lines = configfile.readlines()
+    with open(file_path, 'r', encoding='utf-8') as configfile:
+        all_lines = configfile.readlines()
     current_comment = None
     all_ifs = get_all_children_with_names(ifs)
     all_mods = get_all_children_with_names(mods)
@@ -192,6 +193,7 @@ def insert_comment(index, line, all_lines, current_comment, node, all_ifs, all_m
                                   all_ifs, all_mods)
 
 
+# pylint: disable=inconsistent-return-statements
 def insert_section_comment(line, current_comment, node, all_ifs, all_mods):
     try:
         if line.startswith('[%s' % NODE):

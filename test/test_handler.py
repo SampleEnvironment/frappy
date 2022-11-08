@@ -108,7 +108,7 @@ def test_handler():
     assert m.read_b() == 7
     assert data.pop() == 'b'
 
-    assert data == []
+    assert not data
 
 
 def test_common_handler():
@@ -137,7 +137,7 @@ def test_common_handler():
     assert m.a == 3
     assert m.b == 2
     assert data.pop() == 'write_hdl'
-    assert m.writeDict == {}
+    assert not m.writeDict
 
     m.write_b(4)
     assert m.a == 3
@@ -159,7 +159,7 @@ def test_common_handler():
     assert m.b == 2.2
     assert data.pop() == 'read_hdl'
 
-    assert data == []
+    assert not data
 
 
 def test_nopoll():

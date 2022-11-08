@@ -38,10 +38,10 @@ GIT_REPO = os.path.join(os.path.dirname(__file__), '..', '.git')
 def get_git_version(abbrev=4, cwd=None):
     try:
         print("REPO:", GIT_REPO)
-        p = Popen(['git', '--git-dir=%s' % GIT_REPO,
-                   'describe', '--abbrev=%d' % abbrev],
-                  stdout=PIPE, stderr=PIPE)
-        stdout, _stderr = p.communicate()
+        with Popen(['git', '--git-dir=%s' % GIT_REPO,
+                    'describe', '--abbrev=%d' % abbrev],
+                    stdout=PIPE, stderr=PIPE) as p:
+            stdout, _stderr = p.communicate()
         version = stdout.strip().decode('utf-8', 'ignore')
         print("git:", version)
         # mangle version to comply with pep440
@@ -55,14 +55,14 @@ def get_git_version(abbrev=4, cwd=None):
 
 def read_release_version():
     try:
-        with open(RELEASE_VERSION_FILE) as f:
+        with open(RELEASE_VERSION_FILE, encoding='utf-8') as f:
             return f.readline().strip()
     except Exception:
         return None
 
 
 def write_release_version(version):
-    with open(RELEASE_VERSION_FILE, 'w') as f:
+    with open(RELEASE_VERSION_FILE, 'w', encoding='utf-8') as f:
         f.write("%s\n" % version)
 
 

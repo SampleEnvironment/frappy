@@ -319,6 +319,7 @@ class Module(HasAccessibles):
 
         # 2) check and apply properties specified in cfgdict as
         # '<propertyname> = <propertyvalue>'
+        # pylint: disable=consider-using-dict-items
         for key in self.propertyDict:
             value = cfgdict.pop(key, None)
             if value is None:

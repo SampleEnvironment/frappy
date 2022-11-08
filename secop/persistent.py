@@ -93,7 +93,7 @@ class PersistentMixin(HasAccessibles):
         when a hardware powerdown is detected
         """
         try:
-            with open(self.persistentFile, 'r') as f:
+            with open(self.persistentFile, 'r', encoding='utf-8') as f:
                 self.persistentData = json.load(f)
         except Exception:
             self.persistentData = {}
@@ -134,7 +134,7 @@ class PersistentMixin(HasAccessibles):
             if not os.path.isdir(persistentdir):
                 os.makedirs(persistentdir, exist_ok=True)
             try:
-                with open(tmpfile, 'w') as f:
+                with open(tmpfile, 'w', encoding='utf-8') as f:
                     json.dump(self.persistentData, f, indent=2)
                     f.write('\n')
                 os.rename(tmpfile, self.persistentFile)

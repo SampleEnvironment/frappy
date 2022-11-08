@@ -32,7 +32,7 @@ def read_pidfile(pidfile):
 
     or None upon errors (file not existing)"""
     try:
-        with open(pidfile, 'r') as f:
+        with open(pidfile, 'r', encoding='utf-8') as f:
             return int(f.read())
     except (OSError, IOError):
         return None
@@ -45,7 +45,7 @@ def remove_pidfile(pidfile):
 
 def write_pidfile(pidfile, pid):
     """write the given pid to the given pidfile"""
-    with open(pidfile, 'w') as f:
+    with open(pidfile, 'w', encoding='utf-8') as f:
         f.write('%d\n' % pid)
     atexit.register(remove_pidfile, pidfile)
 

@@ -274,7 +274,7 @@ class StringIO(IOBase):
                         self._conn.send(cmd + self._eol_write)
                         self.comLog('> %s', cmd.decode(self.encoding))
                     reply = self._conn.readline(self.timeout)
-                except ConnectionClosed as e:
+                except ConnectionClosed:
                     self.closeConnection()
                     raise CommunicationFailedError('disconnected') from None
                 reply = reply.decode(self.encoding)
@@ -372,7 +372,7 @@ class BytesIO(IOBase):
                     self._conn.send(request)
                     self.comLog('> %s', hexify(request))
                     reply = self._conn.readbytes(replylen, self.timeout)
-                except ConnectionClosed as e:
+                except ConnectionClosed:
                     self.closeConnection()
                     raise CommunicationFailedError('disconnected') from None
                 self.comLog('< %s', hexify(reply))

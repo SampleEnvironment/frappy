@@ -91,6 +91,7 @@ class QSECNode(QObject):
 
     def syncCommunicate(self, action, ident='', data=None):
         reply = self.conn.request(action, ident, data)
+        # pylint: disable=not-an-iterable
         return secop.client.encode_msg_frame(*reply).decode('utf-8')
 
     def decode_message(self, msg):
@@ -106,8 +107,8 @@ class QSECNode(QObject):
     def nodeStateChange(self, online, state):
         self.stateChange.emit(self.nodename, online, state)
 
-    def unhandledMessage(self, *msg):
-        self.unhandledMsg.emit('%s %s %r' % msg)
+    def unhandledMessage(self, action, specifier, data):
+        self.unhandledMsg.emit('%s %s %r' % (action, specifier, data))
 
 
 class MainWindow(QMainWindow):

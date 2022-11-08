@@ -36,7 +36,7 @@ from secop.gui.util import loadUi
 
 class StringWidget(QLineEdit):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(StringWidget, self).__init__(parent)
+        super().__init__(parent)
         self.datatype = datatype
         if readonly:
             self.setEnabled(False)
@@ -51,7 +51,7 @@ class StringWidget(QLineEdit):
 
 class TextWidget(QTextEdit):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(TextWidget, self).__init__(parent)
+        super().__init__(parent)
         self.datatype = datatype
         if readonly:
             self.setEnabled(False)
@@ -72,7 +72,7 @@ class BlobWidget(StringWidget):
 # or derive from widget and switch between combobox and radiobuttons?
 class EnumWidget(QComboBox):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(EnumWidget, self).__init__(parent)
+        super().__init__(parent)
         self.datatype = datatype
 
         self._map = {}
@@ -92,7 +92,7 @@ class EnumWidget(QComboBox):
 
 class BoolWidget(QCheckBox):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(BoolWidget, self).__init__(parent)
+        super().__init__(parent)
         self.datatype = datatype
         if readonly:
             self.setEnabled(False)
@@ -106,7 +106,7 @@ class BoolWidget(QCheckBox):
 
 class IntWidget(QSpinBox):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(IntWidget, self).__init__(parent)
+        super().__init__(parent)
         self.datatype = datatype
         if readonly:
             self.setEnabled(False)
@@ -122,7 +122,7 @@ class IntWidget(QSpinBox):
 
 class FloatWidget(QDoubleSpinBox):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(FloatWidget, self).__init__(parent)
+        super().__init__(parent)
         self.datatype = datatype
         if readonly:
             self.setEnabled(False)
@@ -139,7 +139,7 @@ class FloatWidget(QDoubleSpinBox):
 
 class TupleWidget(QFrame):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(TupleWidget, self).__init__(parent)
+        super().__init__(parent)
 
         self.datatypes = datatype.members
 
@@ -164,7 +164,7 @@ class TupleWidget(QFrame):
 
 class StructWidget(QGroupBox):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(StructWidget, self).__init__(parent)
+        super().__init__(parent)
 
         self.layout = QGridLayout()
         self.subwidgets = {}
@@ -197,7 +197,7 @@ class StructWidget(QGroupBox):
 
 class ArrayWidget(QGroupBox):
     def __init__(self, datatype, readonly=False, parent=None):
-        super(ArrayWidget, self).__init__(parent)
+        super().__init__(parent)
         self.datatype = datatype.members
 
         self.layout = QVBoxLayout()
@@ -234,7 +234,7 @@ def get_widget(datatype, readonly=False, parent=None):
 
 class msg(QDialog):
     def __init__(self, stuff, parent=None):
-        super(msg, self).__init__(parent)
+        super().__init__(parent)
         loadUi(self, 'cmddialog.ui')
         print(dir(self))
         self.setWindowTitle('Please enter the arguments for calling command "blubb()"')
@@ -253,12 +253,12 @@ class msg(QDialog):
 
     def accept(self):
         print('accepted')
-        super(msg, self).accept()
+        super().accept()
 
     def reject(self):
         print('rejected')
-        super(msg, self).reject()
+        super().reject()
 
     def done(self, how):
         print('done(%r)' % how)
-        return super(msg, self).done(how)
+        return super().done(how)

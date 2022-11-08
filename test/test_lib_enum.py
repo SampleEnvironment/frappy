@@ -49,7 +49,7 @@ def test_EnumMember():
         a += 2
 
     # this shall work
-    assert 2 == (a + 1)  # pylint: disable=C0122
+    assert 2 == (a + 1)
     assert (a - 1) == 0
     assert a
     assert a + a

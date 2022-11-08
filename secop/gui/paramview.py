@@ -29,7 +29,7 @@ from secop.gui.util import loadUi
 class ParameterView(QWidget):
 
     def __init__(self, node, module, parameter, parent=None):
-        super(ParameterView, self).__init__(parent)
+        super().__init__(parent)
         loadUi(self, 'paramview.ui')
         self._node = node
         self._module = module

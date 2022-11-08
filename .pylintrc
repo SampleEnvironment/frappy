@@ -52,7 +52,7 @@ disable=missing-docstring
         ,unneeded-not
         ,unidiomatic-typecheck
         ,undefined-loop-variable
-
+        ,consider-using-f-string
 [REPORTS]
 
 # Set the output format. Available formats are text, parseable, colorized, msvs

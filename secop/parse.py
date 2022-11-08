@@ -64,6 +64,8 @@ class Parser:
                 if number is None:
                     return None, text
                 try:
+                    # TODO: check allthough length is unset in it. 1, number is None, never reaching the try
+                    # pylint: disable=used-before-assignment
                     return int(text[:length]), text[length:]
                 except ValueError:
                     return number, text[length:]

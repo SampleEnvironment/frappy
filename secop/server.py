@@ -39,7 +39,7 @@ from secop.modules import Attached
 try:
     from daemon import DaemonContext
     try:
-        import daemon.pidlockfile as pidlockfile
+        from daemon import pidlockfile
     except ImportError:
         import daemon.pidfile as pidlockfile
 except ImportError:

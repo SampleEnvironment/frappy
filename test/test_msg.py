@@ -40,7 +40,7 @@ MSG = [
     [(m.EVENTREPLY, 'mod:par', [123, dict(t=12.25)]), b'update mod:par [123, {"t": 12.25}]'],
     [(m.HEARTBEATREQUEST, '0', None), b'ping 0'],
     [(m.HEARTBEATREPLY, None, [None, dict(t=11.75)]), b'pong  [null, {"t": 11.75}]'],
-    [(m.ERRORPREFIX + m.WRITEREQUEST, 'm:p', ['ErrClass', 'text', dict()]),
+    [(m.ERRORPREFIX + m.WRITEREQUEST, 'm:p', ['ErrClass', 'text', {}]),
      b'error_change m:p ["ErrClass", "text", {}]'],
 ]
 @pytest.mark.parametrize('msg, line', MSG)

@@ -355,5 +355,5 @@ class Cryostat(CryoBase):
     def shutdown(self):
         # should be called from server when the server is stopped
         self._stopflag = True
-        if self._thread and self._thread.isAlive():
+        if self._thread and self._thread.is_alive():
             self._thread.join()

@@ -455,6 +455,7 @@ class Command(Accessible):
         - when the argument type is StructOf, the function is called with keyworded arguments
         - the validity of the argument/s is/are checked
         """
+        # pylint: disable=unnecessary-dunder-call
         func = self.__get__(module_obj)
         if self.argument:
             # validate

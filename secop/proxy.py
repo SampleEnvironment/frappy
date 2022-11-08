@@ -154,6 +154,7 @@ class SecNode(Module):
     def request(self, msg):
         """send a request, for debugging purposes"""
         reply = self.secnode.request(*decode_msg(msg.encode('utf-8')))
+        # pylint: disable=not-an-iterable
         return encode_msg_frame(*reply).decode('utf-8')
 
 

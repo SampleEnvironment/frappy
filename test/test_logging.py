@@ -54,6 +54,7 @@ class Connection:
 
 @pytest.fixture(name='init')
 def init_(monkeypatch):
+    # pylint: disable=unnecessary-dunder-call
     logger.__init__()
 
     class Playground:

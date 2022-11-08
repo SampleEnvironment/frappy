@@ -124,7 +124,7 @@ class SequencerMixin:
 
     def seq_is_alive(self):
         """Can be called to check if a sequence is currently running."""
-        return self._seq_thread and self._seq_thread.isAlive()
+        return self._seq_thread and self._seq_thread.is_alive()
 
     def read_status(self):
         if self.seq_is_alive():
