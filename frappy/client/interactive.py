@@ -75,6 +75,12 @@ class Logger:
 
 
 class PrettyFloat(float):
+    """float with a nicer repr:
+
+    - numbers which are close to a fractional decimal number do not have
+      additional annoying digits
+    - always display a decimal point
+    """
     def __repr__(self):
         result = '%.12g' % self
         if '.' in result or 'e' in result:
@@ -247,7 +253,7 @@ class Client(SecopClient):
         if prev:
             prev.log.info('remove previous client to %s', uri)
             for modname in prev.modules:
-                prevnode = getattr(getattr(main, modname, None), 'secnode', None)
+                prevnode = getattr(getattr(main, modname, None), '_secnode', None)
                 if prevnode == prev:
                     prev.log.info('remove previous module %s', modname)
                     delattr(main, modname)
@@ -260,7 +266,7 @@ class Client(SecopClient):
             if prev is None:
                 self.log.info('create module %s', modname)
             else:
-                if getattr(prev, 'secnode', None) is None:
+                if getattr(prev, '_secnode', None) is None:
                     self.log.error('skip module %s overwriting a global variable' % modname)
                     continue
                 self.log.info('overwrite module %s', modname)
