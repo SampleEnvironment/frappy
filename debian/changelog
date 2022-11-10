@@ -1,4 +1,4 @@
-secop-core (0.15.0) focal; urgency=medium
+frappy-core (0.15.0) focal; urgency=medium
 
   [ Björn Pedersen ]
   * Remove iohandler left-overs from docs
