@@ -1,4 +1,4 @@
-FROM python:3-buster AS base
+FROM python:3.9 AS base
 ARG PYVER=python3
 ENV  DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
@@ -11,7 +11,7 @@ RUN apt-get update && \
           locales \
           python3 \
           python3-dev \
-          python3-pytango \
+          python3-tango \
           python3-venv python3-setuptools \
           virtualenv
 
@@ -41,6 +41,7 @@ RUN virtualenv -p /usr/bin/python3 --system-site-packages /home/jenkins/secopven
 
 
 FROM base AS docs
+ARG PYVER=python3
 ENV  DEBIAN_FRONTEND=noninteractive
 
 USER root
@@ -50,6 +51,8 @@ RUN apt-get update && \
      texlive-latex-base \
      texlive-latex-recommended \
      texlive-fonts-recommended \
+     texlive-fonts-extra \
+     tex-gyre \
      texlive-base \
      texlive-binaries \
      latexmk
