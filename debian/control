@@ -1,4 +1,4 @@
-Source: secop-core
+Source: frappy-core
 Section: contrib/misc
 Priority: optional
 Maintainer: Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
@@ -23,7 +23,7 @@ Build-Depends: debhelper (>= 11~),
 Standards-Version: 4.1.4
 X-Python3-Version: >= 3.6
 
-Package: secop-core
+Package: frappy-core
 Architecture: all
 Depends: python3 (>= 3.6),
  ${misc:Depends},
@@ -35,60 +35,72 @@ Depends: python3 (>= 3.6),
  python3-mlzlog,
  markdown,
  python3-daemon
+Replaces: secop-core (<= 0.14.3)
+Breaks: secop-core (<= 0.14.3)
 Description: Frappy SECoP core system
  contains the core server and client libraries and the server binary
  as well as the systemd integration
 
-#Package: secop-doc
+#Package: frappy-doc
 #Architecture: all
 #Section: doc
 #Depends: ${sphinxdoc:Depends},
 # ${misc:Depends}
 #Description: Frappy SECoP docu
-# This is the documentation to all the secop-* packages
+# This is the documentation to all the frappy-* packages
 
-Package: secop-gui
+Package: frappy-gui
 Architecture: all
-Depends: secop-core,
+Depends: frappy-core,
  ${misc:Depends},
  ${python3:Depends},
  python3-pyqt (>=4)
+Replaces: secop-gui (<= 0.14.3)
+Breaks: secop-gui (<= 0.14.3)
 Description: Frappy SECoP gui client + cfgtool
  contains the GUI client and the configurator
 
-Package: secop-demo
+Package: frappy-demo
 Architecture: all
-Depends: secop-core,
+Depends: frappy-core,
  ${misc:Depends},
  ${python3:Depends}
-Recommends: secop-gui
+Replaces: secop-demo (<= 0.14.3)
+Breaks: secop-demo (<= 0.14.3)
+Recommends: frappy-gui
 Description: SECoP demo files
  for demonstration purposes
 
-Package: secop-ess
+Package: frappy-ess
 Architecture: all
-Depends: secop-core,
+Depends: frappy-core,
  ${misc:Depends},
  ${python3:Depends}
-Recommends: secop-gui
+Replaces: secop-ess (<= 0.14.3)
+Breaks: secop-ess (<= 0.14.3)
+Recommends: frappy-gui
 Description: SECoP ess files
  Modules specific for ESS
 
-Package: secop-mlz
+Package: frappy-mlz
 Architecture: all
-Depends: secop-core,
+Depends: frappy-core,
  ${misc:Depends},
  ${python3:Depends},
  python3-tango (>=9)
-Recommends: secop-gui
+Replaces: secop-mlz (<= 0.14.3)
+Breaks: secop-mlz (<= 0.14.3)
+Recommends: frappy-gui
 Description: SECoP mlz files
  Modules specific for MLZ
 
-Package: secop-psi
+Package: frappy-psi
 Architecture: all
-Depends: secop-core,
+Depends: frappy-core,
  ${misc:Depends},
  ${python3:Depends}
-Recommends: secop-gui
+Replaces: secop-psi (<= 0.14.3)
+Breaks: secop-psi (<= 0.14.3)
+Recommends: frappy-gui
 Description: SECoP psi files
  Modules specific for PSI

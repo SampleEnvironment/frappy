@@ -1,9 +1,9 @@
-usr/bin/secop-server
-usr/lib/python3.*/dist-packages/secop/*.py
-usr/lib/python3.*/dist-packages/secop/lib
-usr/lib/python3.*/dist-packages/secop/client
-usr/lib/python3.*/dist-packages/secop/protocol
-usr/lib/python3.*/dist-packages/secop_core-*
-usr/lib/python3.*/dist-packages/secop/RELEASE-VERSION
+usr/bin/frappy-server
+usr/lib/python3.*/dist-packages/frappy/*.py
+usr/lib/python3.*/dist-packages/frappy/lib
+usr/lib/python3.*/dist-packages/frappy/client
+usr/lib/python3.*/dist-packages/frappy/protocol
+usr/lib/python3.*/dist-packages/frappy_core-*
+usr/lib/python3.*/dist-packages/frappy/RELEASE-VERSION
 lib/systemd
-var/log/secop
+var/log/frappy
