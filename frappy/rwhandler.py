@@ -195,10 +195,12 @@ class CommonWriteHandler(WriteHandler):
     """decorator for common write handler
 
     calls the wrapped write method function with values as an argument.
+
     - values[pname] returns the to be written value
     - values['key'] returns a value taken from writeDict
       or, if not available return obj.key
     - values.as_tuple() returns a tuple with the items in the same order as keys
+
     """
 
     def wrap(self, key):
