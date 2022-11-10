@@ -1,3 +1,33 @@
+secop-core (0.15.0) focal; urgency=medium
+
+  [ Björn Pedersen ]
+  * Remove iohandler left-overs from docs
+
+  [ Georg Brandl ]
+  * Makefile: fix release target
+
+  [ Alexander Zaft ]
+  * Add requirements-gui.txt and add PyQT5
+
+  [ Christian Felder ]
+  * Fix typo in .description
+
+  [ Alexander Zaft ]
+  * fixed pylint warnings
+  * Rename from secop to frappy
+  * rename debian package files
+
+  [ Björn Pedersen ]
+  * CI build: upgrade base image
+
+  [ Alexander Zaft ]
+  * rename debian files
+
+  [ Björn Pedersen ]
+  * Fix doc warnings/errors
+
+ -- Björn Pedersen <jenkins@frm2.tum.de>  Thu, 10 Nov 2022 14:46:01 +0100
+
 secop-core (0.14.3) focal; urgency=medium
 
   [ Enrico Faulhaber ]
