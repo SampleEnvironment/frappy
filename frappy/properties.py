@@ -66,7 +66,7 @@ class Property:
         if not callable(datatype):
             raise ValueError('datatype MUST be a valid DataType or a basic_validator')
         self.description = inspect.cleandoc(description)
-        self.default = datatype.default if default is UNSET else datatype(default)
+        self.default = datatype.default if default is UNSET else datatype.validate(default)
         self.datatype = datatype
         self.extname = extname
         self.export = export or bool(extname)
@@ -74,7 +74,7 @@ class Property:
             mandatory = default is UNSET
         self.mandatory = mandatory
         self.settable = settable or mandatory  # settable means settable from the cfg file
-        self.value = UNSET if value is UNSET else datatype(value)
+        self.value = UNSET if value is UNSET else datatype.validate(value)
         self.name = name
 
     def __get__(self, instance, owner):
@@ -83,7 +83,7 @@ class Property:
         return instance.propertyValues.get(self.name, self.default)
 
     def __set__(self, instance, value):
-        instance.propertyValues[self.name] = self.datatype(value)
+        instance.propertyValues[self.name] = self.datatype.validate(value)
 
     def __set_name__(self, owner, name):
         self.name = name
@@ -144,7 +144,7 @@ class HasProperties(HasDescriptors):
                 po = po.copy()
                 try:
                     # try to apply bare value to Property
-                    po.value = po.datatype(value)
+                    po.value = po.datatype.validate(value)
                 except BadValueError:
                     if callable(value):
                         raise ProgrammingError('method %s.%s collides with property of %s' %
@@ -158,7 +158,7 @@ class HasProperties(HasDescriptors):
         for pn, po in self.propertyDict.items():
             if po.mandatory:
                 try:
-                    self.propertyValues[pn] = po.datatype(self.propertyValues[pn])
+                    self.propertyValues[pn] = po.datatype.validate(self.propertyValues[pn])
                 except (KeyError, BadValueError):
                     raise ConfigError('%s needs a value of type %r!' % (pn, po.datatype)) from None
         for pn, po in self.propertyDict.items():
@@ -191,4 +191,4 @@ class HasProperties(HasDescriptors):
         # this is overwritten by Param.setProperty and DataType.setProperty
         # in oder to extend setting to inner properties
         # otherwise direct setting of self.<key> = value is preferred
-        self.propertyValues[key] = self.propertyDict[key].datatype(value)
+        self.propertyValues[key] = self.propertyDict[key].datatype.validate(value)

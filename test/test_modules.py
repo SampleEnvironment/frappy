@@ -31,7 +31,6 @@ from frappy.errors import ProgrammingError, ConfigError
 from frappy.modules import Communicator, Drivable, Readable, Module
 from frappy.params import Command, Parameter
 from frappy.rwhandler import ReadHandler, WriteHandler, nopoll
-from frappy.lib import generalConfig
 
 
 class DispatcherStub:
@@ -235,7 +234,7 @@ def test_ModuleMagic():
     assert o2.parameters['a1'].datatype.unit == 'mm/s'
     cfg = Newclass2.configurables
     assert set(cfg.keys()) == {
-        'export', 'group', 'description', 'disable_value_range_check', 'features',
+        'export', 'group', 'description', 'features',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'slowinterval', 'b2',
         'cmd2', 'value', 'a1'}
@@ -631,7 +630,7 @@ def test_problematic_value_range():
     obj = Mod('obj', logger, {'description': '', 'value':{'max': 10.1}}, srv)  # pylint: disable=unused-variable
 
     with pytest.raises(ConfigError):
-        obj = Mod('obj', logger, {'description': ''}, srv)
+        obj = Mod('obj', logger, {'description': '', 'value.max': 9.9}, srv)
 
     class Mod2(Drivable):
         value = Parameter('', FloatRange(), default=0)
@@ -640,16 +639,9 @@ def test_problematic_value_range():
     obj = Mod2('obj', logger, {'description': ''}, srv)
     obj = Mod2('obj', logger, {'description': '', 'target':{'min': 0, 'max': 10}}, srv)
 
-    with pytest.raises(ConfigError):
-        obj = Mod('obj', logger, {
-            'value':{'min': 0, 'max': 10},
-            'target':{'min': 0, 'max': 10}, 'description': ''}, srv)
-
-    obj = Mod('obj', logger, {'disable_value_range_check': True,
+    obj = Mod('obj', logger, {
         'value': {'min': 0, 'max': 10},
         'target': {'min': 0, 'max': 10}, 'description': ''}, srv)
-
-    generalConfig.defaults['disable_value_range_check'] = True
 
     class Mod4(Drivable):
         value = Parameter('', FloatRange(0, 10), default=0)

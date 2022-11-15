@@ -50,6 +50,17 @@ class DiscouragedConversion(BadValueError):
     log_message = True
 
 
+def shortrepr(value):
+    """shortened repr for error messages
+
+    avoid lengthy error message in case a value is too complex
+    """
+    r = repr(value)
+    if len(r) > 40:
+        return r[:40] + '...'
+    return r
+
+
 # base class for all DataTypes
 class DataType(HasProperties):
     """base class for all data types"""
@@ -58,10 +69,23 @@ class DataType(HasProperties):
     default = None
 
     def __call__(self, value):
-        """check if given value (a python obj) is valid for this datatype
+        """convert given value to our datatype and validate
 
-        returns the (possibly converted) value or raises an appropriate exception"""
+        :param value: the value to be converted
+        :return: the converted type
+
+        check if given value (a python obj) is valid for this datatype,
+        """
         raise NotImplementedError
+
+    def validate(self, value, previous=None):
+        """convert value to datatype and check for limits
+
+        :param value: the value to be converted
+        :param previous: previous value (used for optional struct members)
+        """
+        # default: no limits to check
+        return self(value)
 
     def from_string(self, text):
         """interprets a given string and returns a validated (internal) value"""
@@ -205,18 +229,22 @@ class FloatRange(HasUnit, DataType):
             try:
                 value = float(value)
             except Exception:
-                raise BadValueError('Can not convert %r to float' % value) from None
+                raise BadValueError('can not convert %s to a float' % shortrepr(value)) from None
             if not generalConfig.lazy_number_validation:
                 raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
 
         # map +/-infty to +/-max possible number
-        value = clamp(-sys.float_info.max, value, sys.float_info.max)
+        return clamp(-sys.float_info.max, value, sys.float_info.max)
 
-        # now check the limits
+    def validate(self, value, previous=None):
+        # convert
+        value = self(value)
+        # check the limits
         prec = max(abs(value * self.relative_resolution), self.absolute_resolution)
         if self.min - prec <= value <= self.max + prec:
-            return min(max(value, self.min), self.max)
-        raise BadValueError('%.14g should be a float between %.14g and %.14g' %
+            # silently clamp when outside by not more than prec
+            return clamp(self.min, value, self.max)
+        raise BadValueError('%.14g must be between %d and %d' %
                             (value, self.min, self.max))
 
     def __repr__(self):
@@ -246,24 +274,12 @@ class FloatRange(HasUnit, DataType):
             return ' '.join([self.fmtstr % value, unit])
         return self.fmtstr % value
 
-    def problematic_range(self, target_type):
-        """check problematic range
-
-        returns True when self.min or self.max is given, not 0 and equal to the same limit on target_type.
-        """
-        value_info = self.get_info()
-        target_info = target_type.get_info()
-        minval = value_info.get('min')  # None when -infinite
-        maxval = value_info.get('max')  # None when +infinite
-        return ((minval and minval == target_info.get('min')) or
-                (maxval and maxval == target_info.get('max')))
-
     def compatible(self, other):
         if not isinstance(other, (FloatRange, ScaledInteger)):
             raise BadValueError('incompatible datatypes')
         # avoid infinity
-        other(max(sys.float_info.min, self.min))
-        other(min(sys.float_info.max, self.max))
+        other.validate(max(sys.float_info.min, self.min))
+        other.validate(min(sys.float_info.max, self.max))
 
 
 class IntRange(DataType):
@@ -298,13 +314,21 @@ class IntRange(DataType):
                 fvalue = float(value)
                 value = int(value)
             except Exception:
-                raise BadValueError('Can not convert %r to int' % value) from None
+                raise BadValueError('can not convert %s to an int' % shortrepr(value)) from None
             if not generalConfig.lazy_number_validation:
                 raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
-        if not self.min <= value <= self.max or round(fvalue) != fvalue:
-            raise BadValueError('%r should be an int between %d and %d' %
-                                (value, self.min, self.max))
+        if round(fvalue) != fvalue:
+            raise BadValueError('%r should be an int')
         return value
+
+    def validate(self, value, previous=None):
+        # convert
+        value = self(value)
+        # check the limits
+        if self.min <= value <= self.max:
+            return value
+        raise BadValueError('%r must be between %d and %d' %
+                            (value, self.min, self.max))
 
     def __repr__(self):
         args = (self.min, self.max)
@@ -331,8 +355,8 @@ class IntRange(DataType):
 
     def compatible(self, other):
         if isinstance(other, (IntRange, FloatRange, ScaledInteger)):
-            other(self.min)
-            other(self.max)
+            other.validate(self.min)
+            other.validate(self.max)
             return
         if isinstance(other, (EnumType, BoolType)):
             # the following loop will not cycle more than the number of Enum elements
@@ -397,8 +421,8 @@ class ScaledInteger(HasUnit, DataType):
 
     def export_datatype(self):
         return self.get_info(type='scaled',
-                             min=int((self.min + self.scale * 0.5) // self.scale),
-                             max=int((self.max + self.scale * 0.5) // self.scale))
+                             min=int(round(self.min / self.scale)),
+                             max=int(round(self.max / self.scale)))
 
     def __call__(self, value):
         try:
@@ -407,30 +431,30 @@ class ScaledInteger(HasUnit, DataType):
             try:
                 value = float(value)
             except Exception:
-                raise BadValueError('Can not convert %r to float' % value) from None
+                raise BadValueError('can not convert %s to float' % shortrepr(value)) from None
             if not generalConfig.lazy_number_validation:
                 raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
-        prec = max(self.scale, abs(value * self.relative_resolution),
-                   self.absolute_resolution)
-        if self.min - prec <= value <= self.max + prec:
-            value = min(max(value, self.min), self.max)
-        else:
-            raise BadValueError('%g should be a float between %g and %g' %
-                                (value, self.min, self.max))
-        intval = int((value + self.scale * 0.5) // self.scale)
-        value = float(intval * self.scale)
-        return value  # return 'actual' value (which is more discrete than a float)
+        intval = int(round(value / self.scale))
+        return float(intval * self.scale)   # return 'actual' value (which is more discrete than a float)
+
+    def validate(self, value, previous=None):
+        # convert
+        result = self(value)
+        if self.min - self.scale < value < self.max + self.scale:
+            # silently clamp when outside by not more than self.scale
+            return clamp(self(self.min), result, self(self.max))
+        raise BadValueError('%.14g must be between between %g and %g' %
+                            (value, self.min, self.max))
 
     def __repr__(self):
         hints = self.get_info(scale=float('%g' % self.scale),
-                              min=int((self.min + self.scale * 0.5) // self.scale),
-                              max=int((self.max + self.scale * 0.5) // self.scale))
+                              min=int(round(self.min / self.scale)),
+                              max=int(round(self.max / self.scale)))
         return 'ScaledInteger(%s)' % (', '.join('%s=%r' % kv for kv in hints.items()))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        # note: round behaves different in Py2 vs. Py3, so use floor division
-        return int((value + self.scale * 0.5) // self.scale)
+        return int(round(value / self.scale))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
@@ -450,8 +474,8 @@ class ScaledInteger(HasUnit, DataType):
     def compatible(self, other):
         if not isinstance(other, (FloatRange, ScaledInteger)):
             raise BadValueError('incompatible datatypes')
-        other(self.min)
-        other(self.max)
+        other.validate(self.min)
+        other.validate(self.max)
 
 
 class EnumType(DataType):
@@ -461,7 +485,7 @@ class EnumType(DataType):
     :param members: members dict or None when using kwds only
     :param kwds: (additional) members
     """
-    def __init__(self, enum_or_name='', *, members=None, **kwds):
+    def __init__(self, enum_or_name='', members=None, **kwds):
         super().__init__()
         if members is not None:
             kwds.update(members)
@@ -495,7 +519,7 @@ class EnumType(DataType):
         try:
             return self._enum[value]
         except (KeyError, TypeError):  # TypeError will be raised when value is not hashable
-            raise BadValueError('%r is not a member of enum %r' % (value, self._enum)) from None
+            raise BadValueError('%s is not a member of enum %r' % (shortrepr(value), self._enum)) from None
 
     def from_string(self, text):
         return self(text)
@@ -543,7 +567,7 @@ class BLOBType(DataType):
     def __call__(self, value):
         """return the validated (internal) value or raise"""
         if not isinstance(value, bytes):
-            raise BadValueError('%s has the wrong type!' % repr(value))
+            raise BadValueError('%s must be of type bytes' % shortrepr(value))
         size = len(value)
         if size < self.minbytes:
             raise BadValueError(
@@ -608,19 +632,19 @@ class StringType(DataType):
     def __call__(self, value):
         """return the validated (internal) value or raise"""
         if not isinstance(value, str):
-            raise BadValueError('%s has the wrong type!' % repr(value))
+            raise BadValueError('%s has the wrong type!' % shortrepr(value))
         if not self.isUTF8:
             try:
                 value.encode('ascii')
             except UnicodeEncodeError:
-                raise BadValueError('%r contains non-ascii character!' % value) from None
+                raise BadValueError('%s contains non-ascii character!' % shortrepr(value)) from None
         size = len(value)
         if size < self.minchars:
             raise BadValueError(
-                '%r must be at least %d bytes long!' % (value, self.minchars))
+                '%s must be at least %d chars long!' % (shortrepr(value), self.minchars))
         if size > self.maxchars:
             raise BadValueError(
-                '%r must be at most %d bytes long!' % (value, self.maxchars))
+                '%s must be at most %d chars long!' % (shortrepr(value), self.maxchars))
         if '\0' in value:
             raise BadValueError(
                 'Strings are not allowed to embed a \\0! Use a Blob instead!')
@@ -687,7 +711,7 @@ class BoolType(DataType):
             return False
         if value in [1, '1', 'True', 'true', 'yes', 'on', True]:
             return True
-        raise BadValueError('%r is not a boolean value!' % value)
+        raise BadValueError('%s is not a boolean value!' % shortrepr(value))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -768,22 +792,35 @@ class ArrayOf(DataType):
         return 'ArrayOf(%s, %s, %s)' % (
             repr(self.members), self.minlen, self.maxlen)
 
-    def __call__(self, value):
-        """validate an external representation to an internal one"""
+    def check_type(self, value):
         try:
             # check number of elements
             if self.minlen is not None and len(value) < self.minlen:
                 raise BadValueError(
-                    'Array too small, needs at least %d elements!' %
+                    'array too small, needs at least %d elements!' %
                     self.minlen)
             if self.maxlen is not None and len(value) > self.maxlen:
                 raise BadValueError(
-                    'Array too big, holds at most %d elements!' % self.maxlen)
-            # apply subtype valiation to all elements and return as list
-            return tuple(self.members(elem) for elem in value)
+                    'array too big, holds at most %d elements!' % self.maxlen)
         except TypeError:
             raise BadValueError('%s can not be converted to ArrayOf DataType!'
                                 % type(value).__name__) from None
+
+    def __call__(self, value):
+        self.check_type(value)
+        try:
+            return tuple(self.members(v) for v in value)
+        except Exception as e:
+            raise BadValueError('can not convert some array elements') from e
+
+    def validate(self, value, previous=None):
+        self.check_type(value)
+        try:
+            if previous:
+                return tuple(self.members.validate(v, p) for v, p in zip(value, previous))
+            return tuple(self.members.validate(v) for v in value)
+        except Exception as e:
+            raise BadValueError('some array elements are invalid') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -845,18 +882,30 @@ class TupleOf(DataType):
     def __repr__(self):
         return 'TupleOf(%s)' % ', '.join([repr(st) for st in self.members])
 
-    def __call__(self, value):
-        """return the validated value or raise"""
-        # keep the ordering!
+    def check_type(self, value):
         try:
             if len(value) != len(self.members):
                 raise BadValueError(
-                    'Illegal number of Arguments! Need %d arguments.' % len(self.members))
-            # validate elements and return as list
-            return tuple(sub(elem)
-                         for sub, elem in zip(self.members, value))
-        except Exception as exc:
-            raise BadValueError('Can not validate:', str(exc)) from None
+                    'tuple needs %d elements' % len(self.members))
+        except TypeError:
+            raise BadValueError('%s can not be converted to TupleOf DataType!'
+                                % type(value).__name__) from None
+
+    def __call__(self, value):
+        self.check_type(value)
+        try:
+            return tuple(sub(elem) for sub, elem in zip(self.members, value))
+        except Exception as e:
+            raise BadValueError('can not convert some tuple elements') from e
+
+    def validate(self, value, previous=None):
+        self.check_type(value)
+        try:
+            if previous is None:
+                return tuple(sub.validate(elem) for sub, elem in zip(self.members, value))
+            return tuple(sub.validate(v, p) for sub, v, p in zip(self.members, value, previous))
+        except Exception as e:
+            raise BadValueError('some tuple elements are invalid') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -874,7 +923,7 @@ class TupleOf(DataType):
 
     def format_value(self, value, unit=None):
         return '(%s)' % (', '.join([sub.format_value(elem)
-                                   for sub, elem in zip(self.members, value)]))
+                         for sub, elem in zip(self.members, value)]))
 
     def compatible(self, other):
         if not isinstance(other, TupleOf):
@@ -908,7 +957,7 @@ class StructOf(DataType):
         self.members = members
         if not members:
             raise BadValueError('Empty structs are not allowed!')
-        self.optional = list(optional or [])
+        self.optional = list(members if optional is None else optional)
         for name, subtype in list(members.items()):
             if not isinstance(subtype, DataType):
                 raise ProgrammingError(
@@ -926,7 +975,7 @@ class StructOf(DataType):
     def export_datatype(self):
         res = dict(type='struct', members=dict((n, s.export_datatype())
                                                for n, s in list(self.members.items())))
-        if self.optional:
+        if set(self.optional) != set(self.members):
             res['optional'] = self.optional
         return res
 
@@ -936,16 +985,38 @@ class StructOf(DataType):
             ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
     def __call__(self, value):
-        """return the validated value or raise"""
         try:
-            missing = set(self.members) - set(value) - set(self.optional)
-            if missing:
-                raise BadValueError('missing values for keys %r' % list(missing))
-            # validate elements and return as dict
+            if set(dict(value)) != set(self.members):
+                raise BadValueError('member names do not match') from None
+        except TypeError:
+            raise BadValueError('%s can not be converted a StructOf'
+                                % type(value).__name__) from None
+        try:
             return ImmutableDict((str(k), self.members[k](v))
                                  for k, v in list(value.items()))
-        except Exception as exc:
-            raise BadValueError('Can not validate %s: %s' % (repr(value), str(exc))) from None
+        except Exception as e:
+            raise BadValueError('can not convert some struct element') from e
+
+    def validate(self, value, previous=None):
+        try:
+            superfluous = set(dict(value)) - set(self.members)
+        except TypeError:
+            raise BadValueError('%s can not be converted a StructOf'
+                                % type(value).__name__) from None
+        if superfluous - set(self.optional):
+            raise BadValueError('struct contains superfluous members: %s' % ', '.join(superfluous))
+        missing = set(self.members) - set(value) - set(self.optional)
+        if missing:
+            raise BadValueError('missing struct elements: %s' % ', '.join(missing))
+        try:
+            if previous is None:
+                return ImmutableDict((str(k), self.members[k].validate(v))
+                                     for k, v in list(value.items()))
+            result = dict(previous)
+            result.update(((k, self.members[k].validate(v, previous[k])) for k, v in value.items()))
+            return ImmutableDict(result)
+        except Exception as e:
+            raise BadValueError('some struct elements are invalid') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -1015,8 +1086,7 @@ class CommandType(DataType):
         return 'CommandType(%s, %s)' % (repr(self.argument), repr(self.result))
 
     def __call__(self, value):
-        """return the validated argument value or raise"""
-        return self.argument(value)
+        raise ProgrammingError('commands can not be converted to a value')
 
     def export_value(self, value):
         raise ProgrammingError('values of type command can not be transported!')
@@ -1147,7 +1217,7 @@ class LimitsType(TupleOf):
         super().__init__(members, members)
 
     def __call__(self, value):
-        limits = TupleOf.__call__(self, value)
+        limits = TupleOf.validate(self, value)
         if limits[1] < limits[0]:
             raise BadValueError('Maximum Value %s must be greater than minimum value %s!' % (limits[1], limits[0]))
         return limits

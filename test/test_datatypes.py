@@ -55,9 +55,11 @@ def test_FloatRange():
     assert dt.export_datatype() == {'type': 'double', 'min':-3.14, 'max':3.14}
 
     with pytest.raises(ValueError):
-        dt(9)
+        dt.validate(9)
     with pytest.raises(ValueError):
-        dt(-9)
+        dt.validate(-9)
+    dt(9)  # convert, but do not check limits
+    dt(-9)  # convert, but do not check limits
     with pytest.raises(ValueError):
         dt('XX')
     with pytest.raises(ValueError):
@@ -106,9 +108,11 @@ def test_IntRange():
     assert dt.export_datatype() == {'type': 'int', 'min':-3, 'max':3}
 
     with pytest.raises(ValueError):
-        dt(9)
+        dt.validate(9)
     with pytest.raises(ValueError):
-        dt(-9)
+        dt.validate(-9)
+    dt(9)  # convert, but do not check limits
+    dt(-9)  # convert, but do not check limits
     with pytest.raises(ValueError):
         dt('XX')
     with pytest.raises(ValueError):
@@ -142,9 +146,11 @@ def test_ScaledInteger():
     assert dt.export_datatype() == {'type': 'scaled', 'scale':0.01, 'min':-300, 'max':300}
 
     with pytest.raises(ValueError):
-        dt(9)
+        dt.validate(9)
     with pytest.raises(ValueError):
-        dt(-9)
+        dt.validate(-9)
+    dt(9)  # convert, but do not check limits
+    dt(-9)  # convert, but do not check limits
     with pytest.raises(ValueError):
         dt('XX')
     with pytest.raises(ValueError):
@@ -171,20 +177,23 @@ def test_ScaledInteger():
                                     'unit':'A'}
     assert dt.absolute_resolution == dt.scale
 
-    dt = ScaledInteger(0.003, 0, 1, unit='X', fmtstr='%.1f',
+    dt = ScaledInteger(0.003, 0.4, 1, unit='X', fmtstr='%.1f',
                        absolute_resolution=0.001, relative_resolution=1e-5)
     copytest(dt)
-    assert dt.export_datatype() == {'type': 'scaled', 'scale':0.003, 'min':0, 'max':333,
+    assert dt.export_datatype() == {'type': 'scaled', 'scale':0.003, 'min':133, 'max':333,
                                       'unit':'X', 'fmtstr':'%.1f',
                                       'absolute_resolution':0.001,
                                       'relative_resolution':1e-5}
-    assert dt(0.4) == 0.399
-    assert dt.format_value(0.4) == '0.4 X'
-    assert dt.format_value(0.4, '') == '0.4'
-    assert dt.format_value(0.4, 'Z') == '0.4 Z'
-    assert dt(1.0029) == 0.999
+    assert round(dt(0.7), 5) == 0.699
+    assert dt.format_value(0.6) == '0.6 X'
+    assert dt.format_value(0.6, '') == '0.6'
+    assert dt.format_value(0.6, 'Z') == '0.6 Z'
+    assert round(dt.validate(1.0004), 5) == 0.999  # rounded value within limit
     with pytest.raises(ValueError):
-        dt(1.004)
+        dt.validate(1.006)  # rounded value outside limit
+    assert round(dt.validate(0.398), 5) == 0.399  # rounded value within rounded limit
+    with pytest.raises(ValueError):
+        dt.validate(0.395)  # rounded value outside limit
 
     dt.setProperty('min', 1)
     dt.setProperty('max', 0)
@@ -456,7 +465,7 @@ def test_StructOf():
     with pytest.raises(ValueError):
         dt([99, 'X'])
     with pytest.raises(ValueError):
-        dt(dict(a_string='XXX', an_int=1811))
+        dt.validate(dict(a_string='XXX', an_int=1811))
 
     assert dt(dict(a_string='XXX', an_int=8)) == {'a_string': 'XXX',
                                                             'an_int': 8}
@@ -638,7 +647,7 @@ def test_get_datatype():
     (StringType(10, 10), StringType()),
     (ArrayOf(StringType(), 3, 5), ArrayOf(StringType(), 3, 6)),
     (TupleOf(StringType(), BoolType()), TupleOf(StringType(), IntRange())),
-    (StructOf(a=FloatRange(-1,1)), StructOf(a=FloatRange(), b=BoolType(), optional=['b'])),
+    (StructOf(a=FloatRange(-1,1), b=BoolType()), StructOf(a=FloatRange(), b=BoolType(), optional=['b'])),
 ])
 def test_oneway_compatible(dt, contained_in):
     dt.compatible(contained_in)
