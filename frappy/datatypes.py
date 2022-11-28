@@ -778,7 +778,7 @@ class ArrayOf(DataType):
                     self.minlen)
             if self.maxlen is not None and len(value) > self.maxlen:
                 raise BadValueError(
-                    'Array too big, holds at most %d elements!' % self.minlen)
+                    'Array too big, holds at most %d elements!' % self.maxlen)
             # apply subtype valiation to all elements and return as list
             return tuple(self.members(elem) for elem in value)
         except TypeError:
