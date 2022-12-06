@@ -18,10 +18,12 @@
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #   Markus Zolliker <markus.zolliker@psi.ch>
+#   Alexander Zaft <a.zaft@fz-juelich.de>
 #
 # *****************************************************************************
 """general SECoP client"""
 
+import re
 import json
 import queue
 import time
@@ -42,6 +44,7 @@ from frappy.protocol.messages import COMMANDREQUEST, \
 # replies to be handled for cache
 UPDATE_MESSAGES = {EVENTREPLY, READREPLY, WRITEREPLY, ERRORPREFIX + READREQUEST, ERRORPREFIX + EVENTREPLY}
 
+VERSIONFMT= re.compile(r'^[^,]*?ISSE[^,]*,SECoP,')
 
 class UNREGISTER:
     """a magic value, used a returned value in a callback
@@ -243,9 +246,16 @@ class SecopClient(ProxyClient):
                         self.secop_version = reply.decode('utf-8')
                     else:
                         raise self.error_map('HardwareError')('no answer to %s' % IDENTREQUEST)
-                    if not self.secop_version.startswith(IDENTPREFIX):
+
+                    if not VERSIONFMT.match(self.secop_version):
                         raise self.error_map('HardwareError')('bad answer to %s: %r' %
                                                               (IDENTREQUEST, self.secop_version))
+                    # inform that the other party still uses a legacy identifier
+                    # see e.g. Frappy Bug #4659 (https://forge.frm2.tum.de/redmine/issues/4659)
+                    if not self.secop_version.startswith(IDENTPREFIX):
+                        self.log.warning('SEC-Node replied with legacy identify reply: %s'
+                                         % self.secop_version)
+
                     # now its safe to do secop stuff
                     self._running = True
                     self._rxthread = mkthread(self.__rxthread)
@@ -393,7 +403,7 @@ class SecopClient(ProxyClient):
                 if time.time() > self.disconnect_time + self.reconnect_timeout:
                     if self.online:  # was recently connected
                         self.disconnect_time = 0
-                        self.log.warning('can not reconnect to %s (%r)' % (self.nodename, e))
+                        self.log.warning('can not reconnect to %s (%r)', self.nodename, e)
                         self.log.info('continue trying to reconnect')
                         # self.log.warning(formatExtendedTraceback())
                         self._set_state(False)
