@@ -29,113 +29,92 @@ of StateMachine, but usually as functions or methods of an other object.
 The created state object may hold variables needed for the state.
 A state function may return either:
 - a function for the next state to transition to
-- Retry(<delay>) to keep the state and call the
-- or `None` for finishing
+- Retry to keep the state and call the state function again
+- or Finish for finishing
 
 
 Initialisation Code
 -------------------
 
-For code to be called only after a state transition, use stateobj.init.
+For code to be called only after a state transition, use statemachine.init.
 
-def state_x(stateobj):
-    if stateobj.init:
+def state_x(statemachine):
+    if statemachine.init:
         ... code to be execute only after entering state x ...
     ... further code ...
 
 
-Cleanup Function
-----------------
+Restart
+-------
 
-cleanup=<cleanup function> as argument in StateMachine.__init__ or .start
-defines a cleanup function to be called whenever the machine is stopped or
-an error is raised in a state function. A cleanup function may return
-either None for finishing or a further state function for continuing.
-In case of stop or restart, this return value is ignored.
+To restart the statemachine, call statemachine.start. The current task is interrupted,
+the cleanup sequence is called, and after this the machine is restarted with the
+arguments of the start method.
 
 
-State Specific Cleanup Code
----------------------------
+Stop
+----
 
-To execute state specific cleanup, the cleanup may examine the current state
-(stateobj.state) in order to decide what to be done.
-
-If a need arises, a future extension to this library may support specific
-cleanup functions by means of a decorator adding the specific cleanup function
-as an attribute to the state function.
+To stop the statemachine, call statemachine.stop. The current task is interrupted,
+the cleanup sequence is called, and the machine finishes.
 
 
-Threaded Use
-------------
+Cleaning Up
+-----------
 
-On start, a thread is started, which is waiting for a trigger event when the
-machine is not active. For test purposes or special needs, the thread creation
-may be disabled. :meth:`cycle` must be called periodically in this case.
+A cleanup function might be added as arguments to StateMachine.start.
+On error, stop or restart, the cleanup sequence will be executed.
+The cleanup itself is not be interrupted:
+- if a further exeception is raised, the machine is interrupted immediately
+- if start or stop is called again, a previous start or stop is ignored.
+  The currently running cleanup sequence is finished, and not started again.
 """
 
 import time
 import threading
-import queue
 from logging import getLogger
-from frappy.lib import mkthread, UniqueObject
+from frappy.lib import UniqueObject
+
+Retry = UniqueObject('Retry')
+Finish = UniqueObject('Finish')
 
 
-Stop = UniqueObject('Stop')
-Restart = UniqueObject('Restart')
+class Start:
+    def __init__(self, newstate, kwds):
+        self.newstate = newstate
+        self.kwds = kwds  # statemachine attributes
 
 
-class Retry:
-    def __init__(self, delay=None):
-        self.delay = delay
+class Stop:
+    pass
 
 
 class StateMachine:
     """a simple, but powerful state machine"""
     # class attributes are not allowed to be overriden by kwds of __init__ or :meth:`start`
-    start_time = None  # the time of last start
-    transition_time = None  # the last time when the state changed
-    state = None  # the current state
-    now = None
-    init = True
-    stopped = False
-    last_error = None  # last exception raised or Stop or Restart
-    _last_time = 0
+    statefunc = None  # the current statefunc
+    now = None  # the current time (avoid mutiple calls within a state)
+    init = True  # True only in the first call of a state after a transition
+    next_task = None  # None or an instance of Start or Stop
+    cleanup_reason = None  # None or an instance of Exception, Start or Stop
+    _last_time = 0  # for delta method
 
-    def __init__(self, state=None, logger=None, threaded=True, **kwds):
+    def __init__(self, statefunc=None, logger=None, **kwds):
         """initialize state machine
 
-        :param state: if given, this is the first state
+        :param statefunc: if given, this is the first statefunc
         :param logger: an optional logger
-        :param threaded: whether a thread should be started (default: True)
         :param kwds: any attributes for the state object
         """
-        self.default_delay = 0.25  # default delay when returning None
-        self.now = time.time()  # avoid calling time.time several times per state
-        self.cleanup = self.default_cleanup  # default cleanup: finish on error
+        self.cleanup = None
+        self.transition = None
+        self.maxloops = 10  # the maximum number of statefunc functions called in sequence without Retry
+        self.now = time.time()  # avoids calling time.time several times per statefunc
         self.log = logger or getLogger('dummy')
+        self._lock = threading.Lock()
         self._update_attributes(kwds)
-        self._lock = threading.RLock()
-        self._threaded = threaded
-        if threaded:
-            self._thread_queue = queue.Queue()
-        self._idle_event = threading.Event()
-        self._thread = None
-        self._restart = None
-        if state:
-            self.start(state)
-
-    @staticmethod
-    def default_cleanup(state):
-        """default cleanup
-
-        :param self: the state object
-        :return: None (for custom cleanup functions this might be a new state)
-        """
-        if state.stopped:  # stop or restart
-            verb = 'stopped' if state.stopped is Stop else 'restarted'
-            state.log.debug('%s in state %r', verb, state.status_string)
-        else:
-            state.log.warning('%r raised in state %r', state.last_error, state.status_string)
+        if statefunc:
+            self.start(statefunc)
 
     def _update_attributes(self, kwds):
         """update allowed attributes"""
@@ -145,154 +124,101 @@ class StateMachine:
                 raise AttributeError('can not set %s.%s' % (cls.__name__, key))
             setattr(self, key, value)
 
+    def _cleanup(self, reason):
+        if isinstance(reason, Exception):
+            self.log.warning('%s: raised %r', self.statefunc.__name__, reason)
+        elif isinstance(reason, Stop):
+            self.log.debug('stopped in %s', self.statefunc.__name__)
+        else:  # must be Start
+            self.log.debug('restart %s during %s', reason.newstate.__name__, self.statefunc.__name__)
+        if self.cleanup_reason is None:
+            self.cleanup_reason = reason
+        if not self.cleanup:
+            return None  # no cleanup needed or cleanup already handled
+        with self._lock:
+            cleanup, self.cleanup = self.cleanup, None
+        ret = None
+        try:
+            ret = cleanup(self)  # pylint: disable=not-callable  # None or function
+            if not (ret is None or callable(ret)):
+                self.log.error('%s: return value must be callable or None, not %r',
+                               self.statefunc.__name__, ret)
+                ret = None
+        except Exception as e:
+            self.log.exception('%r raised in cleanup', e)
+        return ret
+
     @property
     def is_active(self):
-        return bool(self.state)
+        return bool(self.statefunc)
 
-    @property
-    def status_string(self):
-        if self.state is None:
-            return ''
-        doc = self.state.__doc__
-        return doc.split('\n', 1)[0] if doc else self.state.__name__
-
-    @property
-    def state_time(self):
-        """the time spent already in this state"""
-        return self.now - self.transition_time
-
-    @property
-    def run_time(self):
-        """time since last (re-)start"""
-        return self.now - self.start_time
-
-    def _new_state(self, state):
-        self.state = state
+    def _new_state(self, statefunc):
+        if self.transition:
+            self.transition(self, statefunc)  # pylint: disable=not-callable  # None or function
         self.init = True
-        self.now = time.time()
-        self.transition_time = self.now
-        self.log.debug('state: %s', self.status_string)
+        self.statefunc = statefunc
+        self._last_time = self.now
 
     def cycle(self):
-        """do one cycle in the thread loop
+        """do one cycle
 
-        :return: a delay or None when idle
+        call state functions until Retry is returned
         """
-        with self._lock:
-            if self.state is None:
-                return None
-            for _ in range(999):
-                self.now = time.time()
-                try:
-                    ret = self.state(self)
-                    self.init = False
-                    if self.stopped:
-                        self.last_error = self.stopped
-                        self.cleanup(self)
-                        self.stopped = False
-                        ret = None
-                except Exception as e:
-                    self.last_error = e
-                    ret = self.cleanup(self)
-                    self.log.debug('called %r %sexc=%r', self.cleanup,
-                                   'ret=%r ' % ret if ret else '', e)
-                if ret is None:
-                    self.log.debug('state: None after cleanup')
-                    self.state = None
-                    self._idle_event.set()
-                    return None
-                if callable(ret):
+        for _ in range(2):
+            if self.statefunc:
+                for _ in range(self.maxloops):
+                    self.now = time.time()
+                    if self.next_task and not self.cleanup_reason:
+                        # interrupt only when not cleaning up
+                        ret = self._cleanup(self.next_task)
+                    else:
+                        try:
+                            ret = self.statefunc(self)
+                            self.init = False
+                            if ret is Retry:
+                                return
+                            if ret is Finish:
+                                break
+                            if not callable(ret):
+                                ret = self._cleanup(RuntimeError(
+                                    '%s: return value must be callable, Retry or Finish, not %r'
+                                    % (self.statefunc.__name__, ret)))
+                        except Exception as e:
+                            ret = self._cleanup(e)
+                    if ret is None:
+                        break
                     self._new_state(ret)
-                    continue
-                if isinstance(ret, Retry):
-                    if ret.delay == 0:
+                else:
+                    ret = self._cleanup(RuntimeError(
+                        '%s: too many states chained - probably infinite loop' % self.statefunc.__name__))
+                    if ret:
+                        self._new_state(ret)
                         continue
-                    if ret.delay is None:
-                        return self.default_delay
-                    return ret.delay
-                self.last_error = RuntimeError('return value must be callable, Retry(...) or finish')
-                break
-            else:
-                self.last_error = RuntimeError('too many states chained - probably infinite loop')
-            self.cleanup(self)
-            self.state = None
-            return None
+                if self.cleanup_reason is None:
+                    self.log.debug('finish in state %r', self.statefunc.__name__)
+                self._new_state(None)
+            if self.next_task:
+                with self._lock:
+                    action, self.next_task = self.next_task, None
+                self.cleanup_reason = None
+                if isinstance(action, Start):
+                    self._new_state(action.newstate)
+                    self._update_attributes(action.kwds)
 
-    def trigger(self, delay=0):
-        if self._threaded:
-            self._thread_queue.put(delay)
-
-    def _run(self, delay):
-        """thread loop
-
-        :param delay: delay before first state is called
-        """
-        while True:
-            try:
-                ret = self._thread_queue.get(timeout=delay)
-                if ret is not None:
-                    delay = ret
-                    continue
-            except queue.Empty:
-                pass
-            delay = self.cycle()
-
-    def _start(self, state, **kwds):
-        self._restart = None
-        self._idle_event.clear()
-        self.last_error = None
-        self.stopped = False
-        self._update_attributes(kwds)
-        self._new_state(state)
-        self.start_time = self.now
-        self._last_time = self.now
-        first_delay = self.cycle()  # important: call once (e.g. set status to busy)
-        if self._threaded:
-            if self._thread is None or not self._thread.is_alive():
-                # restart thread if dead (may happen when cleanup failed)
-                if first_delay is not None:
-                    self._thread = mkthread(self._run, first_delay)
-            else:
-                self.trigger(first_delay)
-
-    def start(self, state, **kwds):
+    def start(self, statefunc, **kwds):
         """start with a new state
 
-        and interrupt the current state
-        the cleanup function will be called with state.stopped=Restart
-
-        :param state: the first state
+        :param statefunc: the first state
         :param kwds: items to put as attributes on the state machine
         """
-        self.log.debug('start %r', kwds)
-        if self.state:
-            self.stopped = Restart
-            with self._lock:  # wait for running cycle finished
-                if self.stopped:  # cleanup is not yet done
-                    self.last_error = self.stopped
-                    self.cleanup(self)  # ignore return state on restart
-                self.stopped = False
-                self._start(state, **kwds)
-        else:
-            self._start(state, **kwds)
+        kwds.setdefault('cleanup', None)  # cleanup must be given on each restart
+        with self._lock:
+            self.next_task = Start(statefunc, kwds)
 
     def stop(self):
-        """stop machine, go to idle state
-
-        the cleanup function will be called with state.stopped=Stop
-        """
-        self.log.debug('stop')
-        self.stopped = Stop
+        """stop machine, go to idle state"""
         with self._lock:
-            if self.stopped:  # cleanup is not yet done
-                self.last_error = self.stopped
-                self.cleanup(self)  # ignore return state on restart
-                self.stopped = False
-            self.state = None
-
-    def wait(self, timeout=None):
-        """wait for state machine being idle"""
-        self._idle_event.wait(timeout)
+            self.next_task = Stop()
 
     def delta(self, mindelta=0):
         """helper method for time dependent control
@@ -300,7 +226,7 @@ class StateMachine:
         :param mindelta: minimum time since last call
         :return: time delta or None when less than min delta time has passed
 
-        to be called from within an state
+        to be called from within an state function
 
         Usage:
 

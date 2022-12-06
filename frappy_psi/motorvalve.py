@@ -126,7 +126,7 @@ class MotorValve(PersistentMixin, Drivable):
                 self.motor.stop()
                 self.status = ERROR, 'opening valve failed (home switch not released)'
                 return None
-            return Retry()
+            return Retry
         motvalue = self.motor.read_value()
         if abs(motvalue - self.turns * 360) < 5:
             self.read_value()  # value = opened, status = IDLE
@@ -147,7 +147,7 @@ class MotorValve(PersistentMixin, Drivable):
         if self.motor.isBusy():
             if self.motor.home:
                 return self.find_closed
-            return Retry()
+            return Retry
         motvalue = self.motor.read_value()
         if abs(motvalue) > 5:
             if state.count > 0:
@@ -171,7 +171,7 @@ class MotorValve(PersistentMixin, Drivable):
             if not self.motor.home:
                 self.motor.stop()
                 return None
-            return Retry()
+            return Retry
         motvalue = self.motor.read_value()
         if motvalue < -360:
             self.read_value()  # status -> error
@@ -180,7 +180,7 @@ class MotorValve(PersistentMixin, Drivable):
             # moved by more than 5 deg
             state.prev = self.motor.value
             self.motor.write_target(-360)
-            return Retry()
+            return Retry
         if motvalue > 5:
             self.status = ERROR, 'closing valve failed (zero not reached)'
             return None
@@ -216,7 +216,7 @@ class MotorValve(PersistentMixin, Drivable):
             self.status = ERROR, 'ref run failed, can not find home switch'
             return None
         if not self.motor.home:
-            return Retry()
+            return Retry
         self.motor.write_speed(self.lowspeed)
         state.prev = self.motor.read_value()
         self.motor.write_target(state.prev - 360)
@@ -226,13 +226,13 @@ class MotorValve(PersistentMixin, Drivable):
     def ref_released(self, state):
         if self.motor.isBusy():
             if self.motor.home:
-                return Retry()
+                return Retry
         elif self.motor.read_home():
             if state.count > 0:
                 state.count -= 1
                 self.log.info('home switch not released, try again')
                 self.motor.write_target(self.motor.target)
-                return Retry()
+                return Retry
             self.status = ERROR, 'ref run failed, can not release home switch'
             return None
         return self.ref_home
@@ -242,7 +242,7 @@ class MotorValve(PersistentMixin, Drivable):
             if not self.motor.home:
                 self.motor.stop()
                 return None
-            return Retry()
+            return Retry
         self.motor.set_zero(max(-50, (self.motor.read_value() - state.prev) * 0.5))
         self.read_value()  # check home button is valid
         if abs(self.motor.target - self.motor.value) < 5:

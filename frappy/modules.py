@@ -227,8 +227,13 @@ class PollInfo:
         self.fast_flag = False
         self.trigger_event = trigger_event
 
-    def trigger(self):
-        """trigger a recalculation of poll due times"""
+    def trigger(self, immediate=False):
+        """trigger a recalculation of poll due times
+
+        :param immediate: when True, doPoll should be called as soon as possible
+        """
+        if immediate:
+            self.last_main = 0
         self.trigger_event.set()
 
     def update_interval(self, pollinterval):

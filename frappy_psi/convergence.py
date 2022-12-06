@@ -97,7 +97,7 @@ class HasConvergence:
             state.timeout_base = state.now
             return self.state_inside
         if not self.timeout:
-            return Retry()
+            return Retry
         if state.init:
             state.timeout_base = state.now
             state.dif_crit = dif  # criterium for resetting timeout base
@@ -108,7 +108,7 @@ class HasConvergence:
         elif state.now > state.timeout_base + self.timeout:
             self.status = WARN, 'convergence timeout'
             return self.state_instable
-        return Retry()
+        return Retry
 
     def state_inside(self, state):
         """inside tolerance, still busy"""
@@ -121,7 +121,7 @@ class HasConvergence:
             return self.state_stable
         if state.init:
             self.status = BUSY, 'inside tolerance'
-        return Retry()
+        return Retry
 
     def state_outside(self, state):
         """temporarely outside tolerance, busy"""
@@ -135,13 +135,13 @@ class HasConvergence:
             self.status = BUSY, 'outside tolerance'
         # do not reset the settling time on occasional outliers, count backwards instead
         state.spent_inside = max(0.0, state.spent_inside - state.delta())
-        return Retry()
+        return Retry
 
     def state_stable(self, state):
         """stable, after settling_time spent within tolerance, idle"""
         dif, tol = self.get_dif_tol()
         if dif <= tol:
-            return Retry()
+            return Retry
         self.status = WARN, 'instable'
         state.spent_inside = max(self.settling_time, state.spent_inside)
         return self.state_instable
@@ -156,7 +156,7 @@ class HasConvergence:
                 return self.state_stable
         else:
             state.spent_inside = max(0, state.spent_inside - state.delta())
-        return Retry()
+        return Retry
 
     def state_interrupt(self, state):
         """stopping"""
