@@ -43,18 +43,21 @@ class QSECNode(QObject):
     unhandledMsg = pyqtSignal(str)  # message
     logEntry = pyqtSignal(str)
 
-    def __init__(self, uri, parent=None):
+    def __init__(self, uri, parent_logger, parent=None):
         super().__init__(parent)
-        self.conn = conn = frappy.client.SecopClient(uri)
+        self.log = parent_logger.getChild(uri)
+        self.conn = conn = frappy.client.SecopClient(uri, self.log)
         conn.validate_data = True
-        self.log = conn.log
         self.contactPoint = conn.uri
         conn.connect()
         self.equipmentId = conn.properties['equipment_id']
+        self.log.info('Switching to logger %s', self.equipmentId)
+        self.log.name = '.'.join((parent_logger.name, self.equipmentId))
         self.nodename = '%s (%s)' % (self.equipmentId, conn.uri)
         self.modules = conn.modules
         self.properties = self.conn.properties
         self.protocolVersion = conn.secop_version
+        self.log.debug('SECoP Version: %s', conn.secop_version)
         conn.register_callback(None, self.updateEvent, self.nodeStateChange, self.unhandledMessage)
 
     # provide methods from old baseclient for making other gui code work
@@ -112,7 +115,7 @@ class QSECNode(QObject):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, hosts, parent=None):
+    def __init__(self, hosts, logger, parent=None):
         super().__init__(parent)
 
         loadUi(self, 'mainwindow.ui')
@@ -130,13 +133,17 @@ class MainWindow(QMainWindow):
         self._topItems = {}
         self._currentWidget = self.splitter.widget(1).layout().takeAt(0)
 
+        self.log = logger
+
         # add localhost (if available) and SEC nodes given as arguments
         for host in hosts:
             try:
+                self.log.info('Trying to connect to %s', host)
                 self._addNode(host)
             except Exception as e:
+                # TODO: make this nicer than dumping to console
                 print(formatExtendedTraceback())
-                print('error in addNode: %r' % e)
+                self.log.error('error in addNode: %r', e)
 
     @pyqtSlot()
     def on_actionAdd_SEC_node_triggered(self):
@@ -187,7 +194,7 @@ class MainWindow(QMainWindow):
     def _addNode(self, host):
 
         # create client
-        node = QSECNode(host, parent=self)
+        node = QSECNode(host, self.log, parent=self)
         nodename = node.nodename
 
         self._nodes[nodename] = node
