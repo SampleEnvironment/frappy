@@ -23,8 +23,6 @@
 # *****************************************************************************
 """Define helpers"""
 
-import ast
-import configparser
 import os
 import sys
 import traceback
@@ -35,6 +33,7 @@ from frappy.lib import formatException, get_class, generalConfig
 from frappy.lib.multievent import MultiEvent
 from frappy.params import PREDEFINED_ACCESSIBLES
 from frappy.modules import Attached
+from frappy.config import load_config
 
 try:
     from daemon import DaemonContext
@@ -94,74 +93,18 @@ class Server:
         # sanitize name (in case it is a cfgfile)
         name = os.path.splitext(os.path.basename(name))[0]
         self.log = parent_logger.getChild(name, True)
-        merged_cfg = OrderedDict()
-        ambiguous_sections = set()
-        for cfgfile in cfgfiles.split(','):
-            cfgdict = self.loadCfgFile(cfgfile)
-            ambiguous_sections |= set(merged_cfg) & set(cfgdict)
-            merged_cfg.update(cfgdict)
-        self.node_cfg = merged_cfg.pop('NODE', {})
-        self.interface_cfg = merged_cfg.pop('INTERFACE', {})
+
+        merged_cfg = load_config(cfgfiles, self.log)
+        self.node_cfg = merged_cfg.pop('node')
         self.module_cfg = merged_cfg
         if interface:
-            ambiguous_sections.discard('interface')
-            ambiguous_sections.discard('node')
-            self.node_cfg['name'] = name
-            self.node_cfg['id'] = cfgfiles
-            self.interface_cfg['uri'] = str(interface)
-        elif 'uri' not in self.interface_cfg:
-            raise ConfigError('missing interface uri')
-        if ambiguous_sections:
-            self.log.warning('ambiguous sections in %s: %r' % (cfgfiles, tuple(ambiguous_sections)))
+            self.node_cfg['equipment_id'] = name
+            self.node_cfg['interface'] = str(interface)
+        elif not self.node_cfg.get('interface'):
+            raise ConfigError('No interface specified in configuration or arguments!')
+
         self._cfgfiles = cfgfiles
         self._pidfile = os.path.join(generalConfig.piddir, name + '.pid')
-
-    def loadCfgFile(self, cfgfile):
-        if not cfgfile.endswith('.cfg'):
-            cfgfile += '.cfg'
-        if os.sep in cfgfile:  # specified as full path
-            filename = cfgfile if os.path.exists(cfgfile) else None
-        else:
-            for filename in [os.path.join(d, cfgfile) for d in generalConfig.confdir.split(os.pathsep)]:
-                if os.path.exists(filename):
-                    break
-            else:
-                filename = None
-        if filename is None:
-            raise ConfigError("Couldn't find cfg file %r in %s" % (cfgfile, generalConfig.confdir))
-        self.log.debug('Parse config file %s ...' % filename)
-        result = OrderedDict()
-        parser = configparser.ConfigParser()
-        parser.optionxform = str
-        if not parser.read([filename]):
-            raise ConfigError("Couldn't read cfg file %r" % filename)
-        for section, options in parser.items():
-            if section == 'DEFAULT':
-                continue
-            opts = {}
-            for k, v in options.items():
-                # is the following really needed? - ConfigParser supports multiple lines!
-                while '\n.\n' in v:
-                    v = v.replace('\n.\n', '\n\n')
-                try:
-                    opts[k] = ast.literal_eval(v)
-                except Exception:
-                    opts[k] = v
-            # convert old form
-            name, _, arg = section.partition(' ')
-            if arg:
-                if name == 'node':
-                    name = 'NODE'
-                    opts['id'] = arg
-                elif name == 'interface':
-                    name = 'INTERFACE'
-                    if 'bindport' in opts:
-                        opts.pop('bindto', None)
-                        opts['uri'] = '%s://%s' % (opts.pop('type', arg), opts.pop('bindport'))
-                elif name == 'module':
-                    name = arg
-            result[name] = opts
-        return result
 
     def start(self):
         if not DaemonContext:
@@ -196,7 +139,7 @@ class Server:
                 print(formatException(verbose=True))
                 raise
 
-            opts = dict(self.interface_cfg)
+            opts = {'uri': self.node_cfg['interface']}
             scheme, _, _ = opts['uri'].rpartition('://')
             scheme = scheme or 'tcp'
             cls = get_class(self.INTERFACES[scheme])
@@ -226,8 +169,9 @@ class Server:
     def _processCfg(self):
         errors = []
         opts = dict(self.node_cfg)
-        cls = get_class(opts.pop('class', 'protocol.dispatcher.Dispatcher'))
+        cls = get_class(opts.pop('cls'))
         self.dispatcher = cls(opts.pop('name', self._cfgfiles), self.log.getChild('dispatcher'), opts, self)
+
         if opts:
             errors.append(self.unknown_options(cls, opts))
         self.modules = OrderedDict()
@@ -238,7 +182,7 @@ class Server:
             opts = dict(options)
             pymodule = None
             try:
-                classname = opts.pop('class')
+                classname = opts.pop('cls')
                 pymodule = classname.rpartition('.')[0]
                 if pymodule in failed:
                     continue
