@@ -82,9 +82,6 @@ fi
                   failedTotalAll: 1])
 
 
-    if (status == 'FAILURE') {
-        throw new Exception('Failure in pylint with ' + pyver)
-    }
   }
 } // run_pylint
 
@@ -114,9 +111,6 @@ make test
 
     step([$class: 'JUnitResultArchiver', allowEmptyResults: true,
           keepLongStdio: true, testResults: 'pytest.xml'])
-    if (status == 'FAILURE') {
-        throw new Exception('Failure in test with ' + pyver)
-    }
   }
 }
 
@@ -230,6 +224,7 @@ node("dockerhost") {
                 rsync -rlv doc/_build/* /ictrlsrv/share/public/doc/frappy
                 '''
             }
-        }}
+        }}, failFast: false
     }
+    setGerritReview()
 }
