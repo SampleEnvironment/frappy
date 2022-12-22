@@ -420,6 +420,7 @@ class Module(HasAccessibles):
                 pobj.value = pobj.default
             else:
                 # value given explicitly, either by cfg or as Parameter argument
+                pobj.given = True  # for PersistentMixin
                 if hasattr(self, 'write_' + pname):
                     self.writeDict[pname] = pobj.value
                 if pobj.default is None:
@@ -706,11 +707,12 @@ class Module(HasAccessibles):
                     else:
                         loop = False  # no slow polls ready
 
-    def writeInitParams(self, started_callback=None):
+    def writeInitParams(self):
         """write values for parameters with configured values
 
-        this must be called at the beginning of the poller thread
-        with proper error handling
+        - does proper error handling
+
+        called at the beginning of the poller thread and for writing persistent values
         """
         for pname in list(self.writeDict):
             value = self.writeDict.pop(pname, Done)
@@ -730,8 +732,6 @@ class Module(HasAccessibles):
                             self.log.error('%s: %s', pname, str(e))
                     except Exception:
                         self.log.error(formatException())
-        if started_callback:
-            started_callback()
 
     def setRemoteLogging(self, conn, level):
         if self.remoteLogHandler is None:

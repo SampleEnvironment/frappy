@@ -270,7 +270,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
         elif not self._loading:  # just powered up
             try:
                 self._loading = True
-                # get persistent values
+                # get persistent values and write to HW
                 writeDict = self.loadParameters()
             finally:
                 self._loading = False

@@ -21,7 +21,7 @@
 # *****************************************************************************
 """Mixin for keeping parameters persistent
 
-For hardware not keeping parameters persistent, we might want to store them in Frappy.
+For hardware not keeping parameters persistent, we might want to store them in a file.
 
 The following example will make 'param1' and 'param2' persistent, i.e. whenever
 one of the parameters is changed, either by a change command or when reading back
@@ -58,66 +58,79 @@ import json
 from frappy.lib import generalConfig
 from frappy.datatypes import EnumType
 from frappy.params import Parameter, Property, Command
-from frappy.modules import HasAccessibles
+from frappy.modules import Module
 
 
 class PersistentParam(Parameter):
     persistent = Property('persistence flag (auto means: save automatically on any change)',
                           EnumType(off=0, on=1, auto=2), default=1)
+    given = False
 
 
-class PersistentMixin(HasAccessibles):
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
+class PersistentMixin(Module):
+    persistentData = None  # dict containing persistent data after startup
+
+    def __init__(self, name, logger, cfgdict, srv):
+        super().__init__(name, logger, cfgdict, srv)
         persistentdir = os.path.join(generalConfig.logdir, 'persistent')
         os.makedirs(persistentdir, exist_ok=True)
         self.persistentFile = os.path.join(persistentdir, '%s.%s.json' % (self.DISPATCHER.equipment_id, self.name))
         self.initData = {}  # "factory" settings
+        loaded = self.loadPersistentData()
         for pname in self.parameters:
             pobj = self.parameters[pname]
-            flag = getattr(pobj, 'persistent', 0)
+            flag = getattr(pobj, 'persistent', False)
             if flag:
                 if flag == 'auto':
                     def cb(value, m=self):
                         m.saveParameters()
                     self.valueCallbacks[pname].append(cb)
                 self.initData[pname] = pobj.value
-        self.writeDict.update(self.loadParameters(write=False))
+                if not pobj.given:
+                    if pname in loaded:
+                        pobj.value = loaded[pname]
+                    if hasattr(self, 'write_' + pname):
+                        # a persistent parameter should be written to HW, even when not yet in persistentData
+                        self.writeDict[pname] = pobj.value
+        self.__save_params()
 
-    def loadParameters(self, write=True):
-        """load persistent parameters
-
-        :return: persistent parameters which have to be written
-
-        is called upon startup and may be called from a module
-        when a hardware powerdown is detected
-        """
+    def loadPersistentData(self):
         try:
             with open(self.persistentFile, 'r', encoding='utf-8') as f:
                 self.persistentData = json.load(f)
-        except Exception:
+        except (FileNotFoundError, ValueError):
             self.persistentData = {}
-        writeDict = {}
-        for pname in self.parameters:
+        result = {}
+        for pname, value in self.persistentData.items():
+            try:
+                pobj = self.parameters[pname]
+                if getattr(pobj, 'persistent', False):
+                    result[pname] = self.parameters[pname].datatype.import_value(value)
+            except Exception as e:
+                # ignore invalid persistent data (in case parameters have changed)
+                self.log.warning('can not restore %r to %r (%r)' % (pname, value, e))
+        return result
+
+    def loadParameters(self):
+        """load persistent parameters
+
+        and write them to the HW, in case a write_<param> method is available
+        may be called from a module when a hardware power down is detected
+        """
+        loaded = self.loadPersistentData()
+        for pname, value in loaded.items():
             pobj = self.parameters[pname]
-            if getattr(pobj, 'persistent', False) and pname in self.persistentData:
-                try:
-                    value = pobj.datatype.import_value(self.persistentData[pname])
-                    pobj.value = value
-                    pobj.readerror = None
-                    if not pobj.readonly:
-                        writeDict[pname] = value
-                except Exception as e:
-                    self.log.warning('can not restore %r to %r (%r)' % (pname, value, e))
-        if write:
-            self.writeDict.update(writeDict)
-            self.writeInitParams()
-        return writeDict
+            pobj.value = value
+            pobj.readerror = None
+            if hasattr(self, 'write_' + pname):
+                self.writeDict[pname] = value
+        self.writeInitParams()
+        return loaded
 
     def saveParameters(self):
         """save persistent parameters
 
-        - to be called regularely explicitly by the module
+        - to be called regularly explicitly by the module
         - the caller has to make sure that this is not called after
           a power down of the connected hardware before loadParameters
         """
@@ -125,6 +138,9 @@ class PersistentMixin(HasAccessibles):
             # do not save before all values are written to the hw, as potentially
             # factory default values were read in the mean time
             return
+        self.__save_params()
+
+    def __save_params(self):
         data = {k: v.export_value() for k, v in self.parameters.items()
                 if getattr(v, 'persistent', False)}
         if data != self.persistentData:
