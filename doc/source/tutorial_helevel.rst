@@ -35,11 +35,11 @@ CCU4 luckily has a very simple and logical protocol:
 
 
     # inheriting HasIO allows us to use the communicate method for talking with the hardware
-    # Readable as a base class defines the value and status parameters
+    # 'Readable' as base class defines the value and status parameters
     class HeLevel(HasIO, Readable):
         """He Level channel of CCU4"""
 
-        # define the communication class to create the IO module
+        # define the communication class for automatic creation of the IO module
         ioClass = CCU4IO
 
         # define or alter the parameters
@@ -51,7 +51,7 @@ CCU4 luckily has a very simple and logical protocol:
             reply = self.communicate('h')  # send 'h\n' and get the reply 'h=<value>\n'
             name, txtvalue = reply.split('=')
             assert name == 'h'  # check that we got a reply to our command
-            return txtvalue  # the framework will automatically convert the string to a float
+            return float(txtvalue)
 
 
 The class :class:`frappy_psi.ccu4.CCU4IO`, an extension of (:class:`frappy.stringio.StringIO`)
@@ -121,12 +121,12 @@ the status codes from the hardware to the standard SECoP status codes.
         def read_empty_length(self):
             name, txtvalue = self.communicate('hem').split('=')
             assert name == 'hem'
-            return txtvalue
+            return float(txtvalue)
 
         def write_empty_length(self, value):
             name, txtvalue = self.communicate('hem=%g' % value).split('=')
             assert name == 'hem'
-            return txtvalue
+            return float(txtvalue)
 
     ...
 
@@ -153,7 +153,7 @@ which means it might be worth to create a *query* method, and then the
             """
             name, txtvalue = self.communicate(cmd).split('=')
             assert name == cmd.split('=')[0]  # check that we got a reply to our command
-            return txtvalue  # Frappy will automatically convert the string to the needed data type
+            return float(txtvalue)
 
         def read_value(self):
             return self.query('h')
