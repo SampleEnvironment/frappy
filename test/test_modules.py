@@ -77,7 +77,7 @@ class DummyMultiEvent(threading.Event):
 
 
 def test_Communicator():
-    o = Communicator('communicator', LoggerStub(), {'.description': ''}, ServerStub({}))
+    o = Communicator('communicator', LoggerStub(), {'description': ''}, ServerStub({}))
     o.earlyInit()
     o.initModule()
     event = DummyMultiEvent()
@@ -177,8 +177,8 @@ def test_ModuleMagic():
     objects = []
 
     for newclass, sortcheck in [(Newclass1, sortcheck1), (Newclass2, sortcheck2)]:
-        o1 = newclass('o1', logger, {'.description':''}, srv)
-        o2 = newclass('o2', logger, {'.description':''}, srv)
+        o1 = newclass('o1', logger, {'description':''}, srv)
+        o2 = newclass('o2', logger, {'description':''}, srv)
         for obj in [o1, o2]:
             objects.append(obj)
             for o in obj.accessibles.values():
@@ -188,7 +188,7 @@ def test_ModuleMagic():
             assert list(obj.accessibles) == sortcheck
 
     # check for inital updates working properly
-    o1 = Newclass1('o1', logger, {'.description':''}, srv)
+    o1 = Newclass1('o1', logger, {'description':''}, srv)
     expectedBeforeStart = {'target': '', 'status': (Drivable.Status.IDLE, ''),
             'param1': False, 'param2': 1.0, 'a1': 0.0, 'a2': True, 'pollinterval': 5.0,
             'value': 'first'}
@@ -205,7 +205,7 @@ def test_ModuleMagic():
     assert updates.pop('o1') == expectedAfterStart
 
     # check in addition if parameters are written
-    o2 = Newclass2('o2', logger, {'.description':'', 'a1': 2.7}, srv)
+    o2 = Newclass2('o2', logger, {'description':'', 'a1': {'default': 2.7}}, srv)
     # no update for b2, as this has to be written
     expectedBeforeStart['a1'] = 2.7
     expectedBeforeStart['target'] = 0.0
@@ -224,10 +224,10 @@ def test_ModuleMagic():
 
     assert not updates
 
-    o1 = Newclass1('o1', logger, {'.description':''}, srv)
-    o2 = Newclass2('o2', logger, {'.description':''}, srv)
+    o1 = Newclass1('o1', logger, {'description':''}, srv)
+    o2 = Newclass2('o2', logger, {'description':''}, srv)
     assert o2.parameters['a1'].datatype.unit == 'deg/s'
-    o2 = Newclass2('o2', logger, {'.description':'', 'value.unit':'mm', 'param2.unit':'mm'}, srv)
+    o2 = Newclass2('o2', logger, {'description':'', 'value':{'unit':'mm'},'param2':{'unit':'mm'}}, srv)
     # check datatype is not shared
     assert o1.parameters['param2'].datatype.unit == 'Ohm'
     assert o2.parameters['param2'].datatype.unit == 'mm'
@@ -374,13 +374,13 @@ def test_command_check():
     with pytest.raises(ProgrammingError):
         BadDatatype('o', logger, {
             'description': '',
-            'cmd.argument': {'type': 'double', 'min': 1, 'max': 0},
+            'cmd': {'argument': {'type': 'double', 'min': 1, 'max': 0}},
         }, srv)
 
     with pytest.raises(ProgrammingError):
         BadDatatype('o', logger, {
             'description': '',
-            'cmd.visibility': 'invalid',
+            'cmd': {'visibility': 'invalid'},
         }, srv)
 
 
@@ -413,17 +413,15 @@ def test_mixin():
 
     MixedDrivable('o', logger, {
         'description': '',
-        'param1.description': 'param 1',
-        'param1': 0,
-        'param2.datatype': {"type": "double"},
+        'param1': {'default': 0, 'description': 'param1'},
+        'param2': {'datatype': {"type": "double"}},
     }, srv)
 
     with pytest.raises(ConfigError):
         MixedReadable('o', logger, {
             'description': '',
-            'param1.description': 'param 1',
-            'param1': 0,
-            'param2.datatype': {"type": "double"},
+            'param1': {'default': 0, 'description': 'param1'},
+            'param2': {'datatype': {"type": "double"}},
         }, srv)
 
 
@@ -455,7 +453,7 @@ def test_command_config():
     srv = ServerStub({})
     mod = Mod('o', logger, {
         'description': '',
-        'convert.argument': {'type': 'bool'},
+        'convert': {'argument': {'type': 'bool'}},
     }, srv)
     assert mod.commands['convert'].datatype.export_datatype() == {
         'type': 'command',
@@ -465,7 +463,7 @@ def test_command_config():
 
     mod = Mod('o', logger, {
         'description': '',
-        'convert.datatype': {'type': 'command', 'argument': {'type': 'bool'}, 'result': {'type': 'bool'}},
+        'convert': {'datatype': {'type': 'command', 'argument': {'type': 'bool'}, 'result': {'type': 'bool'}}},
     }, srv)
     assert mod.commands['convert'].datatype.export_datatype() == {
         'type': 'command',
@@ -529,7 +527,7 @@ def test_generic_access():
     updates = {}
     srv = ServerStub(updates)
 
-    obj = Mod('obj', logger, {'description': '', 'param': 'initial value'}, srv)
+    obj = Mod('obj', logger, {'description': '', 'param': {'default':'initial value'}}, srv)
     assert obj.param == 'initial value'
     assert obj.write_param('Cheese') == 'cheese'
     assert obj.write_unhandled('Cheese') == 'Cheese'
@@ -590,7 +588,7 @@ def test_no_read_write():
     updates = {}
     srv = ServerStub(updates)
 
-    obj = Mod('obj', logger, {'description': '', 'param': 'cheese'}, srv)
+    obj = Mod('obj', logger, {'description': '', 'param': {'default': 'cheese'}}, srv)
     assert obj.param == 'cheese'
     assert obj.read_param() == 'cheese'
     assert updates == {'obj': {'param': 'cheese'}}
@@ -630,7 +628,7 @@ def test_problematic_value_range():
 
     srv = ServerStub({})
 
-    obj = Mod('obj', logger, {'description': '', 'value.max': 10.1}, srv)  # pylint: disable=unused-variable
+    obj = Mod('obj', logger, {'description': '', 'value':{'max': 10.1}}, srv)  # pylint: disable=unused-variable
 
     with pytest.raises(ConfigError):
         obj = Mod('obj', logger, {'description': ''}, srv)
@@ -640,16 +638,16 @@ def test_problematic_value_range():
         target = Parameter('', FloatRange(), default=0)
 
     obj = Mod2('obj', logger, {'description': ''}, srv)
-    obj = Mod2('obj', logger, {'description': '', 'target.min': 0, 'target.max': 10}, srv)
+    obj = Mod2('obj', logger, {'description': '', 'target':{'min': 0, 'max': 10}}, srv)
 
     with pytest.raises(ConfigError):
         obj = Mod('obj', logger, {
-            'value.min': 0, 'value.max': 10,
-            'target.min': 0, 'target.max': 10, 'description': ''}, srv)
+            'value':{'min': 0, 'max': 10},
+            'target':{'min': 0, 'max': 10}, 'description': ''}, srv)
 
     obj = Mod('obj', logger, {'disable_value_range_check': True,
-        'value.min': 0, 'value.max': 10,
-        'target.min': 0, 'target.max': 10, 'description': ''}, srv)
+        'value': {'min': 0, 'max': 10},
+        'target': {'min': 0, 'max': 10}, 'description': ''}, srv)
 
     generalConfig.defaults['disable_value_range_check'] = True
 
@@ -657,15 +655,15 @@ def test_problematic_value_range():
         value = Parameter('', FloatRange(0, 10), default=0)
         target = Parameter('', FloatRange(0, 10), default=0)
     obj = Mod4('obj', logger, {
-        'value.min': 0, 'value.max': 10,
-        'target.min': 0, 'target.max': 10, 'description': ''}, srv)
+        'value': {'min': 0, 'max': 10},
+        'target': {'min': 0, 'max': 10}, 'description': ''}, srv)
 
 
 @pytest.mark.parametrize('config, dynamicunit, finalunit, someunit', [
     ({}, 'K', 'K', 'K'),
-    ({'value.unit': 'K'}, 'C', 'C', 'C'),
-    ({'value.unit': 'K'}, '', 'K', 'K'),
-    ({'value.unit': 'K', 'someparam.unit': 'A'}, 'C', 'C', 'A'),
+    ({'value':{'unit': 'K'}}, 'C', 'C', 'C'),
+    ({'value':{'unit': 'K'}}, '', 'K', 'K'),
+    ({'value':{'unit': 'K'}, 'someparam':{'unit': 'A'}}, 'C', 'C', 'A'),
 ])
 def test_deferred_main_unit(config, dynamicunit, finalunit, someunit):
     # this pattern is used in frappy_mlz.entangle.AnalogInput

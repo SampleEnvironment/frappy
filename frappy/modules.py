@@ -327,12 +327,12 @@ class Module(HasAccessibles):
         # pylint: disable=consider-using-dict-items
         for key in self.propertyDict:
             value = cfgdict.pop(key, None)
-            if value is None:
-                # legacy cfg: specified as '.<propertyname> = <propertyvalue>'
-                value = cfgdict.pop('.' + key, None)
             if value is not None:
                 try:
-                    self.setProperty(key, value)
+                    if isinstance(value, dict):
+                        self.setProperty(key, value['default'])
+                    else:
+                        self.setProperty(key, value)
                 except BadValueError:
                     errors.append('%s: value %r does not match %r!' %
                                   (key, value, self.propertyDict[key].datatype))
@@ -374,24 +374,27 @@ class Module(HasAccessibles):
         self.commands = {k: v for k, v in accessibles.items() if isinstance(v, Command)}
 
         # 2) check and apply parameter_properties
-        #    specified as '<paramname>.<propertyname> = <propertyvalue>'
-        #    this may also be done on commands: e.g. 'stop.visibility = advanced'
-        for k, v in list(cfgdict.items()):  # keep list() as dict may change during iter
-            if '.' in k[1:]:
-                aname, propname = k.split('.', 1)
-                propvalue = cfgdict.pop(k)
-                aobj = self.accessibles.get(aname, None)
-                if aobj:
-                    try:
+        for aname in list(cfgdict):  # keep list() as dict may change during iter
+            aobj = self.accessibles.get(aname, None)
+            if aobj:
+                try:
+                    for propname, propvalue in cfgdict[aname].items():
+                        # defaults are applied later
+                        if propname == 'default':
+                            continue
                         aobj.setProperty(propname, propvalue)
-                    except KeyError:
-                        errors.append("'%s.%s' does not exist" %
-                                      (aname, propname))
-                    except BadValueError as e:
-                        errors.append('%s.%s: %s' %
-                                      (aname, propname, str(e)))
-                else:
-                    errors.append('%r not found' % aname)
+                except KeyError:
+                    errors.append("'%s' has no property '%s'" %
+                                  (aname, propname))
+                except BadValueError as e:
+                    errors.append('%s.%s: %s' %
+                                  (aname, propname, str(e)))
+            else:
+                errors.append('%r not found' % aname)
+        # 3) commands do not need a default, remove them from cfgdict:
+        for aname in list(cfgdict):
+            if aname in self.commands:
+                cfgdict.pop(aname)
 
         # 3) check config for problems:
         #    only accept remaining config items specified in parameters
@@ -413,11 +416,11 @@ class Module(HasAccessibles):
                 errors.append('%s needs a datatype' % pname)
                 continue
 
-            if pname in cfgdict:
+            if pname in cfgdict and 'default' in cfgdict[pname]:
                 if pobj.initwrite is not False and hasattr(self, 'write_' + pname):
                     # parameters given in cfgdict have to call write_<pname>
                     try:
-                        pobj.value = pobj.datatype(cfgdict[pname])
+                        pobj.value = pobj.datatype(cfgdict[pname]['default'])
                         self.writeDict[pname] = pobj.value
                     except BadValueError as e:
                         errors.append('%s: %s' % (pname, e))
@@ -443,7 +446,8 @@ class Module(HasAccessibles):
                         pobj.value = value
                         self.writeDict[pname] = value
                     else:
-                        cfgdict[pname] = value
+                        # dict to fit in with parameters coming from config
+                        cfgdict[pname] = { 'default' : value }
 
         # 5) 'apply' config:
         #    pass values through the datatypes and store as attributes
@@ -452,7 +456,8 @@ class Module(HasAccessibles):
                 # this checks also for the proper datatype
                 # note: this will NOT call write_* methods!
                 if k in self.parameters or k in self.propertyDict:
-                    setattr(self, k, v)
+                    if 'default' in v:
+                        setattr(self, k, v['default'])
                     cfgdict.pop(k)
             except (ValueError, TypeError) as e:
                 # self.log.exception(formatExtendedStack())

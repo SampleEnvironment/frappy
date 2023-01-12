@@ -254,7 +254,7 @@ class Mod(HasStates, Drivable):
 
 def create_module():
     updates = []
-    obj = Mod('obj', LoggerStub(), {'.description': ''}, ServerStub(updates))
+    obj = Mod('obj', LoggerStub(), {'description': ''}, ServerStub(updates))
     obj.initModule()
     obj.statelist = []
     try:

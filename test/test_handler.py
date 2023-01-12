@@ -62,6 +62,7 @@ class ServerStub:
 class ModuleTest(Module):
     def __init__(self, updates=None, **opts):
         opts['description'] = ''
+        opts = {p: {'default': val} for p, val in opts.items()}
         super().__init__('mod', logger, opts, ServerStub(updates or {}))
 
 
