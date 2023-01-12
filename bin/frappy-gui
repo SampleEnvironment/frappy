@@ -26,42 +26,49 @@
 from __future__ import print_function
 
 import sys
+import argparse
 from os import path
 
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-import mlzlog
+import logging
+from mlzlog import ColoredConsoleHandler
 
 from frappy.gui.qt import QApplication
 from frappy.gui.mainwindow import MainWindow
+
+def parseArgv(argv):
+    parser = argparse.ArgumentParser()
+    loggroup = parser.add_mutually_exclusive_group()
+    loggroup.add_argument('-d', '--debug',
+                          help='Enable debug output',
+                          action='store_true', default=False)
+    loggroup.add_argument('-q', '--quiet',
+                          help='Supress everything but errors',
+                          action='store_true', default=False)
+    parser.add_argument('node',
+                        help='Nodes the Gui should connect to.\n', metavar='host[:port]',
+                        nargs='*', type=str, default=['localhost:10767'])
+    return parser.parse_args(argv)
 
 
 def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    if '-h' in argv or '--help' in argv:
-        print("Usage: frappy-gui [-d] [-h] [host:[port]]")
-        print()
-        print("Option   GNU long option   Meaning")
-        print("-h       --help            Show this message")
-        print("-d       --debug           Enable debug output")
-        print()
-        print("if not given, host defaults to 'localhost' and port to 10767")
-        sys.exit(0)
+    args = parseArgv(argv[1:])
 
-    if '-d' in argv or '--debug' in argv:
-        mlzlog.initLogging('gui', 'debug')
-    else:
-        mlzlog.initLogging('gui', 'info')
+    loglevel = logging.DEBUG if args.debug else (logging.ERROR if args.quiet else logging.INFO)
+    logger = logging.getLogger('gui')
+    logger.setLevel(logging.DEBUG)
+    console = ColoredConsoleHandler()
+    console.setLevel(loglevel)
+    logger.addHandler(console)
 
     app = QApplication(argv)
 
-    hosts = [host for host in argv[1:] if not host.startswith('-')]
-    if not hosts:
-        hosts = ['localhost:10767']
-    win = MainWindow(hosts)
+    win = MainWindow(args.node, logger)
     win.show()
 
     return app.exec_()
