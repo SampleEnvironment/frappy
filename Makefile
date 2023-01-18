@@ -3,13 +3,15 @@
 
 all: clean doc
 
+# Make spawns a new shell for each command.
+# Save each PID in temporary file
+# sleep in order for "test" to have started reliably
 demo:
-	# Make spawns a new shell for each command. 
-	# Save each PID in temporary file
 	@rm -f frappydemo.PID || true
 	@{ bin/frappy-server -q demo & echo $$! >> frappydemo.PID; }
 	@{ bin/frappy-server -q test & echo $$! >> frappydemo.PID; }
 	@{ bin/frappy-server -q cryo & echo $$! >> frappydemo.PID; }
+	@sleep 0.2 
 	@bin/frappy-gui localhost:10767 localhost:10768 localhost:10769
 	@cat frappydemo.PID | xargs kill || true
 	@rm frappydemo.PID

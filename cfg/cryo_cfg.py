@@ -12,7 +12,6 @@ Node('cryo_7.frappy.demo',
     more="blub",
 )
 
-# obviously not final form
 Mod('cryo',
     'frappy_demo.cryo.Cryostat',
     'A simulated cc cryostat with heat-load, specific heat for the sample and a ' \

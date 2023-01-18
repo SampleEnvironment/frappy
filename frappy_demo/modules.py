@@ -110,7 +110,7 @@ class MagneticField(Drivable):
     """
 
     value = Parameter('current field in T',
-                      unit='T', datatype=FloatRange(-15, 15), default=0,
+                      unit='T', datatype=FloatRange(-16, 16), default=0,
                       )
     target = Parameter('target field in T',
                        unit='T', datatype=FloatRange(-15, 15), default=0,
