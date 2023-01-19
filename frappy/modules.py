@@ -32,13 +32,11 @@ from frappy.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
     IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion
 from frappy.errors import BadValueError, CommunicationFailedError, ConfigError, \
     ProgrammingError, SECoPError, secop_error
-from frappy.lib import formatException, mkthread, UniqueObject, generalConfig
+from frappy.lib import formatException, mkthread, UniqueObject
 from frappy.lib.enum import Enum
 from frappy.params import Accessible, Command, Parameter
 from frappy.properties import HasProperties, Property
 from frappy.logging import RemoteLogHandler, HasComlog
-
-generalConfig.set_default('disable_value_range_check', False)  # check for problematic value range by default
 
 Done = UniqueObject('Done')
 """a special return value for a read/write function
@@ -805,7 +803,6 @@ class Readable(Module):
 
 class Writable(Readable):
     """basic writable module"""
-    disable_value_range_check = Property('disable value range check', BoolType(), default=False)
     target = Parameter('target value of the module',
                        default=0, readonly=False, datatype=FloatRange(unit='$'))
 
@@ -821,13 +818,6 @@ class Writable(Readable):
             if type(value_dt) == type(target_dt):
                 raise ConfigError('the target range extends beyond the value range') from None
             raise ProgrammingError('the datatypes of target and value are not compatible') from None
-        if isinstance(value_dt, FloatRange):
-            if (not self.disable_value_range_check and not generalConfig.disable_value_range_check
-                    and value_dt.problematic_range(target_dt)):
-                self.log.error('the value range must be bigger than the target range!')
-                self.log.error('you may disable this error message by running the server with --relaxed')
-                self.log.error('or by setting the disable_value_range_check property of the module to True')
-                raise ConfigError('the value range must be bigger than the target range')
 
 
 class Drivable(Writable):

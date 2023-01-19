@@ -249,7 +249,7 @@ class Dispatcher:
                                 % (modulename, pname))
 
         # validate!
-        value = pobj.datatype(value)
+        value = pobj.datatype.validate(value, previous=pobj.value)
         # note: exceptions are handled in handle_request, not here!
         getattr(moduleobj, 'write_' + pname)(value)
         # return value is ignored here, as already handled
