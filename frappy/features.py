@@ -63,7 +63,7 @@ class HasLimits(Feature):
     """
     abslimits = Property('abs limits (raw values)', default=(-9e99, 9e99), extname='abslimits', export=True,
                          datatype=TupleOf(FloatRange(unit='deg'), FloatRange(unit='deg')))
-    limits = PersistentParam('user limits', readonly=False, default=(-9e99, 9e99), initwrite=True,
+    limits = PersistentParam('user limits', readonly=False, default=(-9e99, 9e99),
                              datatype=TupleOf(FloatRange(unit='deg'), FloatRange(unit='deg')))
     _limits = None
 

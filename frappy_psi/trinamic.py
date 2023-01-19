@@ -78,7 +78,7 @@ STEPPOS_ADR = 1
 
 def writable(*args, **kwds):
     """convenience function to create writable hardware parameters"""
-    return PersistentParam(*args, readonly=False, initwrite=True, **kwds)
+    return PersistentParam(*args, readonly=False, **kwds)  # TODO: check impact of 'initwrite' removal
 
 
 class Motor(PersistentMixin, HasIO, Drivable):
@@ -88,9 +88,9 @@ class Motor(PersistentMixin, HasIO, Drivable):
                       needscfg=False)
     zero = PersistentParam('zero point', FloatRange(unit='$'), readonly=False, default=0)
     encoder = PersistentParam('encoder reading', FloatRange(unit='$', fmtstr='%.1f'),
-                              readonly=True, initwrite=False)
+                              readonly=True)
     steppos = PersistentParam('position from motor steps', FloatRange(unit='$', fmtstr='%.3f'),
-                              readonly=True, initwrite=False)
+                              readonly=True)
     target = Parameter('', FloatRange(unit='$'), default=0)
 
     move_limit = Parameter('max. angle to drive in one go when current above safe_current',
@@ -121,7 +121,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
     error_bits = Parameter('', IntRange(0, 255), group='hwstatus')
     home = Parameter('state of home switch (input 3)', BoolType())
     has_home = Parameter('enable home and activate pullup resistor', BoolType(),
-                         default=True, initwrite=True, group='more')
+                         default=True, group='more')
     auto_reset = Parameter('automatic reset after failure', BoolType(), readonly=False, default=False)
     free_wheeling = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
                              default=0.1, group='motorparam')

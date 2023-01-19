@@ -198,9 +198,6 @@ class Server:
             else:
                 try:
                     modobj = cls(modname, self.log.getChild(modname), opts, self)
-                    # all used args should be popped from opts!
-                    if opts:
-                        errors.append(self.unknown_options(cls, opts))
                     self.modules[modname] = modobj
                 except ConfigError as e:
                     errors.append('error creating module %s:' % modname)

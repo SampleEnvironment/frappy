@@ -132,6 +132,7 @@ def test_poll(ncycles, pollinterval, slowinterval, mspan, pspan, monkeypatch):
     m.pollinterval = pollinterval
     m.slowInterval = slowinterval
     m.run(ncycles)
+    print(getattr(m.parameters['param4'], 'stat', None))
     assert not hasattr(m.parameters['param4'], 'stat')
     for pname in ['value', 'status']:
         pobj = m.parameters[pname]
