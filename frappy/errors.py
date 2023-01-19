@@ -22,6 +22,9 @@
 # *****************************************************************************
 """Define (internal) SECoP Errors"""
 
+import re
+from ast import literal_eval
+
 
 class SECoPError(RuntimeError):
     silent = False   # silent = True indicates that the error is already logged
@@ -121,8 +124,27 @@ class HardwareError(SECoPError):
     name = 'HardwareError'
 
 
+FRAPPY_ERROR = re.compile(r'(.*)\(.*\)$')
+
+
 def make_secop_error(name, text):
-    errcls = EXCEPTIONS.get(name, InternalError)
+    """create an instance of SECoPError from an error report
+
+    :param name: the error class from the SECoP error report
+    :param text: the second item of a SECoP error report
+    :return: the built instance of SECoPError
+    """
+    try:
+        # try to interprete the error text as a repr(<instance of SECoPError>)
+        # as it would be created by a Frappy server
+        cls, textarg = FRAPPY_ERROR.match(text).groups()
+        errcls = locals()[cls]
+        if errcls.name == name:
+            # convert repr(<string>) to <string>
+            text = literal_eval(textarg)
+    except Exception:
+        # probably not a Frappy server, or running a different version
+        errcls = EXCEPTIONS.get(name, InternalError)
     return errcls(text)
 
 
