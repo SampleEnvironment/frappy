@@ -185,7 +185,7 @@ def proxy_class(remote_class, name=None):
     for aname, aobj in rcls.accessibles.items():
         if isinstance(aobj, Parameter):
             pobj = aobj.copy()
-            pobj.merge(dict(needscfg=False))
+            pobj.merge({'needscfg': False})
             attrs[aname] = pobj
 
             def rfunc(self, pname=aname):
@@ -226,7 +226,12 @@ def Proxy(name, logger, cfgdict, srv):
     title cased as it acts like a class
     """
     remote_class = cfgdict.pop('remote_class')
+    if isinstance(remote_class, dict):
+        remote_class = remote_class['default']
+
     if 'description' not in cfgdict:
         cfgdict['description'] = 'remote module %s on %s' % (
-            cfgdict.get('module', name), cfgdict.get('io', '?'))
+            cfgdict.get('module', name),
+                cfgdict.get('io', {'default:': '?'})['default'])
+
     return proxy_class(remote_class)(name, logger, cfgdict, srv)
