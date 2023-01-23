@@ -47,9 +47,9 @@ class Node(dict):
         )
 
 class Param(dict):
-    def __init__(self, default=Undef, **kwds):
-        if default is not Undef:
-            kwds['default'] = default
+    def __init__(self, value=Undef, **kwds):
+        if value is not Undef:
+            kwds['value'] = value
         super().__init__(**kwds)
 
 class Group(tuple):
@@ -71,7 +71,7 @@ class Mod(dict):
             elif isinstance(val, Group):
                 groups[key] = val
             else:
-                # shortcut to only set default
+                # shortcut to only set value
                 self[key] = Param(val)
         for group, members in groups.items():
             for member in members:

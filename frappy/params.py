@@ -102,6 +102,16 @@ class Parameter(Accessible):
     :param datatype: the datatype
     :param inherit: whether properties not given should be inherited
     :param kwds: optional properties
+
+    Usage of 'value' and 'default':
+    - if a value is given for a parameter in the config file,  and if the write_<paramname>
+      method is given, it is called on startup with this value as argument
+    - if a value should be written to the HW on startup, even when not given in the config
+      add the value argument to the Parameter definition
+    - for parameters which are not polling the HW, either a default should be given
+      as a Parameter argument, or, when needscfg is set to True, a configured value is required
+    - when default instead of value is given in the cfg file, it is assigne to the parameter
+      but not written to the HW
     """
     # storage for Parameter settings + value + qualifiers
 
@@ -128,6 +138,11 @@ class Parameter(Accessible):
 
         if it can not be read from the hardware''', ValueType(),
         export=False, default=None)
+    value = Property(
+        '''[internal] configured value of this parameter
+
+        if given, write to the hardware''', ValueType(),
+        export=False, default=None)
     export = Property(
         '''[internal] export settings
 
@@ -141,14 +156,9 @@ class Parameter(Accessible):
     optional = Property(
         '[internal] is this parameter optional?', BoolType(),
         export=False, settable=False, default=False)
-    initwrite = Property(
-        '''[internal] write this parameter on initialization
-
-        default None: write if given in config''', NoneOr(BoolType()),
-        export=False, default=None, settable=False)
 
     # used on the instance copy only
-    value = None
+    # value = None
     timestamp = 0
     readerror = None
 
@@ -171,6 +181,8 @@ class Parameter(Accessible):
             self.datatype = datatype
             if 'default' in kwds:
                 self.default = datatype(kwds['default'])
+            if 'value' in kwds:
+                self.value = datatype(kwds['value'])
 
         if description is not None:
             kwds['description'] = inspect.cleandoc(description)
@@ -228,7 +240,7 @@ class Parameter(Accessible):
 
     def override(self, value):
         """override default"""
-        self.default = self.datatype(value)
+        self.value = self.datatype(value)
 
     def merge(self, merged_properties):
         """merge with inherited properties
@@ -251,13 +263,15 @@ class Parameter(Accessible):
             # serialised version of the constant, or unset
             self.constant = self.datatype.export_value(constant)
             self.readonly = True
-        if 'default' in self.propertyValues:
-            # fixes in case datatype has changed
-            try:
-                self.default = self.datatype(self.default)
-            except BadValueError:
-                # clear default, if it does not match datatype
-                self.propertyValues.pop('default')
+        for propname in 'default', 'value':
+            if propname in self.propertyValues:
+                value = self.propertyValues.pop(propname)
+                # fixes in case datatype has changed
+                try:
+                    self.propertyValues[propname] = self.datatype(value)
+                except BadValueError:
+                    # clear, if it does not match datatype
+                    pass
 
     def export_value(self):
         return self.datatype.export_value(self.value)

@@ -150,8 +150,8 @@ def test_ModuleMagic():
         a1 = Parameter(datatype=FloatRange(unit='$/s'), readonly=False)
         # remark: it might be a programming error to override the datatype
         # and not overriding the read_* method. This is not checked!
-        b2 = Parameter('<b2>', datatype=StringType(), default='empty',
-                       readonly=False, initwrite=True)
+        b2 = Parameter('<b2>', datatype=StringType(), value='empty',
+                       readonly=False)
 
         def write_a1(self, value):
             self._a1_written = value
@@ -186,12 +186,14 @@ def test_ModuleMagic():
                 params_found.add(o)
             assert list(obj.accessibles) == sortcheck
 
+    updates.clear()
     # check for inital updates working properly
     o1 = Newclass1('o1', logger, {'description':''}, srv)
     expectedBeforeStart = {'target': '', 'status': (Drivable.Status.IDLE, ''),
-            'param1': False, 'param2': 1.0, 'a1': 0.0, 'a2': True, 'pollinterval': 5.0,
+            'param1': False, 'param2': 1.0, 'a1': False, 'a2': True, 'pollinterval': 5.0,
             'value': 'first'}
-    assert updates.pop('o1') == expectedBeforeStart
+    for k, v in expectedBeforeStart.items():
+        assert getattr(o1, k) == v
     o1.earlyInit()
     event = DummyMultiEvent()
     o1.initModule()
@@ -204,11 +206,11 @@ def test_ModuleMagic():
     assert updates.pop('o1') == expectedAfterStart
 
     # check in addition if parameters are written
-    o2 = Newclass2('o2', logger, {'description':'', 'a1': {'default': 2.7}}, srv)
-    # no update for b2, as this has to be written
-    expectedBeforeStart['a1'] = 2.7
-    expectedBeforeStart['target'] = 0.0
-    assert updates.pop('o2') == expectedBeforeStart
+    assert not updates
+    o2 = Newclass2('o2', logger, {'description':'', 'a1': {'value': 2.7}}, srv)
+    expectedBeforeStart.update(a1=2.7, b2='empty', target=0, value=0)
+    for k, v in expectedBeforeStart.items():
+        assert getattr(o2, k) == v
     o2.earlyInit()
     event = DummyMultiEvent()
     o2.initModule()
@@ -240,7 +242,7 @@ def test_ModuleMagic():
         'cmd2', 'value', 'a1'}
     assert set(cfg['value'].keys()) == {
         'group', 'export', 'relative_resolution',
-        'visibility', 'unit', 'default', 'datatype', 'fmtstr',
+        'visibility', 'unit', 'default', 'value', 'datatype', 'fmtstr',
         'absolute_resolution', 'max', 'min', 'readonly', 'constant',
         'description', 'needscfg'}
 
@@ -412,14 +414,14 @@ def test_mixin():
 
     MixedDrivable('o', logger, {
         'description': '',
-        'param1': {'default': 0, 'description': 'param1'},
+        'param1': {'value': 0, 'description': 'param1'},
         'param2': {'datatype': {"type": "double"}},
     }, srv)
 
     with pytest.raises(ConfigError):
         MixedReadable('o', logger, {
             'description': '',
-            'param1': {'default': 0, 'description': 'param1'},
+            'param1': {'value': 0, 'description': 'param1'},
             'param2': {'datatype': {"type": "double"}},
         }, srv)
 
@@ -431,7 +433,7 @@ def test_override():
         def stop(self):
             """no decorator needed"""
 
-    assert Mod.value.default == 5
+    assert Mod.value.value == 5
     assert Mod.stop.description == "no decorator needed"
 
     class Mod2(Drivable):
@@ -526,7 +528,7 @@ def test_generic_access():
     updates = {}
     srv = ServerStub(updates)
 
-    obj = Mod('obj', logger, {'description': '', 'param': {'default':'initial value'}}, srv)
+    obj = Mod('obj', logger, {'description': '', 'param': {'value':'initial value'}}, srv)
     assert obj.param == 'initial value'
     assert obj.write_param('Cheese') == 'cheese'
     assert obj.write_unhandled('Cheese') == 'Cheese'
@@ -587,7 +589,7 @@ def test_no_read_write():
     updates = {}
     srv = ServerStub(updates)
 
-    obj = Mod('obj', logger, {'description': '', 'param': {'default': 'cheese'}}, srv)
+    obj = Mod('obj', logger, {'description': '', 'param': {'value': 'cheese'}}, srv)
     assert obj.param == 'cheese'
     assert obj.read_param() == 'cheese'
     assert updates == {'obj': {'param': 'cheese'}}

@@ -328,7 +328,7 @@ class Module(HasAccessibles):
             if value is not None:
                 try:
                     if isinstance(value, dict):
-                        self.setProperty(key, value['default'])
+                        self.setProperty(key, value['value'])
                     else:
                         self.setProperty(key, value)
                 except BadValueError:
@@ -372,14 +372,12 @@ class Module(HasAccessibles):
         self.commands = {k: v for k, v in accessibles.items() if isinstance(v, Command)}
 
         # 2) check and apply parameter_properties
-        for aname in list(cfgdict):  # keep list() as dict may change during iter
+        bad = []
+        for aname, cfg in cfgdict.items():
             aobj = self.accessibles.get(aname, None)
             if aobj:
                 try:
-                    for propname, propvalue in cfgdict[aname].items():
-                        # defaults are applied later
-                        if propname == 'default':
-                            continue
+                    for propname, propvalue in cfg.items():
                         aobj.setProperty(propname, propvalue)
                 except KeyError:
                     errors.append("'%s' has no property '%s'" %
@@ -388,23 +386,17 @@ class Module(HasAccessibles):
                     errors.append('%s.%s: %s' %
                                   (aname, propname, str(e)))
             else:
-                errors.append('%r not found' % aname)
-        # 3) commands do not need a default, remove them from cfgdict:
-        for aname in list(cfgdict):
-            if aname in self.commands:
-                cfgdict.pop(aname)
+                bad.append(aname)
 
-        # 3) check config for problems:
-        #    only accept remaining config items specified in parameters
-        bad = [k for k in cfgdict if k not in self.parameters]
+        # 3) complain about names not found as accessible or property names
         if bad:
             errors.append(
                 '%s does not exist (use one of %s)' %
-                (', '.join(bad), ', '.join(list(self.parameters) +
-                                                      list(self.propertyDict))))
-
-        # 4) complain if a Parameter entry has no default value and
-        #    is not specified in cfgdict and deal with parameters to be written.
+                (', '.join(bad), ', '.join(list(self.accessibles) +
+                                           list(self.propertyDict))))
+        # 4) register value for writing, if given
+        #    apply default when no value is given (in cfg or as Parameter argument)
+        #    or complain, when cfg is needed
         self.writeDict = {}  # values of parameters to be written
         for pname, pobj in self.parameters.items():
             self.valueCallbacks[pname] = []
@@ -414,54 +406,28 @@ class Module(HasAccessibles):
                 errors.append('%s needs a datatype' % pname)
                 continue
 
-            if pname in cfgdict and 'default' in cfgdict[pname]:
-                if pobj.initwrite is not False and hasattr(self, 'write_' + pname):
-                    # parameters given in cfgdict have to call write_<pname>
-                    try:
-                        pobj.value = pobj.datatype(cfgdict[pname]['default'])
-                        self.writeDict[pname] = pobj.value
-                    except BadValueError as e:
-                        errors.append('%s: %s' % (pname, e))
-            else:
+            if pobj.value is None:
+                if pobj.needscfg:
+                    errors.append('%r has no default '
+                                  'value and was not given in config!' % pname)
                 if pobj.default is None:
-                    if pobj.needscfg:
-                        errors.append('%r has no default '
-                                      'value and was not given in config!' % pname)
                     # we do not want to call the setter for this parameter for now,
                     # this should happen on the first read
                     pobj.readerror = ConfigError('parameter %r not initialized' % pname)
                     # above error will be triggered on activate after startup,
                     # when not all hardware parameters are read because of startup timeout
-                    pobj.value = pobj.datatype(pobj.datatype.default)
-                else:
-                    try:
-                        value = pobj.datatype(pobj.default)
-                    except BadValueError as e:
-                        # this should not happen, as the default is already checked in Parameter
-                        raise ProgrammingError('bad default for %s:%s: %s' % (name, pname, e)) from None
-                    if pobj.initwrite and hasattr(self, 'write_' + pname):
-                        # we will need to call write_<pname>
-                        pobj.value = value
-                        self.writeDict[pname] = value
-                    else:
-                        # dict to fit in with parameters coming from config
-                        cfgdict[pname] = { 'default' : value }
+                    pobj.default = pobj.datatype.default
+                pobj.value = pobj.default
+            else:
+                # value given explicitly, either by cfg or as Parameter argument
+                if hasattr(self, 'write_' + pname):
+                    self.writeDict[pname] = pobj.value
+                if pobj.default is None:
+                    pobj.default = pobj.value
+                # this checks again for datatype and sets the timestamp
+                setattr(self, pname, pobj.value)
 
-        # 5) 'apply' config:
-        #    pass values through the datatypes and store as attributes
-        for k, v in list(cfgdict.items()):
-            try:
-                # this checks also for the proper datatype
-                # note: this will NOT call write_* methods!
-                if k in self.parameters or k in self.propertyDict:
-                    if 'default' in v:
-                        setattr(self, k, v['default'])
-                    cfgdict.pop(k)
-            except (ValueError, TypeError) as e:
-                # self.log.exception(formatExtendedStack())
-                errors.append('parameter %s: %s' % (k, e))
-
-        # ensure consistency
+        # 5) ensure consistency
         for aobj in self.accessibles.values():
             aobj.finish()
 
