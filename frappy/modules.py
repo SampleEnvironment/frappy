@@ -843,3 +843,6 @@ class Attached(Property):
             return super().__get__(obj, owner)
         # return the module (called after startup)
         return obj.attachedModules.get(self.name)  # return None if not given
+
+    def copy(self):
+        return Attached(self.basecls, self.description, self.mandatory)
