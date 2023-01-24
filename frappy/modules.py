@@ -683,7 +683,10 @@ class Module(HasAccessibles):
             for mobj in modules:
                 pinfo = mobj.pollInfo
                 if now > pinfo.last_main + pinfo.interval:
-                    pinfo.last_main = (now // pinfo.interval) * pinfo.interval
+                    try:
+                        pinfo.last_main = (now // pinfo.interval) * pinfo.interval
+                    except ZeroDivisionError:
+                        pinfo.last_main = now
                     mobj.callPollFunc(mobj.doPoll)
                 now = time.time()
             # find ONE due slow poll and call it
