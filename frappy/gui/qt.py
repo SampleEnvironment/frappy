@@ -44,7 +44,7 @@ try:
 
     from xml.sax.saxutils import escape as toHtmlEscaped
 
-    import frappy.gui.icon_rc_qt5
+    import frappy.gui.cfg_editor.icon_rc_qt5
 
 except ImportError:
     from PyQt4 import uic
@@ -57,7 +57,7 @@ except ImportError:
         QTreeWidget, QFileDialog, QTabBar, QAction, QMenu, QDialogButtonBox, QAbstractItemView, \
         QSpacerItem, QTreeView, QStandardItemModel, QStandardItem
 
-    import frappy.gui.icon_rc_qt4
+    import frappy.gui.cfg_editor.icon_rc_qt4
 
     def toHtmlEscaped(s):
         return Qt.escape(s)
