@@ -205,46 +205,50 @@ Before we continue coding, we may try out what we have coded and create a config
 The directory tree of the Frappy framework contains the code for all drivers, but the
 configuration file determines, which code will be loaded when a server is started.
 We choose the name *example_cryo* and create therefore a configuration file
-*example_cryo.cfg* in the *cfg* subdirectory:
+*example_cryo_cfg.py* in the *cfg* subdirectory:
 
-``cfg/example_cryo.cfg``:
+``cfg/example_cryo_cfg.py``:
 
-.. code:: ini
+.. code:: python
 
-    [NODE]
-    description = this is an example cryostat for the Frappy tutorial
-    id = example_cryo.psi.ch
+    Node('example_cryo.psi.ch',
+         'this is an example cryostat for the Frappy tutorial',
+          interface='tcp://5000')
+    Mod('helev',
+        'frappy_psi.ccu4.HeLevel',
+        'He level of the cryostat He reservoir',
+        uri='linse-moxa-4.psi.ch:3001',
+        empty_length=380,
+        full_length=0)
 
-    [INTERFACE]
-    uri = tcp://5000
+A configuration file contains a node configuration and one or several module configurations.
 
-    [helev]
-    description = He level of the cryostat He reservoir
-    class = frappy_psi.ccu4.HeLevel
-    uri = linse-moxa-4.psi.ch:3001
-    empty_length = 380
-    full_length = 0
+*Node* describes the main properties of the SEC Node: an id and a description of the node
+which should be globally unique, and an interface defining the address of the server,
+usually the only important value here is the TCP port under which the server will be accessible.
+Currently only tcp is supported.
 
-A configuration file contains several sections with a header enclosed by rectangular brackets.
+All the other sections define the SECoP modules to be used. This first arguments of *Mod(* are:
 
-The *NODE* section describes the main properties of the SEC Node: a description of the node
-and an id, which should be globally unique.
+* the module name
+* the python class to be used for the creation of the module
+* a human readable description is its
 
-The *INTERFACE* section defines the address of the server, usually the only important value
-here is the TCP port under which the server will be accessible. Currently only tcp is
-supported.
-
-All the other sections define the SECoP modules to be used. A module section at least contains a
-human readable *description*, and the Python *class* used. Other properties or parameter values may
-follow, in this case the *uri* for the communication with the He level monitor and the values for
-configuring the He Level sensor. We might also alter parameter properties, for example we may hide
+Other properties or parameter values may follow, in this case the *uri* for the communication
+with the He level monitor and the values for configuring the He Level sensor.
+We might also alter parameter properties, for example we may hide
 the parameters *empty_length* and *full_length* from the client by defining:
 
-.. code:: ini
+.. code:: python
 
-    empty_length.export = False
-    full_length.export = False
+    Mod('helev',
+        'frappy_psi.ccu4.HeLevel',
+        'He level of the cryostat He reservoir',
+        uri='linse-moxa-4.psi.ch:3001',
+        empty_length=Param(380, export=False),
+        full_length=Param(0, export=False))
 
-However, we do not put this here, as it is nice to try out changing parameters for a test!
+As we configure more than just an initial value, we have to call *Param* and give the
+value as the first argument, and additional properties as keyworded arguments.
 
 *to be continued*
