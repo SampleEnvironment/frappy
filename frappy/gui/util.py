@@ -24,7 +24,7 @@
 
 from os import path
 
-from frappy.gui.qt import uic
+from frappy.gui.qt import uic, QColor
 
 uipath = path.dirname(__file__)
 
@@ -52,3 +52,36 @@ class Value:
         if self.readerror:
             args += (self.readerror,)
         return 'Value%s' % repr(args)
+
+class Colors:
+    @classmethod
+    def _setPalette(cls, palette):
+        if hasattr(cls, 'palette'):
+            return
+        cls.palette = palette
+        background = palette.window().color().lightness()
+        foreground = palette.windowText().color().lightness()
+        if background > foreground: # light
+            cls.colors = {
+                          'orange': QColor('#FA6800'),
+                          'plot-fg': QColor('black'),
+                          'plot-bg': QColor('white'),
+                          0: QColor('black'),
+                          1: QColor('blue'),
+                          2: QColor('#FA6800'),
+                          3: QColor('green'),
+                          4: QColor('red'),
+                          5: QColor('purple'),
+                          }
+        else:
+            cls.colors = {
+                          'orange': QColor('#FA6800'),
+                          'plot-fg': QColor('white'),
+                          'plot-bg': QColor('black'),
+                          0: QColor('white'),
+                          1: QColor('#72ADD4'),
+                          2: QColor('#FA6800'),
+                          3: QColor('olive'),
+                          4: QColor('red'),
+                          5: QColor('purple'),
+                          }

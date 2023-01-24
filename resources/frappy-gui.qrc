@@ -1,0 +1,19 @@
+<RCC>
+  <qresource prefix="leds">
+    <file alias="gray">leds/simplegray.png</file>
+    <file alias="clear">leds/clear.png</file>
+    <file alias="green">leds/simplegreen.png</file>
+    <file alias="orange">leds/simpleorange.png</file>
+    <file alias="red">leds/simplered.png</file>
+    <file alias="unknown">leds/simpleunknown.png</file>
+    <file alias="white">leds/simplewhite.png</file>
+    <file alias="yellow">leds/simpleyellow.png</file>
+  </qresource>
+  <qresource prefix="icons">
+    <file alias="stop">icons/cross-circle.png</file>
+    <file alias="plot-add">icons/system-monitor--plus.png</file>
+    <file alias="submit">icons/arrow-turn-180.png</file>
+    <file alias="connect">icons/plug--plus.png</file>
+    <file alias="plot">icons/system-monitor.png</file>
+  </qresource>
+</RCC>

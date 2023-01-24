@@ -183,6 +183,8 @@ class ModuleCtrl(QWidget):
             cmdWidgets[command] = w
             self.commandGroupBox.layout().addWidget(w, 0, row)
             row += 1
+        if not commands:
+            self.commandGroupBox.hide()
 
         row = 0
         # collect grouping information

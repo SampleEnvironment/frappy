@@ -69,6 +69,7 @@ def main(argv=None):
     app = QApplication(argv)
 
     win = MainWindow(args.node, logger)
+    app.aboutToQuit.connect(win._onQuit)
     win.show()
 
     return app.exec_()

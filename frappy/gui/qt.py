@@ -32,15 +32,17 @@ try:
 
     from PyQt5 import uic
     from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, \
-        QRectF, QPoint
+        QRectF, QPoint, QByteArray, QEvent, QMimeData
     from PyQt5.QtGui import QFont, QTextCursor, QFontMetrics, QColor, QBrush, \
-        QPainter, QPolygonF, QPen, QIcon, QStandardItemModel, QStandardItem
+        QPainter, QPolygonF, QPen, QIcon, QStandardItemModel, QStandardItem, \
+        QPalette, QCursor, QDrag, QMouseEvent, QPixmap
     from PyQt5.QtWidgets import QLabel, QWidget, QDialog, QLineEdit, QCheckBox, \
         QPushButton, QSizePolicy, QMainWindow, QMessageBox, QInputDialog, \
         QTreeWidgetItem, QApplication, QGroupBox, QSpinBox, QDoubleSpinBox, \
         QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, QGridLayout, \
         QScrollArea, QFrame, QTreeWidget, QFileDialog, QTabBar, QAction, QMenu,\
-        QDialogButtonBox, QTextEdit, QAbstractItemView, QSpacerItem, QTreeView
+        QDialogButtonBox, QTextEdit, QSpacerItem, QTreeView, QStyle, \
+        QStyleOptionTab, QStylePainter, QTabWidget, QToolButton, QPlainTextEdit
 
     from xml.sax.saxutils import escape as toHtmlEscaped
 
@@ -55,7 +57,7 @@ except ImportError:
         QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, \
         QGridLayout, QScrollArea, QFrame, QColor, QBrush, QPainter, QPolygonF, QPen, QIcon, \
         QTreeWidget, QFileDialog, QTabBar, QAction, QMenu, QDialogButtonBox, QAbstractItemView, \
-        QSpacerItem, QTreeView, QStandardItemModel, QStandardItem
+        QSpacerItem, QTreeView, QStandardItemModel, QStandardItem, QPlainTextEdit
 
     import frappy.gui.cfg_editor.icon_rc_qt4
 
