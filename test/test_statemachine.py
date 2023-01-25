@@ -23,7 +23,7 @@
 
 from frappy.core import Drivable, Parameter
 from frappy.datatypes import StatusType, Enum
-from frappy.states import StateMachine, Stop, Retry, Finish, Start, HasStates, StatusCode
+from frappy.states import StateMachine, Stop, Retry, Finish, Start, HasStates, status_code
 
 
 class LoggerStub:
@@ -68,7 +68,7 @@ def fall(state):
 
 
 def finish(state):
-    return None
+    return Finish
 
 
 class Result:
@@ -171,6 +171,7 @@ def test_finish():
     s.cycle()
     assert obj.states == [finish, None]
     assert s.statefunc is None
+    assert s.cleanup_reason is None
 
 
 Status = Enum(
@@ -213,9 +214,6 @@ class Mod(HasStates, Drivable):
     def artificial_time(self):
         return self._my_time
 
-    def on_cleanup(self, sm):
-        return self.cleanup_one
-
     def state_transition(self, sm, newstate):
         self.statelist.append(getattr(newstate, '__name__', None))
         super().state_transition(sm, newstate)
@@ -225,23 +223,21 @@ class Mod(HasStates, Drivable):
             return Retry
         return self.state_two
 
-    @StatusCode('PREPARING', 'state 2')
+    @status_code('PREPARING', 'state 2')
     def state_two(self, sm):
         return self.state_three
 
-    @StatusCode('FINALIZING')
+    @status_code('FINALIZING')
     def state_three(self, sm):
         if sm.init:
             return Retry
         return self.final_status('IDLE', 'finished')
 
-    @StatusCode('BUSY')
     def cleanup_one(self, sm):
-        if sm.init:
-            return Retry
-        print('one 2')
+        self.statelist.append('cleanup one')
         return self.cleanup_two
 
+    @status_code('BUSY', 'after cleanup')
     def cleanup_two(self, sm):
         if sm.init:
             return Retry
@@ -295,32 +291,32 @@ def test_stop_without_cleanup():
 
 def test_stop_with_cleanup():
     obj, updates = create_module()
-    obj.start_machine(obj.state_one, cleanup=obj.on_cleanup)
+    obj.start_machine(obj.state_one, cleanup=obj.cleanup_one)
     obj.doPoll()
     obj.stop_machine()
     for _ in range(10):
         obj.doPoll()
+    assert obj.statelist == ['state_one', 'cleanup one', 'cleanup_two', None]
     assert updates == [
         ('status', (Status.BUSY, 'state one')),
         ('status', (Status.BUSY, 'stopping')),
-        ('status', (Status.BUSY, 'stopping (cleanup one)')),
+        ('status', (Status.BUSY, 'stopping (after cleanup)')),
         ('status', (Status.IDLE, 'stopped')),
     ]
-    assert obj.statelist == ['state_one', 'cleanup_one', 'cleanup_two', None]
 
 
 def test_all_restart():
     obj, updates = create_module()
-    obj.start_machine(obj.state_one, cleanup=obj.on_cleanup, statelist=[])
+    obj.start_machine(obj.state_one, cleanup=obj.cleanup_one, statelist=[])
     obj.doPoll()
     obj.start_machine(obj.state_three)
     for _ in range(10):
         obj.doPoll()
+    assert obj.statelist == ['state_one', 'cleanup one', 'cleanup_two', None, 'state_three', None]
     assert updates == [
         ('status', (Status.BUSY, 'state one')),
         ('status', (Status.FINALIZING, 'restarting')),
-        ('status', (Status.FINALIZING, 'restarting (cleanup one)')),
+        ('status', (Status.FINALIZING, 'restarting (after cleanup)')),
         ('status', (Status.FINALIZING, 'state three')),
         ('status', (Status.IDLE, 'finished')),
     ]
-    assert obj.statelist == ['state_one', 'cleanup_one', 'cleanup_two', None, 'state_three', None]

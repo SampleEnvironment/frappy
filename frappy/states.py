@@ -26,44 +26,38 @@ handles status depending on statemachine state
 """
 
 
-from frappy.core import BUSY, IDLE, ERROR, Parameter, Command
-from frappy.errors import ProgrammingError
+from frappy.core import BUSY, IDLE, ERROR, Parameter, Command, Done
 from frappy.lib.statemachine import StateMachine, Finish, Start, Stop, \
     Retry  # pylint: disable=unused-import
 
 
-class StatusCode:
-    """decorator for state methods
+def status_code(code, text=None):
+    """decorator, attaching a status to a state function
 
-    :param code: the code assigned to the state function
-    :param text: the text assigned to the state function
-           if not given, the text is taken from the state functions name
+    :param code: the first element of the secop status tuple
+    :param text: the second element of the secop status tuple. if not given,
+                 the name of the state function is used (underscores replaced by spaces)
+    :return: the decorator function
+
+    if a state function has no attached status and is a method of the module running
+    the state machine, the status is inherited from an overridden method, if available
+
+    a state function without attached status does not change the status, or, if it is
+    used as the start function, BUSY is taken as default status code
     """
-    def __init__(self, code, text=None):
-        self.code = code
-        self.text = text
-
-    def __set_name__(self, owner, name):
-        if not issubclass(owner, HasStates):
-            raise ProgrammingError('when using decorator "status_code", %s must inherit HasStates' % owner.__name__)
-        self.cls = owner
-        self.name = name
-        if 'statusMap' not in owner.__dict__:
-            # we need a copy on each inheritance level
-            owner.statusMap = owner.statusMap.copy()
-        owner.statusMap[name] = self.code, name.replace('_', ' ') if self.text is None else self.text
-        setattr(owner, name, self.func)  # replace with original method
-
-    def __call__(self, func):
-        self.func = func
-        return self
+    def wrapper(func):
+        func.status = code, func.__name__.replace('_', ' ') if text is None else text
+        return func
+    return wrapper
 
 
 class HasStates:
     """mixin for modules needing a statemachine"""
     status = Parameter()  # make sure this is a parameter
+    all_status_changes = True  # when True, send also updates for status changes within a cycle
     _state_machine = None
-    statusMap = {}  # a dict populated with status values for methods used as state functions
+    _status = IDLE, ''
+    statusMap = None  # cache for status values derived from state methods
 
     def init_state_machine(self, **kwds):
         """initialize the state machine
@@ -77,34 +71,32 @@ class HasStates:
             idle_status=(IDLE, ''),
             transition=self.state_transition,
             reset_fast_poll=False,
-            status_text='',
+            status=(IDLE, ''),
             **kwds)
 
     def initModule(self):
         super().initModule()
+        self.statusMap = {}
         self.init_state_machine()
 
     def state_transition(self, sm, newstate):
         """handle status updates"""
         status = self.get_status(newstate)
-        if status is not None:
-            # if a status_code is given, remember the text of this state
-            sm.status_text = status[1]
-        if isinstance(sm.next_task, Stop):
-            if newstate:
-                status = self.status[0], 'stopping (%s)' % sm.status_text
-        elif isinstance(sm.next_task, Start):
-            next_status = self.get_status(sm.next_task.newstate, BUSY)
-            if newstate:
+        if sm.next_task:
+            if isinstance(sm.next_task, Stop):
+                if newstate and status is not None:
+                    status = status[0], 'stopping (%s)' % status[1]
+            elif newstate:
                 # restart case
-                status = next_status[0], 'restarting (%s)' % sm.status_text
+                if status is not None:
+                    status = sm.status[0], 'restarting (%s)' % status[1]
             else:
                 # start case
-                status = next_status
-        if status is None:
-            return  # no status_code given -> no change
-        if status != self.status:
-            self.status = status
+                status = self.get_status(sm.next_task.newstate, BUSY)
+        if status:
+            sm.status = status
+        if self.all_status_changes:
+            self.read_status()
 
     def get_status(self, statefunc, default_code=None):
         """get the status assigned to a statefunc
@@ -119,21 +111,82 @@ class HasStates:
             status = self._state_machine.idle_status or (ERROR, 'Finish was returned without final status')
         else:
             name = statefunc.__name__
-            status = self.statusMap.get(name)
+            try:
+                # look up in statusMap cache
+                status = self.statusMap[name]
+            except KeyError:
+                # try to get status from method or inherited method
+                cls = type(self)
+                for base in cls.__mro__:
+                    try:
+                        status = getattr(base, name, None).status
+                        break
+                    except AttributeError:
+                        pass
+                else:
+                    status = None
+                # store it in the cache for all further calls
+                self.statusMap[name] = status
             if status is None and default_code is not None:
                 status = default_code, name.replace('_', ' ')
-        print('get_status', statefunc, status, default_code)
         return status
+
+    def read_status(self):
+        sm = self._state_machine
+        if sm.status == self.status:
+            return Done
+        return sm.status
+
+    def cycle_machine(self):
+        sm = self._state_machine
+        sm.cycle()
+        if sm.statefunc is None:
+            if sm.reset_fast_poll:
+                sm.reset_fast_poll = False
+                self.setFastPoll(False)
+        self.read_status()
 
     def doPoll(self):
         super().doPoll()
-        sm = self._state_machine
-        sm.cycle()
-        if sm.statefunc is None and sm.reset_fast_poll:
-            sm.reset_fast_poll = False
-            self.setFastPoll(False)
+        self.cycle_machine()
 
-    def start_machine(self, statefunc, fast_poll=True, cleanup=None, **kwds):
+    def on_cleanup(self, sm):
+        """general cleanup method
+
+        override and super call for code to be executed for
+        any cleanup case
+        """
+        if isinstance(sm.cleanup_reason, Exception):
+            return self.on_error(sm)
+        if isinstance(sm.cleanup_reason, Start):
+            return self.on_restart(sm)
+        if isinstance(sm.cleanup_reason, Stop):
+            return self.on_stop(sm)
+        self.log.error('bad cleanup reason %r', sm.cleanup_reason)
+        return None
+
+    def on_error(self, sm):
+        """cleanup on error
+
+        override and probably super call for code to be executed in
+        case of error
+        """
+        self.log.error('handle error %r', sm.cleanup_reason)
+        self.final_status(ERROR, repr(sm.cleanup_reason))
+
+    def on_restart(self, sm):
+        """cleanup on restart
+
+        override for code to be executed before a restart
+        """
+
+    def on_stop(self, sm):
+        """cleanup on stop
+
+        override for code to be executed after stopping
+        """
+
+    def start_machine(self, statefunc, fast_poll=True, **kwds):
         """start or restart the state machine
 
         :param statefunc: the initial state to be called
@@ -152,12 +205,11 @@ class HasStates:
         4) the state machine continues at the given statefunc
         """
         sm = self._state_machine
-        status = self.get_status(statefunc, BUSY)
+        sm.status = self.get_status(statefunc, BUSY)
         if sm.statefunc:
-            status = status[0], 'restarting'
-        self.status = status
-        sm.status_text = status[1]
-        sm.start(statefunc, cleanup=cleanup, **kwds)
+            sm.status = sm.status[0], 'restarting'
+        sm.start(statefunc, cleanup=kwds.pop('cleanup', self.on_cleanup), **kwds)
+        self.read_status()
         if fast_poll:
             sm.reset_fast_poll = True
             self.setFastPoll(True)
@@ -178,7 +230,8 @@ class HasStates:
         if sm.is_active:
             sm.idle_status = stopped_status
             sm.stop()
-            self.status = self.status[0], 'stopping'
+            sm.status = self.get_status(sm.statefunc, sm.status[0])[0], 'stopping'
+            self.read_status()
             self.pollInfo.trigger(True)  # trigger poller
 
     @Command
@@ -194,4 +247,5 @@ class HasStates:
         """
         sm = self._state_machine
         sm.idle_status = code, text
+        sm.cleanup = None
         return Finish

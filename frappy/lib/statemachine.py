@@ -142,7 +142,7 @@ class StateMachine:
             ret = cleanup(self)  # pylint: disable=not-callable  # None or function
             if not (ret is None or callable(ret)):
                 self.log.error('%s: return value must be callable or None, not %r',
-                               self.statefunc.__name__, ret)
+                               cleanup.__name__, ret)
                 ret = None
         except Exception as e:
             self.log.exception('%r raised in cleanup', e)
