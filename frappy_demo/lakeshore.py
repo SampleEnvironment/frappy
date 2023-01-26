@@ -39,7 +39,7 @@ class TemperatureSensor(HasIO, Readable):
     # internal property to configure the channel
     channel = Property('the Lakeshore channel', datatype=StringType())
     # 0, 1500 is the allowed range by the LakeShore controller
-    # this range should be restricted in the configuration (see below)
+    # this range should be further restricted in the configuration (see below)
     value = Parameter(datatype=FloatRange(0, 1500, unit='K'))
 
     def read_value(self):
@@ -79,6 +79,8 @@ class TemperatureLoop(TemperatureSensor, Drivable):
         self.communicate(f'RANGE {self.loop},{self.heater_range};RANGE?{self.loop}')
         reply = self.communicate(f'SETP {self.loop},{target};SETP? {self.loop}')
         self._driving = True
+        # Setting the status attribute triggers an update message for the SECoP status
+        # parameter. This has to be done before returning from this method!
         self.status = BUSY, 'target changed'
         return float(reply)
 
@@ -102,7 +104,7 @@ class TemperatureLoop(TemperatureSensor, Drivable):
             if self._driving:
                 return BUSY, 'approaching setpoint'
             return WARN, 'temperature out of tolerance'
-        else:
+        else:  # within tolerance: simple convergence criterion
             self._driving = False
             return IDLE, ''
         return ERROR, text

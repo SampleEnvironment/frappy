@@ -27,13 +27,14 @@ from frappy.lib import generalConfig
 class Undef:
     pass
 
+
 class Node(dict):
     def __init__(
             self,
             equipment_id,
             description,
             interface=None,
-            cls='protocol.dispatcher.Dispatcher',
+            cls='frappy.protocol.dispatcher.Dispatcher',
             omit_unchanged_within=1.1,
             **kwds
     ):
@@ -45,6 +46,7 @@ class Node(dict):
             omit_unchanged_within=omit_unchanged_within,
             **kwds
         )
+
 
 class Param(dict):
     def __init__(self, value=Undef, **kwds):

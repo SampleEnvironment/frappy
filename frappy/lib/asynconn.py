@@ -157,6 +157,12 @@ class AsynConn:
 
 
 class AsynTcp(AsynConn):
+    """a tcp/ip connection
+
+    uri syntax::
+
+       tcp://<host address>:<port number>
+    """
     scheme = 'tcp'
 
     def __init__(self, uri, *args, **kwargs):
@@ -210,18 +216,19 @@ class AsynTcp(AsynConn):
 class AsynSerial(AsynConn):
     """a serial connection using pyserial
 
-    uri syntax:
-    serial://<path>?[<option>=<value>[+<option>=<value> ...]]
+    uri syntax::
 
-    options (defaults, other examples):
+      serial://<serial device>?[<option>=<value>[+<option>=<value> ...]]
 
-    baudrate=9600  # 4800, 115200
-    bytesize=8     # 5,6,7
-    parity=none    # even, odd, mark, space
-    stopbits=1     # 1.5, 2
-    xonxoff=False  # True
+      options (defaults, other examples):
 
-    and others (see documentation of serial.Serial)
+      baudrate=9600  # 4800, 115200
+      bytesize=8     # 5,6,7
+      parity=none    # even, odd, mark, space
+      stopbits=1     # 1.5, 2
+      xonxoff=False  # True
+
+      and others (see documentation of serial.Serial)
     """
     scheme = 'serial'
     PARITY_NAMES = {name[0]: name for name in ['NONE', 'ODD', 'EVEN', 'MASK', 'SPACE']}

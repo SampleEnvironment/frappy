@@ -223,6 +223,7 @@ class FloatRange(HasUnit, DataType):
         return self.get_info(type='double')
 
     def __call__(self, value):
+        """accepts floats, integers and booleans, but not strings"""
         try:
             value += 0.0  # do not accept strings here
         except Exception:
@@ -306,6 +307,7 @@ class IntRange(DataType):
         return self.get_info(type='int')
 
     def __call__(self, value):
+        """accepts integers, booleans and whole-number floats, but not strings"""
         try:
             fvalue = value + 0.0  # do not accept strings here
             value = int(value)
@@ -425,6 +427,7 @@ class ScaledInteger(HasUnit, DataType):
                              max=int(round(self.max / self.scale)))
 
     def __call__(self, value):
+        """accepts floats, integers and booleans, but not strings"""
         try:
             value += 0.0  # do not accept strings here
         except Exception:
@@ -515,7 +518,7 @@ class EnumType(DataType):
         return self(value)
 
     def __call__(self, value):
-        """return the validated (internal) value or raise"""
+        """accepts integers and strings, converts to EnumMember (may be used like an int)"""
         try:
             return self._enum[value]
         except (KeyError, TypeError):  # TypeError will be raised when value is not hashable
@@ -565,7 +568,7 @@ class BLOBType(DataType):
         return 'BLOBType(%d, %d)' % (self.minbytes, self.maxbytes)
 
     def __call__(self, value):
-        """return the validated (internal) value or raise"""
+        """accepts bytes only"""
         if not isinstance(value, bytes):
             raise BadValueError('%s must be of type bytes' % shortrepr(value))
         size = len(value)
@@ -630,7 +633,7 @@ class StringType(DataType):
         return 'StringType(%s)' % (', '.join('%s=%r' % kv for kv in self.get_info().items()))
 
     def __call__(self, value):
-        """return the validated (internal) value or raise"""
+        """accepts strings only"""
         if not isinstance(value, str):
             raise BadValueError('%s has the wrong type!' % shortrepr(value))
         if not self.isUTF8:
@@ -706,7 +709,8 @@ class BoolType(DataType):
         return 'BoolType()'
 
     def __call__(self, value):
-        """return the validated (internal) value or raise"""
+        """accepts 0, False, 1, True"""
+        # TODO: probably remove conversion from string (not needed anymore with python cfg)
         if value in [0, '0', 'False', 'false', 'no', 'off', False]:
             return False
         if value in [1, '1', 'True', 'true', 'yes', 'on', True]:
@@ -785,8 +789,8 @@ class ArrayOf(DataType):
             self.members.setProperty(key, value)
 
     def export_datatype(self):
-        return dict(type='array', minlen=self.minlen, maxlen=self.maxlen,
-                    members=self.members.export_datatype())
+        return {'type': 'array', 'minlen': self.minlen, 'maxlen': self.maxlen,
+                'members': self.members.export_datatype()}
 
     def __repr__(self):
         return 'ArrayOf(%s, %s, %s)' % (
@@ -807,6 +811,7 @@ class ArrayOf(DataType):
                                 % type(value).__name__) from None
 
     def __call__(self, value):
+        """accepts any sequence, converts to tuple (immutable!)"""
         self.check_type(value)
         try:
             return tuple(self.members(v) for v in value)
@@ -877,7 +882,7 @@ class TupleOf(DataType):
         return TupleOf(*(m.copy() for m in self.members))
 
     def export_datatype(self):
-        return dict(type='tuple', members=[subtype.export_datatype() for subtype in self.members])
+        return {'type': 'tuple', 'members': [subtype.export_datatype() for subtype in self.members]}
 
     def __repr__(self):
         return 'TupleOf(%s)' % ', '.join([repr(st) for st in self.members])
@@ -892,6 +897,7 @@ class TupleOf(DataType):
                                 % type(value).__name__) from None
 
     def __call__(self, value):
+        """accepts any sequence, converts to tuple"""
         self.check_type(value)
         try:
             return tuple(sub(elem) for sub, elem in zip(self.members, value))
@@ -973,8 +979,8 @@ class StructOf(DataType):
         return StructOf(self.optional, **{k: v.copy() for k, v in self.members.items()})
 
     def export_datatype(self):
-        res = dict(type='struct', members=dict((n, s.export_datatype())
-                                               for n, s in list(self.members.items())))
+        res = {'type': 'struct', 'members': dict((n, s.export_datatype())
+                                                 for n, s in list(self.members.items()))}
         if set(self.optional) != set(self.members):
             res['optional'] = self.optional
         return res
@@ -985,6 +991,7 @@ class StructOf(DataType):
             ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
     def __call__(self, value):
+        """accepts any mapping, returns an immutable dict"""
         try:
             if set(dict(value)) != set(self.members):
                 raise BadValueError('member names do not match') from None
@@ -1118,11 +1125,10 @@ class CommandType(DataType):
 
 class DataTypeType(DataType):
     def __call__(self, value):
-        """check if given value (a python obj) is a valid datatype
-
-        returns the value or raises an appropriate exception"""
+        """accepts a datatype"""
         if isinstance(value, DataType):
             return value
+        #TODO: not needed anymore?
         try:
             return get_datatype(value)
         except Exception as e:
@@ -1144,9 +1150,7 @@ class DataTypeType(DataType):
 class ValueType(DataType):
     """validates any python value"""
     def __call__(self, value):
-        """check if given value (a python obj) is valid for this datatype
-
-        returns the value or raises an appropriate exception"""
+        """accepts any type -> no conversion"""
         return value
 
     def export_value(self, value):
@@ -1178,6 +1182,7 @@ class NoneOr(DataType):
         self.other = other
 
     def __call__(self, value):
+        """accepts None and other type"""
         return None if value is None else self.other(value)
 
     def export_value(self, value):
@@ -1193,6 +1198,7 @@ class OrType(DataType):
         self.default = self.types[0].default
 
     def __call__(self, value):
+        """accepts any of the given types, takes the first valid"""
         for t in self.types:
             try:
                 return t(value)
@@ -1217,6 +1223,7 @@ class LimitsType(TupleOf):
         super().__init__(members, members)
 
     def __call__(self, value):
+        """accepts an ordered tuple of numeric member types"""
         limits = TupleOf.validate(self, value)
         if limits[1] < limits[0]:
             raise BadValueError('Maximum Value %s must be greater than minimum value %s!' % (limits[1], limits[0]))
@@ -1240,32 +1247,32 @@ def floatargs(kwds):
 
 # argumentnames to lambda from spec!
 # **kwds at the end are for must-ignore policy
-DATATYPES = dict(
-    bool    = lambda **kwds:
+DATATYPES = {
+    'bool': lambda **kwds:
         BoolType(),
-    int     = lambda min, max, **kwds:
+    'int': lambda min, max, **kwds:
         IntRange(minval=min, maxval=max),
-    scaled  = lambda scale, min, max, **kwds:
+    'scaled': lambda scale, min, max, **kwds:
         ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **floatargs(kwds)),
-    double  = lambda min=None, max=None, **kwds:
+    'double': lambda min=None, max=None, **kwds:
         FloatRange(minval=min, maxval=max, **floatargs(kwds)),
-    blob    = lambda maxbytes, minbytes=0, **kwds:
+    'blob': lambda maxbytes, minbytes=0, **kwds:
         BLOBType(minbytes=minbytes, maxbytes=maxbytes),
-    string  = lambda minchars=0, maxchars=None, isUTF8=False, **kwds:
+    'string': lambda minchars=0, maxchars=None, isUTF8=False, **kwds:
         StringType(minchars=minchars, maxchars=maxchars, isUTF8=isUTF8),
-    array   = lambda maxlen, members, minlen=0, pname='', **kwds:
+    'array': lambda maxlen, members, minlen=0, pname='', **kwds:
         ArrayOf(get_datatype(members, pname), minlen=minlen, maxlen=maxlen),
-    tuple   = lambda members, pname='', **kwds:
+    'tuple': lambda members, pname='', **kwds:
         TupleOf(*tuple((get_datatype(t, pname) for t in members))),
-    enum    = lambda members, pname='', **kwds:
+    'enum': lambda members, pname='', **kwds:
         EnumType(pname, members=members),
-    struct  = lambda members, optional=None, pname='', **kwds:
+    'struct': lambda members, optional=None, pname='', **kwds:
         StructOf(optional, **dict((n, get_datatype(t, pname)) for n, t in list(members.items()))),
-    command = lambda argument=None, result=None, pname='', **kwds:
+    'command': lambda argument=None, result=None, pname='', **kwds:
         CommandType(get_datatype(argument, pname), get_datatype(result)),
-    limit   = lambda members, pname='', **kwds:
+    'limit': lambda members, pname='', **kwds:
         LimitsType(get_datatype(members, pname)),
-)
+}
 
 
 # important for getting the right datatype from formerly jsonified descr.

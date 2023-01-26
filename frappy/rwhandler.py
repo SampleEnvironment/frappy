@@ -19,11 +19,13 @@
 #   Markus Zolliker <markus.zolliker@psi.ch>
 # *****************************************************************************
 
-"""decorator class for common read_/write_ methods
+"""decorator class for common read_<param>/write_<param> methods
 
 Usage:
 
 Example 1: combined read/write for multiple parameters
+
+.. code:
 
     PID_PARAMS = ['p', 'i', 'd']
 
@@ -40,6 +42,8 @@ Example 1: combined read/write for multiple parameters
         # no return value
 
 Example 2: addressable HW parameters
+
+.. code:
 
     HW_ADDR = {'p': 25, 'i': 26, 'd': 27}
 
@@ -197,8 +201,10 @@ class CommonWriteHandler(WriteHandler):
     calls the wrapped write method function with values as an argument.
 
     - values[pname] returns the to be written value
+
     - values['key'] returns a value taken from writeDict
       or, if not available return obj.key
+
     - values.as_tuple() returns a tuple with the items in the same order as keys
 
     """

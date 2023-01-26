@@ -39,7 +39,7 @@ from frappy.properties import HasProperties, Property
 from frappy.logging import RemoteLogHandler, HasComlog
 
 Done = UniqueObject('Done')
-"""a special return value for a read/write function
+"""a special return value for a read_<param>/write_<param> method
 
 indicating that the setter is triggered already"""
 
