@@ -474,7 +474,7 @@ def test_StructOf():
     assert dt.import_value({'an_int': 13, 'a_string': 'WFEC'}) == {
         'a_string': 'WFEC', 'an_int': 13}
 
-    assert dt.format_value({'an_int':2, 'a_string':'Z'}) == "{a_string='Z', an_int=2}"
+    assert dt.format_value({'an_int': 2, 'a_string': 'Z'}) == "{an_int=2, a_string='Z'}"
 
     dt = StructOf(['optionalmember'], optionalmember=EnumType('myenum', single=0))
     copytest(dt)

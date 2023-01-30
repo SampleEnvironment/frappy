@@ -1035,7 +1035,7 @@ class StructOf(DataType):
         return self(dict(value))
 
     def format_value(self, value, unit=None):
-        return '{%s}' % (', '.join(['%s=%s' % (k, self.members[k].format_value(v)) for k, v in sorted(value.items())]))
+        return '{%s}' % (', '.join(['%s=%s' % (k, self.members[k].format_value(v)) for k, v in value.items()]))
 
     def compatible(self, other):
         try:
