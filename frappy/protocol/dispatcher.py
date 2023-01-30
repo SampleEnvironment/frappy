@@ -318,6 +318,8 @@ class Dispatcher:
     def handle_read(self, conn, specifier, data):
         if data:
             raise ProtocolError('read requests don\'t take data!')
+        if not specifier:
+            raise ProtocolError('read requests need a specifier!')
         modulename, pname = specifier, 'value'
         if ':' in specifier:
             modulename, pname = specifier.split(':', 1)
@@ -325,12 +327,16 @@ class Dispatcher:
         return (READREPLY, specifier, list(self._getParameterValue(modulename, pname)))
 
     def handle_change(self, conn, specifier, data):
+        if not specifier:
+            raise ProtocolError('change requests need a specifier!')
         modulename, pname = specifier, 'target'
         if ':' in specifier:
             modulename, pname = specifier.split(':', 1)
         return (WRITEREPLY, specifier, list(self._setParameterValue(modulename, pname, data)))
 
     def handle_do(self, conn, specifier, data):
+        if not specifier:
+            raise ProtocolError('do requests need a specifier!')
         modulename, cmd = specifier.split(':', 1)
         return (COMMANDREPLY, specifier, list(self._execute_command(modulename, cmd, data)))
 

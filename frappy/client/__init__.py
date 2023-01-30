@@ -318,12 +318,12 @@ class SecopClient(ProxyClient):
                     ident = None
                 if action in UPDATE_MESSAGES:
                     module_param = self.internal.get(ident, None)
-                    if module_param is None and ':' not in ident:
+                    if module_param is None and ':' not in (ident or ''):
                         # allow missing ':value'/':target'
                         if action == WRITEREPLY:
-                            module_param = self.internal.get(ident + ':target', None)
+                            module_param = self.internal.get('%s:target' % ident, None)
                         else:
-                            module_param = self.internal.get(ident + ':value', None)
+                            module_param = self.internal.get('%s:value' % ident, None)
                     if module_param is not None:
                         if action.startswith(ERRORPREFIX):
                             timestamp = data[2].get('t', None)
