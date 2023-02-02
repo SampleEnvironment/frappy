@@ -43,13 +43,14 @@ client = Client('localhost:5000')  # start client.
                                     # 'status' and 'value' changes are shown every 1 sec
 client.mininterval = 0.2            # change minimal update interval to 0.2 sec (default is 1 second)
 
-<module>.watch(1)                   # watch changes of all parameters of a module
-<module>.watch(0)                   # remove all watching
-<module>.watch(status=1, value=1)   # add 'status' and 'value' to watched parameters
-<module>.watch(value=0)             # remove 'value' from watched parameters
+watch(T)                            # watch changes of T.status and T.value (stop with ctrl-C)
+watch(T='status target')            # watch status and target parameters
+watch(io, T=True)                   # watch io and all parameters of T
 """
 
 main = sys.modules['__main__']
+
+LOG_LEVELS = {'debug', 'comlog', 'info', 'warning', 'error', 'off'}
 
 
 class Logger:
@@ -74,6 +75,9 @@ class Logger:
         pass
 
 
+infologger = Logger('info')
+
+
 class PrettyFloat(float):
     """float with a nicer repr:
 
@@ -96,6 +100,12 @@ class Module:
         self._secnode = secnode
         self._parameters = list(secnode.modules[name]['parameters'])
         self._commands = list(secnode.modules[name]['commands'])
+        if 'communicate' in self._commands:
+            self._watched_params = {}
+            self._log_level = 'comlog'
+        else:
+            self._watched_params = {'value', 'status'}
+            self._log_level = 'info'
         self._running = None
         self._status = None
         props = secnode.modules[name]['properties']
@@ -139,20 +149,45 @@ class Module:
             pobj.prev = value
             pobj.prev_time = now
 
-    def watch(self, *args, **kwds):
-        enabled = {}
-        for arg in args:
-            if arg == 1:  # or True
-                enabled.update({k: True for k in self._parameters})
-            elif arg == 0:  # or False
-                enabled.update({k: False for k in self._parameters})
+    def _set_watching(self, watch_list=None):
+        """set parameters for watching and log levels
+
+        :param watch_list: items to be watched
+             True or 1: watch all parameters
+             a string from LOG_LEVELS: change the log level
+             any other string: convert space separated string to a list of strings
+             a list of string: parameters to be watched or log_level to be set
+        """
+        if isinstance(watch_list, str):
+            if watch_list in LOG_LEVELS:
+                self._log_level = watch_list
+                watch_list = None
             else:
-                enabled.update(arg)
-        enabled.update(kwds)
-        for pname, enable in enabled.items():
+                # accept also space separated list instead of list of strings
+                watch_list = watch_list.split()
+        elif isinstance(watch_list, int):  # includes also True
+            watch_list = self._parameters if watch_list else ()
+        if watch_list is not None:
+            params = []
+            for item in watch_list:
+                if item in self._parameters:
+                    params.append(item)
+                elif item in LOG_LEVELS:
+                    self._log_level = item
+                else:
+                    self._secnode.log.error('can not set %r on module %s' % (item, self._name))
+            self._watched_params = params
+        print('--- %s:\nlog: %s, watch: %s' % (self._name, self._log_level, ' '.join(self._watched_params)))
+
+    def _start_watching(self):
+        for pname in self._watched_params:
+            self._secnode.register_callback((self._name, pname), updateEvent=self._watch_parameter)
+        self._secnode.request('logging', self._name, self._log_level)
+
+    def _stop_watching(self):
+        for pname in self._watched_params:
             self._secnode.unregister_callback((self._name, pname), updateEvent=self._watch_parameter)
-            if enable:
-                self._secnode.register_callback((self._name, pname), updateEvent=self._watch_parameter)
+        self._secnode.request('logging', self._name, 'off')
 
     def read(self, pname='value'):
         value, _, error = self._secnode.readParameter(self._name, pname)
@@ -180,18 +215,20 @@ class Module:
 
     def __repr__(self):
         wid = max(len(k) for k in self._parameters)
-        return '%s\n%s\nCommands: %s' % (
+        return '%s\n%s%s' % (
             self._title,
             '\n'.join(self._one_line(k, wid) for k in self._parameters),
-            ', '.join(k + '()' for k in self._commands))
+            '\nCommands: %s' % ', '.join(k + '()' for k in self._commands) if self._commands else '')
 
-    def logging(self, level='comlog', pattern='.*'):
+    def log_filter(self, pattern='.*'):
         self._log_pattern = re.compile(pattern)
-        self._secnode.request('logging', self._name, level)
 
-    def handle_log_message_(self, data):
+    def handle_log_message_(self, loglevel, data):
         if self._log_pattern.match(data):
-            self._secnode.log.info('%s: %r', self._name, data)
+            if loglevel == 'comlog':
+                self._secnode.log.info('%s%s', self._name, data)
+            else:
+                self._secnode.log.info('%s %s: %s', self._name, loglevel, data)
 
 
 class Param:
@@ -242,6 +279,41 @@ class Command:
         return self.call
 
 
+def show_parameter(modname, pname, *args, forced=False, mininterval=0):
+    """show parameter update"""
+    mobj = getattr(main, modname)
+    mobj._watch_parameter(modname, pname, *args)
+
+
+def watch(*args, **kwds):
+    modules = []
+    for mobj in args:
+        if isinstance(mobj, Module):
+            if mobj._name not in kwds:
+                modules.append(mobj)
+                mobj._set_watching()
+        else:
+            print('do not know %r' % mobj)
+    for key, arg in kwds.items():
+        mobj = getattr(main, key, None)
+        if mobj is None:
+            print('do not know %r' % key)
+        else:
+            modules.append(mobj)
+            mobj._set_watching(arg)
+    print('---')
+    try:
+        for mobj in modules:
+            mobj._start_watching()
+        time.sleep(3600)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        for mobj in modules:
+            mobj._stop_watching()
+    print()
+
+
 class Client(SecopClient):
     activate = True
     secnodes = {}
@@ -286,10 +358,10 @@ class Client(SecopClient):
     def unhandledMessage(self, action, ident, data):
         """handle logging messages"""
         if action == 'log':
-            modname = ident.split(':')[0]
+            modname, loglevel = ident.split(':')
             modobj = getattr(main, modname, None)
             if modobj:
-                modobj.handle_log_message_(data)
+                modobj.handle_log_message_(loglevel, data)
                 return
             self.log.info('module %s not found', modname)
         self.log.info('unhandled: %s %s %r', action, ident, data)
