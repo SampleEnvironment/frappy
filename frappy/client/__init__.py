@@ -104,8 +104,8 @@ class ProxyClient:
 
     CALLBACK_NAMES = ('updateEvent', 'descriptiveDataChange', 'nodeStateChange', 'unhandledMessage')
     online = False  # connected or reconnecting since a short time
-    validate_data = False
     state = 'disconnected'  # further possible values: 'connecting', 'reconnecting', 'connected'
+    log = None
 
     def __init__(self):
         self.callbacks = {cbname: defaultdict(list) for cbname in self.CALLBACK_NAMES}
@@ -178,13 +178,14 @@ class ProxyClient:
     def updateValue(self, module, param, value, timestamp, readerror):
         if readerror:
             assert isinstance(readerror, Exception)
-        if self.validate_data:
+        else:
             try:
-                # try to validate, reason: make enum_members from integers
+                # try to import (needed for enum, scaled, blob)
                 datatype = self.modules[module]['parameters'][param]['datatype']
-                value = datatype(value)
+                value = datatype.import_value(value)
             except (KeyError, ValueError):
-                pass
+                if self.log:
+                    self.log.warning('cannot assign %r to %s:%s', value, module, param)
         self.cache[(module, param)] = (value, timestamp, readerror)
         self.callback(None, 'updateEvent', module, param, value, timestamp, readerror)
         self.callback(module, 'updateEvent', module, param, value, timestamp, readerror)
@@ -312,6 +313,7 @@ class SecopClient(ProxyClient):
                         # send ping to check if the connection is still alive
                         self.queue_request(HEARTBEATREQUEST, str(noactivity))
                     continue
+                self.log.debug('RX: %r', reply)
                 noactivity = 0
                 action, ident, data = decode_msg(reply)
                 if ident == '.':
@@ -486,8 +488,8 @@ class SecopClient(ProxyClient):
                 else:
                     parameters[iname] = aentry
             properties = {k: v for k, v in moddescr.items() if k != 'accessibles'}
-            self.modules[modname] = dict(accessibles=accessibles, parameters=parameters,
-                                         commands=commands, properties=properties)
+            self.modules[modname] = {'accessibles': accessibles, 'parameters': parameters,
+                                     'commands': commands, 'properties': properties}
         if changed_modules is not None:
             done = done_main = self.callback(None, 'descriptiveDataChange', None, self)
             for mname in changed_modules:
