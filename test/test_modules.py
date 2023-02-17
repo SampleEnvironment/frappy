@@ -687,3 +687,43 @@ def test_deferred_main_unit(config, dynamicunit, finalunit, someunit):
     assert m.parameters['ramp'].datatype.unit == finalunit + '/min'
     # when someparam.unit is configured, this differs from finalunit
     assert m.parameters['someparam'].datatype.unit == someunit
+
+
+def test_super_call():
+    class Base(Readable):
+        def read_status(self):
+            return Readable.Status.IDLE, 'base'
+
+    class Mod(Base):
+        def read_status(self):
+            code, text = super().read_status()
+            return code, text + ' (extended)'
+
+    class DispatcherStub1:
+        def __init__(self, updates):
+            self.updates = updates
+
+        def announce_update(self, modulename, pname, pobj):
+            if pobj.readerror:
+                raise pobj.readerror
+            self.updates.append((modulename, pname, pobj.value))
+
+    class ServerStub1:
+        def __init__(self, updates):
+            self.dispatcher = DispatcherStub1(updates)
+
+    updates = []
+    srv = ServerStub1(updates)
+    b = Base('b', logger, {'description': ''}, srv)
+    b.read_status()
+    assert updates == [('b', 'status', ('IDLE', 'base'))]
+
+    updates.clear()
+    m = Mod('m', logger, {'description': ''}, srv)
+    m.read_status()
+    # in the version before change 'allow super calls on read_/write_ methods'
+    # updates would contain two items
+    assert updates == [('m', 'status', ('IDLE', 'base (extended)'))]
+
+    assert type(m).__name__ == '_Mod'
+    assert type(m).__mro__[1:5] == (Mod, Base, Readable, Module)

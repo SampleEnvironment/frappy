@@ -26,7 +26,6 @@
 import time
 import threading
 from collections import OrderedDict
-from functools import wraps
 
 from frappy.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
     IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion
@@ -43,6 +42,8 @@ Done = UniqueObject('Done')
 
 indicating that the setter is triggered already"""
 
+wrapperClasses = {}
+
 
 class HasAccessibles(HasProperties):
     """base class of Module
@@ -52,9 +53,14 @@ class HasAccessibles(HasProperties):
     wrap read_*/write_* methods
     (so the dispatcher will get notified of changed values)
     """
+    isWrapped = False
+    checkedMethods = set()
+
     @classmethod
     def __init_subclass__(cls):  # pylint: disable=too-many-branches
         super().__init_subclass__()
+        if cls.isWrapped:
+            return
         # merge accessibles from all sub-classes, treat overrides
         # for now, allow to use also the old syntax (parameters/commands dict)
         accessibles = OrderedDict()  # dict of accessibles
@@ -102,84 +108,82 @@ class HasAccessibles(HasProperties):
         # declarations within the same class
         cls.accessibles = accessibles
 
-        # Correct naming of EnumTypes
-        # moved to Parameter.__set_name__
-
-        # check validity of Parameter entries
+        cls.wrappedAttributes = {'isWrapped': True}
+        # create wrappers for access methods
+        wrapped_name = '_' + cls.__name__
         for pname, pobj in accessibles.items():
-            # XXX: create getters for the units of params ??
-
             # wrap of reading/writing funcs
             if not isinstance(pobj, Parameter):
                 # nothing to do for Commands
                 continue
 
-            rfunc = getattr(cls, 'read_' + pname, None)
+            rname = 'read_' + pname
+            rfunc = getattr(cls, rname, None)
+            # create wrapper
+            if rfunc:
 
-            # create wrapper except when read function is already wrapped or auto generatoed
-            if not getattr(rfunc, 'wrapped', False):
+                def new_rfunc(self, pname=pname, rfunc=rfunc):
+                    with self.accessLock:
+                        try:
+                            value = rfunc(self)
+                            self.log.debug("read_%s returned %r", pname, value)
+                        except Exception as e:
+                            self.log.debug("read_%s failed with %r", pname, e)
+                            self.announceUpdate(pname, None, e)
+                            raise
+                        if value is Done:
+                            return getattr(self, pname)
+                        setattr(self, pname, value)  # important! trigger the setter
+                        return value
 
-                if rfunc:
+                new_rfunc.poll = getattr(rfunc, 'poll', True)
+            else:
 
-                    @wraps(rfunc)  # handles __wrapped__ and __doc__
-                    def new_rfunc(self, pname=pname, rfunc=rfunc):
-                        with self.accessLock:
-                            try:
-                                value = rfunc(self)
-                                self.log.debug("read_%s returned %r", pname, value)
-                            except Exception as e:
-                                self.log.debug("read_%s failed with %r", pname, e)
-                                self.announceUpdate(pname, None, e)
-                                raise
-                            if value is Done:
-                                return getattr(self, pname)
-                            setattr(self, pname, value)  # important! trigger the setter
-                            return value
+                def new_rfunc(self, pname=pname):
+                    return getattr(self, pname)
 
-                    new_rfunc.poll = getattr(rfunc, 'poll', True)
-                else:
+                new_rfunc.poll = False
 
-                    def new_rfunc(self, pname=pname):
-                        return getattr(self, pname)
+            new_rfunc.__name__ = rname
+            new_rfunc.__qualname__ = wrapped_name + '.' + rname
+            new_rfunc.__module__ = cls.__module__
+            cls.wrappedAttributes[rname] = new_rfunc
 
-                    new_rfunc.poll = False
-                    new_rfunc.__doc__ = 'auto generated read method for ' + pname
+            wname = 'write_' + pname
+            wfunc = getattr(cls, wname, None)
+            if wfunc:
+                # allow write method even when parameter is readonly, but internally writable
 
-                new_rfunc.wrapped = True  # indicate to subclasses that no more wrapping is needed
-                setattr(cls, 'read_' + pname, new_rfunc)
+                def new_wfunc(self, value, pname=pname, wfunc=wfunc):
+                    with self.accessLock:
+                        pobj = self.accessibles[pname]
+                        self.log.debug('validate %r for %r', value, pname)
+                        # we do not need to handle errors here, we do not
+                        # want to make a parameter invalid, when a write failed
+                        new_value = pobj.datatype(value)
+                        new_value = wfunc(self, new_value)
+                        self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
+                        if new_value is Done:
+                            # setattr(self, pname, getattr(self, pname))
+                            return getattr(self, pname)
+                        setattr(self, pname, new_value)  # important! trigger the setter
+                        return new_value
 
-            wfunc = getattr(cls, 'write_' + pname, None)
-            if not pobj.readonly or wfunc:  # allow write_ method even when pobj is not readonly
-                # create wrapper except when write function is already wrapped or auto generated
-                if not getattr(wfunc, 'wrapped', False):
+            elif pobj.readonly:
+                new_wfunc = None
+            else:
 
-                    if wfunc:
+                def new_wfunc(self, value, pname=pname):
+                    setattr(self, pname, value)
+                    return value
 
-                        @wraps(wfunc)  # handles __wrapped__ and __doc__
-                        def new_wfunc(self, value, pname=pname, wfunc=wfunc):
-                            with self.accessLock:
-                                pobj = self.accessibles[pname]
-                                self.log.debug('validate %r for %r', value, pname)
-                                # we do not need to handle errors here, we do not
-                                # want to make a parameter invalid, when a write failed
-                                new_value = pobj.datatype(value)
-                                new_value = wfunc(self, new_value)
-                                self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
-                                if new_value is Done:
-                                    # setattr(self, pname, getattr(self, pname))
-                                    return getattr(self, pname)
-                                setattr(self, pname, new_value)  # important! trigger the setter
-                                return new_value
-                    else:
+            if new_wfunc:
+                new_wfunc.__name__ = wname
+                new_wfunc.__qualname__ = wrapped_name + '.' + wname
+                new_wfunc.__module__ = cls.__module__
+                cls.wrappedAttributes[wname] = new_wfunc
 
-                        def new_wfunc(self, value, pname=pname):
-                            setattr(self, pname, value)
-                            return value
-
-                        new_wfunc.__doc__ = 'auto generated write method for ' + pname
-
-                    new_wfunc.wrapped = True  # indicate to subclasses that no more wrapping is needed
-                    setattr(cls, 'write_' + pname, new_wfunc)
+        cls.checkedMethods.update(cls.wrappedAttributes)
 
         # check for programming errors
         for attrname in dir(cls):
@@ -189,7 +193,7 @@ class HasAccessibles(HasProperties):
             if prefix == 'do':
                 raise ProgrammingError('%r: old style command %r not supported anymore'
                                        % (cls.__name__, attrname))
-            if prefix in ('read', 'write') and not getattr(getattr(cls, attrname), 'wrapped', False):
+            if prefix in ('read', 'write') and attrname not in cls.checkedMethods:
                 raise ProgrammingError('%s.%s defined, but %r is no parameter'
                                        % (cls.__name__, attrname, pname))
 
@@ -205,6 +209,13 @@ class HasAccessibles(HasProperties):
                 if pv.settable:
                     res[param][pn] = pv
         cls.configurables = res
+
+    def __new__(cls, *args, **kwds):
+        wrapper_class = wrapperClasses.get(cls)
+        if wrapper_class is None:
+            wrapper_class = type('_' + cls.__name__, (cls,), cls.wrappedAttributes)
+            wrapperClasses[cls] = wrapper_class
+        return super().__new__(wrapper_class)
 
 
 class Feature(HasAccessibles):

@@ -72,9 +72,8 @@ def wraps(func):
 
 class Handler:
     func = None
-    method_names = set()  # this is shared among all instances of handlers!
-    wrapped = True  # allow to use read_* or write_* as name of the decorated method
     prefix = None  # 'read_' or 'write_'
+    method_names = set()  # global set registering used method names
     poll = None
 
     def __init__(self, keys):
@@ -86,12 +85,13 @@ class Handler:
 
     def __call__(self, func):
         """decorator call"""
-        self.func = func
-        if func.__qualname__ in self.method_names:
+        if (func.__module__, func.__qualname__) in self.method_names:
+            # make sure method name is not used twice
+            # (else __set_name__ will not be called)
             raise ProgrammingError('duplicate method %r' % func.__qualname__)
+        self.func = func
         func.wrapped = False
-        # __qualname__ used here (avoid conflicts between different modules)
-        self.method_names.add(func.__qualname__)
+        self.method_names.add((func.__module__, func.__qualname__))
         return self
 
     def __get__(self, obj, owner=None):
@@ -102,8 +102,9 @@ class Handler:
 
     def __set_name__(self, owner, name):
         """create the wrapped read_* or write_* methods"""
-
-        self.method_names.discard(self.func.__qualname__)
+        # at this point, this 'method_names' entry is no longer used -> delete
+        self.method_names.discard((self.func.__module__, self.func.__qualname__))
+        owner.checkedMethods.add(name)
         for key in self.keys:
             wrapped = self.wrap(key)
             method_name = self.prefix + key
@@ -112,7 +113,7 @@ class Handler:
                 # wrapped.poll is False when the nopoll decorator is applied either to self.func or to self
                 wrapped.poll = getattr(wrapped, 'poll', self.poll)
             func = getattr(owner, method_name, None)
-            if func and not func.wrapped:
+            if func and method_name in owner.__dict__:
                 raise ProgrammingError('superfluous method %s.%s (overwritten by %s)'
                                        % (owner.__name__, method_name, self.__class__.__name__))
             setattr(owner, method_name, wrapped)

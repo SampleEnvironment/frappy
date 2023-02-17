@@ -84,10 +84,9 @@ def test_handler():
             data.append(pname)
             return value
 
-    assert Mod.read_a.poll is True
-    assert Mod.read_b.poll is True
-
     m = Mod()
+    assert m.read_a.poll is True
+    assert m.read_b.poll is True
 
     data.append(1.2)
     assert m.read_a() == 1.2
@@ -130,9 +129,10 @@ def test_common_handler():
             self.b = values['b']
             data.append('write_hdl')
 
-    assert set([Mod.read_a.poll, Mod.read_b.poll]) == {True, False}
 
     m = Mod(a=1, b=2)
+    assert set([m.read_a.poll, m.read_b.poll]) == {True, False}
+
     assert m.writeDict == {'a': 1, 'b': 2}
     m.write_a(3)
     assert m.a == 3
@@ -172,8 +172,10 @@ def test_nopoll():
         def read_hdl(self):
             pass
 
-    assert Mod1.read_a.poll is True
-    assert Mod1.read_b.poll is True
+    m = Mod1()
+    print(m, m.read_a)
+    assert m.read_a.poll is True
+    assert m.read_b.poll is True
 
     class Mod2(ModuleTest):
         a = Parameter('', FloatRange(), readonly=False)
@@ -183,8 +185,9 @@ def test_nopoll():
         def read_hdl(self):
             pass
 
-    assert Mod2.read_a.poll is True
-    assert Mod2.read_b.poll is False
+    m = Mod2()
+    assert m.read_a.poll is True
+    assert m.read_b.poll is False
 
     class Mod3(ModuleTest):
         a = Parameter('', FloatRange(), readonly=False)
@@ -195,8 +198,9 @@ def test_nopoll():
         def read_hdl(self):
             pass
 
-    assert Mod3.read_a.poll is False
-    assert Mod3.read_b.poll is False
+    m = Mod3()
+    assert m.read_a.poll is False
+    assert m.read_b.poll is False
 
     class Mod4(ModuleTest):
         a = Parameter('', FloatRange(), readonly=False)
@@ -207,8 +211,9 @@ def test_nopoll():
         def read_hdl(self):
             pass
 
-    assert Mod4.read_a.poll is False
-    assert Mod4.read_b.poll is False
+    m = Mod4()
+    assert m.read_a.poll is False
+    assert m.read_b.poll is False
 
     class Mod5(ModuleTest):
         a = Parameter('', FloatRange(), readonly=False)
@@ -219,8 +224,9 @@ def test_nopoll():
         def read_hdl(self):
             pass
 
-    assert Mod5.read_a.poll is False
-    assert Mod5.read_b.poll is False
+    m = Mod5()
+    assert m.read_a.poll is False
+    assert m.read_b.poll is False
 
     class Mod6(ModuleTest):
         a = Parameter('', FloatRange(), readonly=False)
@@ -231,5 +237,6 @@ def test_nopoll():
         def read_hdl(self):
             pass
 
-    assert Mod6.read_a.poll is False
-    assert Mod6.read_b.poll is False
+    m = Mod6()
+    assert m.read_a.poll is False
+    assert m.read_b.poll is False
