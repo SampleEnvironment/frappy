@@ -19,17 +19,8 @@
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
-"""simple interactive python client"""
+"""simple interactive python client
 
-import sys
-import time
-import re
-from queue import Queue
-from frappy.client import SecopClient
-from frappy.errors import SECoPError
-from frappy.datatypes import get_datatype
-
-USAGE = """
 Usage:
 
 from frappy.client.interactive import Client
@@ -48,12 +39,22 @@ watch(T='status target')            # watch status and target parameters
 watch(io, T=True)                   # watch io and all parameters of T
 """
 
+import sys
+import time
+import re
+from queue import Queue
+from frappy.client import SecopClient
+from frappy.errors import SECoPError
+from frappy.datatypes import get_datatype
+
 main = sys.modules['__main__']
 
 LOG_LEVELS = {'debug', 'comlog', 'info', 'warning', 'error', 'off'}
 
 
 class Logger:
+    show_time = False
+
     def __init__(self, loglevel='info'):
         func = self.noop
         for lev in 'debug', 'info', 'warning', 'error':
@@ -63,12 +64,15 @@ class Logger:
         self._minute = 0
 
     def emit(self, fmt, *args, **kwds):
-        now = time.time()
-        minute = now // 60
-        if minute != self._minute:
-            self._minute = minute
-            print(time.strftime('--- %H:%M:%S ---', time.localtime(now)))
-        print('%6.3f' % (now % 60.0), str(fmt) % args)
+        if self.show_time:
+            now = time.time()
+            minute = now // 60
+            if minute != self._minute:
+                self._minute = minute
+                print(time.strftime('--- %H:%M:%S ---', time.localtime(now)))
+            print('%6.3f' % (now % 60.0), str(fmt) % args)
+        else:
+            print(str(fmt) % args)
 
     @staticmethod
     def noop(fmt, *args, **kwds):
@@ -200,7 +204,6 @@ class Module:
             return self.read()
         self.target = target  # this sets self._running
         type(self).value.prev = None  # show at least one value
-        show_final_value = True
         try:
             while self._running.get():
                 self._watch_parameter(self._name, 'value', mininterval=self._secnode.mininterval)
@@ -210,7 +213,7 @@ class Module:
         self._running = None
         self._watch_parameter(self._name, 'status')
         self._secnode.readParameter(self._name, 'value')
-        self._watch_parameter(self._name, 'value', forced=show_final_value)
+        self._watch_parameter(self._name, 'value', forced=True)
         return self.value
 
     def __repr__(self):
@@ -319,29 +322,36 @@ class Client(SecopClient):
     secnodes = {}
     mininterval = 1
 
-    def __init__(self, uri, loglevel='info'):
+    def __init__(self, uri, loglevel='info', name=''):
         # remove previous client:
         prev = self.secnodes.pop(uri, None)
+        log = Logger(loglevel)
+        removed_modules = []
         if prev:
-            prev.log.info('remove previous client to %s', uri)
+            log.info('remove previous client to %s', uri)
             for modname in prev.modules:
                 prevnode = getattr(getattr(main, modname, None), '_secnode', None)
                 if prevnode == prev:
-                    prev.log.info('remove previous module %s', modname)
+                    removed_modules.append(modname)
                     delattr(main, modname)
             prev.disconnect()
         self.secnodes[uri] = self
-        super().__init__(uri, Logger(loglevel))
+        if name:
+            log.info('\n>>> %s = Client(%r)', name, uri)
+        super().__init__(uri, log)
         self.connect()
+        created_modules = []
+        skipped_modules = []
         for modname, moddesc in self.modules.items():
             prev = getattr(main, modname, None)
             if prev is None:
-                self.log.info('create module %s', modname)
+                created_modules.append(modname)
             else:
                 if getattr(prev, '_secnode', None) is None:
-                    self.log.error('skip module %s overwriting a global variable' % modname)
+                    skipped_modules.append(modname)
                     continue
-                self.log.info('overwrite module %s', modname)
+                removed_modules.append(modname)
+                created_modules.append(modname)
             attrs = {}
             for pname, pinfo in moddesc['parameters'].items():
                 attrs[pname] = Param(pname, pinfo['datainfo'])
@@ -352,8 +362,14 @@ class Client(SecopClient):
                 self.register_callback((modname, 'status'), updateEvent=mobj._status_value_update)
                 self.register_callback((modname, 'value'), updateEvent=mobj._status_value_update)
             setattr(main, modname, mobj)
+        if removed_modules:
+            self.log.info('removed modules: %s', ' '.join(removed_modules))
+        if skipped_modules:
+            self.log.info('skipped modules overwriting globals: %s', ' '.join(skipped_modules))
+        if created_modules:
+            self.log.info('created modules: %s', ' '.join(created_modules))
         self.register_callback(None, self.unhandledMessage)
-        self.log.info('%s', USAGE)
+        log.show_time = True
 
     def unhandledMessage(self, action, ident, data):
         """handle logging messages"""
@@ -365,3 +381,6 @@ class Client(SecopClient):
                 return
             self.log.info('module %s not found', modname)
         self.log.info('unhandled: %s %s %r', action, ident, data)
+
+    def __repr__(self):
+        return 'Client(%r)' % self.uri

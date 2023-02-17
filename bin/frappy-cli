@@ -18,7 +18,6 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
@@ -34,7 +33,43 @@ sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
 from frappy.client.interactive import Client, watch
 
-for node in sys.argv[1:]:
-    Client(node)
+_USAGE = """
+Usage:
+%s
+# for all SECoP modules objects are created in the main namespace
 
-code.interact(banner='', local=sys.modules['__main__'].__dict__)
+<module>                            # list all parameters
+<module>.<param> = <value>          # change parameter
+<module>(<target>)                  # set target and wait until not busy
+                                    # 'status' and 'value' changes are shown every 1 sec
+%s.mininterval = 0.2               # change minimal update interval to 0.2 sec (default is 1 second)
+
+watch(T)                            # watch changes of T.status and T.value (stop with ctrl-C)
+watch(T='status target')            # watch status and target parameters
+watch(io, T=True)                   # watch io and all parameters of T
+"""
+
+_CLIENT_USAGE = """
+c = Client('localhost:5000')
+"""
+
+Client.show_usage = False
+
+if len(sys.argv) < 2:
+    _usage_args = ("\ncli = Client('localhost:5000')\n", 'cli')
+    success = True
+else:
+    _usage_args = ('', '_c0')
+    success = False
+
+for _idx, _node in enumerate(sys.argv[1:]):
+    _client_name = '_c%d' % _idx
+    try:
+        setattr(sys.modules['__main__'], _client_name, Client(_node, name=_client_name))
+        success = True
+    except Exception as e:
+        print(repr(e))
+
+if success:
+    print(_USAGE % _usage_args)
+    code.interact(banner='', local=sys.modules['__main__'].__dict__)
