@@ -1,3 +1,4 @@
+usr/bin/frappy-cli
 usr/bin/frappy-server
 usr/lib/python3.*/dist-packages/frappy/*.py
 usr/lib/python3.*/dist-packages/frappy/lib
