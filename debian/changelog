@@ -1,3 +1,65 @@
+frappy-core (0.16.0) focal; urgency=medium
+
+  [ Enrico Faulhaber ]
+  * fix sorce package name
+
+  [ Markus Zolliker ]
+  * interactive client: fix detection of overriding modules
+
+  [ Alexander Zaft ]
+  * Fix error Message for too large arrays
+
+  [ Markus Zolliker ]
+  * redesign of the state machine
+
+  [ Alexander Zaft ]
+  * Fix identification response
+  * GUI: add logging infra, switch to argparse
+
+  [ Bjoern Pedersen ]
+  * Improve jenkinsfile
+
+  [ Alexander Zaft ]
+  * Change config to Python
+
+  [ Markus Zolliker ]
+  * improve He level tutorial
+  * client: detect original frappy error class
+  * rework datatypes (setter should not check limits)
+
+  [ Alexander Zaft ]
+  * Bring demo up to date
+  * Revert limit change in demo
+
+  [ Markus Zolliker ]
+  * improve parameter initialisation
+  * fix copy method of Attached
+
+  [ Alexander Zaft ]
+  * Add .desktop file
+
+  [ Markus Zolliker ]
+  * improve persistent parameters
+  * do not throw ZeroDivisonError when pollinterval is 0
+  * HasStates: fix status code inheritance
+  * HasControlledBy and HasOutputModule mixins
+  * adapt tutorial to new config file format
+  * raise ProtcolError when specifier is missing
+  * interactive client: improve watch function
+  * add lakeshore demo for hands-on workshop
+  * T controller tutorial and improve documentation
+  * do proper value import on the client side
+
+  [ Alexander Zaft ]
+  * Add initial README
+  * Change Readme title
+  * Convert example configs to python
+
+  [ Markus Zolliker ]
+  * README: add link to doc on forge.frm2.tum.de
+
+ -- Enrico Faulhaber <jenkins@frm2.tum.de>  Mon, 20 Feb 2023 16:15:10 +0100
+
 frappy-core (0.15.0) focal; urgency=medium
 
   [ Björn Pedersen ]
