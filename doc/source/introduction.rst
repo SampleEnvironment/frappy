@@ -57,14 +57,30 @@ to provide to the user.
 Programming a Driver
 --------------------
 
-Programming a driver means extending one of the base classes like :class:`frappy.modules.Readable`
-or :class:`frappy.modules.Drivable`. The parameters are defined in the dict :py:attr:`parameters`, as a
-class attribute of the extended class, using the :class:`frappy.params.Parameter` constructor, or in case
-of altering the properties of an inherited parameter, :class:`frappy.params.Override`.
+:ref:`Programming a driver <class_coding>`  means:
 
-Parameters usually need a method :meth:`read_<name>()`
-implementing the code to retrieve their value from the hardware. Writeable parameters
-(with the argument ``readonly=False``) usually need a method :meth:`write_<name>(<value>)`
-implementing how they are written to the hardware. Above methods may be omitted, when
-there is no interaction with the hardware involved.
+- selecting a base class to be extended (e.g. :class:`frappy.modules.Readable`
+  or :class:`frappy.modules.Drivable`).
+- defining the parameters
+- coding the methods to retrieve and access these parameters
+
+
+Support for Communication with the Hardware
+-------------------------------------------
+
+Often the access to the hardware has to be done over a serial communication over LAN,
+RS232 or USB. The mixin :class:`frappy.io.HasIO` and the classes :class:`frappy.io.StringIO`
+and :class:`frappy.io.BytesIO` have all the functionality needed for this.
+
+Some hardware also requires calls to libraries offered by the manufacturers, certainly this
+is also possible. In case there is no python package for this, but a C/C++ API, you might
+use one of the following:
+
+- ``Ctypes (A foreign function library for Python) <https://docs.python.org/3/library/ctypes.html>``
+- ``CFFI (C Foreign Function Interface for Python) <https://cffi.readthedocs.io/>``
+- ``Extending Python with C or C++ <https://docs.python.org/3/extending/extending.html>``
+
+
+.. TODO: shift this to an extra section
+
 

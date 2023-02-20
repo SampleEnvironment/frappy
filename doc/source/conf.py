@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Frappy'
-copyright = '2017-2021, Enrico Faulhaber, Markus Zolliker,'
+copyright = '2017-2023, Enrico Faulhaber, Markus Zolliker,'
 #copyright = '2017, SECoP Committee'
 author = 'Enrico Faulhaber, Markus Zolliker'
 
@@ -211,7 +211,7 @@ epub_exclude_files = ['search.html']
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3/': None}
+# intersphinx_mapping = {'https://docs.python.org/3/': None}
 
 from frappy.lib.classdoc import class_doc_handler
 

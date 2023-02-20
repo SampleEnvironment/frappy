@@ -31,7 +31,9 @@ from frappy.modules import Command, Drivable, Parameter
 # test custom property (value.test can be changed in config file)
 from frappy.properties import Property
 
-Parameter.propertyDict['test'] = Property('A Property for testing purposes', StringType(), default='', export=True)
+
+class TestParameter(Parameter):
+    test = Property('A Property for testing purposes', StringType(), default='', export=True)
 
 
 class CryoBase(Drivable):
@@ -73,9 +75,9 @@ class Cryostat(CryoBase):
     target = Parameter("target temperature",
                        datatype=FloatRange(0), default=0, unit="K",
                        readonly=False,)
-    value = Parameter("regulation temperature",
-                      datatype=FloatRange(0), default=0, unit="K",
-                      test='TEST')
+    value = TestParameter("regulation temperature",
+                          datatype=FloatRange(0), default=0, unit="K",
+                          test='TEST')
     pid = Parameter("regulation coefficients",
                     datatype=TupleOf(FloatRange(0), FloatRange(0, 100),
                                      FloatRange(0, 100)),

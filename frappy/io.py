@@ -100,7 +100,14 @@ class HasIodev(HasIO):
 
 class IOBase(Communicator):
     """base of StringIO and BytesIO"""
-    uri = Property('hostname:portnumber', datatype=StringType())
+    uri = Property("""uri for serial connection
+    
+                   one of the following:
+                   
+                   - ``tcp://<host address>:<portnumber>`` (see :class:`frappy.lib.asynconn.AsynTcp`)
+                   
+                   - ``serial://<serial device>?baudrate=<value>...`` (see :class:`frappy.lib.asynconn.AsynSerial`)
+                   """, datatype=StringType())
     timeout = Parameter('timeout', datatype=FloatRange(0), default=2)
     wait_before = Parameter('wait time before sending', datatype=FloatRange(), default=0)
     is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, default=False)

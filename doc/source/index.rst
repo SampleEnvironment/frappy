@@ -5,6 +5,10 @@ Frappy Programming Guide
    :maxdepth: 2
 
    introduction
+   structure
+   programming
+   magic
+   server
    tutorial
    reference
    frappy_psi

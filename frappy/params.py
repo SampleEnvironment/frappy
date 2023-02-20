@@ -104,14 +104,21 @@ class Parameter(Accessible):
     :param kwds: optional properties
 
     Usage of 'value' and 'default':
+
     - if a value is given for a parameter in the config file,  and if the write_<paramname>
       method is given, it is called on startup with this value as argument
+
     - if a value should be written to the HW on startup, even when not given in the config
       add the value argument to the Parameter definition
+
     - for parameters which are not polling the HW, either a default should be given
       as a Parameter argument, or, when needscfg is set to True, a configured value is required
+
     - when default instead of value is given in the cfg file, it is assigne to the parameter
       but not written to the HW
+
+    Please note that in addition to the listed parameter properties, datatype properties
+    like ``min``, ``max`` or ``unit`` may be given as keyworded argument.
     """
     # storage for Parameter settings + value + qualifiers
 
@@ -153,9 +160,9 @@ class Parameter(Accessible):
     needscfg = Property(
         '[internal] needs value in config', NoneOr(BoolType()),
         export=False, default=False)
-    optional = Property(
-        '[internal] is this parameter optional?', BoolType(),
-        export=False, settable=False, default=False)
+    # optional = Property(
+    #     '[internal] is this parameter optional?', BoolType(),
+    #     export=False, settable=False, default=False)
 
     # used on the instance copy only
     # value = None
@@ -330,9 +337,9 @@ class Command(Accessible):
           * True: exported, name automatic.
           * a string: exported with custom name''', OrType(BoolType(), StringType()),
         export=False, default=True)
-    optional = Property(
-        '[internal] is the command optional to implement? (vs. mandatory)', BoolType(),
-        export=False, default=False, settable=False)
+    # optional = Property(
+    #     '[internal] is the command optional to implement? (vs. mandatory)', BoolType(),
+    #     export=False, default=False, settable=False)
     datatype = Property(
         "datatype of the command, auto generated from 'argument' and 'result'",
         DataTypeType(), extname='datainfo', export='always')
@@ -497,22 +504,22 @@ class Command(Accessible):
 
 
 # list of predefined accessibles with their type
-PREDEFINED_ACCESSIBLES = dict(
-    value=Parameter,
-    status=Parameter,
-    target=Parameter,
-    pollinterval=Parameter,
-    ramp=Parameter,
-    user_ramp=Parameter,
-    setpoint=Parameter,
-    time_to_target=Parameter,
-    unit=Parameter,  # reserved name
-    loglevel=Parameter,  # reserved name
-    mode=Parameter,  # reserved name
-    stop=Command,
-    reset=Command,
-    go=Command,
-    abort=Command,
-    shutdown=Command,
-    communicate=Command,
-)
+PREDEFINED_ACCESSIBLES = {
+    'value': Parameter,
+    'status': Parameter,
+    'target': Parameter,
+    'pollinterval': Parameter,
+    'ramp': Parameter,
+    'user_ramp': Parameter,
+    'setpoint': Parameter,
+    'time_to_target': Parameter,
+    'unit': Parameter,  # reserved name
+    'loglevel': Parameter,  # reserved name
+    'mode': Parameter,  # reserved name
+    'stop': Command,
+    'reset': Command,
+    'go': Command,
+    'abort': Command,
+    'shutdown': Command,
+    'communicate': Command,
+}
