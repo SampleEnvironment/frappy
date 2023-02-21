@@ -23,13 +23,13 @@
 
 
 import frappy.client
-from frappy.gui.modulectrl import ModuleCtrl
-from frappy.gui.nodectrl import NodeCtrl
-from frappy.gui.paramview import ParameterView
-from frappy.gui.qt import QBrush, QColor, QInputDialog, QMainWindow, \
-    QMessageBox, QObject, QTreeWidgetItem, pyqtSignal, pyqtSlot
-from frappy.gui.util import Value, loadUi
+from frappy.gui.qt import QInputDialog, QMainWindow, QMessageBox, QObject, \
+        QTreeWidgetItem, pyqtSignal, pyqtSlot
+from frappy.gui.util import Value, Colors, loadUi
 from frappy.lib import formatExtendedTraceback
+from frappy.gui.logwindow import LogWindow
+from frappy.gui.tabwidget import TearOffTabWidget
+from frappy.gui.nodewidget import NodeWidget
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
 ITEM_TYPE_GROUP = QTreeWidgetItem.UserType + 2
@@ -102,6 +102,7 @@ class QSECNode(QObject):
         return frappy.client.decode_msg(msg.encode('utf-8'))
 
     def _getDescribingParameterData(self, module, parameter):
+        #print(module, parameter, self.modules[module]['parameters'])
         return self.modules[module]['parameters'][parameter]
 
     def updateEvent(self, module, parameter, value, timestamp, readerror):
@@ -118,22 +119,23 @@ class MainWindow(QMainWindow):
     def __init__(self, hosts, logger, parent=None):
         super().__init__(parent)
 
-        loadUi(self, 'mainwindow.ui')
+        self.log = logger
+        self.logwin = LogWindow(logger, self)
+        self.logwin.hide()
+
+        loadUi(self, 'mainwin.ui')
+        Colors._setPalette(self.palette())
 
         self.toolBar.hide()
 
-        self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 70)
-        self.splitter.setSizes([50, 500])
+        # what is which?
+        self.tab = TearOffTabWidget(self, self, self, self)
+        self.tab.setTabsClosable(True)
+        self.tab.tabCloseRequested.connect(self._handleTabClose)
+        self.setCentralWidget(self.tab)
 
         self._nodes = {}
-        self._nodeCtrls = {}
-        self._moduleCtrls = {}
-        self._paramCtrls = {}
-        self._topItems = {}
-        self._currentWidget = self.splitter.widget(1).layout().takeAt(0)
-
-        self.log = logger
+        self._nodeWidgets = {}
 
         # add localhost (if available) and SEC nodes given as arguments
         for host in hosts:
@@ -159,87 +161,49 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self.parent(),
                                  'Connecting to %s failed!' % host, str(e))
 
-    def on_validateCheckBox_toggled(self, state):
-        print("validateCheckBox_toggled", state)
+    def on_actionDetailed_View_toggled(self, toggled):
+        self._rebuildAdvanced(toggled)
 
-    def on_visibilityComboBox_activated(self, level):
-        if level in ['user', 'admin', 'expert']:
-            print("visibility Level now:", level)
+    def on_actionShow_Logs_toggled(self, active):
+        self.logwin.setHidden(not active)
 
-    def on_treeWidget_currentItemChanged(self, current, previous):
-        if current.type() == ITEM_TYPE_NODE:
-            self._displayNode(current.text(0))
-        elif current.type() == ITEM_TYPE_GROUP:
-            self._displayGroup(current.parent().text(0), current.text(0))
-        elif current.type() == ITEM_TYPE_MODULE:
-            self._displayModule(current.parent().text(0), current.text(0))
-        elif current.type() == ITEM_TYPE_PARAMETER:
-            self._displayParameter(current.parent().parent().text(0),
-                                   current.parent().text(0), current.text(0))
+    # def on_validateCheckBox_toggled(self, state):
+    #     print('validateCheckBox_toggled', state)
 
-    def _removeSubTree(self, toplevel_item):
-        self.treeWidget.invisibleRootItem().removeChild(toplevel_item)
-
-    def _set_node_state(self, nodename, online, state):
-        node = self._nodes[nodename]
-        if online:
-            self._topItems[node].setBackground(0, QBrush(QColor('white')))
-        else:
-            self._topItems[node].setBackground(0, QBrush(QColor('orange')))
-        # TODO: make connection state be a separate row
-        node.contactPoint = '%s (%s)' % (node.conn.uri, state)
-        if nodename in self._nodeCtrls:
-            self._nodeCtrls[nodename].contactPointLabel.setText(node.contactPoint)
+    # def on_visibilityComboBox_activated(self, level):
+    #     if level in ['user', 'admin', 'expert']:
+    #         print('visibility Level now:', level)
 
     def _addNode(self, host):
 
         # create client
         node = QSECNode(host, self.log, parent=self)
         nodename = node.nodename
-
         self._nodes[nodename] = node
 
-        # fill tree
-        nodeItem = QTreeWidgetItem(None, [nodename], ITEM_TYPE_NODE)
+        nodeWidget = NodeWidget(node, self)
+        self.tab.addTab(nodeWidget, node.equipmentId)
+        self._nodeWidgets[nodename] = nodeWidget
+        self.tab.setCurrentWidget(nodeWidget)
+        return nodename
 
-        for module in sorted(node.modules):
-            moduleItem = QTreeWidgetItem(nodeItem, [module], ITEM_TYPE_MODULE)
-            for param in sorted(node.getParameters(module)):
-                paramItem = QTreeWidgetItem(moduleItem, [param],
-                                            ITEM_TYPE_PARAMETER)
-                paramItem.setDisabled(False)
+    def _handleTabClose(self, index):
+        node = self.tab.widget(index).getSecNode()
+        # disconnect node from all events
+        self._nodes.pop(node.nodename)
+        self.tab.removeTab(index)
 
-        self.treeWidget.addTopLevelItem(nodeItem)
-        self._topItems[node] = nodeItem
-        node.stateChange.connect(self._set_node_state)
+    def _rebuildAdvanced(self, advanced):
+        if advanced:
+            pass
+        else:
+            pass
+        for widget in self._nodeWidgets.values():
+            widget._rebuildAdvanced(advanced)
 
-    def _displayNode(self, node):
-        ctrl = self._nodeCtrls.get(node, None)
-        if ctrl is None:
-            ctrl = self._nodeCtrls[node] = NodeCtrl(self._nodes[node])
-            self._nodes[node].unhandledMsg.connect(ctrl._addLogEntry)
-
-        self._replaceCtrlWidget(ctrl)
-
-    def _displayModule(self, node, module):
-        ctrl = self._moduleCtrls.get((node, module), None)
-        if ctrl is None:
-            ctrl = self._moduleCtrls[(node, module)] = ModuleCtrl(self._nodes[node], module)
-
-        self._replaceCtrlWidget(ctrl)
-
-    def _displayParameter(self, node, module, parameter):
-        ctrl = self._paramCtrls.get((node, module, parameter), None)
-        if ctrl is None:
-            ctrl = ParameterView(self._nodes[node], module, parameter)
-            self._paramCtrls[(node, module, parameter)] = ctrl
-
-        self._replaceCtrlWidget(ctrl)
-
-    def _replaceCtrlWidget(self, new):
-        old = self.splitter.widget(1).layout().takeAt(0)
-        if old:
-            old.widget().hide()
-        self.splitter.widget(1).layout().addWidget(new)
-        new.show()
-        self._currentWidget = new
+    def _onQuit(self):
+        for node in self._nodes.values():
+            # this is only qt signals deconnecting!
+            # TODO: terminate node.conn explicitly?
+            node.disconnect()
+        self.logwin.onClose()
