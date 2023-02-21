@@ -76,9 +76,9 @@ Some hardware also requires calls to libraries offered by the manufacturers, cer
 is also possible. In case there is no python package for this, but a C/C++ API, you might
 use one of the following:
 
-- ``Ctypes (A foreign function library for Python) <https://docs.python.org/3/library/ctypes.html>``
-- ``CFFI (C Foreign Function Interface for Python) <https://cffi.readthedocs.io/>``
-- ``Extending Python with C or C++ <https://docs.python.org/3/extending/extending.html>``
+- `Ctypes (A foreign function library for Python) <https://docs.python.org/3/library/ctypes.html>`_
+- `CFFI (C Foreign Function Interface for Python) <https://cffi.readthedocs.io/>`_
+- `Extending Python with C or C++ <https://docs.python.org/3/extending/extending.html>`_
 
 
 .. TODO: shift this to an extra section
