@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import json
-import pprint
 
 import frappy.gui.resources # pylint: disable=unused-import
 from frappy.gui.qt import QFont, QFontMetrics, QLabel, QTextCursor, QWidget, \
@@ -31,7 +30,7 @@ class Console(QWidget):
 
         self._addLogEntry(
             '<span style="font-weight:bold">Request:</span> '
-            '%s:' % msg,
+            '<tt>%s</tt>' % toHtmlEscaped(msg),
             raw=True)
         #        msg = msg.split(' ', 2)
         try:
@@ -40,22 +39,16 @@ class Console(QWidget):
                 _, eid, stuff = self._node.decode_message(reply)
                 reply = '%s %s %s' % (_, eid, json.dumps(
                     stuff, indent=2, separators=(',', ':'), sort_keys=True))
-                self._addLogEntry(reply, newline=True, pretty=False)
+                self._addLogEntry(reply.rstrip('\n'))
             else:
-                self._addLogEntry(reply, newline=True, pretty=False)
+                self._addLogEntry(reply.rstrip('\n'))
         except SECoPError as e:
             einfo = e.args[0] if len(e.args) == 1 else json.dumps(e.args)
-            self._addLogEntry(
-                '%s: %s' % (e.name, einfo),
-                newline=True,
-                pretty=False,
-                error=True)
+            self._addLogEntry('%s: %s' % (e.name, einfo), error=True)
         except Exception as e:
-            self._addLogEntry(
-                'error when sending %r: %r' % (msg, e),
-                newline=True,
-                pretty=False,
-                error=True)
+            self._addLogEntry('error when sending %r: %r' % (msg, e), error=True)
+
+        self.msgLineEdit.selectAll()
 
     @pyqtSlot()
     def on_clearPushButton_clicked(self):
@@ -64,20 +57,12 @@ class Console(QWidget):
     def _clearLog(self):
         self.logTextBrowser.clear()
 
-        self._addLogEntry('SECoP Communication Shell')
-        self._addLogEntry('=========================')
-        self._addLogEntry('', newline=True)
+        self._addLogEntry('<div style="font-weight: bold">'
+                          'SECoP Communication Shell<br/>'
+                          '=========================<br/></div>',
+                          raw=True)
 
-    def _addLogEntry(self,
-                     msg,
-                     newline=False,
-                     pretty=False,
-                     raw=False,
-                     error=False):
-        if pretty:
-            msg = pprint.pformat(msg, width=self._getLogWidth())
-            msg = msg[1:-1]
-
+    def _addLogEntry(self, msg, raw=False, error=False):
         if not raw:
             if error:
                 msg = '<div style="color:#FF0000"><b><pre>%s</pre></b></div>' % toHtmlEscaped(
@@ -90,9 +75,6 @@ class Console(QWidget):
         if self.logTextBrowser.toPlainText():
             content = self.logTextBrowser.toHtml()
         content += msg
-
-        if newline:
-            content += '<br />'
 
         self.logTextBrowser.setHtml(content)
         self.logTextBrowser.moveCursor(QTextCursor.End)
