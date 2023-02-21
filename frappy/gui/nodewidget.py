@@ -161,13 +161,15 @@ class NodeWidget(QWidget):
     def _initNodeInfo(self):
         self.tree = ModuleOverview(self._node)
         infolayout = QVBoxLayout()
+        infolayout.setContentsMargins(0, 0, 0, 0)
         infolayout.addWidget(self.tree)
         self.infotree.setLayout(infolayout)
         # disabled until i find a way to deselect and go back to overview
         self.tree.itemChanged.connect(self.changeViewContent)
         self.tree.customContextMenuRequested.connect(self._treeContextMenu)
 
-        self._description = QPlainTextEdit(self._node.properties.get('description','no description available'))
+        self._description = QPlainTextEdit(
+            self._node.properties.get('description','no description available'))
         self._description_label = QLabel('Description:')
         self._description.setReadOnly(True)
         self._host = QLabel(self._node.conn.uri)

@@ -28,6 +28,9 @@
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
+     <property name="handleWidth">
+      <number>6</number>
+     </property>
      <property name="childrenCollapsible">
       <bool>false</bool>
      </property>
@@ -49,6 +52,9 @@
         <widget class="QSplitter" name="infobox_splitter">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
+         </property>
+         <property name="handleWidth">
+          <number>6</number>
          </property>
          <widget class="QWidget" name="infotree" native="true"/>
          <widget class="QGroupBox" name="nodeinfo">
@@ -91,7 +97,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>93</width>
+          <width>92</width>
           <height>176</height>
          </rect>
         </property>

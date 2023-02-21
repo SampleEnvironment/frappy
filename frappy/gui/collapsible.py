@@ -18,6 +18,7 @@ class CollapsibleWidget(QWidget):
         line.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
 
         l = QVBoxLayout()
+        l.setContentsMargins(0, 0, 0, 0)
         l.addWidget(self.widget)
         self.widgetContainer.setLayout(l)
         self.widgetContainer.setMaximumHeight(0)
@@ -26,6 +27,7 @@ class CollapsibleWidget(QWidget):
         layout.addWidget(self.button, 0, 0, Qt.AlignLeft)
         layout.addWidget(line, 0, 1, 1, 1)
         layout.addWidget(self.widgetContainer, 1, 0, -1, -1)
+        layout.setContentsMargins(0, 6, 0, 0)
         self.setLayout(layout)
 
     def _collapse(self, expand):
