@@ -75,7 +75,13 @@ class ModuleItem(QTreeWidgetItem):
             self.setIcon(self.display[parameter], ModuleItem.statusIcon(value.value[0].value))
             self.setText(self.display['status/text'], value.value[1])
         else:
-            self.setText(self.display[parameter], '%s%s' % (str(value), self._unit))
+            # TODO: stopgap
+            if value.readerror:
+                strvalue = str(value)
+            else:
+                strvalue = ('%g' if isinstance(value.value, float)
+                            else '%s') % (value.value,)
+            self.setText(self.display[parameter], '%s %s' % (strvalue, self._unit))
 
     def disconnected(self):
         self.setIcon(self.display['status'], ModuleItem.icons['unknown'])

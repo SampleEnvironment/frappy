@@ -132,7 +132,13 @@ class ModuleWidget(QWidget):
         if mod != self._name:
             return
         if param in self._paramDisplays:
-            self._paramDisplays[param].setText(str(val.value))
+            # TODO: stopgap
+            if val.readerror:
+                strvalue = str(val)
+            else:
+                strvalue = ('%g' if isinstance(val.value, float)
+                            else '%s') % (val.value,)
+            self._paramDisplays[param].setText(strvalue)
 
     def _addRParam(self, param, row):
         props = self._node.getProperties(self._name, param)
