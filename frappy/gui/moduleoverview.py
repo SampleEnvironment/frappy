@@ -134,9 +134,15 @@ class ModuleOverview(QTreeWidget):
         self.currentItemChanged.connect(self.handleCurrentItemChanged)
         #self.itemDoubleClicked.connect(self.handleDoubleClick)
 
-   # def handleDoubleClick(self, item, column):
-   #     if item.hasTarget() and column == 2:
-   #         self.editItem(item, column)
+    # def handleDoubleClick(self, item, column):
+    #     if item.hasTarget() and column == 2:
+    #         self.editItem(item, column)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.itemAt(event.pos()) is None:
+                self.clearTreeSelection()
+        return super().mouseReleaseEvent(event)
 
     def handleCurrentItemChanged(self, current, previous):
         if previous is None or self.last_was_clear:
@@ -175,7 +181,10 @@ class ModuleOverview(QTreeWidget):
             self.resizeColumnToContents(i)
 
     def clearTreeSelection(self):
-        prev = self.selectedItems()[0]
+        selected = self.selectedItems()
+        if not selected:
+            return
+        prev = selected[0]
         pmod, pparam = prev.module, prev.param
         self.clearSelection()
         self.itemChanged.emit('', '', pmod, pparam)
