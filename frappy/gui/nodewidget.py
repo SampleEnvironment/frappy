@@ -273,7 +273,7 @@ class NodeWidget(QWidget):
             plot.addCurve(self._node, module, param)
             plot.setCurveColor(module, param, Colors.colors[len(plot.curves) % 6])
         else:
-            plot = getPlotWidget()
+            plot = getPlotWidget(self)
             plot.addCurve(self._node, module, param)
             plot.setCurveColor(module, param, Colors.colors[1])
             self._activePlots[(module, param)] = plot

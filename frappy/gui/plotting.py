@@ -9,14 +9,20 @@ except ImportError:
 
 from frappy.gui.util import Colors
 from frappy.gui.qt import QWidget, QVBoxLayout, QLabel, Qt, pyqtSignal
-def getPlotWidget():
+
+
+def getPlotWidget(parent):
     if pg:
         pg.setConfigOption('background', Colors.colors['plot-bg'])
         pg.setConfigOption('foreground', Colors.colors['plot-fg'])
 
     if pg is None:
-        return PlotPlaceHolderWidget()
-    return PlotWidget()
+        window = PlotPlaceHolderWidget(parent)
+    else:
+        window = PlotWidget(parent)
+    window.setWindowFlags(Qt.WindowType.Window)
+    return window
+
 
 class PlotPlaceHolderWidget(QWidget):
     closed = pyqtSignal(object)
