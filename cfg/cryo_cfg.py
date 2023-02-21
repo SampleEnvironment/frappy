@@ -3,19 +3,17 @@
 #####################################################################
 
 Node('cryo_7.frappy.demo',
-    'short description' \
-    '' \
-    '' \
-    'This is a very long description providing all the glory details in all the ' \
-    'glory details about the stuff we are describing',
+    'short description\n\n'
+    'This is a very long description providing all the gory details '
+    'about the stuff we are describing.',
     'tcp://10769',
     more="blub",
 )
 
 Mod('cryo',
     'frappy_demo.cryo.Cryostat',
-    'A simulated cc cryostat with heat-load, specific heat for the sample and a ' \
-    'temperature dependend heat-link between sample and regulation.',
+    'A simulated cc cryostat with heat-load, specific heat for the sample and a '
+    'temperature dependent heat-link between sample and regulation.',
     group='very important/stuff',
     jitter=0.1,
     T_start=10.0,
