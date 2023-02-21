@@ -39,7 +39,8 @@ Mod('tc2',
 
 Mod('label',
     'frappy_demo.modules.Label',
-    'some label indicating the state of the magnet `,f`.',
+    'some label indicating the state of the magnet `mf`.',
+    system = 'Cryomagnet MX15',
     subdev_mf = 'mf',
     subdev_ts = 'ts',
 )
