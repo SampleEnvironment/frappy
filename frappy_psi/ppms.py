@@ -155,6 +155,10 @@ class PpmsBase(HasIO, Readable):
             raise HardwareError('bad reply %r to command %r' % (reply, command))
 
 
+class PpmsDrivable(Drivable, PpmsBase):
+    pass
+
+
 class Channel(PpmsBase):
     """channel base class"""
 
@@ -283,7 +287,7 @@ class Level(PpmsBase):
         return literal_eval(self.communicate('LEVEL?'))[0]
 
 
-class Chamber(PpmsBase, Drivable):
+class Chamber(PpmsDrivable):
     """sample chamber handling
 
     value is an Enum, which is redundant with the status text
@@ -334,7 +338,7 @@ class Chamber(PpmsBase, Drivable):
         return self.read_target()
 
 
-class Temp(PpmsBase, Drivable):
+class Temp(PpmsDrivable):
     """temperature"""
 
     Status = Enum(
@@ -501,7 +505,7 @@ class Temp(PpmsBase, Drivable):
         self._stopped = True
 
 
-class Field(PpmsBase, Drivable):
+class Field(PpmsDrivable):
     """magnetic field"""
 
     Status = Enum(
@@ -639,7 +643,7 @@ class Field(PpmsBase, Drivable):
         self._stopped = True
 
 
-class Position(PpmsBase, Drivable):
+class Position(PpmsDrivable):
     """rotator position"""
 
     Status = Drivable.Status

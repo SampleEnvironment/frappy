@@ -72,7 +72,8 @@ class ProxyModule(HasIO, Module):
             pname, pobj = params.popitem()
             props = remoteparams.get(pname, None)
             if props is None:
-                self.log.warning('remote parameter %s:%s does not exist' % (self.module, pname))
+                if pobj.export:
+                    self.log.warning('remote parameter %s:%s does not exist' % (self.module, pname))
                 continue
             dt = props['datatype']
             try:
@@ -185,6 +186,10 @@ def proxy_class(remote_class, name=None):
     for aname, aobj in rcls.accessibles.items():
         if isinstance(aobj, Parameter):
             pobj = aobj.copy()
+            # we have to set own properties of pobj to the inherited ones
+            # this matters for the ProxyModule.status datatype, which should be
+            # overidden by the remote class status datatype
+            pobj.ownProperties = pobj.propertyValues
             pobj.merge({'needscfg': False})
             attrs[aname] = pobj
 
@@ -217,7 +222,7 @@ def proxy_class(remote_class, name=None):
         else:
             raise ConfigError('do not now about %r in %s.accessibles' % (aobj, remote_class))
 
-    return type(name, (proxycls,), attrs)
+    return type(name+"_", (proxycls,), attrs)
 
 
 def Proxy(name, logger, cfgdict, srv):
@@ -232,6 +237,6 @@ def Proxy(name, logger, cfgdict, srv):
     if 'description' not in cfgdict:
         cfgdict['description'] = 'remote module %s on %s' % (
             cfgdict.get('module', name),
-                cfgdict.get('io', {'value:': '?'})['value'])
+            cfgdict.get('io', {'value:': '?'})['value'])
 
     return proxy_class(remote_class)(name, logger, cfgdict, srv)

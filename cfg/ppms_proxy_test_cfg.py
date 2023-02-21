@@ -1,6 +1,6 @@
 Node('filtered.PPMS.psi.ch',
     'filtered PPMS at PSI',
-    'localhost:5002',
+    'tcp://5002',
 )
 
 
@@ -16,6 +16,6 @@ Mod('mf',
     remote_class = 'frappy_psi.ppms.Field',
     io = 'secnode',
 
-    value = Param(min = -0.1, max = 0.1),
-    target = Param(min = -8, max = 8),
+    value = Param(),
+    target = Param(min=-0.1, max=0.1),
 )
