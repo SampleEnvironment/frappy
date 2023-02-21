@@ -1,3 +1,9 @@
+frappy-core (0.16.2) focal; urgency=medium
+
+  * gui: move icon resources for the cfg editor to its subdirectory
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 07:50:13 +0100
+
 frappy-core (0.16.1) focal; urgency=medium
 
   * add frappy-cli to package
