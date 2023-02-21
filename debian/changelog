@@ -1,3 +1,9 @@
+frappy-core (0.16.3) focal; urgency=medium
+
+  * UNRELEASED
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 08:00:15 +0100
+
 frappy-core (0.16.2) focal; urgency=medium
 
   * gui: move icon resources for the cfg editor to its subdirectory
