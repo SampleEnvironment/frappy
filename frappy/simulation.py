@@ -35,7 +35,7 @@ class SimBase:
         extra_params = cfgdict.pop('extra_params', '') or cfgdict.pop('.extra_params', '')
         attrs = {}
         if extra_params:
-            for k in extra_params['default'].split(','):
+            for k in extra_params['value'].split(','):
                 k = k.strip()
                 attrs[k] = Parameter('extra_param: %s' % k.strip(),
                                      datatype=FloatRange(),

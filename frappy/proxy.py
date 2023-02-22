@@ -227,11 +227,11 @@ def Proxy(name, logger, cfgdict, srv):
     """
     remote_class = cfgdict.pop('remote_class')
     if isinstance(remote_class, dict):
-        remote_class = remote_class['default']
+        remote_class = remote_class['value']
 
     if 'description' not in cfgdict:
         cfgdict['description'] = 'remote module %s on %s' % (
             cfgdict.get('module', name),
-                cfgdict.get('io', {'default:': '?'})['default'])
+                cfgdict.get('io', {'value:': '?'})['value'])
 
     return proxy_class(remote_class)(name, logger, cfgdict, srv)
