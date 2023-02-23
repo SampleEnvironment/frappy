@@ -71,7 +71,7 @@ class GeneralConfig:
         if path.splitext(sys.executable)[1] == ".exe" and not path.basename(sys.executable).startswith('python'):
             # special MS windows environment
             cfg.update(piddir='./', logdir='./log', confdir='./')
-        elif path.exists(path.join(repodir, '.git')) or os.sep == '\\':  # for hands on session
+        elif path.exists(path.join(repodir, 'cfg')):
             # running from git repo
             cfg['confdir'] = path.join(repodir, 'cfg')
             # take logdir and piddir from <repodir>/cfg/generalConfig.cfg
