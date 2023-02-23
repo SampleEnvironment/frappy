@@ -57,7 +57,7 @@ class TextWidget(QTextEdit):
             self.setEnabled(False)
 
     def get_value(self):
-        res = self.text()
+        res = self.toPlainText()
         return self.datatype(res)
 
     def set_value(self, value):

@@ -60,14 +60,14 @@ class TreeWidget(QTreeWidget):
         self.customContextMenuRequested.connect(self.on_context_menu_requested)
 
     def setup_context_actions(self):
-        edit = self.menu.addAction('rename')
-        a_m = self.menu.addAction('add module')
-        a_i = self.menu.addAction('add interface')
-        a_pa = self.menu.addAction('add parameter')
-        a_pr = self.menu.addAction('add property')
-        a_c = self.menu.addAction('add comment')
-        dup = self.menu.addAction('duplicate')
-        dele = self.menu.addAction('delete')
+        edit = self.menu.addAction('Rename')
+        a_m = self.menu.addAction('Add module')
+        a_i = self.menu.addAction('Add interface')
+        a_pa = self.menu.addAction('Add parameter')
+        a_pr = self.menu.addAction('Add property')
+        a_c = self.menu.addAction('Add comment')
+        dup = self.menu.addAction('Duplicate')
+        dele = self.menu.addAction('Delete')
         self.context_actions = [edit, a_m, a_i, a_pa, a_pr, a_c, dup, dele]
         setActionIcon(edit, 'edit.png')
         setActionIcon(a_m, 'add_module.png')
@@ -115,8 +115,8 @@ class TreeWidget(QTreeWidget):
                                                  None)
             self.addTopLevelItem(sec_node)
             sec_node.setExpanded(True)
-            self.mods = self.get_tree_widget_item(name='modules')
-            self.ifs = self.get_tree_widget_item(name='interfaces')
+            self.mods = self.get_tree_widget_item(name='Modules')
+            self.ifs = self.get_tree_widget_item(name='Interfaces')
             sec_node.addChild(self.ifs)
             sec_node.addChild(self.mods)
             self.emit_save_status_changed(False)
@@ -337,7 +337,7 @@ class AddDialog(QDialog):
                             the value from self.value"""
         super().__init__(parent)
         loadUi(self, 'add_dialog.ui')
-        self.setWindowTitle('add %s' % kind)
+        self.setWindowTitle('Add %s' % kind)
         self.kind = kind
         self.invalid_names = invalid_names
         if self.invalid_names:
@@ -348,15 +348,15 @@ class AddDialog(QDialog):
             self.name = QLineEdit()
             # TODO: input mask
             self.name.textChanged.connect(self.check_input)
-            self.add_layout.addWidget(QLabel('name:'), 0, 0)
+            self.add_layout.addWidget(QLabel('Name:'), 0, 0)
             self.add_layout.addWidget(self.name, 0, 1)
             if kind == NODE:
-                label_text = 'description:'
+                label_text = 'Description:'
                 self.value = QTextEdit()
                 self.get_value = self.value.toPlainText
                 self.value.text = self.value.toPlainText
             else:
-                label_text = 'kind:'
+                label_text = 'Kind:'
                 self.value = QComboBox()
                 self.get_value = self.value.currentText
                 if type(possible_values) == dict:
@@ -368,18 +368,20 @@ class AddDialog(QDialog):
                     self.value.setCurrentIndex(len(possible_values)-1)
             self.add_layout.addWidget(QLabel(label_text), 1, 0)
             self.add_layout.addWidget(self.value, 1, 1)
+            self.name.setFocus()
         else:
             if kind in [PARAMETER, PROPERTY]:
-                label_text = 'kind:'
+                label_text = 'Kind:'
                 self.value = QComboBox()
                 self.get_value = self.value.currentText
                 self.value.addItems(possible_values)
             else:
-                label_text = 'comment:'
+                label_text = 'Comment:'
                 self.value = QTextEdit()
                 self.get_value = self.value.toPlainText
             self.add_layout.addWidget(QLabel(label_text), 0, 0)
             self.add_layout.addWidget(self.value, 0, 1)
+            self.value.setFocus()
         if self.add_layout.rowCount() == 2:
             self.setTabOrder(self.name, self.value)
         self.setTabOrder(self.value, self.button_box.button(QDialogButtonBox.Ok))

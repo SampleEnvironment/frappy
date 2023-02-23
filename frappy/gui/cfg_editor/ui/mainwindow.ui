@@ -34,7 +34,7 @@
          <string>create new SEC node</string>
         </property>
         <property name="text">
-         <string>new</string>
+         <string>New</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -67,7 +67,7 @@
          <string>open file</string>
         </property>
         <property name="text">
-         <string>open</string>
+         <string>Open</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -100,7 +100,7 @@
          <string>save</string>
         </property>
         <property name="text">
-         <string>save</string>
+         <string>Save</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -140,7 +140,7 @@
          <string>add interface</string>
         </property>
         <property name="text">
-         <string>add interface</string>
+         <string>Add interface</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -173,7 +173,7 @@
          <string>add module</string>
         </property>
         <property name="text">
-         <string>add module</string>
+         <string>Add module</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -206,7 +206,7 @@
          <string>add parameter</string>
         </property>
         <property name="text">
-         <string>add parameter</string>
+         <string>Add parameter</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -239,7 +239,7 @@
          <string>add property</string>
         </property>
         <property name="text">
-         <string>add property</string>
+         <string>Add property</string>
         </property>
         <property name="icon">
          <iconset>
@@ -272,7 +272,7 @@
          <string>add comment</string>
         </property>
         <property name="text">
-         <string>add comment</string>
+         <string>Add comment</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -319,7 +319,7 @@
          <string>duplicate module or interface</string>
         </property>
         <property name="text">
-         <string>duplicate</string>
+         <string>Duplicate</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -352,7 +352,7 @@
          <string>delete</string>
         </property>
         <property name="text">
-         <string>delete</string>
+         <string>Delete</string>
         </property>
         <property name="icon">
          <iconset resource="icons/cfg-editor.qrc">
@@ -409,7 +409,7 @@
      <x>0</x>
      <y>0</y>
      <width>977</width>
-     <height>20</height>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

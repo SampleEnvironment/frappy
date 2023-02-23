@@ -83,8 +83,8 @@ def write_config(file_name, tree_widget):
 def read_config(file_path):
     # TODO datatype of params and properties
     node = TreeWidgetItem(NODE)
-    ifs = TreeWidgetItem(name='interfaces')
-    mods = TreeWidgetItem(name='modules')
+    ifs = TreeWidgetItem(name='Interfaces')
+    mods = TreeWidgetItem(name='Modules')
     node.addChild(ifs)
     node.addChild(mods)
     config = configparser.ConfigParser()

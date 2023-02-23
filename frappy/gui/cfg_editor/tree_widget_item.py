@@ -167,7 +167,7 @@ class ValueWidget(QWidget):
             self.value_display.textChanged.connect(self.emit_save_status_changed)
             self.set_value(value)
         else:
-            self.value_display = QLabel(value)
+            self.value_display = QLabel(str(value))
         self.layout.addWidget(self.value_display)
         self.setLayout(self.layout)
 
