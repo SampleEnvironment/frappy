@@ -35,14 +35,15 @@ try:
         QRectF, QPoint, QByteArray, QEvent, QMimeData, QSettings
     from PyQt5.QtGui import QFont, QTextCursor, QFontMetrics, QColor, QBrush, \
         QPainter, QPolygonF, QPen, QIcon, QStandardItemModel, QStandardItem, \
-        QPalette, QCursor, QDrag, QMouseEvent, QPixmap
+        QPalette, QCursor, QDrag, QMouseEvent, QPixmap, QKeySequence
     from PyQt5.QtWidgets import QLabel, QWidget, QDialog, QLineEdit, QCheckBox, \
         QPushButton, QSizePolicy, QMainWindow, QMessageBox, QInputDialog, \
         QTreeWidgetItem, QApplication, QGroupBox, QSpinBox, QDoubleSpinBox, \
         QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, QGridLayout, \
         QScrollArea, QFrame, QTreeWidget, QFileDialog, QTabBar, QAction, QMenu,\
         QDialogButtonBox, QTextEdit, QSpacerItem, QTreeView, QStyle, \
-        QStyleOptionTab, QStylePainter, QTabWidget, QToolButton, QPlainTextEdit
+        QStyleOptionTab, QStylePainter, QTabWidget, QToolButton, QShortcut, \
+        QPlainTextEdit
 
     from xml.sax.saxutils import escape as toHtmlEscaped
 

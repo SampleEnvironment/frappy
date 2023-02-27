@@ -29,8 +29,19 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="separator"/>
+    <widget class="QMenu" name="menuRecent_SECNodes">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="title">
+      <string>Recent SECNodes</string>
+     </property>
+     <addaction name="separator"/>
+     <addaction name="actionClear"/>
+    </widget>
     <addaction name="actionAdd_SEC_node"/>
+    <addaction name="menuRecent_SECNodes"/>
+    <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -70,12 +81,18 @@
      <normaloff>:/icons/connect</normaloff>:/icons/connect</iconset>
    </property>
    <property name="text">
-    <string>Add SEC node</string>
+    <string>Open SECNode</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
   <action name="actionExit">
    <property name="text">
     <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
    </property>
   </action>
   <action name="actionAbout">
@@ -110,6 +127,20 @@
    </property>
    <property name="text">
     <string>Detailed View</string>
+   </property>
+  </action>
+  <action name="actionClear">
+   <property name="icon">
+    <iconset resource="../../../resources/frappy-gui.qrc">
+     <normaloff>:/icons/trash</normaloff>:/icons/trash</iconset>
+   </property>
+   <property name="text">
+    <string>Clear</string>
+   </property>
+  </action>
+  <action name="actiondjhfs">
+   <property name="text">
+    <string>djhfs</string>
    </property>
   </action>
  </widget>

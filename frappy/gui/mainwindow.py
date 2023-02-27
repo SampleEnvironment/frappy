@@ -24,7 +24,8 @@
 
 import frappy.client
 from frappy.gui.qt import QInputDialog, QMainWindow, QMessageBox, QObject, \
-        QTreeWidgetItem, pyqtSignal, pyqtSlot, QWidget, QSettings
+        QTreeWidgetItem, pyqtSignal, pyqtSlot, QWidget, QSettings, QAction, \
+        QShortcut, QKeySequence
 from frappy.gui.util import Value, Colors, loadUi
 from frappy.lib import formatExtendedTraceback
 from frappy.gui.logwindow import LogWindow
@@ -159,11 +160,14 @@ class MainWindow(QMainWindow):
         Colors._setPalette(self.palette())
 
         self.toolBar.hide()
+        self.buildRecentNodeMenu()
+        self.recentNodesChanged.connect(self.buildRecentNodeMenu)
 
         # what is which?
         self.tab = TearOffTabWidget(self, self, self, self)
         self.tab.setTabsClosable(True)
         self.tab.tabCloseRequested.connect(self._handleTabClose)
+        self.shortcut = QShortcut(QKeySequence("Ctrl+W"), self, self.tab.close_current)
         self.setCentralWidget(self.tab)
 
         self._nodes = {}
@@ -243,6 +247,22 @@ class MainWindow(QMainWindow):
         settings.setValue('recent', recent)
         self.recentNodesChanged.emit()
         return nodename
+
+    def buildRecentNodeMenu(self):
+        settings = QSettings()
+        recent = settings.value('recent', [])
+        menu = self.menuRecent_SECNodes
+        for action in list(menu.actions()):
+            if action.isSeparator():
+                break
+            menu.removeAction(action)
+        # save reference so they are not deleted
+        self.recentNodeActions = []
+        for host in recent:
+            a = QAction(host)
+            a.triggered.connect(lambda _t, h=host: self._addNode(h))
+            self.recentNodeActions.append(a)
+        menu.insertActions(action, self.recentNodeActions)
 
     def on_actionClear_triggered(self):
         """clears recent SECNode menu"""
