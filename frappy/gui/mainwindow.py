@@ -27,7 +27,6 @@ from frappy.gui.qt import QInputDialog, QMainWindow, QMessageBox, QObject, \
         QTreeWidgetItem, pyqtSignal, pyqtSlot, QWidget, QSettings, QAction, \
         QShortcut, QKeySequence
 from frappy.gui.util import Value, Colors, loadUi
-from frappy.lib import formatExtendedTraceback
 from frappy.gui.logwindow import LogWindow
 from frappy.gui.tabwidget import TearOffTabWidget
 from frappy.gui.nodewidget import NodeWidget
@@ -180,7 +179,6 @@ class MainWindow(QMainWindow):
                 self._addNode(host)
             except Exception as e:
                 # TODO: make this nicer than dumping to console
-                print(formatExtendedTraceback())
                 self.log.error('error in addNode: %r', e)
 
         if not self._nodes:

@@ -49,7 +49,7 @@ def parseArgv(argv):
                           action='store_true', default=False)
     parser.add_argument('node',
                         help='Nodes the Gui should connect to.\n', metavar='host[:port]',
-                        nargs='*', type=str, default=['localhost:10767'])
+                        nargs='*', type=str, default=[])
     return parser.parse_args(argv)
 
 
