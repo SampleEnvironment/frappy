@@ -24,7 +24,7 @@
 
 import frappy.client
 from frappy.gui.qt import QInputDialog, QMainWindow, QMessageBox, QObject, \
-        QTreeWidgetItem, pyqtSignal, pyqtSlot
+        QTreeWidgetItem, pyqtSignal, pyqtSlot, QWidget, QSettings
 from frappy.gui.util import Value, Colors, loadUi
 from frappy.lib import formatExtendedTraceback
 from frappy.gui.logwindow import LogWindow
@@ -115,7 +115,39 @@ class QSECNode(QObject):
         self.unhandledMsg.emit('%s %s %r' % (action, specifier, data))
 
 
+class Greeter(QWidget):
+    recentClearBtn = pyqtSignal()
+    addnodes = pyqtSignal(list)
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        loadUi(self, 'greeter.ui')
+        self.loadRecent()
+
+    def loadRecent(self):
+        self.recentNodes.clear()
+        settings = QSettings()
+        recent = settings.value('recent', [])
+        for host in recent:
+            self.recentNodes.addItem(host)
+
+    @pyqtSlot()
+    def on_ClearButton_clicked(self):
+        self.recentClearBtn.emit()
+
+    @pyqtSlot()
+    def on_connectRecentButton_clicked(self):
+        selected = self.recentNodes.selectedItems()
+        hosts = [item.text() for item in selected]
+        self.addnodes.emit(hosts)
+
+    @pyqtSlot()
+    def on_AddSECNodeButton_clicked(self):
+        self.addnodes.emit([self.secnodeEdit.text()
+                            or self.secnodeEdit.placeholderText()])
+
+
 class MainWindow(QMainWindow):
+    recentNodesChanged = pyqtSignal()
     def __init__(self, hosts, logger, parent=None):
         super().__init__(parent)
 
@@ -147,6 +179,13 @@ class MainWindow(QMainWindow):
                 print(formatExtendedTraceback())
                 self.log.error('error in addNode: %r', e)
 
+        if not self._nodes:
+            greeter = Greeter(self)
+            greeter.addnodes.connect(self._addNodes)
+            greeter.recentClearBtn.connect(self.on_actionClear_triggered)
+            self.recentNodesChanged.connect(greeter.loadRecent)
+            self.tab.addPanel(greeter, 'Welcome')
+
     @pyqtSlot()
     def on_actionAdd_SEC_node_triggered(self):
         host, ok = QInputDialog.getText(self, 'Add SEC node',
@@ -174,8 +213,17 @@ class MainWindow(QMainWindow):
     #     if level in ['user', 'admin', 'expert']:
     #         print('visibility Level now:', level)
 
-    def _addNode(self, host):
+    def _addNodes(self, hosts):
+        for host in hosts:
+            try:
+                self.log.info('Trying to connect to %s', host)
+                self._addNode(host)
+            except Exception as e:
+                self.log.error('error in addNode: %r', e)
+                QMessageBox.critical(self.parent(),
+                                     'Connecting to %s failed!' % host, str(e))
 
+    def _addNode(self, host):
         # create client
         node = QSECNode(host, self.log, parent=self)
         nodename = node.nodename
@@ -185,12 +233,32 @@ class MainWindow(QMainWindow):
         self.tab.addTab(nodeWidget, node.equipmentId)
         self._nodeWidgets[nodename] = nodeWidget
         self.tab.setCurrentWidget(nodeWidget)
+
+        # add to recent nodes
+        settings = QSettings()
+        recent = settings.value('recent', [])
+        if host in recent:
+            recent.remove(host)
+        recent.insert(0, host)
+        settings.setValue('recent', recent)
+        self.recentNodesChanged.emit()
         return nodename
 
+    def on_actionClear_triggered(self):
+        """clears recent SECNode menu"""
+        settings = QSettings()
+        settings.remove('recent')
+        self.recentNodesChanged.emit()
+
     def _handleTabClose(self, index):
-        node = self.tab.widget(index).getSecNode()
-        # disconnect node from all events
-        self._nodes.pop(node.nodename)
+        try:
+            node = self.tab.widget(index).getSecNode()
+            # disconnect node from all events
+            self._nodes.pop(node.nodename)
+            self.log.debug("Closing tab with node %s" % node.nodename)
+        except AttributeError:
+            # Closing the greeter
+            self.log.debug("Greeter Tab closed")
         self.tab.removeTab(index)
 
     def _rebuildAdvanced(self, advanced):

@@ -32,7 +32,6 @@ uipath = path.dirname(__file__)
 def loadUi(widget, uiname, subdir='ui'):
     uic.loadUi(path.join(uipath, subdir, uiname), widget)
 
-
 class Value:
     def __init__(self, value, timestamp=None, readerror=None):
         self.value = value

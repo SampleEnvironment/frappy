@@ -32,7 +32,7 @@ try:
 
     from PyQt5 import uic
     from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, \
-        QRectF, QPoint, QByteArray, QEvent, QMimeData
+        QRectF, QPoint, QByteArray, QEvent, QMimeData, QSettings
     from PyQt5.QtGui import QFont, QTextCursor, QFontMetrics, QColor, QBrush, \
         QPainter, QPolygonF, QPen, QIcon, QStandardItemModel, QStandardItem, \
         QPalette, QCursor, QDrag, QMouseEvent, QPixmap

@@ -11,6 +11,7 @@
   </qresource>
   <qresource prefix="icons">
     <file alias="stop">icons/cross-circle.png</file>
+    <file alias="trash">icons/bin.png</file>
     <file alias="plot-add">icons/system-monitor--plus.png</file>
     <file alias="submit">icons/arrow-turn-180.png</file>
     <file alias="connect">icons/plug--plus.png</file>
