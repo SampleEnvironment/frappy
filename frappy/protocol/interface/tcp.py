@@ -27,6 +27,7 @@ import sys
 import threading
 import time
 import errno
+import os
 
 from frappy.datatypes import BoolType, StringType
 from frappy.errors import SECoPError
@@ -169,7 +170,9 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
 
 class TCPServer(socketserver.ThreadingTCPServer):
     daemon_threads = True
-    allow_reuse_address = True
+    # on windows, 'reuse_address' means that several servers might listen on
+    # the same port, on the other hand, a port is not blocked after closing
+    allow_reuse_address = os.name != 'nt'  # False on Windows systems
 
     # for cfg-editor
     configurables = {
