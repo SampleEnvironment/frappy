@@ -7,7 +7,7 @@ It is able to use TCP and Serial connections.
 
 To get started, look at the provided demo, the provided examples, or have a look at the INTRODUCTION section.
 
-Main development is done [here](https://forge.frm2.tum.de/review/q/project:secop) and a readonly GitHub-mirror for easier access is available [here](https://github.com/SampleEnvironment/frappy)
+Main development is done [here](https://forge.frm2.tum.de/review/q/project:secop%252Ffrappy) and a readonly GitHub-mirror for easier access is available [here](https://github.com/SampleEnvironment/frappy)
 
 Requirements
 ------------
