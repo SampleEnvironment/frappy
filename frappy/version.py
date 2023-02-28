@@ -1,6 +1,5 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
-# Copyright (c) 2015-2019 by the authors, see LICENSE
+# Copyright (c) 2015-2023 by the authors, see LICENSE
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,11 +18,8 @@
 # Module authors:
 #   Douglas Creager <dcreager@dcreager.net>
 #   This file is placed into the public domain.
-#   fixes for PEP440 by:
-#   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
-
 
 import os.path
 from subprocess import PIPE, Popen
@@ -35,20 +31,18 @@ RELEASE_VERSION_FILE = os.path.join(os.path.dirname(__file__),
 GIT_REPO = os.path.join(os.path.dirname(__file__), '..', '.git')
 
 
-def get_git_version(abbrev=4, cwd=None):
+def translate_version(ver):
+    ver = ver.lstrip('v').rsplit('-', 2)
+    return f'{ver[0]}.post{ver[1]}+{ver[2]}' if len(ver) == 3 else ver[0]
+
+
+def get_git_version(abbrev=4):
     try:
-        print("REPO:", GIT_REPO)
-        with Popen(['git', '--git-dir=%s' % GIT_REPO,
-                    'describe', '--abbrev=%d' % abbrev],
-                    stdout=PIPE, stderr=PIPE) as p:
+        with Popen(['git', f'--git-dir={GIT_REPO}',
+                    'describe', f'--abbrev={abbrev}'],
+                   stdout=PIPE, stderr=PIPE) as p:
             stdout, _stderr = p.communicate()
-        version = stdout.strip().decode('utf-8', 'ignore')
-        print("git:", version)
-        # mangle version to comply with pep440
-        if version.count('-'):
-            version, patchcount, githash = version.split('-')
-            version += '.post%s+%s' % (patchcount, githash)
-        return version
+        return translate_version(stdout.strip().decode('utf-8', 'ignore'))
     except Exception:
         return None
 
@@ -63,7 +57,7 @@ def read_release_version():
 
 def write_release_version(version):
     with open(RELEASE_VERSION_FILE, 'w', encoding='utf-8') as f:
-        f.write("%s\n" % version)
+        f.write(f'{version}\n')
 
 
 def get_version(abbrev=4):
@@ -76,11 +70,12 @@ def get_version(abbrev=4):
         if git_version != release_version:
             write_release_version(git_version)
         return git_version
-    if release_version:
+    elif release_version:
         return release_version
-    raise ValueError('Cannot find a version number - make sure that '
-                     'git is installed or a RELEASE-VERSION file is '
-                     'present!')
+    else:
+        raise ValueError('Cannot find a version number - make sure that '
+                         'git is installed or a RELEASE-VERSION file is '
+                         'present!')
 
 
 if __name__ == "__main__":
