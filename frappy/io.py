@@ -112,6 +112,12 @@ class IOBase(Communicator):
     wait_before = Parameter('wait time before sending', datatype=FloatRange(), default=0)
     is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, default=False)
     pollinterval = Parameter('reconnect interval', datatype=FloatRange(0), readonly=False, default=10)
+    #: a dict of default settings for a device, e.g. for a LakeShore 336:
+    #:
+    #: ``default_settings = {'port': 7777, 'baudrate': 57600, 'parity': 'O', 'bytesize': 7}``
+    #:
+    #: port is used in case of tcp, the others for serial over USB
+    default_settings = {}
 
     _reconnectCallbacks = None
     _conn = None
@@ -243,7 +249,7 @@ class StringIO(IOBase):
     def connectStart(self):
         if not self.is_connected:
             uri = self.uri
-            self._conn = AsynConn(uri, self._eol_read)
+            self._conn = AsynConn(uri, self._eol_read, default_settings=self.default_settings)
             self.is_connected = True
             for command, regexp in self.identification:
                 reply = self.communicate(command)
@@ -354,7 +360,7 @@ class BytesIO(IOBase):
     def connectStart(self):
         if not self.is_connected:
             uri = self.uri
-            self._conn = AsynConn(uri, b'')
+            self._conn = AsynConn(uri, b'', default_settings=self.default_settings)
             self.is_connected = True
             for request, expected in self.identification:
                 replylen, replypat = make_regexp(expected)

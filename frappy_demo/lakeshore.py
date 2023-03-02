@@ -32,6 +32,7 @@ class LakeshoreIO(StringIO):
     # Lakeshore commands (see manual)
     # '*IDN?' is sent on connect, and the reply is checked to match the regexp 'LSCI,.*'
     identification = [('*IDN?', 'LSCI,.*')]
+    default_settings = {'port': 7777, 'baudrate': 57600, 'parity': 'O', 'bytesize': 7}
 
 
 class TemperatureSensor(HasIO, Readable):

@@ -102,6 +102,7 @@ Communication
 
 .. autoclass:: frappy.io.IOBase
     :show-inheritance:
+    :members: default_settings
 
 .. autoclass:: frappy.io.StringIO
     :show-inheritance:
