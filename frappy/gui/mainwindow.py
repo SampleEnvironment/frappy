@@ -21,15 +21,15 @@
 #
 # *****************************************************************************
 
-import frappy.client
 import frappy.version
-from frappy.gui.qt import QInputDialog, QMainWindow, QMessageBox, QObject, \
+from frappy.gui.qt import QInputDialog, QMainWindow, QMessageBox, \
         QTreeWidgetItem, pyqtSignal, pyqtSlot, QWidget, QSettings, QAction, \
         QShortcut, QKeySequence
-from frappy.gui.util import Value, Colors, loadUi
+from frappy.gui.util import Colors, loadUi
 from frappy.gui.logwindow import LogWindow
 from frappy.gui.tabwidget import TearOffTabWidget
 from frappy.gui.nodewidget import NodeWidget
+from frappy.gui.connection import QSECNode
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
 ITEM_TYPE_GROUP = QTreeWidgetItem.UserType + 2
@@ -37,91 +37,10 @@ ITEM_TYPE_MODULE = QTreeWidgetItem.UserType + 3
 ITEM_TYPE_PARAMETER = QTreeWidgetItem.UserType + 4
 
 
-class QSECNode(QObject):
-    newData = pyqtSignal(str, str, object)  # module, parameter, data
-    stateChange = pyqtSignal(str, bool, str)  # node name, online, connection state
-    unhandledMsg = pyqtSignal(str)  # message
-    logEntry = pyqtSignal(str)
-
-    def __init__(self, uri, parent_logger, parent=None):
-        super().__init__(parent)
-        self.log = parent_logger.getChild(uri)
-        self.conn = conn = frappy.client.SecopClient(uri, self.log)
-        conn.validate_data = True
-        self.contactPoint = conn.uri
-        conn.connect()
-        self.equipmentId = conn.properties['equipment_id']
-        self.log.info('Switching to logger %s', self.equipmentId)
-        self.log.name = '.'.join((parent_logger.name, self.equipmentId))
-        self.nodename = '%s (%s)' % (self.equipmentId, conn.uri)
-        self.modules = conn.modules
-        self.properties = self.conn.properties
-        self.protocolVersion = conn.secop_version
-        self.log.debug('SECoP Version: %s', conn.secop_version)
-        conn.register_callback(None, self.updateEvent, self.nodeStateChange, self.unhandledMessage)
-
-    # provide methods from old baseclient for making other gui code work
-    def reconnect(self):
-        if self.conn.online:
-            self.conn.disconnect(shutdown=False)
-        self.conn.connect()
-
-    def getParameters(self, module):
-        return self.modules[module]['parameters']
-
-    def getCommands(self, module):
-        return self.modules[module]['commands']
-
-    def getModuleProperties(self, module):
-        return self.modules[module]['properties']
-
-    def getProperties(self, module, parameter):
-        props = self.modules[module]['parameters'][parameter]
-        if 'unit' in props['datainfo']:
-            props['unit'] = props['datainfo']['unit']
-        return self.modules[module]['parameters'][parameter]
-
-    def setParameter(self, module, parameter, value):
-        # TODO: change the widgets for complex types to no longer use strings
-        datatype = self.conn.modules[module]['parameters'][parameter]['datatype']
-        self.conn.setParameter(module, parameter, datatype.from_string(value))
-
-    def getParameter(self, module, parameter):
-        return self.conn.getParameter(module, parameter, True)
-
-    def execCommand(self, module, command, argument):
-        return self.conn.execCommand(module, command, argument)
-
-    def queryCache(self, module):
-        return {k: Value(*self.conn.cache[(module, k)])
-                for k in self.modules[module]['parameters']}
-
-    def syncCommunicate(self, action, ident='', data=None):
-        reply = self.conn.request(action, ident, data)
-        # pylint: disable=not-an-iterable
-        return frappy.client.encode_msg_frame(*reply).decode('utf-8')
-
-    def decode_message(self, msg):
-        # decode_msg needs bytes as input
-        return frappy.client.decode_msg(msg.encode('utf-8'))
-
-    def _getDescribingParameterData(self, module, parameter):
-        #print(module, parameter, self.modules[module]['parameters'])
-        return self.modules[module]['parameters'][parameter]
-
-    def updateEvent(self, module, parameter, value, timestamp, readerror):
-        self.newData.emit(module, parameter, Value(value, timestamp, readerror))
-
-    def nodeStateChange(self, online, state):
-        self.stateChange.emit(self.nodename, online, state)
-
-    def unhandledMessage(self, action, specifier, data):
-        self.unhandledMsg.emit('%s %s %r' % (action, specifier, data))
-
-
 class Greeter(QWidget):
     recentClearBtn = pyqtSignal()
     addnodes = pyqtSignal(list)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         loadUi(self, 'greeter.ui')
@@ -152,6 +71,7 @@ class Greeter(QWidget):
 
 class MainWindow(QMainWindow):
     recentNodesChanged = pyqtSignal()
+
     def __init__(self, hosts, logger, parent=None):
         super().__init__(parent)
 
@@ -170,7 +90,8 @@ class MainWindow(QMainWindow):
         self.tab = TearOffTabWidget(self, self, self, self)
         self.tab.setTabsClosable(True)
         self.tab.tabCloseRequested.connect(self._handleTabClose)
-        self.shortcut = QShortcut(QKeySequence("Ctrl+W"), self, self.tab.close_current)
+        self.shortcut = QShortcut(QKeySequence("Ctrl+W"), self,
+                                  self.tab.close_current)
         self.setCentralWidget(self.tab)
 
         self._nodes = {}
@@ -219,8 +140,9 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def on_actionAdd_SEC_node_triggered(self):
-        host, ok = QInputDialog.getText(self, 'Add SEC node',
-                                        'Enter SEC node URI (or just hostname:port):')
+        host, ok = QInputDialog.getText(
+            self, 'Add SEC node',
+            'Enter SEC node URI (or just hostname:port):')
 
         if not ok:
             return
