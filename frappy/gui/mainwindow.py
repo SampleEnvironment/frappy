@@ -61,6 +61,10 @@ class QSECNode(QObject):
         conn.register_callback(None, self.updateEvent, self.nodeStateChange, self.unhandledMessage)
 
     # provide methods from old baseclient for making other gui code work
+    def reconnect(self):
+        if self.conn.online:
+            self.conn.disconnect(shutdown=False)
+        self.conn.connect()
 
     def getParameters(self, module):
         return self.modules[module]['parameters']
@@ -201,6 +205,10 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self.parent(),
                                  'Connecting to %s failed!' % host, str(e))
+
+    @pyqtSlot()
+    def on_actionReconnect_triggered(self):
+        self.tab.currentWidget().getSecNode().reconnect()
 
     def on_actionDetailed_View_toggled(self, toggled):
         self._rebuildAdvanced(toggled)
