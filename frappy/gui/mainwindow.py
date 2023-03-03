@@ -21,8 +21,8 @@
 #
 # *****************************************************************************
 
-
 import frappy.client
+import frappy.version
 from frappy.gui.qt import QInputDialog, QMainWindow, QMessageBox, QObject, \
         QTreeWidgetItem, pyqtSignal, pyqtSlot, QWidget, QSettings, QAction, \
         QShortcut, QKeySequence
@@ -191,6 +191,31 @@ class MainWindow(QMainWindow):
             greeter.recentClearBtn.connect(self.on_actionClear_triggered)
             self.recentNodesChanged.connect(greeter.loadRecent)
             self.tab.addPanel(greeter, 'Welcome')
+
+    @pyqtSlot()
+    def on_actionAbout_triggered(self):
+        try:
+            ver = frappy.version.get_version()
+        except Exception:
+            ver = 'unknown'
+
+        QMessageBox.about(
+            self, 'About Frappy GUI',
+            f'''
+            <h2>About Frappy GUI</h2>
+            <p>A graphical client for the SECoP protocol.</p>
+            <p>© 2017-2023 Frappy contributors:</p>
+            <ul>
+              <li><a href="mailto:markus.zolliker@psi.ch">Markus Zolliker</a></li>
+              <li><a href="mailto:enrico.faulhaber@frm2.tum.de">Enrico Faulhaber</a></li>
+              <li><a href="mailto:a.zaft@fz-juelich.de">Alexander Zaft</a></li>
+              <li><a href="mailto:g.brandl@fz-juelich.de">Georg Brandl</a></li>
+            </ul>
+            <p>Frappy is available under the
+              <a href="http://www.gnu.org/licenses/gpl.html">GNU General
+              Public License</a> version 2.0 or later.</p>
+            <p style="font-weight: bold">Version: v{ver}</p>
+            ''')
 
     @pyqtSlot()
     def on_actionAdd_SEC_node_triggered(self):
