@@ -22,8 +22,9 @@
 # *****************************************************************************
 
 
-from frappy.datatypes import EnumType
 from frappy.gui.qt import QWidget, pyqtSignal, pyqtSlot
+
+from frappy.datatypes import EnumType
 from frappy.gui.util import loadUi
 
 

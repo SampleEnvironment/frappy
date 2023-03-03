@@ -20,8 +20,9 @@
 #
 # *****************************************************************************
 
-from frappy.gui.cfg_editor.utils import loadUi
 from frappy.gui.qt import QHBoxLayout, QSizePolicy, QSpacerItem, Qt, QWidget
+
+from frappy.gui.cfg_editor.utils import loadUi
 
 
 class NodeDisplay(QWidget):

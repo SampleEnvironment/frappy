@@ -23,6 +23,7 @@
 
 
 from frappy.gui.qt import QLabel, QSizePolicy, QWidget
+
 from frappy.gui.util import loadUi
 
 

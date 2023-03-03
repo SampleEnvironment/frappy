@@ -20,11 +20,12 @@
 #
 # *****************************************************************************
 
-from frappy.gui.cfg_editor.utils import loadUi, \
-    set_name_edit_style, setIcon, setTreeIcon
-from frappy.gui.qt import QDialog, QFont, QHBoxLayout, \
-    QLabel, QPushButton, QSize, QSizePolicy, QTextEdit, \
-    QTreeWidgetItem, QVBoxLayout, QWidget, pyqtSignal
+from frappy.gui.qt import QDialog, QFont, QHBoxLayout, QLabel, QPushButton, \
+    QSize, QSizePolicy, QTextEdit, QTreeWidgetItem, QVBoxLayout, QWidget, \
+    pyqtSignal
+
+from frappy.gui.cfg_editor.utils import loadUi, set_name_edit_style, setIcon, \
+    setTreeIcon
 from frappy.gui.valuewidgets import get_widget
 from frappy.properties import Property
 

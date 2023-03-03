@@ -21,15 +21,16 @@
 #
 # *****************************************************************************
 
+from frappy.gui.qt import QAction, QInputDialog, QKeySequence, QMainWindow, \
+    QMessageBox, QSettings, QShortcut, QTreeWidgetItem, QWidget, pyqtSignal, \
+    pyqtSlot
+
 import frappy.version
-from frappy.gui.qt import QInputDialog, QMainWindow, QMessageBox, \
-        QTreeWidgetItem, pyqtSignal, pyqtSlot, QWidget, QSettings, QAction, \
-        QShortcut, QKeySequence
-from frappy.gui.util import Colors, loadUi
-from frappy.gui.logwindow import LogWindow
-from frappy.gui.tabwidget import TearOffTabWidget
-from frappy.gui.nodewidget import NodeWidget
 from frappy.gui.connection import QSECNode
+from frappy.gui.logwindow import LogWindow
+from frappy.gui.nodewidget import NodeWidget
+from frappy.gui.tabwidget import TearOffTabWidget
+from frappy.gui.util import Colors, loadUi
 
 ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
 ITEM_TYPE_GROUP = QTreeWidgetItem.UserType + 2

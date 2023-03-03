@@ -1,8 +1,10 @@
-from frappy.gui.qt import QLabel, QMessageBox, QWidget, QLineEdit, \
-        QPushButton, QIcon, pyqtSignal, QToolButton, QDialog
+from frappy.gui.qt import QDialog, QIcon, QLabel, QLineEdit, QMessageBox, \
+    QPushButton, QToolButton, QWidget, pyqtSignal
+
+import frappy.gui.resources  # pylint: disable=unused-import
 from frappy.gui.util import loadUi
 from frappy.gui.valuewidgets import get_widget
-import frappy.gui.resources # pylint: disable=unused-import
+
 
 class CommandDialog(QDialog):
     def __init__(self, cmdname, argument, parent=None):

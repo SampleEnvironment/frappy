@@ -24,11 +24,9 @@
 
 """Detachable TabWidget, taken from NICOS GUI TearOffTabBar."""
 
-from frappy.gui.qt import QApplication, QCursor, QDrag, \
-    QEvent, QMainWindow, QMimeData, QMouseEvent, QPixmap, QPoint, QSize, \
-    QStyle, QStyleOptionTab, QStylePainter, Qt, QTabBar, QTabWidget, QWidget, \
-    pyqtSignal, pyqtSlot
-
+from frappy.gui.qt import QApplication, QCursor, QDrag, QEvent, QMainWindow, \
+    QMimeData, QMouseEvent, QPixmap, QPoint, QSize, QStyle, QStyleOptionTab, \
+    QStylePainter, Qt, QTabBar, QTabWidget, QWidget, pyqtSignal, pyqtSlot
 
 # def findTab(tab, w):
 #     widget = w

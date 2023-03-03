@@ -25,6 +25,7 @@ import sys
 from os import listdir, path
 
 from frappy.gui.qt import QDialogButtonBox, QFileDialog, QIcon, QSize, uic
+
 from frappy.modules import Module
 from frappy.params import Parameter
 from frappy.properties import Property

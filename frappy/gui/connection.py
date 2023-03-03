@@ -21,8 +21,9 @@
 #
 # *****************************************************************************
 
-import frappy.client
 from frappy.gui.qt import QObject, pyqtSignal
+
+import frappy.client
 from frappy.gui.util import Value
 
 

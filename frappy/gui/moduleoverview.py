@@ -1,5 +1,7 @@
-import frappy.gui.resources # pylint: disable=unused-import
-from frappy.gui.qt import QTreeWidget, QTreeWidgetItem, pyqtSignal, QIcon, Qt
+from frappy.gui.qt import QIcon, Qt, QTreeWidget, QTreeWidgetItem, pyqtSignal
+
+import frappy.gui.resources  # pylint: disable=unused-import
+
 
 class ParamItem(QTreeWidgetItem):
     def __init__(self, node, module, param):

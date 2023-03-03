@@ -30,35 +30,39 @@ try:
     # pylint: disable=unnecessary-lambda
     sys.excepthook = lambda *args: sys.__excepthook__(*args)
 
-    from PyQt5 import uic
-    from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, \
-        QRectF, QPoint, QByteArray, QEvent, QMimeData, QSettings
-    from PyQt5.QtGui import QFont, QTextCursor, QFontMetrics, QColor, QBrush, \
-        QPainter, QPolygonF, QPen, QIcon, QStandardItemModel, QStandardItem, \
-        QPalette, QCursor, QDrag, QMouseEvent, QPixmap, QKeySequence
-    from PyQt5.QtWidgets import QLabel, QWidget, QDialog, QLineEdit, QCheckBox, \
-        QPushButton, QSizePolicy, QMainWindow, QMessageBox, QInputDialog, \
-        QTreeWidgetItem, QApplication, QGroupBox, QSpinBox, QDoubleSpinBox, \
-        QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, QGridLayout, \
-        QScrollArea, QFrame, QTreeWidget, QFileDialog, QTabBar, QAction, QMenu,\
-        QDialogButtonBox, QTextEdit, QSpacerItem, QTreeView, QStyle, \
-        QStyleOptionTab, QStylePainter, QTabWidget, QToolButton, QShortcut, \
-        QPlainTextEdit
-
     from xml.sax.saxutils import escape as toHtmlEscaped
+
+    from PyQt5 import uic
+    from PyQt5.QtCore import QByteArray, QEvent, QMimeData, QObject, QPoint, \
+        QPointF, QRectF, QSettings, QSize, Qt, pyqtSignal, pyqtSlot
+    from PyQt5.QtGui import QBrush, QColor, QCursor, QDrag, QFont, \
+        QFontMetrics, QIcon, QKeySequence, QMouseEvent, QPainter, QPalette, \
+        QPen, QPixmap, QPolygonF, QStandardItem, QStandardItemModel, \
+        QTextCursor
+    from PyQt5.QtWidgets import QAction, QApplication, QCheckBox, QComboBox, \
+        QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog, QFrame, \
+        QGridLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, \
+        QMainWindow, QMenu, QMessageBox, QPlainTextEdit, QPushButton, \
+        QRadioButton, QScrollArea, QShortcut, QSizePolicy, QSpacerItem, \
+        QSpinBox, QStyle, QStyleOptionTab, QStylePainter, QTabBar, \
+        QTabWidget, QTextEdit, QToolButton, QTreeView, QTreeWidget, \
+        QTreeWidgetItem, QVBoxLayout, QWidget
 
     import frappy.gui.cfg_editor.icon_rc_qt5
 
 except ImportError:
     from PyQt4 import uic
-    from PyQt4.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize, QPointF, QRectF, QPoint
-    from PyQt4.QtGui import QFont, QTextCursor, QFontMetrics, \
-        QLabel, QWidget, QDialog, QLineEdit, QCheckBox, QPushButton, QTextEdit,\
-        QSizePolicy, QMainWindow, QMessageBox, QInputDialog, QTreeWidgetItem, QApplication, \
-        QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QRadioButton, QVBoxLayout, QHBoxLayout, \
-        QGridLayout, QScrollArea, QFrame, QColor, QBrush, QPainter, QPolygonF, QPen, QIcon, \
-        QTreeWidget, QFileDialog, QTabBar, QAction, QMenu, QDialogButtonBox, QAbstractItemView, \
-        QSpacerItem, QTreeView, QStandardItemModel, QStandardItem, QPlainTextEdit
+    from PyQt4.QtCore import QObject, QPoint, QPointF, QRectF, QSize, Qt, \
+        pyqtSignal, pyqtSlot
+    from PyQt4.QtGui import QAbstractItemView, QAction, QApplication, QBrush, \
+        QCheckBox, QColor, QComboBox, QDialog, QDialogButtonBox, \
+        QDoubleSpinBox, QFileDialog, QFont, QFontMetrics, QFrame, \
+        QGridLayout, QGroupBox, QHBoxLayout, QIcon, QInputDialog, QLabel, \
+        QLineEdit, QMainWindow, QMenu, QMessageBox, QPainter, QPen, \
+        QPlainTextEdit, QPolygonF, QPushButton, QRadioButton, QScrollArea, \
+        QSizePolicy, QSpacerItem, QSpinBox, QStandardItem, \
+        QStandardItemModel, QTabBar, QTextCursor, QTextEdit, QTreeView, \
+        QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
 
     import frappy.gui.cfg_editor.icon_rc_qt4
 

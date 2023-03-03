@@ -1,4 +1,6 @@
-from frappy.gui.qt import QToolButton, QFrame, QWidget, QGridLayout, QSizePolicy, QVBoxLayout, Qt
+from frappy.gui.qt import QFrame, QGridLayout, QSizePolicy, Qt, QToolButton, \
+    QVBoxLayout, QWidget
+
 
 class CollapsibleWidget(QWidget):
     def __init__(self, parent=None):

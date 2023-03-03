@@ -22,13 +22,13 @@
 # *****************************************************************************
 
 
+from frappy.gui.qt import QCheckBox, QComboBox, QDialog, QDoubleSpinBox, \
+    QFrame, QGridLayout, QGroupBox, QLabel, QLineEdit, QSpinBox, QTextEdit, \
+    QVBoxLayout
+
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
     FloatRange, IntRange, StringType, StructOf, TextType, TupleOf
-from frappy.gui.qt import QCheckBox, QComboBox, QDialog, \
-    QDoubleSpinBox, QFrame, QGridLayout, QGroupBox, \
-    QLabel, QLineEdit, QSpinBox, QTextEdit, QVBoxLayout
 from frappy.gui.util import loadUi
-
 
 # XXX: implement live validators !!!!
 # XXX: signals upon change of value

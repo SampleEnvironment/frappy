@@ -23,15 +23,16 @@
 
 import os
 
+from frappy.gui.qt import QComboBox, QDialog, QDialogButtonBox, QLabel, \
+    QLineEdit, QMenu, QPoint, QSize, QStandardItem, QStandardItemModel, Qt, \
+    QTabBar, QTextEdit, QTreeView, QTreeWidget, pyqtSignal
+
 from frappy.gui.cfg_editor.config_file import read_config, write_config
 from frappy.gui.cfg_editor.tree_widget_item import TreeWidgetItem
-from frappy.gui.cfg_editor.utils import get_all_items, \
-    get_file_paths, get_interface_class_from_name, get_interfaces, \
-    get_module_class_from_name, get_modules, get_params, \
-    get_props, loadUi, set_name_edit_style, setActionIcon
-from frappy.gui.qt import QComboBox, QDialog, QDialogButtonBox, QLabel, \
-    QLineEdit, QMenu, QPoint, QSize, QStandardItem, QStandardItemModel, \
-    Qt, QTabBar, QTextEdit, QTreeView, QTreeWidget, pyqtSignal
+from frappy.gui.cfg_editor.utils import get_all_items, get_file_paths, \
+    get_interface_class_from_name, get_interfaces, \
+    get_module_class_from_name, get_modules, get_params, get_props, loadUi, \
+    set_name_edit_style, setActionIcon
 
 NODE = 'node'
 MODULE = 'module'

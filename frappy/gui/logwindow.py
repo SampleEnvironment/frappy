@@ -1,8 +1,8 @@
-from logging import Handler, DEBUG, NOTSET
+from logging import DEBUG, NOTSET, Handler
 
 from frappy.gui.qt import QMainWindow, QObject, pyqtSignal
-from frappy.gui.util import loadUi
 
+from frappy.gui.util import loadUi
 
 
 class LogWindowHandler(Handler, QObject):

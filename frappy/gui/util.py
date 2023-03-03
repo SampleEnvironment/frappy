@@ -24,7 +24,7 @@
 
 from os import path
 
-from frappy.gui.qt import uic, QColor
+from frappy.gui.qt import QColor, uic
 
 uipath = path.dirname(__file__)
 

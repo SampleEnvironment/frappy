@@ -1,14 +1,15 @@
 import time
 
 try:
-    import pyqtgraph as pg
     import numpy as np
+    import pyqtgraph as pg
 except ImportError:
     pg = None
     np = None
 
+from frappy.gui.qt import QLabel, Qt, QVBoxLayout, QWidget, pyqtSignal
+
 from frappy.gui.util import Colors
-from frappy.gui.qt import QWidget, QVBoxLayout, QLabel, Qt, pyqtSignal
 
 
 def getPlotWidget(parent):

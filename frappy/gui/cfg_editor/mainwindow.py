@@ -22,10 +22,11 @@
 
 import os
 
+from frappy.gui.qt import QMainWindow, QMessageBox
+
 from frappy.gui.cfg_editor.node_display import NodeDisplay
 from frappy.gui.cfg_editor.utils import get_file_paths, loadUi
 from frappy.gui.cfg_editor.widgets import TabBar
-from frappy.gui.qt import QMainWindow, QMessageBox
 
 # TODO move frappy mainwindow to gui/client and all specific stuff
 NODE = 'node'

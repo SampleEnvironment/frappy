@@ -23,9 +23,10 @@
 # *****************************************************************************
 
 
+from frappy.gui.qt import QCheckBox, QDialog, QLabel, QMessageBox, \
+    QPushButton, QSizePolicy, QWidget
+
 from frappy.gui.params import ParameterView
-from frappy.gui.qt import QCheckBox, QDialog, QLabel, \
-    QMessageBox, QPushButton, QSizePolicy, QWidget
 from frappy.gui.util import loadUi
 from frappy.gui.valuewidgets import get_widget
 

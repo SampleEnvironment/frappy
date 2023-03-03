@@ -1,18 +1,19 @@
-from collections import OrderedDict
 import json
+from collections import OrderedDict
 
-import frappy.gui.resources # pylint: disable=unused-import
-from frappy.gui.qt import QFont, QFontMetrics, QLabel, QTextCursor, QWidget, \
-        pyqtSlot, toHtmlEscaped, QVBoxLayout, QGridLayout, QPlainTextEdit, \
-        QMenu, QCursor, QIcon, QInputDialog, pyqtSignal
-from frappy.gui.util import Colors, loadUi
-from frappy.gui.plotting import getPlotWidget
-from frappy.gui.modulectrl import ModuleCtrl
-from frappy.gui.paramview import ParameterView
-from frappy.gui.modulewidget import ModuleWidget
-from frappy.gui.moduleoverview import ModuleOverview
+from frappy.gui.qt import QCursor, QFont, QFontMetrics, QGridLayout, QIcon, \
+    QInputDialog, QLabel, QMenu, QPlainTextEdit, QTextCursor, QVBoxLayout, \
+    QWidget, pyqtSignal, pyqtSlot, toHtmlEscaped
 
+import frappy.gui.resources  # pylint: disable=unused-import
 from frappy.errors import SECoPError
+from frappy.gui.modulectrl import ModuleCtrl
+from frappy.gui.moduleoverview import ModuleOverview
+from frappy.gui.modulewidget import ModuleWidget
+from frappy.gui.paramview import ParameterView
+from frappy.gui.plotting import getPlotWidget
+from frappy.gui.util import Colors, loadUi
+
 
 class Console(QWidget):
     def __init__(self, node, parent=None):

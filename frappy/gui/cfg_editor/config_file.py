@@ -26,8 +26,8 @@ from configparser import NoOptionError
 
 from frappy.gui.cfg_editor.tree_widget_item import TreeWidgetItem
 from frappy.gui.cfg_editor.utils import get_all_children_with_names, \
-    get_all_items, get_interface_class_from_name, \
-    get_module_class_from_name, get_params, get_props
+    get_all_items, get_interface_class_from_name, get_module_class_from_name, \
+    get_params, get_props
 
 NODE = 'node'
 INTERFACE = 'interface'
