@@ -99,17 +99,11 @@ class MainWindow(QMainWindow):
         self._nodeWidgets = {}
 
         # add localhost (if available) and SEC nodes given as arguments
-        for host in hosts:
-            try:
-                self.log.info('Trying to connect to %s', host)
-                self._addNode(host)
-            except Exception as e:
-                # TODO: make this nicer than dumping to console
-                self.log.error('error in addNode: %r', e)
+        self.addNodes(hosts)
 
         if not self._nodes:
             greeter = Greeter(self)
-            greeter.addnodes.connect(self._addNodes)
+            greeter.addnodes.connect(self.addNodes)
             greeter.recentClearBtn.connect(self.on_actionClear_triggered)
             self.recentNodesChanged.connect(greeter.loadRecent)
             self.tab.addPanel(greeter, 'Welcome')
@@ -147,12 +141,7 @@ class MainWindow(QMainWindow):
 
         if not ok:
             return
-
-        try:
-            self._addNode(host)
-        except Exception as e:
-            QMessageBox.critical(self.parent(),
-                                 'Connecting to %s failed!' % host, str(e))
+        self.addNode(host)
 
     @pyqtSlot()
     def on_actionReconnect_triggered(self):
@@ -171,23 +160,28 @@ class MainWindow(QMainWindow):
     #     if level in ['user', 'admin', 'expert']:
     #         print('visibility Level now:', level)
 
-    def _addNodes(self, hosts):
+    def addNodes(self, hosts):
         for host in hosts:
-            try:
-                self.log.info('Trying to connect to %s', host)
-                self._addNode(host)
-            except Exception as e:
-                self.log.error('error in addNode: %r', e)
-                QMessageBox.critical(self.parent(),
-                                     'Connecting to %s failed!' % host, str(e))
+            self.addNode(host)
+
+    def addNode(self, host):
+        try:
+            self.log.info('Trying to connect to %s', host)
+            self._addNode(host)
+        except Exception as e:
+            self.log.error('error in addNode: %r', e)
+            QMessageBox.critical(self.parent(),
+                                 'Connecting to %s failed!' % host, str(e))
 
     def _addNode(self, host):
         # create client
         node = QSECNode(host, self.log, parent=self)
+        nodeWidget = NodeWidget(node)
+        nodeWidget.setParent(self)
+
+        # Node and NodeWidget created without error
         nodename = node.nodename
         self._nodes[nodename] = node
-
-        nodeWidget = NodeWidget(node, self)
         self.tab.addTab(nodeWidget, node.equipmentId)
         self._nodeWidgets[nodename] = nodeWidget
         self.tab.setCurrentWidget(nodeWidget)
@@ -214,7 +208,7 @@ class MainWindow(QMainWindow):
         self.recentNodeActions = []
         for host in recent:
             a = QAction(host)
-            a.triggered.connect(lambda _t, h=host: self._addNode(h))
+            a.triggered.connect(lambda _t, h=host: self.addNode(h))
             self.recentNodeActions.append(a)
         menu.insertActions(action, self.recentNodeActions)
 
