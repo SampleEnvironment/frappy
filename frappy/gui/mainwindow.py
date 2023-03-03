@@ -22,8 +22,7 @@
 # *****************************************************************************
 
 from frappy.gui.qt import QAction, QInputDialog, QKeySequence, QMainWindow, \
-    QMessageBox, QSettings, QShortcut, QTreeWidgetItem, QWidget, pyqtSignal, \
-    pyqtSlot
+    QMessageBox, QSettings, QShortcut, QWidget, pyqtSignal, pyqtSlot
 
 import frappy.version
 from frappy.gui.connection import QSECNode
@@ -31,11 +30,6 @@ from frappy.gui.logwindow import LogWindow
 from frappy.gui.nodewidget import NodeWidget
 from frappy.gui.tabwidget import TearOffTabWidget
 from frappy.gui.util import Colors, loadUi
-
-ITEM_TYPE_NODE = QTreeWidgetItem.UserType + 1
-ITEM_TYPE_GROUP = QTreeWidgetItem.UserType + 2
-ITEM_TYPE_MODULE = QTreeWidgetItem.UserType + 3
-ITEM_TYPE_PARAMETER = QTreeWidgetItem.UserType + 4
 
 
 class Greeter(QWidget):
