@@ -9,15 +9,17 @@ class CollapsibleWidget(QWidget):
         self.widget = QWidget()
         self.widgetContainer = QWidget()
 
-        self.button.setArrowType(Qt.RightArrow)
-        self.button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.button.setArrowType(Qt.ArrowType.RightArrow)
+        self.button.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.button.setStyleSheet("QToolButton { border: none; }")
         self.button.setCheckable(True)
         self.button.toggled.connect(self._collapse)
 
         line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setSizePolicy(QSizePolicy.Policy.Expanding,
+                           QSizePolicy.Policy.Maximum)
 
         l = QVBoxLayout()
         l.setContentsMargins(0, 0, 0, 0)
@@ -26,7 +28,7 @@ class CollapsibleWidget(QWidget):
         self.widgetContainer.setMaximumHeight(0)
 
         layout = QGridLayout()
-        layout.addWidget(self.button, 0, 0, Qt.AlignLeft)
+        layout.addWidget(self.button, 0, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(line, 0, 1, 1, 1)
         layout.addWidget(self.widgetContainer, 1, 0, -1, -1)
         layout.setContentsMargins(0, 6, 0, 0)
@@ -34,10 +36,10 @@ class CollapsibleWidget(QWidget):
 
     def _collapse(self, expand):
         if expand:
-            self.button.setArrowType(Qt.DownArrow)
+            self.button.setArrowType(Qt.ArrowType.DownArrow)
             self.widgetContainer.setMaximumHeight(self.widget.maximumHeight())
         else:
-            self.button.setArrowType(Qt.RightArrow)
+            self.button.setArrowType(Qt.ArrowType.RightArrow)
             self.widgetContainer.setMaximumHeight(0)
             self.setMaximumHeight(self.button.maximumHeight())
 

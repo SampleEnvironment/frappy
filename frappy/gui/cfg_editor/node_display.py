@@ -33,7 +33,7 @@ class NodeDisplay(QWidget):
         self.created = self.tree_widget.set_file(file_path)
         self.tree_widget.save_status_changed.connect(self.change_save_status)
         self.tree_widget.currentItemChanged.connect(self.set_scroll_area)
-        self.scroll_area_layout.setAlignment(Qt.AlignTop)
+        self.scroll_area_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.set_scroll_area(self.tree_widget.get_selected_item(), None)
         self.splitter.setSizes([1, 1])
 
@@ -45,15 +45,15 @@ class NodeDisplay(QWidget):
         self.scroll_area_layout.addWidget(current.widget)
         for index in range(0, current.childCount()):
             child_layout = QHBoxLayout()
-            spacer = QSpacerItem(30, 0, QSizePolicy.Fixed,
-                                 QSizePolicy.Minimum)
+            spacer = QSpacerItem(30, 0, QSizePolicy.Policy.Fixed,
+                                 QSizePolicy.Policy.Minimum)
             child_layout.addSpacerItem(spacer)
             child_layout.addWidget(current.child(index).widget)
             self.scroll_area_layout.addLayout(child_layout)
             for sub_index in range(0, current.child(index).childCount()):
                 sub_child_layout = QHBoxLayout()
-                sub_spacer = QSpacerItem(60, 0, QSizePolicy.Fixed,
-                                         QSizePolicy.Minimum)
+                sub_spacer = QSpacerItem(60, 0, QSizePolicy.Policy.Fixed,
+                                         QSizePolicy.Policy.Minimum)
                 sub_child_layout.addSpacerItem(sub_spacer)
                 sub_child_layout.addWidget(
                     current.child(index).child(sub_index).widget)

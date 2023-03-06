@@ -132,12 +132,12 @@ class MainWindow(QMainWindow):
 
     def close_tab(self, index):
         if self.tabWidget.widget(index).saved:
-            reply = QMessageBox.Close
+            reply = QMessageBox.StandardButton.Close
         else:
             reply = self.show_save_message(self.tabWidget.tabText(index))
-        if reply == QMessageBox.Cancel:
+        if reply == QMessageBox.StandardButton.Cancel:
             return
-        if reply == QMessageBox.Save:
+        if reply == QMessageBox.StandardButton.Save:
             self.save_tab(index)
         self.tabWidget.removeTab(index)
 
@@ -155,11 +155,11 @@ class MainWindow(QMainWindow):
                     reply = self.show_save_message()
                     break
             if not reply:
-                reply = QMessageBox.Close
-            if reply == QMessageBox.Cancel:
+                reply = QMessageBox.StandardButton.Close
+            if reply == QMessageBox.StandardButton.Cancel:
                 event.ignore()
                 return
-            if reply == QMessageBox.Save:
+            if reply == QMessageBox.StandardButton.Save:
                 for i in range(0, self.tabWidget.count()):
                     self.save_tab(i)
         event.accept()
@@ -173,8 +173,10 @@ class MainWindow(QMainWindow):
                                 Your changes will be lost if you don't save them!
                                 </p>
                                 ''' % file_name,
-                                    QMessageBox.Cancel | QMessageBox.Close |
-                                    QMessageBox.Save, QMessageBox.Save)
+                                    QMessageBox.StandardButton.Cancel |
+                                    QMessageBox.StandardButton.Close |
+                                    QMessageBox.StandardButton.Save,
+                                    QMessageBox.StandardButton.Save)
 
     def new_node(self, name, file_path=None):
         node = NodeDisplay(file_path)

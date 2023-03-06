@@ -5,7 +5,6 @@ from frappy.gui.qt import QCursor, QFont, QFontMetrics, QGridLayout, QIcon, \
     QInputDialog, QLabel, QMenu, QPlainTextEdit, QTextCursor, QVBoxLayout, \
     QWidget, pyqtSignal, pyqtSlot, toHtmlEscaped
 
-import frappy.gui.resources  # pylint: disable=unused-import
 from frappy.errors import SECoPError
 from frappy.gui.modulectrl import ModuleCtrl
 from frappy.gui.moduleoverview import ModuleOverview
@@ -78,7 +77,7 @@ class Console(QWidget):
         content += msg
 
         self.logTextBrowser.setHtml(content)
-        self.logTextBrowser.moveCursor(QTextCursor.End)
+        self.logTextBrowser.moveCursor(QTextCursor.MoveOperation.End)
 
     def _getLogWidth(self):
         fontMetrics = QFontMetrics(QFont('Monospace'))
@@ -240,8 +239,8 @@ class NodeWidget(QWidget):
         opt_clear = menu.addAction('Clear Selection')
         opt_plot.triggered.connect(lambda: self._requestPlot(item))
         opt_clear.triggered.connect(self.tree.clearTreeSelection)
-        #menu.exec_(self.mapToGlobal(pos))
-        menu.exec_(QCursor.pos())
+        #menu.exec(self.mapToGlobal(pos))
+        menu.exec(QCursor.pos())
 
     def _requestPlot(self, item, plot=None):
         module = item.module
@@ -252,13 +251,14 @@ class NodeWidget(QWidget):
         plots = {'%s -> %s' % (m,p): (m,p) for (m,p) in self._activePlots}
         dialog = QInputDialog()
         #dialog.setInputMode()
-        dialog.setOption(QInputDialog.UseListViewForComboBoxItems)
+        dialog.setOption(
+            QInputDialog.InputDialogOption.UseListViewForComboBoxItems)
         dialog.setComboBoxItems(plots.keys())
         dialog.setTextValue(list(plots)[0])
         dialog.setWindowTitle('Plot %s with...' % param)
         dialog.setLabelText('')
 
-        if dialog.exec_() == QInputDialog.Accepted:
+        if dialog.exec() == QInputDialog.DialogCode.Accepted:
             item = dialog.textValue()
             self.plotParam(module, param, self._activePlots[plots[item]])
 

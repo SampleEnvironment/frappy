@@ -1,15 +1,15 @@
 import time
 
+from frappy.gui.qt import QLabel, Qt, QVBoxLayout, QWidget, pyqtSignal
+
+from frappy.gui.util import Colors
+
 try:
     import numpy as np
     import pyqtgraph as pg
 except ImportError:
     pg = None
     np = None
-
-from frappy.gui.qt import QLabel, Qt, QVBoxLayout, QWidget, pyqtSignal
-
-from frappy.gui.util import Colors
 
 
 def getPlotWidget(parent):
@@ -32,7 +32,7 @@ class PlotPlaceHolderWidget(QWidget):
         super().__init__(parent)
         l = QVBoxLayout()
         label = QLabel("pyqtgraph is not installed!")
-        label.setAlignment(Qt.AlignCenter)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         l.addWidget(label)
         self.setLayout(l)
         self.setMinimumWidth(300)

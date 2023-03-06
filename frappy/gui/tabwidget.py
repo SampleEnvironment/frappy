@@ -25,8 +25,9 @@
 """Detachable TabWidget, taken from NICOS GUI TearOffTabBar."""
 
 from frappy.gui.qt import QApplication, QCursor, QDrag, QEvent, QMainWindow, \
-    QMimeData, QMouseEvent, QPixmap, QPoint, QSize, QStyle, QStyleOptionTab, \
-    QStylePainter, Qt, QTabBar, QTabWidget, QWidget, pyqtSignal, pyqtSlot
+    QMimeData, QMouseEvent, QPixmap, QPoint, QPointF, QSize, QStyle, \
+    QStyleOptionTab, QStylePainter, Qt, QTabBar, QTabWidget, QWidget, \
+    pyqtSignal, pyqtSlot
 
 # def findTab(tab, w):
 #     widget = w
@@ -55,33 +56,36 @@ class TearOffTabBar(QTabBar):
     def __init__(self, parent=None):
         QTabBar.__init__(self, parent)
         self.setAcceptDrops(True)
-        self.setElideMode(Qt.ElideRight)
-        self.setSelectionBehaviorOnRemove(QTabBar.SelectLeftTab)
+        self.setElideMode(Qt.TextElideMode.ElideRight)
+        self.setSelectionBehaviorOnRemove(QTabBar.SelectionBehavior.SelectLeftTab)
         self.setMovable(False)
         self._dragInitiated = False
         self._dragDroppedPos = QPoint()
         self._dragStartPos = QPoint()
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self._dragStartPos = event.pos()
         self._dragInitiated = False
         self._dragDroppedPos = QPoint()
         QTabBar.mousePressEvent(self, event)
 
     def mouseMoveEvent(self, event):
-        if not event.buttons() & Qt.LeftButton:
+        if not event.buttons() & Qt.MouseButton.LeftButton:
             return
         if not self._dragStartPos.isNull() and \
            self.tabAt(self._dragStartPos) != -1 and \
            (event.pos() - self._dragStartPos).manhattanLength() \
            < QApplication.startDragDistance():
             self._dragInitiated = True
-        if (event.buttons() == Qt.LeftButton) and self._dragInitiated and \
-           not self.geometry().contains(event.pos()):
-            finishMoveEvent = QMouseEvent(QEvent.MouseMove, event.pos(),
-                                          Qt.NoButton, Qt.NoButton,
-                                          Qt.NoModifier)
+        if (event.buttons() == Qt.MouseButton.LeftButton) and \
+            self._dragInitiated and \
+            not self.geometry().contains(event.pos()):
+            finishMoveEvent = QMouseEvent(QEvent.Type.MouseMove,
+                                          QPointF(event.pos()),
+                                          Qt.MouseButton.NoButton,
+                                          Qt.MouseButton.NoButton,
+                                          Qt.KeyboardModifier.NoModifier)
             QTabBar.mouseMoveEvent(self, finishMoveEvent)
 
             drag = QDrag(self)
@@ -90,17 +94,17 @@ class TearOffTabBar(QTabBar):
             drag.setMimeData(mimedata)
 
             pixmap = self.parentWidget().currentWidget().grab()
-            pixmap = pixmap.scaled(640, 480, Qt.KeepAspectRatio)
+            pixmap = pixmap.scaled(640, 480, Qt.AspectRatioMode.KeepAspectRatio)
             drag.setPixmap(pixmap)
-            drag.setDragCursor(QPixmap(), Qt.LinkAction)
+            drag.setDragCursor(QPixmap(), Qt.DropAction.LinkAction)
 
-            dragged = drag.exec(Qt.MoveAction)
-            if dragged == Qt.IgnoreAction:
+            dragged = drag.exec(Qt.DropAction.MoveAction)
+            if dragged == Qt.DropAction.IgnoreAction:
                 # moved outside of tab widget
                 event.accept()
                 self.tabDetached.emit(self.tabAt(self._dragStartPos),
                                       QCursor.pos())
-            elif dragged == Qt.MoveAction:
+            elif dragged == Qt.DropAction.MoveAction:
                 # moved inside of tab widget
                 if not self._dragDroppedPos.isNull():
                     event.accept()
@@ -137,10 +141,11 @@ class LeftTabBar(TearOffTabBar):
             self.initStyleOption(option, index)
             tabRect = self.tabRect(index)
             tabRect.moveLeft(10)
-            painter.drawControl(QStyle.CE_TabBarTabShape, option)
+            painter.drawControl(QStyle.ControlElement.CE_TabBarTabShape, option)
             text = self.tabText(index)
-            painter.drawText(tabRect, Qt.AlignVCenter | Qt.TextDontClip |
-                             Qt.TextShowMnemonic, text)
+            painter.drawText(tabRect, Qt.AlignmentFlag.AlignVCenter |
+                             Qt.TextFlag.TextDontClip |
+                             Qt.TextFlag.TextShowMnemonic, text)
 
     def tabSizeHint(self, index):
         fm = self.fontMetrics()
@@ -479,7 +484,7 @@ class DetachedWindow(QMainWindow):
         self.tabIdx = -1
         QMainWindow.__init__(self, parent)
         self.setWindowTitle(title)
-        self.setWindowModality(Qt.NonModal)
+        self.setWindowModality(Qt.WindowModality.NonModal)
         # self.sgroup = SettingGroup(title)
         # with self.sgroup as settings:
         #     loadBasicWindowSettings(self, settings)

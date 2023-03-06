@@ -56,7 +56,7 @@ class TreeWidgetItem(QTreeWidgetItem):
         else:
             setTreeIcon(self, 'empty.png')
             font = QFont()
-            font.setWeight(QFont.Bold)
+            font.setWeight(QFont.Weight.Bold)
             self.setFont(0, font)
         self.setText(0, self.name)
         self.duplicates = 0
@@ -140,7 +140,8 @@ class ValueWidget(QWidget):
             self.edit_btn = QPushButton()
             setIcon(self.edit_btn, 'edit.png')
             self.edit_btn.setIconSize(QSize(18, 18))
-            self.edit_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            self.edit_btn.setSizePolicy(QSizePolicy.Policy.Fixed,
+                                        QSizePolicy.Policy.Fixed)
             self.edit_btn.setFlat(True)
             layout = QHBoxLayout()
             layout.addWidget(self.name_label)
@@ -215,7 +216,7 @@ class ChangeNameDialog(QDialog):
         self.name.textChanged.connect(self.check_input)
 
     def get_values(self):
-        if self.exec_() == QDialog.Accepted:
+        if self.exec() == QDialog.DialogCode.Accepted:
             return self.name.text()
         return None
 

@@ -1,7 +1,6 @@
 from frappy.gui.qt import QDialog, QIcon, QLabel, QLineEdit, QMessageBox, \
     QPushButton, QToolButton, QWidget, pyqtSignal
 
-import frappy.gui.resources  # pylint: disable=unused-import
 from frappy.gui.util import Colors, loadUi
 from frappy.gui.valuewidgets import get_widget
 
@@ -33,8 +32,8 @@ class CommandDialog(QDialog):
     def get_value(self):
         return True, self.widgets[0].get_value()
 
-    def exec_(self):
-        if super().exec_():
+    def exec(self):
+        if super().exec():
             return self.get_value()
         return None
 
@@ -44,14 +43,14 @@ def showCommandResultDialog(command, args, result, extras=''):
     args = '' if args is None else repr(args)
     m.setText('calling: %s(%s)\nyielded: %r\nqualifiers: %s' %
               (command, args, result, extras))
-    m.exec_()
+    m.exec()
 
 
 def showErrorDialog(command, args, error):
     m = QMessageBox()
     args = '' if args is None else repr(args)
     m.setText('calling: %s(%s)\nraised %r' % (command, args, error))
-    m.exec_()
+    m.exec()
 
 
 class CommandButton(QPushButton):
@@ -72,7 +71,7 @@ class CommandButton(QPushButton):
         #self.setEnabled(False)
         if self._argintype:
             dlg = CommandDialog(self._cmdname, self._argintype)
-            args = dlg.exec_()
+            args = dlg.exec()
             if args:  # not 'Cancel' clicked
                 self._cb(self._cmdname, args[1])
         else:

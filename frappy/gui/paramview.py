@@ -55,12 +55,14 @@ class ParameterView(QWidget):
         for prop in sorted(props):
             label = QLabel(prop + ':')
             label.setFont(font)
-            label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+            label.setSizePolicy(QSizePolicy.Policy.Minimum,
+                                QSizePolicy.Policy.Preferred)
 
             # make 'display' label
             view = QLabel(str(props[prop]))
             view.setFont(self.font())
-            view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            view.setSizePolicy(QSizePolicy.Policy.Expanding,
+                               QSizePolicy.Policy.Preferred)
             view.setWordWrap(True)
 
             self.propertyGroupBox.layout().addWidget(label, row, 0)

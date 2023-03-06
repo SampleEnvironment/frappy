@@ -40,7 +40,7 @@ def main(argv=None):
     app = QApplication(argv)
     window = MainWindow(args.file)
     window.show()
-    return app.exec_()
+    return app.exec()
 
 
 if __name__ == '__main__':

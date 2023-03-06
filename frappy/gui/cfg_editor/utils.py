@@ -49,12 +49,12 @@ def set_name_edit_style(invalid, name_edit, button_box=None):
         name_edit.setStyleSheet("color: red")
         name_edit.setToolTip('Invalid name: name already taken')
         if button_box:
-            button_box.button(QDialogButtonBox.Ok).setEnabled(False)
+            button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
     else:
         name_edit.setStyleSheet("color: black")
         name_edit.setToolTip('')
         if button_box:
-            button_box.button(QDialogButtonBox.Ok).setEnabled(True)
+            button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
 
 
 def setTreeIcon(widget, icon_name, subdir='ui', icondir='icons'):
@@ -92,16 +92,16 @@ def get_file_paths(widget, open_file=True):
     dialog = QFileDialog(widget)
     if open_file:
         title = 'Open file'
-        dialog.setAcceptMode(QFileDialog.AcceptOpen)
-        dialog.setFileMode(QFileDialog.ExistingFiles)
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
     else:
         title = 'Save file'
-        dialog.setAcceptMode(QFileDialog.AcceptSave)
-        dialog.setFileMode(QFileDialog.AnyFile)
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
     dialog.setWindowTitle(title)
     dialog.setNameFilter('*.cfg')
     dialog.setDefaultSuffix('.cfg')
-    dialog.exec_()
+    dialog.exec()
     return dialog.selectedFiles()
 
 

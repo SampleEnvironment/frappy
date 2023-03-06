@@ -1,7 +1,5 @@
 from frappy.gui.qt import QIcon, Qt, QTreeWidget, QTreeWidgetItem, pyqtSignal
 
-import frappy.gui.resources  # pylint: disable=unused-import
-
 
 class ParamItem(QTreeWidgetItem):
     def __init__(self, node, module, param):
@@ -129,7 +127,7 @@ class ModuleOverview(QTreeWidget):
 
         self.itemExpanded.connect(self._resizeColumns)
         self.itemCollapsed.connect(self._resizeColumns)
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         # self.customContextMenuRequested.connect(self._contextMenu)
 
         self._node.newData.connect(self._updateValue)

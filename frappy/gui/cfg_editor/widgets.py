@@ -51,8 +51,8 @@ class TreeWidget(QTreeWidget):
         super().__init__(parent)
         self.file_path = None
         self.setIconSize(QSize(24, 24))
-        self.setSelectionMode(QTreeWidget.SingleSelection)
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setSelectionMode(QTreeWidget.SelectionMode.SingleSelection)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.context_pos = QPoint(0, 0)
         self.menu = QMenu()
         self.context_actions = []
@@ -345,7 +345,8 @@ class AddDialog(QDialog):
             for i, name in enumerate(self.invalid_names):
                 self.invalid_names[i] = name.lower()
         if kind in [NODE, MODULE, INTERFACE]:
-            self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
+            self.button_box.button(
+                QDialogButtonBox.StandardButton.Ok).setEnabled(False)
             self.name = QLineEdit()
             # TODO: input mask
             self.name.textChanged.connect(self.check_input)
@@ -385,12 +386,15 @@ class AddDialog(QDialog):
             self.value.setFocus()
         if self.add_layout.rowCount() == 2:
             self.setTabOrder(self.name, self.value)
-        self.setTabOrder(self.value, self.button_box.button(QDialogButtonBox.Ok))
-        self.setTabOrder(self.button_box.button(QDialogButtonBox.Ok),
-                         self.button_box.button(QDialogButtonBox.Cancel))
+        self.setTabOrder(self.value, self.button_box.button(
+                             QDialogButtonBox.StandardButton.Ok))
+        self.setTabOrder(self.button_box.button(
+                             QDialogButtonBox.StandardButton.Ok),
+                         self.button_box.button(
+                             QDialogButtonBox.StandardButton.Cancel))
 
     def get_values(self):
-        if self.exec_() == QDialog.Accepted:
+        if self.exec() == QDialog.DialogCode.Accepted:
             if self.kind in [NODE, MODULE, INTERFACE]:
                 return [self.name.text(), self.get_value()]
             if self.kind in [PARAMETER, PROPERTY, COMMENT]:
@@ -406,7 +410,7 @@ class AddDialog(QDialog):
 class TabBar(QTabBar):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.context_pos = QPoint(0, 0)
         self.menu = QMenu()
         close = self.menu.addAction('&Close')
@@ -417,7 +421,7 @@ class TabBar(QTabBar):
         self.setMovable(True)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MidButton:
+        if event.button() == Qt.MouseButton.MidButton:
             self.close_tab_at_pos(event.pos())
         QTabBar.mouseReleaseEvent(self, event)
 
