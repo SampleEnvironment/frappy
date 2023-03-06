@@ -21,7 +21,7 @@
 # *****************************************************************************
 """Define helpers"""
 
-import os
+import re
 import importlib
 import linecache
 import socket
@@ -296,23 +296,31 @@ def formatException(cut=0, exc_info=None, verbose=False):
     return ''.join(res)
 
 
+HOSTNAMEPAT = re.compile(r'[a-z0-9_.-]+$', re.IGNORECASE)  # roughly checking for a valid hostname or ip address
+
+
 def parseHostPort(host, defaultport):
     """Parse host[:port] string and tuples
 
     Specify 'host[:port]' or a (host, port) tuple for the mandatory argument.
     If the port specification is missing, the value of the defaultport is used.
-    """
 
-    if isinstance(host, (tuple, list)):
-        host, port = host
-    elif ':' in host:
-        host, port = host.rsplit(':', 1)
-        port = int(port)
+    raises TypeError in case host is neither a string nor an iterable
+    raises ValueError in other cases of invalid arguments
+    """
+    if isinstance(host, str):
+        host, sep, port = host.partition(':')
+        if sep:
+            port = int(port)
+        else:
+            port = defaultport
     else:
-        port = defaultport
-    assert 0 < port < 65536
-    assert ':' not in host
-    return host, port
+        host, port = host
+    if not HOSTNAMEPAT.match(host):
+        raise ValueError('illegal host name %r' % host)
+    if 0 < port < 65536:
+        return host, port
+    raise ValueError('illegal port number: %r' % port)
 
 
 def tcpSocket(host, defaultport, timeout=None):

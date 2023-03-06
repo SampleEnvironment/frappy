@@ -52,6 +52,7 @@ class AsynConn:
     scheme = None
     SCHEME_MAP = {}
     connection = None  # is not None, if connected
+    HOSTNAMEPAT = re.compile(r'[a-z0-9_.-]+$', re.IGNORECASE)  # roughly checking if it is a valid hostname
 
     def __new__(cls, uri, end_of_line=b'\n', default_settings=None):
         scheme = uri.split('://')[0]
@@ -59,17 +60,16 @@ class AsynConn:
         if not iocls:
             # try tcp, if scheme not given
             try:
-                host_port = parseHostPort(uri, None)
-            except (ValueError, TypeError, AssertionError):
+                parseHostPort(uri, 1)  # check hostname only
+            except ValueError:
                 if 'COM' in uri:
                     raise ValueError("the correct uri for a COM port is: "
-                                     "'serial://COM<i>[?<option>=<value>[+<option>=value ...]]'") from None
+                                     "'serial://COM<i>[?<option>=<value>[&<option>=value ...]]'") from None
                 if '/dev' in uri:
                     raise ValueError("the correct uri for a serial port is: "
-                                     "'serial:///dev/<tty>[?<option>=<value>[+<option>=value ...]]'") from None
-                raise ValueError('invalid uri: %s' % uri) from None
+                                     "'serial:///dev/<tty>[?<option>=<value>[&<option>=value ...]]'") from None
+                raise ValueError('invalid hostname %r' % uri) from None
             iocls = cls.SCHEME_MAP['tcp']
-            uri = 'tcp://%s:%d' % host_port
         return object.__new__(iocls)
 
     def __init__(self, uri, end_of_line=b'\n', default_settings=None):
@@ -170,7 +170,6 @@ class AsynTcp(AsynConn):
         super().__init__(uri, *args, **kwargs)
         self.uri = uri
         if uri.startswith('tcp://'):
-            # should be the case always
             uri = uri[6:]
         try:
             self.connection = tcpSocket(uri, self.default_settings.get('port'), self.timeout)

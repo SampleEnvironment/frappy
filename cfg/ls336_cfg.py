@@ -1,10 +1,15 @@
+from os import environ
+
+# either change the uri or set the environment variable 'LS_URI'
+lakeshore_uri = environ.get('LS_URI', 'tcp://<host>:7777')
+
 Node('example_cryo.psi.ch',  # a globally unique identification
      'this is an example cryostat for the Frappy tutorial',  # describes the node
       interface='tcp://10767')  # you might choose any port number > 1024
 Mod('io',  # the name of the module
     'frappy_demo.lakeshore.LakeshoreIO',  # the class used for communication
     'communication to main controller',  # a description
-    uri='tcp://129.129.138.78:7777',  # the serial connection
+    uri=lakeshore_uri,  # the serial connection
     )
 Mod('T',
     'frappy_demo.lakeshore.TemperatureLoop',
