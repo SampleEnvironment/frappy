@@ -89,18 +89,17 @@ class MainWindow(QMainWindow):
                                   self.tab.close_current)
         self.setCentralWidget(self.tab)
 
+        greeter = Greeter(self)
+        greeter.addnodes.connect(self.addNodes)
+        greeter.recentClearBtn.connect(self.on_actionClear_triggered)
+        self.recentNodesChanged.connect(greeter.loadRecent)
+        self.tab.addPanel(greeter, 'Welcome')
+
         self._nodes = {}
         self._nodeWidgets = {}
 
         # add localhost (if available) and SEC nodes given as arguments
         self.addNodes(hosts)
-
-        if not self._nodes:
-            greeter = Greeter(self)
-            greeter.addnodes.connect(self.addNodes)
-            greeter.recentClearBtn.connect(self.on_actionClear_triggered)
-            self.recentNodesChanged.connect(greeter.loadRecent)
-            self.tab.addPanel(greeter, 'Welcome')
 
     @pyqtSlot()
     def on_actionAbout_triggered(self):
