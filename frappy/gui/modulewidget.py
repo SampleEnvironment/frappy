@@ -169,7 +169,7 @@ class ModuleWidget(QWidget):
         unitLabel2 = QLabel(props.get('unit', ''))
         display = QLineEdit()
         inputEdit = QLineEdit()
-        submitButton = QPushButton('Go')
+        submitButton = QPushButton('set')
         submitButton.setIcon(QIcon(':/icons/submit'))
 
         inputEdit.setPlaceholderText('new value')
