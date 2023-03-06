@@ -2,7 +2,7 @@ from frappy.gui.qt import QDialog, QIcon, QLabel, QLineEdit, QMessageBox, \
     QPushButton, QToolButton, QWidget, pyqtSignal
 
 import frappy.gui.resources  # pylint: disable=unused-import
-from frappy.gui.util import loadUi
+from frappy.gui.util import Colors, loadUi
 from frappy.gui.valuewidgets import get_widget
 
 
@@ -149,6 +149,9 @@ class ModuleWidget(QWidget):
         unitLabel = QLabel(props.get('unit', ''))
         display = QLineEdit()
 
+        p = display.palette()
+        p.setColor(display.backgroundRole(), Colors.palette.window().color())
+        display.setPalette(p)
         self._paramDisplays[param] = display
         self._paramWidgets[param] = [nameLabel, unitLabel, display]
 
@@ -169,6 +172,10 @@ class ModuleWidget(QWidget):
         submitButton = QPushButton('Go')
         submitButton.setIcon(QIcon(':/icons/submit'))
 
+        inputEdit.setPlaceholderText('new value')
+        p = display.palette()
+        p.setColor(display.backgroundRole(), Colors.palette.window().color())
+        display.setPalette(p)
         submitButton.pressed.connect(lambda: self._button_pressed(param))
         inputEdit.returnPressed.connect(lambda: self._button_pressed(param))
         self._paramDisplays[param] = display
