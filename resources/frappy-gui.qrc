@@ -29,6 +29,10 @@
     <file alias="save.png">cfg_editor/icons/save.png</file>
   </qresource>
   <qresource prefix="icons">
+    <file alias="logo_subtitle_light">SECoP_subtitle-light.svg</file>
+    <file alias="logo_righttitle">SECoP_righttitle.svg</file>
+    <file alias="logo_subtitle">SECoP_subtitle.svg</file>
+    <file alias="logo">SECoP-logo.svg</file>
     <file alias="details">icons/magnifier.png</file>
     <file alias="stop">icons/cross-circle.png</file>
     <file alias="trash">icons/bin.png</file>

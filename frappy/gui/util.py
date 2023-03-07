@@ -52,15 +52,20 @@ class Value:
             args += (self.readerror,)
         return 'Value%s' % repr(args)
 
+
+def is_light_theme(palette):
+    background = palette.window().color().lightness()
+    foreground = palette.windowText().color().lightness()
+    return background > foreground
+
+
 class Colors:
     @classmethod
     def _setPalette(cls, palette):
         if hasattr(cls, 'palette'):
             return
         cls.palette = palette
-        background = palette.window().color().lightness()
-        foreground = palette.windowText().color().lightness()
-        if background > foreground: # light
+        if is_light_theme(palette): # light
             cls.colors = {
                           'orange': QColor('#FA6800'),
                           'yellow': QColor('#FCFFa4'),
@@ -73,7 +78,7 @@ class Colors:
                           4: QColor('red'),
                           5: QColor('purple'),
                           }
-        else:
+        else: # dark
             cls.colors = {
                           'orange': QColor('#FA6800'),
                           'yellow': QColor('#FEFE22'),

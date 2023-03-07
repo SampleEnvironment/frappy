@@ -22,14 +22,15 @@
 # *****************************************************************************
 
 from frappy.gui.qt import QAction, QInputDialog, QKeySequence, QMainWindow, \
-    QMessageBox, QSettings, QShortcut, QWidget, pyqtSignal, pyqtSlot
+    QMessageBox, QPixmap, QSettings, QShortcut, QWidget, pyqtSignal, \
+    pyqtSlot
 
 import frappy.version
 from frappy.gui.connection import QSECNode
 from frappy.gui.logwindow import LogWindow
 from frappy.gui.nodewidget import NodeWidget
 from frappy.gui.tabwidget import TearOffTabWidget
-from frappy.gui.util import Colors, loadUi
+from frappy.gui.util import Colors, is_light_theme, loadUi
 
 
 class Greeter(QWidget):
@@ -39,6 +40,9 @@ class Greeter(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         loadUi(self, 'greeter.ui')
+        if not is_light_theme(self.palette()):
+            # maybe change it at runtime instead of second file?
+            self.logoLabel.setPixmap(QPixmap(':/icons/logo_subtitle_light'))
         self.loadRecent()
 
     def loadRecent(self):
