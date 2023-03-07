@@ -47,7 +47,6 @@ try:
         QToolButton, QTreeView, QTreeWidget, QTreeWidgetItem, QVBoxLayout, \
         QWidget
 
-    import frappy.gui.cfg_editor.icon_rc_qt6
     import frappy.gui.resources_qt6
 
 except ImportError as e:
@@ -67,5 +66,4 @@ except ImportError as e:
         QTabWidget, QTextEdit, QToolButton, QTreeView, QTreeWidget, \
         QTreeWidgetItem, QVBoxLayout, QWidget
 
-    import frappy.gui.cfg_editor.icon_rc_qt5
     import frappy.gui.resources_qt5

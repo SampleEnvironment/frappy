@@ -39,8 +39,8 @@ def loadUi(widget, uiname, subdir='ui'):
     uic.loadUi(path.join(uipath, subdir, uiname), widget)
 
 
-def setIcon(widget, icon_name, subdir='ui', icondir='icons'):
-    widget.setIcon(QIcon(path.join(uipath, subdir, icondir, icon_name)))
+def setIcon(widget, icon_name):
+    widget.setIcon(QIcon(':/cfg_editor/%s' % icon_name))
     widget.setIconSize(QSize(60, 60))
 
 
@@ -57,12 +57,12 @@ def set_name_edit_style(invalid, name_edit, button_box=None):
             button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
 
 
-def setTreeIcon(widget, icon_name, subdir='ui', icondir='icons'):
-    widget.setIcon(0, QIcon(path.join(uipath, subdir, icondir, icon_name)))
+def setTreeIcon(widget, icon_name):
+    widget.setIcon(0, QIcon(':/cfg_editor/%s' % icon_name))
 
 
-def setActionIcon(widget, icon_name, subdir='ui', icondir='icons'):
-    widget.setIcon(QIcon(path.join(uipath, subdir, icondir, icon_name)))
+def setActionIcon(widget, icon_name):
+    widget.setIcon(QIcon(':/cfg_editor/%s' % icon_name))
 
 
 def get_subtree_nodes(tree_widget_item):

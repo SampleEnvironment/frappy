@@ -37,9 +37,9 @@
          <string>New</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/new.png</normaloff>
-          <normalon>:/new.png</normalon>:/new.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/new.png</normaloff>
+          <normalon>:/cfg_editor/new.png</normalon>:/cfg_editor/new.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -70,9 +70,9 @@
          <string>Open</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/open.png</normaloff>
-          <normalon>:/open.png</normalon>:/open.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/open.png</normaloff>
+          <normalon>:/cfg_editor/open.png</normalon>:/cfg_editor/open.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -103,9 +103,9 @@
          <string>Save</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/save.png</normaloff>
-          <normalon>:/save.png</normalon>:/save.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/save.png</normaloff>
+          <normalon>:/cfg_editor/save.png</normalon>:/cfg_editor/save.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -143,9 +143,9 @@
          <string>Add interface</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/add_interface.png</normaloff>
-          <normalon>:/add_interface.png</normalon>:/add_interface.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/add_interface.png</normaloff>
+          <normalon>:/cfg_editor/add_interface.png</normalon>:/cfg_editor/add_interface.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -176,9 +176,9 @@
          <string>Add module</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/add_module.png</normaloff>
-          <normalon>:/add_module.png</normalon>:/add_module.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/add_module.png</normaloff>
+          <normalon>:/cfg_editor/add_module.png</normalon>:/cfg_editor/add_module.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -209,9 +209,9 @@
          <string>Add parameter</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/add_parameter.png</normaloff>
-          <normalon>:/add_parameter.png</normalon>:/add_parameter.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/add_parameter.png</normaloff>
+          <normalon>:/cfg_editor/add_parameter.png</normalon>:/cfg_editor/add_parameter.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -243,7 +243,7 @@
         </property>
         <property name="icon">
          <iconset>
-          <normalon>:/add_property.png</normalon>
+          <normalon>:/cfg_editor/add_property.png</normalon>
          </iconset>
         </property>
         <property name="iconSize">
@@ -275,8 +275,8 @@
          <string>Add comment</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/add_comment.png</normaloff>:/add_comment.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/add_comment.png</normaloff>:/cfg_editor/add_comment.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -322,9 +322,9 @@
          <string>Duplicate</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/duplicate.png</normaloff>
-          <normalon>:/duplicate.png</normalon>:/duplicate.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/duplicate.png</normaloff>
+          <normalon>:/cfg_editor/duplicate.png</normalon>:/cfg_editor/duplicate.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -355,9 +355,9 @@
          <string>Delete</string>
         </property>
         <property name="icon">
-         <iconset resource="icons/cfg-editor.qrc">
-          <normaloff>:/delete.png</normaloff>
-          <normalon>:/delete.png</normalon>:/delete.png</iconset>
+         <iconset resource="../../../../resources/frappy-gui.qrc">
+          <normaloff>:/cfg_editor/delete.png</normaloff>
+          <normalon>:/cfg_editor/delete.png</normalon>:/cfg_editor/delete.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -409,7 +409,7 @@
      <x>0</x>
      <y>0</y>
      <width>977</width>
-     <height>26</height>
+     <height>29</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -448,9 +448,9 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionNew">
    <property name="icon">
-    <iconset resource="icons/cfg-editor.qrc">
-     <normaloff>:/new.png</normaloff>
-     <normalon>:/new.png</normalon>:/new.png</iconset>
+    <iconset resource="../../../../resources/frappy-gui.qrc">
+     <normaloff>:/cfg_editor/new.png</normaloff>
+     <normalon>:/cfg_editor/new.png</normalon>:/cfg_editor/new.png</iconset>
    </property>
    <property name="text">
     <string>&amp;New</string>
@@ -464,9 +464,9 @@
   </action>
   <action name="actionOpen">
    <property name="icon">
-    <iconset resource="icons/cfg-editor.qrc">
-     <normaloff>:/open.png</normaloff>
-     <normalon>:/open.png</normalon>:/open.png</iconset>
+    <iconset resource="../../../../resources/frappy-gui.qrc">
+     <normaloff>:/cfg_editor/open.png</normaloff>
+     <normalon>:/cfg_editor/open.png</normalon>:/cfg_editor/open.png</iconset>
    </property>
    <property name="text">
     <string>&amp;Open ...</string>
@@ -477,9 +477,9 @@
   </action>
   <action name="actionSave">
    <property name="icon">
-    <iconset resource="icons/cfg-editor.qrc">
-     <normaloff>:/save.png</normaloff>
-     <normalon>:/save.png</normalon>:/save.png</iconset>
+    <iconset resource="../../../../resources/frappy-gui.qrc">
+     <normaloff>:/cfg_editor/save.png</normaloff>
+     <normalon>:/cfg_editor/save.png</normalon>:/cfg_editor/save.png</iconset>
    </property>
    <property name="text">
     <string>&amp;Save</string>
@@ -562,7 +562,7 @@
   </action>
  </widget>
  <resources>
-  <include location="icons/cfg-editor.qrc"/>
+  <include location="../../../../resources/frappy-gui.qrc"/>
  </resources>
  <connections>
   <connection>
