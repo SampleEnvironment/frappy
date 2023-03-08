@@ -187,11 +187,17 @@ class Module:
         for pname in self._watched_params:
             self._secnode.register_callback((self._name, pname), updateEvent=self._watch_parameter)
         self._secnode.request('logging', self._name, self._log_level)
+        self._secnode.register_callback(None, nodeStateChange=self._set_log_level)
 
     def _stop_watching(self):
         for pname in self._watched_params:
             self._secnode.unregister_callback((self._name, pname), updateEvent=self._watch_parameter)
+        self._secnode.unregister_callback(None, nodeStateChange=self._set_log_level)
         self._secnode.request('logging', self._name, 'off')
+
+    def _set_log_level(self, online, state):
+        if online and state == 'connected':
+            self._secnode.request('logging', self._name, self._log_level)
 
     def read(self, pname='value'):
         value, _, error = self._secnode.readParameter(self._name, pname)
