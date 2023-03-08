@@ -573,7 +573,7 @@ class SecopClient(ProxyClient):
             argument = datatype.export_value(argument)
         else:
             if argument is not None:
-                raise frappy.errors.BadValueError('command has no argument')
+                raise frappy.errors.WrongTypeError('command has no argument')
         # pylint: disable=unsubscriptable-object
         data, qualifiers = self.request(COMMANDREQUEST, self.identifier[module, command], argument)[2]
         datatype = self.modules[module]['commands'][command]['datatype'].result

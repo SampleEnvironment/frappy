@@ -92,7 +92,15 @@ class ReadOnlyError(SECoPError):
     pass
 
 
-class BadValueError(ValueError, SECoPError):
+class BadValueError(SECoPError):
+    """do not raise, but might used for instance checks (WrongTypeError, RangeError)"""
+
+
+class RangeError(ValueError, BadValueError):
+    name = 'RangeError'
+
+
+class WrongTypeError(TypeError, BadValueError):
     pass
 
 
@@ -154,23 +162,28 @@ def secop_error(exception):
     return InternalError(repr(exception))
 
 
-EXCEPTIONS = dict(
-    NoSuchModule=NoSuchModuleError,
-    NoSuchParameter=NoSuchParameterError,
-    NoSuchCommand=NoSuchCommandError,
-    CommandFailed=CommandFailedError,
-    CommandRunning=CommandRunningError,
-    ReadOnly=ReadOnlyError,
-    BadValue=BadValueError,
-    CommunicationFailed=CommunicationFailedError,
-    HardwareError=HardwareError,
-    IsBusy=IsBusyError,
-    IsError=IsErrorError,
-    Disabled=DisabledError,
+EXCEPTIONS = {e().name: e for e in [
+    NoSuchModuleError,
+    NoSuchParameterError,
+    NoSuchCommandError,
+    CommandFailedError,
+    CommandRunningError,
+    ReadOnlyError,
+    BadValueError,
+    RangeError,
+    WrongTypeError,
+    CommunicationFailedError,
+    HardwareError,
+    IsBusyError,
+    IsErrorError,
+    DisabledError,
+    ProtocolError,
+    NotImplementedError,
+    InternalError]}
+
+# TODO: check if these are really needed:
+EXCEPTIONS.update(
     SyntaxError=ProtocolError,
-    NotImplemented=NotImplementedError,
-    ProtocolError=ProtocolError,
-    InternalError=InternalError,
     # internal short versions (candidates for spec)
     Protocol=ProtocolError,
     Internal=InternalError,

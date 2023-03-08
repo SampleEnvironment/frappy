@@ -22,9 +22,15 @@
 """test data types."""
 
 import frappy.errors
+from frappy.errors import EXCEPTIONS, SECoPError
 
 
 def test_errors():
     """check consistence of frappy.errors.EXCEPTIONS"""
-    for e in frappy.errors.EXCEPTIONS.values():
-        assert frappy.errors.EXCEPTIONS[e().name] == e
+    for e in EXCEPTIONS.values():
+        assert EXCEPTIONS[e().name] == e
+    # check that all defined secop errors are in EXCEPTIONS
+    for cls in frappy.errors.__dict__.values():
+        if isinstance(cls, type) and issubclass(cls, SECoPError):
+            if cls != SECoPError:
+                assert cls().name in EXCEPTIONS

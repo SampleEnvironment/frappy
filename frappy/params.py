@@ -28,7 +28,7 @@ import inspect
 from frappy.datatypes import BoolType, CommandType, DataType, \
     DataTypeType, EnumType, NoneOr, OrType, \
     StringType, StructOf, TextType, TupleOf, ValueType
-from frappy.errors import BadValueError, ProgrammingError
+from frappy.errors import BadValueError, WrongTypeError, ProgrammingError
 from frappy.properties import HasProperties, Property
 from frappy.lib import generalConfig
 
@@ -304,7 +304,7 @@ class Parameter(Accessible):
                 except KeyError:
                     raise ProgrammingError('cannot set %s on parameter with datatype %s'
                                            % (key, type(self.datatype).__name__)) from None
-        except ValueError as e:
+        except BadValueError as e:
             raise ProgrammingError('property %s: %s' % (key, str(e))) from None
 
     def checkProperties(self):
@@ -489,7 +489,7 @@ class Command(Accessible):
                 res = func(argument)
         else:
             if argument is not None:
-                raise BadValueError('%s.%s takes no arguments' % (module_obj.__class__.__name__, self.name))
+                raise WrongTypeError('%s.%s takes no arguments' % (module_obj.__class__.__name__, self.name))
             res = func()
         if self.result:
             return self.result(res)

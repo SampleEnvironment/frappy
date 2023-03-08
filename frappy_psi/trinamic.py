@@ -29,7 +29,7 @@ from frappy.core import BoolType, Command, EnumType, FloatRange, IntRange, \
     HasIO, Parameter, Property, Drivable, PersistentMixin, PersistentParam, Done, \
     IDLE, BUSY, ERROR
 from frappy.io import BytesIO
-from frappy.errors import CommunicationFailedError, HardwareError, BadValueError, IsBusyError
+from frappy.errors import CommunicationFailedError, HardwareError, RangeError, IsBusyError
 from frappy.rwhandler import ReadHandler, WriteHandler
 from frappy.lib import formatStatusBits
 
@@ -345,8 +345,8 @@ class Motor(PersistentMixin, HasIO, Drivable):
                     abs(target - self.encoder) > self.move_limit + self.tolerance):
                 # pylint: disable=bad-string-format-type
                 # pylint wrongly does not recognise encoder as a descriptor
-                raise BadValueError('can not move more than %g deg (%g -> %g)' %
-                                    (self.move_limit, self.encoder, target))
+                raise RangeError('can not move more than %g deg (%g -> %g)' %
+                                 (self.move_limit, self.encoder, target))
             diff = self.encoder - self.steppos
             if self._need_reset:
                 if self.auto_reset:

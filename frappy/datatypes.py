@@ -28,7 +28,7 @@
 import sys
 from base64 import b64decode, b64encode
 
-from frappy.errors import BadValueError, \
+from frappy.errors import WrongTypeError, RangeError, \
     ConfigError, ProgrammingError, ProtocolError
 from frappy.lib import clamp, generalConfig
 from frappy.lib.enum import Enum
@@ -45,7 +45,7 @@ UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for 
 Parser = Parser()
 
 
-class DiscouragedConversion(BadValueError):
+class DiscouragedConversion(WrongTypeError):
     """the discouraged conversion string - > float happened"""
     log_message = True
 
@@ -230,7 +230,7 @@ class FloatRange(HasUnit, DataType):
             try:
                 value = float(value)
             except Exception:
-                raise BadValueError('can not convert %s to a float' % shortrepr(value)) from None
+                raise WrongTypeError('can not convert %s to a float' % shortrepr(value)) from None
             if not generalConfig.lazy_number_validation:
                 raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
 
@@ -245,8 +245,8 @@ class FloatRange(HasUnit, DataType):
         if self.min - prec <= value <= self.max + prec:
             # silently clamp when outside by not more than prec
             return clamp(self.min, value, self.max)
-        raise BadValueError('%.14g must be between %d and %d' %
-                            (value, self.min, self.max))
+        raise RangeError('%.14g must be between %d and %d' %
+                         (value, self.min, self.max))
 
     def __repr__(self):
         hints = self.get_info()
@@ -277,7 +277,7 @@ class FloatRange(HasUnit, DataType):
 
     def compatible(self, other):
         if not isinstance(other, (FloatRange, ScaledInteger)):
-            raise BadValueError('incompatible datatypes')
+            raise WrongTypeError('incompatible datatypes')
         # avoid infinity
         other.validate(max(sys.float_info.min, self.min))
         other.validate(min(sys.float_info.max, self.max))
@@ -316,11 +316,11 @@ class IntRange(DataType):
                 fvalue = float(value)
                 value = int(value)
             except Exception:
-                raise BadValueError('can not convert %s to an int' % shortrepr(value)) from None
+                raise WrongTypeError('can not convert %s to an int' % shortrepr(value)) from None
             if not generalConfig.lazy_number_validation:
                 raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
         if round(fvalue) != fvalue:
-            raise BadValueError('%r should be an int')
+            raise WrongTypeError('%r should be an int')
         return value
 
     def validate(self, value, previous=None):
@@ -329,8 +329,8 @@ class IntRange(DataType):
         # check the limits
         if self.min <= value <= self.max:
             return value
-        raise BadValueError('%r must be between %d and %d' %
-                            (value, self.min, self.max))
+        raise RangeError('%r must be between %d and %d' %
+                         (value, self.min, self.max))
 
     def __repr__(self):
         args = (self.min, self.max)
@@ -364,7 +364,7 @@ class IntRange(DataType):
             # the following loop will not cycle more than the number of Enum elements
             for i in range(self.min, self.max + 1):
                 other(i)
-        raise BadValueError('incompatible datatypes')
+        raise WrongTypeError('incompatible datatypes')
 
 
 class ScaledInteger(HasUnit, DataType):
@@ -388,7 +388,10 @@ class ScaledInteger(HasUnit, DataType):
 
     def __init__(self, scale, minval=None, maxval=None, absolute_resolution=None, **kwds):
         super().__init__()
-        scale = float(scale)
+        try:
+            scale = float(scale)
+        except (ValueError, TypeError) as e:
+            raise ProgrammingError(e) from None
         if absolute_resolution is None:
             absolute_resolution = scale
         self.set_properties(
@@ -404,7 +407,7 @@ class ScaledInteger(HasUnit, DataType):
 
         # check values
         if '%' not in self.fmtstr:
-            raise BadValueError('Invalid fmtstr!')
+            raise ConfigError('Invalid fmtstr!')
         # Remark: Datatype.copy() will round min, max to a multiple of self.scale
         # this should be o.k.
 
@@ -434,7 +437,7 @@ class ScaledInteger(HasUnit, DataType):
             try:
                 value = float(value)
             except Exception:
-                raise BadValueError('can not convert %s to float' % shortrepr(value)) from None
+                raise WrongTypeError('can not convert %s to float' % shortrepr(value)) from None
             if not generalConfig.lazy_number_validation:
                 raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
         intval = int(round(value / self.scale))
@@ -446,8 +449,8 @@ class ScaledInteger(HasUnit, DataType):
         if self.min - self.scale < value < self.max + self.scale:
             # silently clamp when outside by not more than self.scale
             return clamp(self(self.min), result, self(self.max))
-        raise BadValueError('%.14g must be between between %g and %g' %
-                            (value, self.min, self.max))
+        raise RangeError('%.14g must be between between %g and %g' %
+                         (value, self.min, self.max))
 
     def __repr__(self):
         hints = self.get_info(scale=float('%g' % self.scale),
@@ -476,7 +479,7 @@ class ScaledInteger(HasUnit, DataType):
 
     def compatible(self, other):
         if not isinstance(other, (FloatRange, ScaledInteger)):
-            raise BadValueError('incompatible datatypes')
+            raise WrongTypeError('incompatible datatypes')
         other.validate(self.min)
         other.validate(self.max)
 
@@ -522,7 +525,9 @@ class EnumType(DataType):
         try:
             return self._enum[value]
         except (KeyError, TypeError):  # TypeError will be raised when value is not hashable
-            raise BadValueError('%s is not a member of enum %r' % (shortrepr(value), self._enum)) from None
+            if isinstance(value, (int, str)):
+                raise RangeError('%s is not a member of enum %r' % (shortrepr(value), self._enum)) from None
+            raise WrongTypeError('%s must be either int or str for an enum value' % (shortrepr(value))) from None
 
     def from_string(self, text):
         return self(text)
@@ -570,13 +575,13 @@ class BLOBType(DataType):
     def __call__(self, value):
         """accepts bytes only"""
         if not isinstance(value, bytes):
-            raise BadValueError('%s must be of type bytes' % shortrepr(value))
+            raise WrongTypeError('%s must be of type bytes' % shortrepr(value))
         size = len(value)
         if size < self.minbytes:
-            raise BadValueError(
+            raise RangeError(
                 '%r must be at least %d bytes long!' % (value, self.minbytes))
         if size > self.maxbytes:
-            raise BadValueError(
+            raise RangeError(
                 '%r must be at most %d bytes long!' % (value, self.maxbytes))
         return value
 
@@ -599,9 +604,9 @@ class BLOBType(DataType):
     def compatible(self, other):
         try:
             if self.minbytes < other.minbytes or self.maxbytes > other.maxbytes:
-                raise BadValueError('incompatible datatypes')
+                raise RangeError('incompatible datatypes')
         except AttributeError:
-            raise BadValueError('incompatible datatypes') from None
+            raise WrongTypeError('incompatible datatypes') from None
 
 
 class StringType(DataType):
@@ -635,21 +640,21 @@ class StringType(DataType):
     def __call__(self, value):
         """accepts strings only"""
         if not isinstance(value, str):
-            raise BadValueError('%s has the wrong type!' % shortrepr(value))
+            raise WrongTypeError('%s has the wrong type!' % shortrepr(value))
         if not self.isUTF8:
             try:
                 value.encode('ascii')
             except UnicodeEncodeError:
-                raise BadValueError('%s contains non-ascii character!' % shortrepr(value)) from None
+                raise RangeError('%s contains non-ascii character!' % shortrepr(value)) from None
         size = len(value)
         if size < self.minchars:
-            raise BadValueError(
+            raise RangeError(
                 '%s must be at least %d chars long!' % (shortrepr(value), self.minchars))
         if size > self.maxchars:
-            raise BadValueError(
+            raise RangeError(
                 '%s must be at most %d chars long!' % (shortrepr(value), self.maxchars))
         if '\0' in value:
-            raise BadValueError(
+            raise RangeError(
                 'Strings are not allowed to embed a \\0! Use a Blob instead!')
         return value
 
@@ -672,9 +677,9 @@ class StringType(DataType):
         try:
             if self.minchars < other.minchars or self.maxchars > other.maxchars or \
                     self.isUTF8 > other.isUTF8:
-                raise BadValueError('incompatible datatypes')
+                raise RangeError('incompatible datatypes')
         except AttributeError:
-            raise BadValueError('incompatible datatypes') from None
+            raise WrongTypeError('incompatible datatypes') from None
 
 
 # TextType is a special StringType intended for longer texts (i.e. embedding \n),
@@ -715,7 +720,7 @@ class BoolType(DataType):
             return False
         if value in [1, '1', 'True', 'true', 'yes', 'on', True]:
             return True
-        raise BadValueError('%s is not a boolean value!' % shortrepr(value))
+        raise WrongTypeError('%s is not a boolean value!' % shortrepr(value))
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -757,7 +762,7 @@ class ArrayOf(DataType):
     def __init__(self, members, minlen=0, maxlen=None):
         super().__init__()
         if not isinstance(members, DataType):
-            raise BadValueError(
+            raise ProgrammingError(
                 'ArrayOf only works with a DataType as first argument!')
         # one argument -> exactly that size
         # argument default to 100
@@ -800,15 +805,15 @@ class ArrayOf(DataType):
         try:
             # check number of elements
             if self.minlen is not None and len(value) < self.minlen:
-                raise BadValueError(
+                raise RangeError(
                     'array too small, needs at least %d elements!' %
                     self.minlen)
             if self.maxlen is not None and len(value) > self.maxlen:
-                raise BadValueError(
+                raise RangeError(
                     'array too big, holds at most %d elements!' % self.maxlen)
         except TypeError:
-            raise BadValueError('%s can not be converted to ArrayOf DataType!'
-                                % type(value).__name__) from None
+            raise WrongTypeError('%s can not be converted to ArrayOf DataType!'
+                                 % type(value).__name__) from None
 
     def __call__(self, value):
         """accepts any sequence, converts to tuple (immutable!)"""
@@ -816,7 +821,8 @@ class ArrayOf(DataType):
         try:
             return tuple(self.members(v) for v in value)
         except Exception as e:
-            raise BadValueError('can not convert some array elements') from e
+            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
+            raise errcls('can not convert some array elements') from e
 
     def validate(self, value, previous=None):
         self.check_type(value)
@@ -825,7 +831,8 @@ class ArrayOf(DataType):
                 return tuple(self.members.validate(v, p) for v, p in zip(value, previous))
             return tuple(self.members.validate(v) for v in value)
         except Exception as e:
-            raise BadValueError('some array elements are invalid') from e
+            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
+            raise errcls('some array elements are invalid') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -852,10 +859,10 @@ class ArrayOf(DataType):
     def compatible(self, other):
         try:
             if self.minlen < other.minlen or self.maxlen > other.maxlen:
-                raise BadValueError('incompatible datatypes')
+                raise RangeError('incompatible datatypes')
             self.members.compatible(other.members)
         except AttributeError:
-            raise BadValueError('incompatible datatypes') from None
+            raise WrongTypeError('incompatible datatypes') from None
 
     def set_main_unit(self, unit):
         self.members.set_main_unit(unit)
@@ -869,10 +876,10 @@ class TupleOf(DataType):
     def __init__(self, *members):
         super().__init__()
         if not members:
-            raise BadValueError('Empty tuples are not allowed!')
+            raise ProgrammingError('Empty tuples are not allowed!')
         for subtype in members:
             if not isinstance(subtype, DataType):
-                raise BadValueError(
+                raise ProgrammingError(
                     'TupleOf only works with DataType objs as arguments!')
         self.members = members
         self.default = tuple(el.default for el in members)
@@ -890,11 +897,11 @@ class TupleOf(DataType):
     def check_type(self, value):
         try:
             if len(value) != len(self.members):
-                raise BadValueError(
+                raise WrongTypeError(
                     'tuple needs %d elements' % len(self.members))
         except TypeError:
-            raise BadValueError('%s can not be converted to TupleOf DataType!'
-                                % type(value).__name__) from None
+            raise WrongTypeError('%s can not be converted to TupleOf DataType!'
+                                 % type(value).__name__) from None
 
     def __call__(self, value):
         """accepts any sequence, converts to tuple"""
@@ -902,7 +909,8 @@ class TupleOf(DataType):
         try:
             return tuple(sub(elem) for sub, elem in zip(self.members, value))
         except Exception as e:
-            raise BadValueError('can not convert some tuple elements') from e
+            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
+            raise errcls('can not convert some tuple elements') from e
 
     def validate(self, value, previous=None):
         self.check_type(value)
@@ -911,7 +919,8 @@ class TupleOf(DataType):
                 return tuple(sub.validate(elem) for sub, elem in zip(self.members, value))
             return tuple(sub.validate(v, p) for sub, v, p in zip(self.members, value, previous))
         except Exception as e:
-            raise BadValueError('some tuple elements are invalid') from e
+            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
+            raise errcls('some tuple elements are invalid') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -933,9 +942,9 @@ class TupleOf(DataType):
 
     def compatible(self, other):
         if not isinstance(other, TupleOf):
-            raise BadValueError('incompatible datatypes')
+            raise WrongTypeError('incompatible datatypes')
         if len(self.members) != len(other.members):
-            raise BadValueError('incompatible datatypes')
+            raise WrongTypeError('incompatible datatypes')
         for a, b in zip(self.members, other.members):
             a.compatible(b)
 
@@ -962,7 +971,7 @@ class StructOf(DataType):
         super().__init__()
         self.members = members
         if not members:
-            raise BadValueError('Empty structs are not allowed!')
+            raise ProgrammingError('Empty structs are not allowed!')
         self.optional = list(members if optional is None else optional)
         for name, subtype in list(members.items()):
             if not isinstance(subtype, DataType):
@@ -994,27 +1003,28 @@ class StructOf(DataType):
         """accepts any mapping, returns an immutable dict"""
         try:
             if set(dict(value)) != set(self.members):
-                raise BadValueError('member names do not match') from None
+                raise WrongTypeError('member names do not match') from None
         except TypeError:
-            raise BadValueError('%s can not be converted a StructOf'
-                                % type(value).__name__) from None
+            raise WrongTypeError('%s can not be converted a StructOf'
+                                 % type(value).__name__) from None
         try:
             return ImmutableDict((str(k), self.members[k](v))
                                  for k, v in list(value.items()))
         except Exception as e:
-            raise BadValueError('can not convert some struct element') from e
+            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
+            raise errcls('can not convert some struct element') from e
 
     def validate(self, value, previous=None):
         try:
             superfluous = set(dict(value)) - set(self.members)
         except TypeError:
-            raise BadValueError('%s can not be converted a StructOf'
-                                % type(value).__name__) from None
+            raise WrongTypeError('%s can not be converted a StructOf'
+                                 % type(value).__name__) from None
         if superfluous - set(self.optional):
-            raise BadValueError('struct contains superfluous members: %s' % ', '.join(superfluous))
+            raise WrongTypeError('struct contains superfluous members: %s' % ', '.join(superfluous))
         missing = set(self.members) - set(value) - set(self.optional)
         if missing:
-            raise BadValueError('missing struct elements: %s' % ', '.join(missing))
+            raise WrongTypeError('missing struct elements: %s' % ', '.join(missing))
         try:
             if previous is None:
                 return ImmutableDict((str(k), self.members[k].validate(v))
@@ -1023,7 +1033,8 @@ class StructOf(DataType):
             result.update(((k, self.members[k].validate(v, previous[k])) for k, v in value.items()))
             return ImmutableDict(result)
         except Exception as e:
-            raise BadValueError('some struct elements are invalid') from e
+            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
+            raise errcls('some struct elements are invalid') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -1051,9 +1062,9 @@ class StructOf(DataType):
                 m.compatible(other.members[k])
                 mandatory.discard(k)
             if mandatory:
-                raise BadValueError('incompatible datatypes')
+                raise WrongTypeError('incompatible datatypes')
         except (AttributeError, TypeError, KeyError):
-            raise BadValueError('incompatible datatypes') from None
+            raise WrongTypeError('incompatible datatypes') from None
 
     def set_main_unit(self, unit):
         for member in self.members.values():
@@ -1071,10 +1082,10 @@ class CommandType(DataType):
         super().__init__()
         if argument is not None:
             if not isinstance(argument, DataType):
-                raise BadValueError('CommandType: Argument type must be a DataType!')
+                raise ProgrammingError('CommandType: Argument type must be a DataType!')
         if result is not None:
             if not isinstance(result, DataType):
-                raise BadValueError('CommandType: Result type must be a DataType!')
+                raise ProgrammingError('CommandType: Result type must be a DataType!')
         self.argument = argument
         self.result = result
 
@@ -1118,7 +1129,7 @@ class CommandType(DataType):
             if self.result != other.result:  # not both are None
                 other.result.compatible(self.result)
         except AttributeError:
-            raise BadValueError('incompatible datatypes') from None
+            raise WrongTypeError('incompatible datatypes') from None
 
 
 # internally used datatypes (i.e. only for programming the SEC-node)
@@ -1204,7 +1215,7 @@ class OrType(DataType):
                 return t(value)
             except Exception:
                 pass
-        raise BadValueError("Invalid Value, must conform to one of %s" % (', '.join((str(t) for t in self.types))))
+        raise WrongTypeError("Invalid Value, must conform to one of %s" % (', '.join((str(t) for t in self.types))))
 
 
 Int8   = IntRange(-(1 << 7),  (1 << 7) - 1)
@@ -1226,7 +1237,7 @@ class LimitsType(TupleOf):
         """accepts an ordered tuple of numeric member types"""
         limits = TupleOf.validate(self, value)
         if limits[1] < limits[0]:
-            raise BadValueError('Maximum Value %s must be greater than minimum value %s!' % (limits[1], limits[0]))
+            raise RangeError('Maximum Value %s must be greater than minimum value %s!' % (limits[1], limits[0]))
         return limits
 
 
@@ -1294,9 +1305,9 @@ def get_datatype(json, pname=''):
             kwargs = json.copy()
             base = kwargs.pop('type')
         except (TypeError, KeyError, AttributeError):
-            raise BadValueError('a data descriptor must be a dict containing a "type" key, not %r' % json) from None
+            raise WrongTypeError('a data descriptor must be a dict containing a "type" key, not %r' % json) from None
 
     try:
         return DATATYPES[base](pname=pname, **kwargs)
     except Exception as e:
-        raise BadValueError('invalid data descriptor: %r (%s)' % (json, str(e))) from None
+        raise WrongTypeError('invalid data descriptor: %r (%s)' % (json, str(e))) from None

@@ -27,7 +27,7 @@ from frappy.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, StringType, StructOf, TupleOf
 from frappy.core import Command, Done, Drivable, Feature, \
     Parameter, Property, PersistentParam, Readable
-from frappy.errors import BadValueError, ConfigError
+from frappy.errors import RangeError, ConfigError
 from frappy.lib import clamp
 
 
@@ -96,8 +96,8 @@ class HasLimits(Feature):
         min_, max_ = self.apply_offset(-1, *self.abslimits)
         if not min_ <= value[0] <= value[1] <= max_:
             if value[0] > value[1]:
-                raise BadValueError('invalid interval: %r' % value)
-            raise BadValueError('limits not within abs limits [%g, %g]' % (min_, max_))
+                raise RangeError('invalid interval: %r' % value)
+            raise RangeError('limits not within abs limits [%g, %g]' % (min_, max_))
         self.limits = value
         self.saveParameters()
         return Done
@@ -106,7 +106,7 @@ class HasLimits(Feature):
         """check if value is valid"""
         min_, max_ = self.limits
         if not min_ <= value <= max_:
-            raise BadValueError('limits violation: %g outside [%g, %g]' % (value, min_, max_))
+            raise RangeError('limits violation: %g outside [%g, %g]' % (value, min_, max_))
 
 
 # --- not used, not tested yet ---

@@ -24,7 +24,7 @@
 import pytest
 
 from frappy.datatypes import FloatRange, IntRange, StringType, ValueType
-from frappy.errors import BadValueError, ConfigError, ProgrammingError
+from frappy.errors import RangeError, ConfigError, ProgrammingError
 from frappy.properties import HasProperties, Property
 from frappy.core import Parameter
 
@@ -35,6 +35,7 @@ def Prop(*args, name=None, **kwds):
 
 
 # Property(description, datatype, default, ...)
+# pylint: disable=use-dict-literal
 V_test_Property = [
     [Prop(StringType(), 'default', extname='extname', mandatory=False),
      dict(default='default', extname='extname', export=True, mandatory=False)
@@ -99,7 +100,7 @@ def test_Properties():
     assert Cls.aa.extname == '_aa'
 
     cc = Cls()
-    with pytest.raises(BadValueError):
+    with pytest.raises(RangeError):
         cc.aa = 137
 
     assert Cls.bb.default == 0
