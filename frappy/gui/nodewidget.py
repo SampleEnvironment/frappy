@@ -6,7 +6,6 @@ from frappy.gui.qt import QCursor, QFont, QFontMetrics, QIcon, QInputDialog, \
     toHtmlEscaped
 
 from frappy.errors import SECoPError
-from frappy.gui.modulectrl import ModuleCtrl
 from frappy.gui.moduleoverview import ModuleOverview
 from frappy.gui.modulewidget import ModuleWidget
 from frappy.gui.paramview import ParameterView
@@ -98,7 +97,6 @@ class NodeWidget(QWidget):
 
         self.detailed = False
         self._modules = OrderedDict()
-        self._detailedModules = {}
         self._detailedParams = {}
         self._activePlots = {}
 
@@ -127,16 +125,10 @@ class NodeWidget(QWidget):
             widget.showDetails(self.detailed)
             self.noPlots.connect(widget.plotsPresent)
             self._modules[module] = widget
-            details = ModuleCtrl(node, module)
-            self._detailedModules[module] = details
-            viewLayout.addWidget(details)
-            details.setHidden(True)
             self._detailedParams[module] = {}
             for param in node.getParameters(module):
                 view = ParameterView(node, module, param)
                 self._detailedParams[module][param] = view
-                view.setHidden(True)
-                viewLayout.addWidget(view)
             viewLayout.addWidget(widget)
 
         self._initNodeInfo()
@@ -178,24 +170,14 @@ class NodeWidget(QWidget):
     def getSecNode(self):
         return self._node
 
-    def changeViewContent(self, module, param, prevmod, prevparam):
-        if prevmod == '':
-            for mod in self._modules.values():
-                mod.setHidden(True)
-        elif prevparam == '':
-            self._detailedModules[prevmod].setHidden(True)
+    def changeViewContent(self, module, param):
+        if module == '' and param == '':
+            return # for now, don't do anything when resetting selection
+        if param == '':
+            self.view.ensureWidgetVisible(self._modules[module])
         else:
-            self._detailedParams[prevmod][prevparam].setHidden(True)
-        if module == '':
-            # no module -> reset to overview
-            for mod in self._modules.values():
-                mod.setHidden(False)
-        elif param == '':
-            # set to single module view
-            self._detailedModules[module].setHidden(False)
-        else:
-            # set to single param view
-            self._detailedParams[module][param].setHidden(False)
+            pw = self._modules[module]._paramWidgets[param][0]
+            self.view.ensureWidgetVisible(pw)
 
     def _treeContextMenu(self, pos):
         index = self.tree.indexAt(pos)

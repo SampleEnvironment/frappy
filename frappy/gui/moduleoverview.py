@@ -102,12 +102,12 @@ class ModuleItem(QTreeWidgetItem):
 
 
 class ModuleOverview(QTreeWidget):
-    itemChanged = pyqtSignal(str, str, str, str)
+    # current module/param, prev module/param
+    itemChanged = pyqtSignal(str, str)
     def __init__(self, node, parent=None):
         super().__init__(parent)
         self._node = node
         self._modules = {}
-        self.last_was_clear = False
 
         #self.setHeaderHidden(True)
         #self.setChildIndicatorPolicy(QTreeWidgetItem.DontShowIndicator)
@@ -145,15 +145,7 @@ class ModuleOverview(QTreeWidget):
         return super().mouseReleaseEvent(event)
 
     def handleCurrentItemChanged(self, current, previous):
-        if previous is None or self.last_was_clear:
-            pmod = ''
-            pparam = ''
-            self.last_was_clear = False
-        else:
-            pmod = previous.module
-            pparam = previous.param or ''
-        cparam = current.param or ''
-        self.itemChanged.emit(current.module, cparam, pmod, pparam)
+        self.itemChanged.emit(current.module, current.param or '')
 
     def setToDisconnected(self):
         for module in self._modules.values():
@@ -184,8 +176,6 @@ class ModuleOverview(QTreeWidget):
         selected = self.selectedItems()
         if not selected:
             return
-        prev = selected[0]
-        pmod, pparam = prev.module, prev.param
         self.clearSelection()
-        self.itemChanged.emit('', '', pmod, pparam)
+        self.itemChanged.emit('', '')
         self.last_was_clear = True
