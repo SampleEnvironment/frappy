@@ -171,6 +171,7 @@ class MainWindow(QMainWindow):
         node = QSECNode(host, self.log, parent=self)
         nodeWidget = NodeWidget(node)
         nodeWidget.setParent(self)
+        nodeWidget._rebuildAdvanced(self.actionDetailed_View.isChecked())
 
         # Node and NodeWidget created without error
         nodename = node.nodename

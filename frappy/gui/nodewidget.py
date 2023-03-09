@@ -1,9 +1,9 @@
 import json
 from collections import OrderedDict
 
-from frappy.gui.qt import QCursor, QFont, QFontMetrics, QGridLayout, QIcon, \
-    QInputDialog, QLabel, QMenu, QPlainTextEdit, QTextCursor, QVBoxLayout, \
-    QWidget, pyqtSignal, pyqtSlot, toHtmlEscaped
+from frappy.gui.qt import QCursor, QFont, QFontMetrics, QIcon, QInputDialog, \
+    QMenu, QTextCursor, QVBoxLayout, QWidget, pyqtSignal, pyqtSlot, \
+    toHtmlEscaped
 
 from frappy.errors import SECoPError
 from frappy.gui.modulectrl import ModuleCtrl
@@ -96,6 +96,7 @@ class NodeWidget(QWidget):
         self._node = node
         self._node.stateChange.connect(self._set_node_state)
 
+        self.detailed = False
         self._modules = OrderedDict()
         self._detailedModules = {}
         self._detailedParams = {}
@@ -123,6 +124,7 @@ class NodeWidget(QWidget):
                                 self.plotParam(module, param))
             widget.plotAdd.connect(lambda param, module=module:
                                    self._plotPopUp(module, param))
+            widget.showDetails(self.detailed)
             self.noPlots.connect(widget.plotsPresent)
             self._modules[module] = widget
             details = ModuleCtrl(node, module)
@@ -150,28 +152,10 @@ class NodeWidget(QWidget):
         self.tree.itemChanged.connect(self.changeViewContent)
         self.tree.customContextMenuRequested.connect(self._treeContextMenu)
 
-        self._description = QPlainTextEdit(
+        self.descriptionEdit.setPlainText(
             self._node.properties.get('description','no description available'))
-        self._description_label = QLabel('Description:')
-        self._description.setReadOnly(True)
-        self._host = QLabel(self._node.conn.uri)
-        self._host.hide()
-        self._host_label = QLabel('Host:')
-        self._host_label.hide()
-        self._protocoll = QLabel(self._node.conn.secop_version)
-        self._protocoll.setWordWrap(True)
-        self._protocoll.hide()
-        self._protocoll_label = QLabel('Protocoll Version:')
-        self._protocoll_label.hide()
-
-        layout = QGridLayout()
-        layout.addWidget(self._host_label, 0, 0)
-        layout.addWidget(self._host, 0, 1)
-        layout.addWidget(self._protocoll_label, 1, 0)
-        layout.addWidget(self._protocoll, 1, 1)
-        layout.addWidget(self._description_label, 2, 0)
-        layout.addWidget(self._description, 3, 0, -1, -1)
-        self.nodeinfo.setLayout(layout)
+        self.hostLabel.setText(self._node.conn.uri)
+        self.protocolLabel.setText(self._node.conn.secop_version)
 
     def _set_node_state(self, nodename, online, state):
         p = self.palette()
@@ -186,13 +170,10 @@ class NodeWidget(QWidget):
 
 
     def _rebuildAdvanced(self, advanced):
-        self._host.setHidden(not advanced)
-        self._host_label.setHidden(not advanced)
-        self._protocoll.setHidden(not advanced)
-        self._protocoll_label.setHidden(not advanced)
+        self.detailed = advanced
         self.tree._rebuildAdvanced(advanced)
         for m in self._modules.values():
-            m.rebuildAdvanced(advanced)
+            m.showDetails(advanced)
 
     def getSecNode(self):
         return self._node

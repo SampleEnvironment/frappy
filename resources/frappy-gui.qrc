@@ -29,6 +29,7 @@
     <file alias="save.png">cfg_editor/icons/save.png</file>
   </qresource>
   <qresource prefix="icons">
+    <file alias="details">icons/magnifier.png</file>
     <file alias="stop">icons/cross-circle.png</file>
     <file alias="trash">icons/bin.png</file>
     <file alias="plot-add">icons/system-monitor--plus.png</file>

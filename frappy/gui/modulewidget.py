@@ -1,5 +1,5 @@
-from frappy.gui.qt import QDialog, QIcon, QLabel, QLineEdit, QMessageBox, \
-    QPushButton, QToolButton, QWidget, pyqtSignal
+from frappy.gui.qt import QDialog, QHBoxLayout, QIcon, QLabel, QLineEdit, \
+    QMessageBox, QPushButton, Qt, QToolButton, QWidget, pyqtSignal, pyqtSlot
 
 from frappy.gui.util import Colors, loadUi
 from frappy.gui.valuewidgets import get_widget
@@ -88,15 +88,17 @@ class ModuleWidget(QWidget):
         loadUi(self, 'modulewidget.ui')
         self._node = node
         self._name = name
+        self.detailed = False
         self._paramDisplays = {}
         self._paramInputs = {}
         self._addbtns = []
         self._paramWidgets = {}
+        self._groups = {}
+        self._groupStatus = {}
+        self.independentParams = []
 
-        self.moduleName.setText(name)
-        props = self._node.getModuleProperties(self._name)
-        description = props.get('description', '')
-        self.moduleDescription.setText(description)
+        self._initModuleInfo()
+        self.infoGrid.hide()
 
         row = 0
         params = dict(self._node.getParameters(self._name))
@@ -112,14 +114,70 @@ class ModuleWidget(QWidget):
             params.pop('target')
             self._addRWParam('target', row)
             row += 1
+
+        allGroups = set()
         for param in params:
-            paramProps = self._node.getProperties(self._name, param)
-            if paramProps['readonly']:
-                self._addRParam(param, row)
+            props = self._node.getProperties(self._name, param)
+            group = props.get('group', '')
+            if group:
+                allGroups.add(group)
+                self._groups.setdefault(group, []).append(param)
             else:
-                self._addRWParam(param, row)
-            row += 1
-            self._setParamHidden(param, True)
+                self.independentParams.append(param)
+        for key in sorted(allGroups.union(set(self.independentParams))):
+            if key in allGroups:
+                if key in self._groups[key]:
+                    # Param with same name as group
+                    self._addParam(key, row)
+                    name = QLabel(key)
+                    button = QToolButton()
+                    button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+                    button.setText('+')
+                    button.pressed.connect(
+                        lambda group=key: self._toggleGroupCollapse(group))
+                    box = QHBoxLayout()
+                    box.addWidget(name)
+                    box.addWidget(button)
+                    groupLabel = QWidget()
+                    groupLabel.setLayout(box)
+
+                    l = self.moduleDisplay.layout()
+                    label = l.itemAtPosition(row, 0).widget()
+                    l.replaceWidget(label, groupLabel)
+                    row += 1
+                    old = self._paramWidgets[key].pop(0)
+                    old.setParent(None)
+                    self._paramWidgets[key].append(groupLabel)
+                    self._setParamHidden(key, True)
+                else:
+                    name = QLabel(key)
+                    button = QToolButton()
+                    button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+                    button.setText('+')
+                    button.pressed.connect(
+                        lambda group=key: self._toggleGroupCollapse(group))
+                    box = QHBoxLayout()
+                    box.addWidget(name)
+                    box.addWidget(button)
+                    groupLabel = QWidget()
+                    groupLabel.setLayout(box)
+
+                    l = self.moduleDisplay.layout()
+                    l.addWidget(groupLabel, row, 0)
+                    row += 1
+                    self._paramWidgets[key] = [groupLabel]
+                    self._groups[key].append(key)
+                    self._setParamHidden(key, True)
+                for p in self._groups[key]:
+                    if p == key:
+                        continue
+                    self._addParam(p, row)
+                    row += 1
+                    self._setParamHidden(p, True)
+            else:
+                self._addParam(key, row)
+                row += 1
+                self._setParamHidden(key, True)
 
         self._addCommands(row)
 
@@ -128,6 +186,40 @@ class ModuleWidget(QWidget):
             self._updateValue(self._name, param, val)
 
         node.newData.connect(self._updateValue)
+
+    def _initModuleInfo(self):
+        props = dict(self._node.getModuleProperties(self._name))
+        self.moduleName.setText(self._name)
+        self.moduleDescription.setText(props.get('description',
+                                                 'no description provided'))
+
+        self.groupInfo.setText(props.get('group', '-'))
+        feats = ','.join(props.get('features', [])) or '-'
+        self.featuresInfo.setText(feats)
+        self.implementationInfo.setText(props.pop('implementation', 'MISSING'))
+        ifaces = ','.join(props.pop('interface_classes', [])) or '-'
+        self.interfaceClassesInfo.setText(ifaces)
+
+        # any additional properties are added after the standard ones
+        row = 2
+        count = 0
+        for prop, value in props.items():
+            l = QHBoxLayout()
+            l.setContentsMargins(0,0,0,0)
+            name = QLabel('<b>%s:</b>' % prop.capitalize())
+            val = QLabel(str(value))
+            val.setWordWrap(True)
+            l.addWidget(name)
+            l.addWidget(val)
+            additional = QWidget()
+            additional.setLayout(l)
+            self.infoGrid.layout().addWidget(
+                additional, row + count // 2, count % 2)
+            count += 1
+
+    @pyqtSlot()
+    def on_showDetailsBtn_pressed(self):
+        self.showDetails(not self.detailed)
 
     def _updateValue(self, mod, param, val):
         if mod != self._name:
@@ -140,6 +232,13 @@ class ModuleWidget(QWidget):
                 strvalue = ('%g' if isinstance(val.value, float)
                             else '%s') % (val.value,)
             self._paramDisplays[param].setText(strvalue)
+
+    def _addParam(self, param, row):
+        paramProps = self._node.getProperties(self._name, param)
+        if paramProps['readonly']:
+            self._addRParam(param, row)
+        else:
+            self._addRWParam(param, row)
 
     def _addRParam(self, param, row):
         props = self._node.getProperties(self._name, param)
@@ -248,14 +347,32 @@ class ModuleWidget(QWidget):
         for w in self._paramWidgets[param]:
             w.setHidden(hidden)
 
-    def _setGroupHidden(self, group):
-        pass
+    def _toggleGroupCollapse(self, group):
+        collapsed = not self._groupStatus.get(group, True)
+        self._groupStatus[group] = collapsed
+        for param in self._groups[group]:
+            if param == group: # dont hide the top level
+                continue
+            self._setParamHidden(param, collapsed)
 
-    def rebuildAdvanced(self, advanced):
-        for param in self._paramWidgets:
+    def _setGroupHidden(self, group, show):
+        for param in self._groups[group]:
+            if show and param == group: # dont hide the top level
+                self._setParamHidden(param, False)
+            elif show and self._groupStatus.get(group, False):
+                self._setParamHidden(param, False)
+            else:
+                self._setParamHidden(param, True)
+
+    def showDetails(self, show):
+        self.detailed = show
+        self.infoGrid.setHidden(not show)
+        for param in self.independentParams:
             if param in ['value', 'status', 'target']:
                 continue
-            self._setParamHidden(param, not advanced)
+            self._setParamHidden(param, not show)
+        for group in self._groups:
+            self._setGroupHidden(group, show)
 
     def _button_pressed(self, param):
         target = self._paramInputs[param].text()
