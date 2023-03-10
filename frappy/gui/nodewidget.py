@@ -147,7 +147,9 @@ class NodeWidget(QWidget):
         self.descriptionEdit.setPlainText(
             self._node.properties.get('description','no description available'))
         self.hostLabel.setText(self._node.conn.uri)
-        self.protocolLabel.setText(self._node.conn.secop_version)
+        self.protocolLabel.setText(
+            # insert some invisible spaces to get better wrapping
+            self._node.conn.secop_version.replace(',', ',\N{ZERO WIDTH SPACE}'))
 
     def _set_node_state(self, nodename, online, state):
         p = self.palette()
