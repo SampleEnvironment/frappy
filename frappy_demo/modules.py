@@ -35,7 +35,8 @@ from frappy.properties import Property
 
 
 class Parameter(SECoP_Parameter):
-    test = Property('A property for testing purposes', StringType(), default='', mandatory=False, extname='test')
+    test = Property('A property for testing purposes', StringType(), default='',
+                    mandatory=False, extname='test')
 
 
 PERSIST = 101
@@ -62,7 +63,8 @@ class Switch(Drivable):
                                 )
 
     description = Property('The description of the Module', StringType(),
-                           default='no description', mandatory=False, extname='description')
+                           default='no description', mandatory=False,
+                           extname='description')
 
     def read_value(self):
         # could ask HW
@@ -70,22 +72,14 @@ class Switch(Drivable):
         self._update()
         return self.value
 
-    def read_target(self):
-        # could ask HW
-        return self.target
-
     def write_target(self, value):
         # could tell HW
-        setattr(self, 'status', (self.Status.BUSY, 'switching %s' % value.name.upper()))
+        self.status = (self.Status.BUSY, 'switching %s' % value.name.upper())
         # note: setting self.target to the new value is done after this....
-        # note: we may also return the read-back value from the hw here
 
     def read_status(self):
-        self.log.info("read status")
-        info = self._update()
-        if self.target == self.value:
-            return self.Status.IDLE, ''
-        return self.Status.BUSY, info
+        self._update()
+        return self.status
 
     def _update(self):
         started = self.parameters['target'].timestamp
@@ -95,14 +89,15 @@ class Switch(Drivable):
             if time.time() > started + self.switch_on_time:
                 info = 'is switched ON'
                 self.value = self.target
+                self.status = self.Status.IDLE, info
         elif self.target < self.value:
             info = 'waiting for OFF'
             if time.time() > started + self.switch_off_time:
                 info = 'is switched OFF'
                 self.value = self.target
+                self.status = self.Status.IDLE, info
         if info:
             self.log.info(info)
-        return info
 
 
 class MagneticField(Drivable):
