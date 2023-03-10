@@ -1,3 +1,26 @@
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+# Copyright (c) 2015-2023 by the authors, see LICENSE
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Alexander Zaft <a.zaft@fz-juelich.de>
+#
+# *****************************************************************************
+
 import json
 from collections import OrderedDict
 
@@ -45,7 +68,8 @@ class Console(QWidget):
             einfo = e.args[0] if len(e.args) == 1 else json.dumps(e.args)
             self._addLogEntry('%s: %s' % (e.name, einfo), error=True)
         except Exception as e:
-            self._addLogEntry('error when sending %r: %r' % (msg, e), error=True)
+            self._addLogEntry('error when sending %r: %r' % (msg, e),
+                              error=True)
 
         self.msgLineEdit.selectAll()
 
@@ -64,11 +88,11 @@ class Console(QWidget):
     def _addLogEntry(self, msg, raw=False, error=False):
         if not raw:
             if error:
-                msg = '<div style="color:#FF0000"><b><pre>%s</pre></b></div>' % toHtmlEscaped(
-                    str(msg)).replace('\n', '<br />')
+                msg = ('<div style="color:#FF0000"><b><pre>%s</pre></b></div>'
+                       % toHtmlEscaped(str(msg)).replace('\n', '<br />'))
             else:
-                msg = '<pre>%s</pre>' % toHtmlEscaped(
-                    str(msg)).replace('\n', '<br />')
+                msg = ('<pre>%s</pre>'
+                       % toHtmlEscaped(str(msg)).replace('\n', '<br />'))
 
         content = ''
         if self.logTextBrowser.toPlainText():
@@ -84,6 +108,7 @@ class Console(QWidget):
         # due to monospace)
         result = self.logTextBrowser.width() / fontMetrics.width('m')
         return result
+
 
 class NodeWidget(QWidget):
     noPlots = pyqtSignal(bool)
@@ -104,12 +129,13 @@ class NodeWidget(QWidget):
         self.top_splitter.setStretchFactor(1, 10)
         self.top_splitter.setSizes([180, 500])
 
-        self.middle_splitter.setCollapsible(self.middle_splitter.indexOf(self.view), False)
+        self.middle_splitter.setCollapsible(
+            self.middle_splitter.indexOf(self.view), False)
         self.middle_splitter.setStretchFactor(0, 20)
         self.middle_splitter.setStretchFactor(1, 1)
 
-        self.infobox_splitter.setStretchFactor(0,3)
-        self.infobox_splitter.setStretchFactor(1,2)
+        self.infobox_splitter.setStretchFactor(0, 3)
+        self.infobox_splitter.setStretchFactor(1, 2)
 
         self.consoleWidget.setTitle('Console')
         cmd = Console(node, self.consoleWidget)
@@ -133,7 +159,6 @@ class NodeWidget(QWidget):
 
         self._initNodeInfo()
 
-
     def _initNodeInfo(self):
         self.tree = ModuleOverview(self._node)
         infolayout = QVBoxLayout()
@@ -145,7 +170,7 @@ class NodeWidget(QWidget):
         self.tree.customContextMenuRequested.connect(self._treeContextMenu)
 
         self.descriptionEdit.setPlainText(
-            self._node.properties.get('description','no description available'))
+            self._node.properties.get('description', 'no description available'))
         self.hostLabel.setText(self._node.conn.uri)
         self.protocolLabel.setText(
             # insert some invisible spaces to get better wrapping
@@ -154,14 +179,13 @@ class NodeWidget(QWidget):
     def _set_node_state(self, nodename, online, state):
         p = self.palette()
         if online:
-            p.setColor(self.backgroundRole(),Colors.palette.window().color())
+            p.setColor(self.backgroundRole(), Colors.palette.window().color())
             self.tree.setToReconnected()
         else:
             p.setColor(self.backgroundRole(), Colors.colors['orange'])
             # TODO: reset this for non-status modules!
             self.tree.setToDisconnected()
         self.setPalette(p)
-
 
     def _rebuildAdvanced(self, advanced):
         self.detailed = advanced
@@ -174,7 +198,7 @@ class NodeWidget(QWidget):
 
     def changeViewContent(self, module, param):
         if module == '' and param == '':
-            return # for now, don't do anything when resetting selection
+            return  # for now, don't do anything when resetting selection
         if param == '':
             self.view.ensureWidgetVisible(self._modules[module])
         else:
@@ -195,8 +219,8 @@ class NodeWidget(QWidget):
         if not self._activePlots:
             menu_plot_ext.setEnabled(False)
         else:
-            for (m,p),plot in self._activePlots.items():
-                opt_ext = menu_plot_ext.addAction("%s:%s" % (m,p))
+            for (m, p), plot in self._activePlots.items():
+                opt_ext = menu_plot_ext.addAction("%s:%s" % (m, p))
                 opt_ext.triggered.connect(
                         lambda plot=plot: self._requestPlot(item, plot))
 
@@ -204,7 +228,7 @@ class NodeWidget(QWidget):
         opt_clear = menu.addAction('Clear Selection')
         opt_plot.triggered.connect(lambda: self._requestPlot(item))
         opt_clear.triggered.connect(self.tree.clearTreeSelection)
-        #menu.exec(self.mapToGlobal(pos))
+        # menu.exec(self.mapToGlobal(pos))
         menu.exec(QCursor.pos())
 
     def _requestPlot(self, item, plot=None):
@@ -213,9 +237,9 @@ class NodeWidget(QWidget):
         self.plotParam(module, param, plot)
 
     def _plotPopUp(self, module, param):
-        plots = {'%s -> %s' % (m,p): (m,p) for (m,p) in self._activePlots}
+        plots = {'%s -> %s' % mp: mp for mp in self._activePlots}
         dialog = QInputDialog()
-        #dialog.setInputMode()
+        # dialog.setInputMode()
         dialog.setOption(
             QInputDialog.InputDialogOption.UseListViewForComboBoxItems)
         dialog.setComboBoxItems(plots.keys())
@@ -227,7 +251,6 @@ class NodeWidget(QWidget):
             item = dialog.textValue()
             self.plotParam(module, param, self._activePlots[plots[item]])
 
-
     def plotParam(self, module, param, plot=None):
         # - liveness?
         # - better plot window management?
@@ -237,7 +260,8 @@ class NodeWidget(QWidget):
             return
         if plot:
             plot.addCurve(self._node, module, param)
-            plot.setCurveColor(module, param, Colors.colors[len(plot.curves) % 6])
+            plot.setCurveColor(module, param,
+                               Colors.colors[len(plot.curves) % 6])
         else:
             plot = getPlotWidget(self)
             plot.addCurve(self._node, module, param)
@@ -254,5 +278,5 @@ class NodeWidget(QWidget):
             plot.update(module, param, cache[param])
 
     def _removePlot(self, module, param):
-        self._activePlots.pop((module,param))
+        self._activePlots.pop((module, param))
         self.noPlots.emit(len(self._activePlots) == 0)
