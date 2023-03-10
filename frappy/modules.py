@@ -164,8 +164,9 @@ class HasAccessibles(HasProperties):
                         new_value = wfunc(self, new_value)
                         self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
                         if new_value is Done:
-                            # setattr(self, pname, getattr(self, pname))
                             return getattr(self, pname)
+                        if new_value is None:
+                            new_value = value
                         setattr(self, pname, new_value)  # important! trigger the setter
                         return new_value
 

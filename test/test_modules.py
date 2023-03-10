@@ -727,3 +727,15 @@ def test_super_call():
 
     assert type(m).__name__ == '_Mod'
     assert type(m).__mro__[1:5] == (Mod, Base, Readable, Module)
+
+
+def test_write_method_returns_none():
+    class Mod(Module):
+        a = Parameter('', FloatRange(), readonly=False)
+
+        def write_a(self, value):
+            return None
+
+    mod = Mod('mod', LoggerStub(), {'description': ''}, ServerStub({}))
+    mod.write_a(1.5)
+    assert mod.a == 1.5
