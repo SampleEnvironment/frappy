@@ -136,6 +136,9 @@
        <enum>Qt::Vertical</enum>
       </property>
       <widget class="QScrollArea" name="view">
+       <property name="verticalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOn</enum>
+       </property>
        <property name="widgetResizable">
         <bool>true</bool>
        </property>
@@ -144,7 +147,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>92</width>
+          <width>62</width>
           <height>176</height>
          </rect>
         </property>
