@@ -63,6 +63,7 @@ class Colors:
         if background > foreground: # light
             cls.colors = {
                           'orange': QColor('#FA6800'),
+                          'yellow': QColor('#FCFFa4'),
                           'plot-fg': QColor('black'),
                           'plot-bg': QColor('white'),
                           0: QColor('black'),
@@ -75,6 +76,7 @@ class Colors:
         else:
             cls.colors = {
                           'orange': QColor('#FA6800'),
+                          'yellow': QColor('#FEFE22'),
                           'plot-fg': QColor('white'),
                           'plot-bg': QColor('black'),
                           0: QColor('white'),

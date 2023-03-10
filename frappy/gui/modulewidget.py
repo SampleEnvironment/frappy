@@ -1,5 +1,6 @@
-from frappy.gui.qt import QDialog, QHBoxLayout, QIcon, QLabel, QLineEdit, \
-    QMessageBox, QPushButton, Qt, QToolButton, QWidget, pyqtSignal, pyqtSlot
+from frappy.gui.qt import QColor, QDialog, QHBoxLayout, QIcon, QLabel, \
+    QLineEdit, QMessageBox, QPropertyAnimation, QPushButton, Qt, QToolButton, \
+    QWidget, pyqtProperty, pyqtSignal, pyqtSlot
 
 from frappy.gui.util import Colors, loadUi
 from frappy.gui.valuewidgets import get_widget
@@ -80,11 +81,50 @@ class CommandButton(QPushButton):
         #self.setEnabled(True)
 
 
+class AnimatedLabel(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAutoFillBackground(True)
+        self.backgroundColor = self.palette().color(self.backgroundRole())
+        self.animation = QPropertyAnimation(self, b"bgColor", self)
+        self.animation.setDuration(350)
+        self.animation.setStartValue(Colors.colors['yellow'])
+        self.animation.setEndValue(self.backgroundColor)
+
+    @pyqtProperty(QColor)
+    def bgColor(self):
+        return self.palette().color(self.backgroundRole())
+
+    @bgColor.setter
+    def bgColor(self, color):
+        p = self.palette()
+        p.setColor(self.backgroundRole(), color)
+        self.setPalette(p)
+
+    def triggerAnimation(self):
+        self.animation.start()
+
+
+class AnimatedLabelHandthrough(QWidget):
+    """This class is a crutch for the failings of the current grouping
+    implementation. TODO: It has to be removed in the grouping rework """
+    def __init__(self, label, btn, parent=None):
+        super().__init__(parent)
+        self.label = label
+        box = QHBoxLayout()
+        box.addWidget(label)
+        box.addWidget(btn)
+        self.setLayout(box)
+
+    def triggerAnimation(self):
+        self.label.triggerAnimation()
+
+
 class ModuleWidget(QWidget):
     plot = pyqtSignal(str)
     plotAdd = pyqtSignal(str)
     def __init__(self, node, name, parent=None):
-        super().__init__()
+        super().__init__(parent)
         loadUi(self, 'modulewidget.ui')
         self._node = node
         self._name = name
@@ -129,17 +169,13 @@ class ModuleWidget(QWidget):
                 if key in self._groups[key]:
                     # Param with same name as group
                     self._addParam(key, row)
-                    name = QLabel(key)
+                    name = AnimatedLabel(key)
                     button = QToolButton()
                     button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
                     button.setText('+')
                     button.pressed.connect(
                         lambda group=key: self._toggleGroupCollapse(group))
-                    box = QHBoxLayout()
-                    box.addWidget(name)
-                    box.addWidget(button)
-                    groupLabel = QWidget()
-                    groupLabel.setLayout(box)
+                    groupLabel = AnimatedLabelHandthrough(name, button)
 
                     l = self.moduleDisplay.layout()
                     label = l.itemAtPosition(row, 0).widget()
@@ -147,10 +183,10 @@ class ModuleWidget(QWidget):
                     row += 1
                     old = self._paramWidgets[key].pop(0)
                     old.setParent(None)
-                    self._paramWidgets[key].append(groupLabel)
+                    self._paramWidgets[key].insert(0, groupLabel)
                     self._setParamHidden(key, True)
                 else:
-                    name = QLabel(key)
+                    name = AnimatedLabel(key)
                     button = QToolButton()
                     button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
                     button.setText('+')
@@ -243,7 +279,7 @@ class ModuleWidget(QWidget):
     def _addRParam(self, param, row):
         props = self._node.getProperties(self._name, param)
 
-        nameLabel = QLabel(param)
+        nameLabel = AnimatedLabel(param)
         unitLabel = QLabel(props.get('unit', ''))
         display = QLineEdit()
 
@@ -262,7 +298,7 @@ class ModuleWidget(QWidget):
     def _addRWParam(self, param, row):
         props = self._node.getProperties(self._name, param)
 
-        nameLabel = QLabel(param)
+        nameLabel = AnimatedLabel(param)
         unitLabel = QLabel(props.get('unit', ''))
         unitLabel2 = QLabel(props.get('unit', ''))
         display = QLineEdit()

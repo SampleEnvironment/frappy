@@ -23,7 +23,7 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,10,0,0">
      <item>
-      <widget class="QLabel" name="moduleName">
+      <widget class="AnimatedLabel" name="moduleName">
        <property name="font">
         <font>
          <pointsize>18</pointsize>
@@ -218,6 +218,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>AnimatedLabel</class>
+   <extends>QLabel</extends>
+   <header>frappy.gui.modulewidget.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="../../../resources/frappy-gui.qrc"/>
  </resources>

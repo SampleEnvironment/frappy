@@ -33,7 +33,8 @@ from xml.sax.saxutils import escape as toHtmlEscaped
 try:
     from PyQt6 import uic
     from PyQt6.QtCore import QByteArray, QEvent, QMimeData, QObject, QPoint, \
-        QPointF, QRectF, QSettings, QSize, Qt, pyqtSignal, pyqtSlot
+        QPointF, QPropertyAnimation, QRectF, QSettings, QSize, Qt, \
+        pyqtProperty, pyqtSignal, pyqtSlot
     from PyQt6.QtGui import QAction, QBrush, QColor, QCursor, QDrag, QFont, \
         QFontMetrics, QIcon, QKeySequence, QMouseEvent, QPainter, QPalette, \
         QPen, QPixmap, QPolygonF, QShortcut, QStandardItem, \
@@ -52,7 +53,8 @@ try:
 except ImportError as e:
     from PyQt5 import uic
     from PyQt5.QtCore import QByteArray, QEvent, QMimeData, QObject, QPoint, \
-        QPointF, QRectF, QSettings, QSize, Qt, pyqtSignal, pyqtSlot
+        QPointF, QPropertyAnimation, QRectF, QSettings, QSize, Qt, \
+        pyqtProperty, pyqtSignal, pyqtSlot
     from PyQt5.QtGui import QBrush, QColor, QCursor, QDrag, QFont, \
         QFontMetrics, QIcon, QKeySequence, QMouseEvent, QPainter, QPalette, \
         QPen, QPixmap, QPolygonF, QStandardItem, QStandardItemModel, \

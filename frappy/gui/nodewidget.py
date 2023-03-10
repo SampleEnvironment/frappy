@@ -25,8 +25,8 @@ import json
 from collections import OrderedDict
 
 from frappy.gui.qt import QCursor, QFont, QFontMetrics, QIcon, QInputDialog, \
-    QMenu, QTextCursor, QVBoxLayout, QWidget, pyqtSignal, pyqtSlot, \
-    toHtmlEscaped
+    QMenu, QSettings, QTextCursor, QVBoxLayout, QWidget, pyqtSignal, \
+    pyqtSlot, toHtmlEscaped
 
 from frappy.errors import SECoPError
 from frappy.gui.moduleoverview import ModuleOverview
@@ -200,10 +200,13 @@ class NodeWidget(QWidget):
         if module == '' and param == '':
             return  # for now, don't do anything when resetting selection
         if param == '':
-            self.view.ensureWidgetVisible(self._modules[module])
+            widget = self._modules[module].moduleName
         else:
-            pw = self._modules[module]._paramWidgets[param][0]
-            self.view.ensureWidgetVisible(pw)
+            widget = self._modules[module]._paramWidgets[param][0]
+        self.view.ensureWidgetVisible(widget)
+        settings = QSettings()
+        if settings.value('highlightanimation', True, bool):
+            widget.triggerAnimation()
 
     def _treeContextMenu(self, pos):
         index = self.tree.indexAt(pos)

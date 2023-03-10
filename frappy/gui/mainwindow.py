@@ -80,6 +80,11 @@ class MainWindow(QMainWindow):
         self.toolBar.hide()
         self.buildRecentNodeMenu()
         self.recentNodesChanged.connect(self.buildRecentNodeMenu)
+        settings = QSettings()
+        self.actionHighlightAnimation.blockSignals(True)
+        self.actionHighlightAnimation.setChecked(
+            settings.value('highlightanimation', True, bool))
+        self.actionHighlightAnimation.blockSignals(False)
 
         # what is which?
         self.tab = TearOffTabWidget(self, self, self, self)
@@ -145,6 +150,10 @@ class MainWindow(QMainWindow):
 
     def on_actionShow_Logs_toggled(self, active):
         self.logwin.setHidden(not active)
+
+    def on_actionHighlightAnimation_toggled(self, toggled):
+        settings = QSettings()
+        settings.setValue('highlightanimation', toggled)
 
     # def on_validateCheckBox_toggled(self, state):
     #     print('validateCheckBox_toggled', state)
