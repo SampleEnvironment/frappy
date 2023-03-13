@@ -25,7 +25,7 @@
 
 from frappy.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, StringType, StructOf, TupleOf
-from frappy.core import Command, Done, Drivable, Feature, \
+from frappy.core import Command, Drivable, Feature, \
     Parameter, Property, PersistentParam, Readable
 from frappy.errors import RangeError, ConfigError
 from frappy.lib import clamp
@@ -50,7 +50,7 @@ class HasOffset(Feature):
         if isinstance(self, Drivable):
             self.read_target()
         self.saveParameters()
-        return Done
+        return value
 
 
 class HasLimits(Feature):
@@ -100,7 +100,7 @@ class HasLimits(Feature):
             raise RangeError('limits not within abs limits [%g, %g]' % (min_, max_))
         self.limits = value
         self.saveParameters()
-        return Done
+        return self.limits
 
     def check_limits(self, value):
         """check if value is valid"""

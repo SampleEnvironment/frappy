@@ -26,7 +26,7 @@ handles status depending on statemachine state
 """
 
 
-from frappy.core import BUSY, IDLE, ERROR, Parameter, Command, Done
+from frappy.core import BUSY, IDLE, ERROR, Parameter, Command
 from frappy.lib.statemachine import StateMachine, Finish, Start, Stop, \
     Retry  # pylint: disable=unused-import
 
@@ -53,7 +53,7 @@ def status_code(code, text=None):
 
 class HasStates:
     """mixin for modules needing a statemachine"""
-    status = Parameter()  # make sure this is a parameter
+    status = Parameter(update_unchanged='never')
     all_status_changes = True  # when True, send also updates for status changes within a cycle
     _state_machine = None
     _status = IDLE, ''
@@ -132,10 +132,7 @@ class HasStates:
         return status
 
     def read_status(self):
-        sm = self._state_machine
-        if sm.status == self.status:
-            return Done
-        return sm.status
+        return self._state_machine.status
 
     def cycle_machine(self):
         sm = self._state_machine

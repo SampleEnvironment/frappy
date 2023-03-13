@@ -36,7 +36,6 @@ class Node(dict):
             description,
             interface=None,
             cls='frappy.protocol.dispatcher.Dispatcher',
-            omit_unchanged_within=1.1,
             **kwds
     ):
         super().__init__(
@@ -44,7 +43,6 @@ class Node(dict):
             description=description,
             interface=interface,
             cls=cls,
-            omit_unchanged_within=omit_unchanged_within,
             **kwds
         )
 

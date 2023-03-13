@@ -40,7 +40,7 @@ from frappy.datatypes import BoolType, EnumType, \
 from frappy.errors import HardwareError
 from frappy.lib import clamp
 from frappy.lib.enum import Enum
-from frappy.modules import Communicator, Done, \
+from frappy.modules import Communicator, \
     Drivable, Parameter, Property, Readable
 from frappy.io import HasIO
 from frappy.rwhandler import CommonReadHandler, CommonWriteHandler
@@ -478,16 +478,14 @@ class Temp(PpmsDrivable):
     def write_approachmode(self, value):
         if self.isDriving():
             self._write_params(self.setpoint, self.ramp, value)
-            return Done
-        self.approachmode = value
-        return Done  # do not execute TEMP command, as this would trigger an unnecessary T change
+            return self.approachmode
+        return value  # do not execute TEMP command, as this would trigger an unnecessary T change
 
     def write_ramp(self, value):
         if self.isDriving():
             self._write_params(self.setpoint, value, self.approachmode)
-            return Done
-        self.ramp = value
-        return Done  # do not execute TEMP command, as this would trigger an unnecessary T change
+            return self.ramp
+        return value  # do not execute TEMP command, as this would trigger an unnecessary T change
 
     def calc_expected(self, target, ramp):
         self._expected_target_time = time.time() + abs(target - self.value) * 60.0 / max(0.1, ramp)
@@ -606,7 +604,7 @@ class Field(PpmsDrivable):
         self._last_change = time.time()
         self.status = (self.Status.BUSY, 'changed target')
         self._write_params(target, self.ramp, self.approachmode, self.persistentmode)
-        return Done
+        return self.target
 
     def write_persistentmode(self, mode):
         if abs(self.target - self.value) <= 2e-5 and mode == self.persistentmode:
@@ -617,20 +615,18 @@ class Field(PpmsDrivable):
         self._stopped = False
         self.status = (self.Status.BUSY, 'changed persistent mode')
         self._write_params(self.target, self.ramp, self.approachmode, mode)
-        return Done
+        return self.persistentmode
 
     def write_ramp(self, value):
-        self.ramp = value
         if self.isDriving():
             self._write_params(self.target, value, self.approachmode, self.persistentmode)
-            return Done
-        return None  # do not execute FIELD command, as this would trigger a ramp up of leads current
+            return self.ramp
+        return value  # do not execute FIELD command, as this would trigger a ramp up of leads current
 
     def write_approachmode(self, value):
         if self.isDriving():
             self._write_params(self.target, self.ramp, value, self.persistentmode)
-            return Done
-        return None  # do not execute FIELD command, as this would trigger a ramp up of leads current
+        # do not execute FIELD command, as this would trigger a ramp up of leads current
 
     def stop(self):
         if not self.isDriving():
@@ -728,14 +724,13 @@ class Position(PpmsDrivable):
         self._status_before_change = self.status
         self.status = (self.Status.BUSY, 'changed target')
         self._write_params(target, self.speed)
-        return Done
+        return self.target
 
     def write_speed(self, value):
         if self.isDriving():
             self._write_params(self.target, value)
-            return Done
-        self.speed = value
-        return None  # do not execute MOVE command, as this would trigger an unnecessary move
+            return self.speed
+        return value  # do not execute MOVE command, as this would trigger an unnecessary move
 
     def stop(self):
         if not self.isDriving():

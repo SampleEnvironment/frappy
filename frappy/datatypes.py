@@ -1212,7 +1212,7 @@ class OrType(DataType):
         """accepts any of the given types, takes the first valid"""
         for t in self.types:
             try:
-                return t(value)
+                return t.validate(value)  # use always strict validation
             except Exception:
                 pass
         raise WrongTypeError("Invalid Value, must conform to one of %s" % (', '.join((str(t) for t in self.types))))

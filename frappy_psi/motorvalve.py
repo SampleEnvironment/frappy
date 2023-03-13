@@ -44,7 +44,7 @@ lowspeed = 50  # speed for final closing / reference run
 """
 
 from frappy.core import Drivable, Parameter, EnumType, Attached, FloatRange, \
-    Command, IDLE, BUSY, WARN, ERROR, Done, PersistentParam, PersistentMixin
+    Command, IDLE, BUSY, WARN, ERROR, PersistentParam, PersistentMixin
 from frappy.errors import HardwareError
 from frappy_psi.trinamic import Motor
 from frappy.lib.statemachine import StateMachine, Retry, Stop
@@ -53,7 +53,7 @@ from frappy.lib.statemachine import StateMachine, Retry, Stop
 class MotorValve(PersistentMixin, Drivable):
     motor = Attached(Motor)
     value = Parameter('current state', EnumType(
-        closed=0, opened=1, undefined=-1), default=-1)
+        closed=0, opened=1, undefined=-1), default=-1, update_unchanged='never')
     target = Parameter('target state', EnumType(close=0, open=1))
     turns = Parameter('number of turns to open', FloatRange(), readonly=False, group='settings')
     speed = Parameter('speed for far moves', FloatRange(), readonly=False, group='settings')
@@ -75,7 +75,7 @@ class MotorValve(PersistentMixin, Drivable):
             raise HardwareError('%s: need refrun' % self.status[1])
         self.target = target
         self._state.start(self.goto_target, count=3)
-        return Done
+        return self.target
 
     def goto_target(self, state):
         self.value = 'undefined'
@@ -90,7 +90,7 @@ class MotorValve(PersistentMixin, Drivable):
         if self.status[0] == ERROR:
             return 'undefined'
         if self.motor.isBusy():
-            return Done
+            return self.value
         motpos = self.motor.read_value()
         if self.motor.read_home():
             if motpos > 360:

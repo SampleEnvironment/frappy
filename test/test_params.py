@@ -109,3 +109,21 @@ def test_Export():
     class Mod(HasAccessibles):
         param = Parameter('description1', datatype=BoolType, default=False)
     assert Mod.param.export == '_param'
+
+
+@pytest.mark.parametrize('arg, value', [
+    ('always', 0),
+    (0, 0),
+    ('never', 999999999),
+    (999999999, 999999999),
+    (1, 1),
+])
+def test_update_unchanged_ok(arg, value):
+    par = Parameter('', datatype=FloatRange(), default=0, update_unchanged=arg)
+    assert par.update_unchanged == value
+
+
+@pytest.mark.parametrize('arg', ['alws', '', -2, -0.1, None])
+def test_update_unchanged_fail(arg):
+    with pytest.raises(ProgrammingError):
+        Parameter('', datatype=FloatRange(), default=0, update_unchanged=arg)

@@ -20,7 +20,7 @@
 # *****************************************************************************
 """Andeen Hagerling capacitance bridge"""
 
-from frappy.core import Done, FloatRange, HasIO, Parameter, Readable, StringIO, nopoll
+from frappy.core import FloatRange, HasIO, Parameter, Readable, StringIO, nopoll
 
 
 class Ah2700IO(StringIO):
@@ -43,7 +43,7 @@ class Capacitance(HasIO, Readable):
             reply = self.communicate('SI')
         if not reply.startswith('F='):  # this is probably an error message like "LOSS TOO HIGH"
             self.status = [self.Status.ERROR, reply]
-            return
+            return self.value
         self.status = [self.Status.IDLE, '']
         # examples of replies:
         # 'F= 1000.0  HZ C= 0.000001    PF L> 0.0         DS V= 15.0     V'
@@ -55,7 +55,6 @@ class Capacitance(HasIO, Readable):
         _, freq, _, _, cap, _, _, loss, lossunit, _, volt = reply[:11]
         self.freq = freq
         self.voltage = volt
-        self.value = cap
         if lossunit == 'DS':
             self.loss = loss
         else:  # the unit was wrong, we want DS = tan(delta), not NS = nanoSiemens
@@ -64,30 +63,30 @@ class Capacitance(HasIO, Readable):
                 self.loss = reply[7]
             except IndexError:
                 pass  # don't worry, loss will be updated next time
+        return cap
 
     def read_value(self):
-        self.parse_reply(self.communicate('SI'))  # SI = single trigger
-        return Done
+        return self.parse_reply(self.communicate('SI'))  # SI = single trigger
 
     @nopoll
     def read_freq(self):
         self.read_value()
-        return Done
+        return self.freq
 
     @nopoll
     def read_loss(self):
         self.read_value()
-        return Done
+        return self.loss
 
     @nopoll
     def read_voltage(self):
         self.read_value()
-        return Done
+        return self.voltage
 
     def write_freq(self, value):
-        self.parse_reply(self.communicate('FR %g;SI' % value))
-        return Done
+        self.value = self.parse_reply(self.communicate('FR %g;SI' % value))
+        return self.freq
 
     def write_voltage(self, value):
-        self.parse_reply(self.communicate('V %g;SI' % value))
-        return Done
+        self.value = self.parse_reply(self.communicate('V %g;SI' % value))
+        return self.voltage

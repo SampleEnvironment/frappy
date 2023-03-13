@@ -28,7 +28,8 @@ import threading
 from collections import OrderedDict
 
 from frappy.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
-    IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion
+    IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion, \
+    NoneOr
 from frappy.errors import BadValueError, CommunicationFailedError, ConfigError, \
     ProgrammingError, SECoPError, secop_error
 from frappy.lib import formatException, mkthread, UniqueObject
@@ -131,7 +132,7 @@ class HasAccessibles(HasProperties):
                             self.log.debug("read_%s failed with %r", pname, e)
                             self.announceUpdate(pname, None, e)
                             raise
-                        if value is Done:
+                        if value is Done:  # TODO: to be removed when all code using Done is updated
                             return getattr(self, pname)
                         setattr(self, pname, value)  # important! trigger the setter
                         return value
@@ -163,7 +164,7 @@ class HasAccessibles(HasProperties):
                         new_value = pobj.datatype(value)
                         new_value = wfunc(self, new_value)
                         self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
-                        if new_value is Done:
+                        if new_value is Done:  # TODO: to be removed when all code using Done is updated
                             return getattr(self, pname)
                         if new_value is None:
                             new_value = value
@@ -299,6 +300,8 @@ class Module(HasAccessibles):
     features = Property('list of features', ArrayOf(StringType()), extname='features')
     pollinterval = Property('poll interval for parameters handled by doPoll', FloatRange(0.1, 120), default=5)
     slowinterval = Property('poll interval for other parameters', FloatRange(0.1, 120), default=15)
+    omit_unchanged_within = Property('default for minimum time between updates of unchanged values',
+                                     NoneOr(FloatRange(0)), export=False, default=None)
     enablePoll = True
 
     # properties, parameters and commands are auto-merged upon subclassing
@@ -314,7 +317,6 @@ class Module(HasAccessibles):
     def __init__(self, name, logger, cfgdict, srv):
         # remember the dispatcher object (for the async callbacks)
         self.DISPATCHER = srv.dispatcher
-        self.omit_unchanged_within = getattr(self.DISPATCHER, 'omit_unchanged_within', 0.1)
         self.log = logger
         self.name = name
         self.valueCallbacks = {}
@@ -442,7 +444,7 @@ class Module(HasAccessibles):
 
         # 5) ensure consistency
         for aobj in self.accessibles.values():
-            aobj.finish()
+            aobj.finish(self)
 
         # Modify units AFTER applying the cfgdict
         mainvalue = self.parameters.get('value')
@@ -501,7 +503,7 @@ class Module(HasAccessibles):
                 err = secop_error(err)
                 if str(err) == str(pobj.readerror):
                     return  # no updates for repeated errors
-            elif not changed and timestamp < (pobj.timestamp or 0) + self.omit_unchanged_within:
+            elif not changed and timestamp < (pobj.timestamp or 0) + pobj.omit_unchanged_within:
                 # no change within short time -> omit
                 return
             pobj.timestamp = timestamp or time.time()

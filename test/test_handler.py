@@ -23,7 +23,8 @@
 
 from frappy.rwhandler import ReadHandler, WriteHandler, \
     CommonReadHandler, CommonWriteHandler, nopoll
-from frappy.core import Module, Parameter, FloatRange, Done
+from frappy.core import Module, Parameter, FloatRange
+from frappy.lib import generalConfig
 
 
 class DispatcherStub:
@@ -31,9 +32,9 @@ class DispatcherStub:
     # initial value from the timestamp. However, in the test below
     # the second update happens after the updates dict is cleared
     # -> we have to inhibit the 'omit unchanged update' feature
-    omit_unchanged_within = 0
 
     def __init__(self, updates):
+        generalConfig.testinit(omit_unchanged_within=0)
         self.updates = updates
 
     def announce_update(self, modulename, pname, pobj):
@@ -104,7 +105,7 @@ def test_handler():
     assert m.b == 7
     assert data.pop() == 'b'
 
-    data.append(Done)
+    data.append(m.b)
     assert m.read_b() == 7
     assert data.pop() == 'b'
 

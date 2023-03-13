@@ -31,6 +31,7 @@ import pytest
 
 from frappy.core import Module, Parameter, FloatRange, Readable, ReadHandler, nopoll
 from frappy.lib.multievent import MultiEvent
+from frappy.lib import generalConfig
 
 
 class Time:
@@ -66,13 +67,14 @@ class DispatcherStub:
 
 class ServerStub:
     def __init__(self):
+        generalConfig.testinit()
         self.dispatcher = DispatcherStub()
 
 
 class Base(Module):
     def __init__(self):
         srv = ServerStub()
-        super().__init__('mod', logging.getLogger('dummy'), dict(description=''), srv)
+        super().__init__('mod', logging.getLogger('dummy'), {'description': ''}, srv)
         self.dispatcher = srv.dispatcher
 
     def run(self, maxcycles):

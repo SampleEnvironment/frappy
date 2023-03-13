@@ -39,7 +39,7 @@ switcher=sw
 import time
 
 from frappy.datatypes import IntRange, BoolType, FloatRange
-from frappy.core import Attached, Property, Drivable, Parameter, Readable, Done
+from frappy.core import Attached, Property, Drivable, Parameter, Readable
 
 
 class ChannelSwitcher(Drivable):
@@ -55,6 +55,7 @@ class ChannelSwitcher(Drivable):
     """
     value = Parameter('the current channel number', IntRange(), needscfg=False)
     target = Parameter('channel to select', IntRange(), needscfg=False)
+    status = Parameter(update_unchanged='never')
     autoscan = Parameter('whether to scan automatically',
                          BoolType(), readonly=False, default=True)
     pollinterval = Parameter(default=1, export=False)
@@ -108,7 +109,7 @@ class ChannelSwitcher(Drivable):
         if self.status[0] == 'BUSY':
             chan = self._channels[self.target]
             if chan.is_switching(now, self._start_switch, self.switch_delay):
-                return Done
+                return self.status
             self.setFastPoll(False)
             self.status = 'IDLE', 'measure'
             self.value = self.target
@@ -116,7 +117,7 @@ class ChannelSwitcher(Drivable):
             chan.read_value()
             chan.read_status()
             if self.measure_delay > self._time_tol:
-                return Done
+                return self.status
         else:
             chan = self._channels[self.value]
             self.read_value()  # this might modify autoscan or deadline!
@@ -129,7 +130,7 @@ class ChannelSwitcher(Drivable):
                     chan.read_status()
                     self._last_measure = next_measure
                 if not self.autoscan or now + self._time_tol < self._start_measure + self.measure_delay:
-                    return Done
+                    return self.status
         next_channel = self.next_channel(self.value)
         if next_channel == self.value:
             return 'IDLE', 'single channel'

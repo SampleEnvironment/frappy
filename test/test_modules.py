@@ -31,6 +31,7 @@ from frappy.errors import ProgrammingError, ConfigError
 from frappy.modules import Communicator, Drivable, Readable, Module
 from frappy.params import Command, Parameter
 from frappy.rwhandler import ReadHandler, WriteHandler, nopoll
+from frappy.lib import generalConfig
 
 
 class DispatcherStub:
@@ -38,9 +39,9 @@ class DispatcherStub:
     # initial value from the timestamp. However, in the test below
     # the second update happens after the updates dict is cleared
     # -> we have to inhibit the 'omit unchanged update' feature
-    omit_unchanged_within = 0
 
     def __init__(self, updates):
+        generalConfig.testinit(omit_unchanged_within=0)
         self.updates = updates
 
     def announce_update(self, modulename, pname, pobj):
@@ -239,12 +240,12 @@ def test_ModuleMagic():
         'export', 'group', 'description', 'features',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'slowinterval', 'b2',
-        'cmd2', 'value', 'a1'}
+        'cmd2', 'value', 'a1', 'omit_unchanged_within'}
     assert set(cfg['value'].keys()) == {
         'group', 'export', 'relative_resolution',
         'visibility', 'unit', 'default', 'value', 'datatype', 'fmtstr',
         'absolute_resolution', 'max', 'min', 'readonly', 'constant',
-        'description', 'needscfg'}
+        'description', 'needscfg', 'update_unchanged'}
 
     # check on the level of classes
     # this checks Newclass1 too, as it is inherited by Newclass2
@@ -739,3 +740,46 @@ def test_write_method_returns_none():
     mod = Mod('mod', LoggerStub(), {'description': ''}, ServerStub({}))
     mod.write_a(1.5)
     assert mod.a == 1.5
+
+
+@pytest.mark.parametrize('arg, value', [
+    ('always', 0),
+    (0, 0),
+    ('never', 999999999),
+    (999999999, 999999999),
+    ('default', 0.25),
+    (1, 1),
+])
+def test_update_unchanged_ok(arg, value):
+    srv = ServerStub({})
+    generalConfig.testinit(omit_unchanged_within=0.25)  # override value from DispatcherStub
+
+    class Mod1(Module):
+        a = Parameter('', FloatRange(), default=0, update_unchanged=arg)
+
+    mod1 = Mod1('mod1', LoggerStub(), {'description': ''}, srv)
+    par = mod1.parameters['a']
+    assert par.omit_unchanged_within == value
+    assert Mod1.a.omit_unchanged_within == 0
+
+    class Mod2(Module):
+        a = Parameter('', FloatRange(), default=0)
+
+    mod2 = Mod2('mod2', LoggerStub(), {'description': '', 'a': {'update_unchanged': arg}}, srv)
+    par = mod2.parameters['a']
+    assert par.omit_unchanged_within == value
+    assert Mod2.a.omit_unchanged_within == 0
+
+
+def test_omit_unchanged_within():
+    srv = ServerStub({})
+    generalConfig.testinit(omit_unchanged_within=0.25)  # override call from DispatcherStub
+
+    class Mod(Module):
+        a = Parameter('', FloatRange())
+
+    mod1 = Mod('mod1', LoggerStub(), {'description': ''}, srv)
+    assert mod1.parameters['a'].omit_unchanged_within == 0.25
+
+    mod2 = Mod('mod2', LoggerStub(), {'description': '', 'omit_unchanged_within': 0.125}, srv)
+    assert mod2.parameters['a'].omit_unchanged_within == 0.125
