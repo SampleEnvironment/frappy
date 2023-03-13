@@ -226,11 +226,11 @@ class ModuleWidget(QWidget):
     def _initModuleInfo(self):
         props = dict(self._node.getModuleProperties(self._name))
         self.moduleName.setText(self._name)
-        self.moduleDescription.setText(props.get('description',
+        self.moduleDescription.setText(props.pop('description',
                                                  'no description provided'))
 
-        self.groupInfo.setText(props.get('group', '-'))
-        feats = ','.join(props.get('features', [])) or '-'
+        self.groupInfo.setText(props.pop('group', '-'))
+        feats = ','.join(props.pop('features', [])) or '-'
         self.featuresInfo.setText(feats)
         self.implementationInfo.setText(props.pop('implementation', 'MISSING'))
         ifaces = ','.join(props.pop('interface_classes', [])) or '-'
