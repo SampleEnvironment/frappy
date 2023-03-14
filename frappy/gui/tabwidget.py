@@ -473,7 +473,7 @@ class TearOffTabWidget(QTabWidget):
         return widget
 
     def close_current(self):
-        self.removeTab(self.currentIndex())
+        self.tabCloseRequested.emit(self.currentIndex())
 
 
 class DetachedWindow(QMainWindow):

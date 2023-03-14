@@ -86,6 +86,9 @@ class AsynConn:
         if cls.scheme:
             cls.SCHEME_MAP[cls.scheme] = cls
 
+    def shutdown(self):
+        """prepare connection for disconnect, can be empty"""
+
     def disconnect(self):
         raise NotImplementedError
 
@@ -176,6 +179,10 @@ class AsynTcp(AsynConn):
         except (ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
             # indicate that retrying might make sense
             raise CommunicationFailedError(str(e)) from None
+
+    def shutdown(self):
+        if self.connection:
+            self.connection.shutdown(socket.SHUT_RDWR)
 
     def disconnect(self):
         if self.connection:
