@@ -72,9 +72,7 @@ class QSECNode(QObject):
         return self.modules[module]['parameters'][parameter]
 
     def setParameter(self, module, parameter, value):
-        # TODO: change the widgets for complex types to no longer use strings
-        datatype = self.conn.modules[module]['parameters'][parameter]['datatype']
-        self.conn.setParameter(module, parameter, datatype.from_string(value))
+        self.conn.setParameter(module, parameter, value)
 
     def getParameter(self, module, parameter):
         return self.conn.getParameter(module, parameter, True)

@@ -46,7 +46,7 @@ try:
         QScrollArea, QSizePolicy, QSpacerItem, QSpinBox, QStyle, \
         QStyleOptionTab, QStylePainter, QTabBar, QTabWidget, QTextEdit, \
         QToolButton, QTreeView, QTreeWidget, QTreeWidgetItem, QVBoxLayout, \
-        QWidget
+        QWidget,QSlider
 
     import frappy.gui.resources_qt6
 
@@ -66,6 +66,6 @@ except ImportError as e:
         QRadioButton, QScrollArea, QShortcut, QSizePolicy, QSpacerItem, \
         QSpinBox, QStyle, QStyleOptionTab, QStylePainter, QTabBar, \
         QTabWidget, QTextEdit, QToolButton, QTreeView, QTreeWidget, \
-        QTreeWidgetItem, QVBoxLayout, QWidget
+        QTreeWidgetItem, QVBoxLayout, QWidget, QSlider
 
     import frappy.gui.resources_qt5

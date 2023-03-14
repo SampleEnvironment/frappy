@@ -27,6 +27,7 @@ from frappy.gui.qt import QColor, QDialog, QHBoxLayout, QIcon, QLabel, \
 
 from frappy.gui.util import Colors, loadUi
 from frappy.gui.valuewidgets import get_widget
+from frappy.gui.inputwidgets import get_input_widget
 
 
 class CommandDialog(QDialog):
@@ -316,16 +317,16 @@ class ModuleWidget(QWidget):
     def _addRWParam(self, param, row):
         nameLabel = AnimatedLabel(param)
         display = QLineEdit()
-        inputEdit = QLineEdit()
+        props = self._node.getProperties(self._name, param)
+        inputEdit = get_input_widget(props.get('datatype'))
         submitButton = QPushButton('set')
         submitButton.setIcon(QIcon(':/icons/submit'))
 
-        inputEdit.setPlaceholderText('new value')
         p = display.palette()
         p.setColor(display.backgroundRole(), Colors.palette.window().color())
         display.setPalette(p)
         submitButton.pressed.connect(lambda: self._button_pressed(param))
-        inputEdit.returnPressed.connect(lambda: self._button_pressed(param))
+        inputEdit.submitted.connect(lambda param=param: self._button_pressed(param))
         self._paramDisplays[param] = display
         self._paramInputs[param] = inputEdit
         self._paramWidgets[param] = [nameLabel, display, inputEdit, submitButton]
@@ -442,7 +443,7 @@ class ModuleWidget(QWidget):
         self.paramDetails.emit(self._name, param)
 
     def _button_pressed(self, param):
-        target = self._paramInputs[param].text()
+        target = self._paramInputs[param].get_input()
         try:
             self._node.setParameter(self._name, param, target)
         except Exception as e:
