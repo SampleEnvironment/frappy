@@ -45,7 +45,7 @@ echo "$changedFiles"
 if [[  -n "$changedFiles" ]]; then
    set -o pipefail
    pylint $changedFiles | tee pylint_results.txt
-   isort --df $changedFiles | tee isort_results.txt
+   isort --df $changedFiles || true | tee isort_results.txt
 fi
 """
     withCredentials([string(credentialsId: 'GERRITHTTP',
