@@ -1,3 +1,4 @@
+from frappy.datatypes import StatusType
 from frappy.gui.qt import QIcon, Qt, QTreeWidget, QTreeWidgetItem, pyqtSignal
 
 
@@ -70,7 +71,7 @@ class ModuleItem(QTreeWidgetItem):
             return
         if parameter == 'status':
             if value.readerror:
-                self.setIcon(self.display[parameter], ModuleItem.statusIcon(400))  # 400=ERROR
+                self.setIcon(self.display[parameter], ModuleItem.statusIcon(StatusType.ERROR))
                 self.setText(self.display['status/text'], str(value.readerror))
             else:
                 self.setIcon(self.display[parameter], ModuleItem.statusIcon(value.value[0].value))

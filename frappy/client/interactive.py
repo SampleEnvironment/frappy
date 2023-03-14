@@ -45,7 +45,7 @@ import re
 from queue import Queue
 from frappy.client import SecopClient
 from frappy.errors import SECoPError
-from frappy.datatypes import get_datatype
+from frappy.datatypes import get_datatype, StatusType
 
 main = sys.modules['__main__']
 
@@ -130,7 +130,7 @@ class Module:
         return '%s.%s = %s' % (self._name, pname, r)
 
     def _isBusy(self):
-        return 300 <= self.status[0] < 400
+        return self.status[0] // 100 == StatusType.BUSY // 100
 
     def _status_value_update(self, m, p, status, t, e):
         if self._running:

@@ -763,16 +763,16 @@ class Readable(Module):
     """basic readable module"""
     # pylint: disable=invalid-name
     Status = Enum('Status',
-                  IDLE=100,
-                  WARN=200,
-                  UNSTABLE=270,
-                  ERROR=400,
-                  DISABLED=0,
-                  UNKNOWN=401,
+                  IDLE=StatusType.IDLE,
+                  WARN=StatusType.WARN,
+                  UNSTABLE=270,  # not SECoP standard. TODO: remove and adapt entangle
+                  ERROR=StatusType.ERROR,
+                  DISABLED=StatusType.DISABLED,
+                  UNKNOWN=401,  # not SECoP standard. TODO: remove and adapt entangle and epics
                   )  #: status codes
 
     value = Parameter('current value of the module', FloatRange())
-    status = Parameter('current status of the module', TupleOf(EnumType(Status), StringType()),
+    status = Parameter('current status of the module', StatusType(Status),
                        default=(Status.IDLE, ''))
     pollinterval = Parameter('default poll interval', FloatRange(0.1, 120),
                              default=5, readonly=False, export=True)
@@ -804,7 +804,7 @@ class Writable(Readable):
 class Drivable(Writable):
     """basic drivable module"""
 
-    Status = Enum(Readable.Status, BUSY=300)  #: status codes
+    Status = Enum(Readable.Status, BUSY=StatusType.BUSY)  #: status codes
 
     status = Parameter(datatype=StatusType(Status))  # override Readable.status
 
@@ -813,14 +813,14 @@ class Drivable(Writable):
 
         returns True when busy (also when finalizing)
         """
-        return 300 <= (status or self.status)[0] < 400
+        return StatusType.BUSY <= (status or self.status)[0] < StatusType.ERROR
 
     def isDriving(self, status=None):
         """check for driving, treating status substates correctly
 
         returns True when busy, but not finalizing
         """
-        return 300 <= (status or self.status)[0] < 390
+        return StatusType.BUSY <= (status or self.status)[0] < StatusType.FINALIZING
 
     @Command(None, result=None)
     def stop(self):

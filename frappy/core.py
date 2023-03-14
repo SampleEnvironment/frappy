@@ -27,7 +27,7 @@
 
 # pylint: disable=unused-import
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
-    FloatRange, IntRange, ScaledInteger, StringType, StructOf, TupleOf
+    FloatRange, IntRange, ScaledInteger, StringType, StructOf, TupleOf, StatusType
 from frappy.lib.enum import Enum
 from frappy.modules import Attached, Communicator, \
     Done, Drivable, Feature, Module, Readable, Writable, HasAccessibles
@@ -39,7 +39,22 @@ from frappy.persistent import PersistentMixin, PersistentParam
 from frappy.rwhandler import ReadHandler, WriteHandler, CommonReadHandler, \
     CommonWriteHandler, nopoll
 
-ERROR = Drivable.Status.ERROR
-WARN = Drivable.Status.WARN
-BUSY = Drivable.Status.BUSY
-IDLE = Drivable.Status.IDLE
+DISABLED = StatusType.DISABLED
+IDLE = StatusType.IDLE
+STANDBY = StatusType.STANDBY
+PREPARED = StatusType.PREPARED
+WARN = StatusType.WARN
+WARN_STANDBY = StatusType.WARN_STANDBY
+WARN_PREPARED = StatusType.WARN_PREPARED
+UNSTABLE = StatusType.UNSTABLE  # no SECoP standard (yet)
+BUSY = StatusType.BUSY
+DISABLING = StatusType.DISABLING
+INITIALIZING = StatusType.INITIALIZING
+PREPARING = StatusType.PREPARING
+STARTING = StatusType.STARTING
+RAMPING = StatusType.RAMPING
+STABILIZING = StatusType.STABILIZING
+FINALIZING = StatusType.FINALIZING
+ERROR = StatusType.ERROR
+ERROR_STANDBY = StatusType.ERROR_STANDBY
+ERROR_PREPARED = StatusType.ERROR_PREPARED
