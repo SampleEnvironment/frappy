@@ -33,7 +33,7 @@ from threading import Event, RLock, current_thread
 import frappy.errors
 import frappy.params
 from frappy.datatypes import get_datatype
-from frappy.lib import mkthread
+from frappy.lib import mkthread, formatExtendedStack
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
 from frappy.protocol.interface import decode_msg, encode_msg_frame
 from frappy.protocol.messages import COMMANDREQUEST, \
@@ -99,10 +99,64 @@ class CallbackObject:
         """
 
 
+class CacheItem(tuple):
+    """cache entry
+
+    includes formatting information
+    inheriting from tuple: compatible with old previous version of cache
+    """
+    def __new__(cls, value, timestamp=None, readerror=None, datatype=None):
+        if readerror:
+            assert isinstance(readerror, Exception)
+        else:
+            try:
+                value = datatype.import_value(value)
+            except (KeyError, ValueError, AttributeError):
+                readerror = ValueError('can not import %r as %r' % (value, datatype))
+                value = None
+        obj = tuple.__new__(cls, (value, timestamp, readerror))
+        try:
+            obj.format_value = datatype.format_value
+        except AttributeError:
+            obj.format_value = lambda value, unit=None: str(value)
+        return obj
+
+    @property
+    def value(self):
+        return self[0]
+
+    @property
+    def timestamp(self):
+        return self[1]
+
+    @property
+    def readerror(self):
+        return self[2]
+
+    def __str__(self):
+        """format value without unit"""
+        if self[2]:  # readerror
+            return repr(self[2])
+        return self.format_value(self[0], unit='')  # skip unit
+
+    def formatted(self):
+        """format value with using unit"""
+        return self.format_value(self[0])
+
+    def __repr__(self):
+        args = (self.value,)
+        if self.timestamp:
+            args += (self.timestamp,)
+        if self.readerror:
+            args += (self.readerror,)
+        return 'CacheItem%s' % repr(args)
+
+
 class ProxyClient:
     """common functionality for proxy clients"""
 
-    CALLBACK_NAMES = ('updateEvent', 'descriptiveDataChange', 'nodeStateChange', 'unhandledMessage')
+    CALLBACK_NAMES = ('updateEvent', 'updateItem', 'descriptiveDataChange',
+                      'nodeStateChange', 'unhandledMessage')
     online = False  # connected or reconnecting since a short time
     state = 'disconnected'  # further possible values: 'connecting', 'reconnecting', 'connected'
     log = None
@@ -133,7 +187,19 @@ class ProxyClient:
             cbdict[key].append(cbfunc)
 
             # immediately call for some callback types
-            if cbname == 'updateEvent':
+            if cbname == 'updateItem':
+                if key is None:
+                    for (mname, pname), data in self.cache.items():
+                        cbfunc(mname, pname, data)
+                else:
+                    data = self.cache.get(key, None)
+                    if data:
+                        cbfunc(*key, data)  # case single parameter
+                    else:  # case key = module
+                        for (mname, pname), data in self.cache.items():
+                            if mname == key:
+                                cbfunc(mname, pname, data)
+            elif cbname == 'updateEvent':
                 if key is None:
                     for (mname, pname), data in self.cache.items():
                         cbfunc(mname, pname, *data)
@@ -176,17 +242,13 @@ class ProxyClient:
         return bool(cblist)
 
     def updateValue(self, module, param, value, timestamp, readerror):
-        if readerror:
-            assert isinstance(readerror, Exception)
-        else:
-            try:
-                # try to import (needed for enum, scaled, blob)
-                datatype = self.modules[module]['parameters'][param]['datatype']
-                value = datatype.import_value(value)
-            except (KeyError, ValueError):
-                if self.log:
-                    self.log.warning('cannot assign %r to %s:%s', value, module, param)
-        self.cache[(module, param)] = (value, timestamp, readerror)
+        entry = CacheItem(value, timestamp, readerror,
+                        self.modules[module]['parameters'][param]['datatype'])
+        self.cache[(module, param)] = entry
+        self.callback(None, 'updateItem', module, param, entry)
+        self.callback(module, 'updateItem', module, param, entry)
+        self.callback((module, param), 'updateItem', module, param, entry)
+        # TODO: change clients to use updateItem instead of updateEvent
         self.callback(None, 'updateEvent', module, param, value, timestamp, readerror)
         self.callback(module, 'updateEvent', module, param, value, timestamp, readerror)
         self.callback((module, param), 'updateEvent', module, param, value, timestamp, readerror)

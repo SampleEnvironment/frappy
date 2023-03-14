@@ -77,12 +77,7 @@ class GenericParameterWidget(ParameterWidget):
                                self.setLineEdit.text())
 
     def updateValue(self, value):
-        fmtstr = getattr(self._datatype, 'fmtstr', '%s')
-        if value.readerror:
-            value = str(value)
-        else:
-            value = fmtstr % (value.value,)
-        self.currentLineEdit.setText(value)
+        self.currentLineEdit.setText(str(value))
 
 
 class EnumParameterWidget(GenericParameterWidget):

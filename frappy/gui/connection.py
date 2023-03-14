@@ -24,7 +24,6 @@
 from frappy.gui.qt import QObject, pyqtSignal
 
 import frappy.client
-from frappy.gui.util import Value
 
 
 class QSECNode(QObject):
@@ -48,7 +47,7 @@ class QSECNode(QObject):
         self.properties = self.conn.properties
         self.protocolVersion = conn.secop_version
         self.log.debug('SECoP Version: %s', conn.secop_version)
-        conn.register_callback(None, self.updateEvent, self.nodeStateChange,
+        conn.register_callback(None, self.updateItem, self.nodeStateChange,
                                self.unhandledMessage)
 
     # provide methods from old baseclient for making other gui code work
@@ -84,7 +83,7 @@ class QSECNode(QObject):
         return self.conn.execCommand(module, command, argument)
 
     def queryCache(self, module):
-        return {k: Value(*self.conn.cache[(module, k)])
+        return {k: self.conn.cache[(module, k)]
                 for k in self.modules[module]['parameters']}
 
     def syncCommunicate(self, action, ident='', data=None):
@@ -100,8 +99,8 @@ class QSECNode(QObject):
         # print(module, parameter, self.modules[module]['parameters'])
         return self.modules[module]['parameters'][parameter]
 
-    def updateEvent(self, module, parameter, value, timestamp, readerror):
-        self.newData.emit(module, parameter, Value(value, timestamp, readerror))
+    def updateItem(self, module, parameter, item):
+        self.newData.emit(module, parameter, item)
 
     def nodeStateChange(self, online, state):
         self.stateChange.emit(self.nodename, online, state)
