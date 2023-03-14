@@ -191,7 +191,7 @@ class NodeWidget(QWidget):
         self.detailed = advanced
         self.tree._rebuildAdvanced(advanced)
         for m in self._modules.values():
-            m.showDetails(advanced)
+            m.showDetailsBtn.setChecked(advanced)
 
     def getSecNode(self):
         return self._node

@@ -87,6 +87,9 @@
         <iconset resource="../../../resources/frappy-gui.qrc">
          <normaloff>:/icons/details</normaloff>:/icons/details</iconset>
        </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
     </layout>

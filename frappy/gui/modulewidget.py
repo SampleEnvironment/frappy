@@ -1,6 +1,6 @@
 from frappy.gui.qt import QColor, QDialog, QHBoxLayout, QIcon, QLabel, \
     QLineEdit, QMessageBox, QPropertyAnimation, QPushButton, Qt, QToolButton, \
-    QWidget, pyqtProperty, pyqtSignal, pyqtSlot
+    QWidget, pyqtProperty, pyqtSignal
 
 from frappy.gui.util import Colors, loadUi
 from frappy.gui.valuewidgets import get_widget
@@ -128,7 +128,6 @@ class ModuleWidget(QWidget):
         loadUi(self, 'modulewidget.ui')
         self._node = node
         self._name = name
-        self.detailed = False
         self._paramDisplays = {}
         self._paramInputs = {}
         self._addbtns = []
@@ -253,9 +252,8 @@ class ModuleWidget(QWidget):
                 additional, row + count // 2, count % 2)
             count += 1
 
-    @pyqtSlot()
-    def on_showDetailsBtn_pressed(self):
-        self.showDetails(not self.detailed)
+    def on_showDetailsBtn_toggled(self, checked):
+        self.showDetails(checked)
 
     def _updateValue(self, mod, param, val):
         if mod != self._name:
@@ -401,7 +399,6 @@ class ModuleWidget(QWidget):
                 self._setParamHidden(param, True)
 
     def showDetails(self, show):
-        self.detailed = show
         self.infoGrid.setHidden(not show)
         for param in self.independentParams:
             if param in ['value', 'status', 'target']:
