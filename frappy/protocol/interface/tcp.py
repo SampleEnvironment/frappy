@@ -150,6 +150,10 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
             if self.running:
                 try:
                     self.request.sendall(outdata)
+                except (BrokenPipeError, IOError) as e:
+                    self.log.debug('send_reply got an %r, connection closed?',
+                                   e)
+                    self.running = False
                 except Exception as e:
                     self.log.error('ERROR in send_reply %r', e)
                     self.running = False
