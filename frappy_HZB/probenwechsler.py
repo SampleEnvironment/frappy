@@ -12,8 +12,9 @@ from frappy.modules import Attached
 import re
 import uuid
 
+from frappy.properties import Property
 
-
+nsamples = 12
 
 
 SCHOKO_SORTEN = {
@@ -78,10 +79,12 @@ SAMPLE_POS = {
     '(4,2)':11,
     '(4,3)':12
 }
-nsamples = 12
 
-sample_datatype = StructOf(
-                        type = StringType(),
+
+
+class SchokiStructOf(StructOf):
+    def __init__(self, nsamples):
+        super().__init__( type = StringType(),
                         sample_pos =IntRange(minval= 0,maxval=nsamples),                        
                         manufacturer = StringType(),
                         sample_id = StringType(),
@@ -97,14 +100,6 @@ class Schoki:
         self.color = SCHOKO_FARBE.get(self.type,None)
         self.uuid = str(uuid.uuid4())
         self.weight = weight
-        
-                        #datatype=StructOf(
-                        #type = EnumType(members=SCHOKO_SORTEN),
-                        #sample_pos =IntRange(minval=1,maxval=storage_size.value),                        
-                        #manufacturer = StringType(),
-                        #sample_id = StringType(),
-                        #color = EnumType(members =SCHOKO_FARBE_ENUM)
-                        #)
                 
     def toStructOf(self):
 
@@ -119,27 +114,20 @@ class Schoki:
         
         
 class Magazin:
-    Mag_dict = {}
+
     
-    def __init__(self,nSamples,magname):
+    def __init__(self,nSamples):
         self.Mag = [None] * nSamples
-        Magazin.Mag_dict[magname] = self.Mag
+          
         
-               
-        
-    def insertSample(self,sample):
-                   
+    def insertSample(self,sample):                   
         if self.Mag[sample.samplePos-1]:
             raise Exception("Sample Pos already occupied")
         else:
             self.Mag[sample.samplePos-1] = sample
                 
-
-
             
-    def removeSample(self,samplePos):
-        
-            
+    def removeSample(self,samplePos):            
         if self.Mag[samplePos-1] == None:
             raise Exception("No sample at Pos "+ (samplePos-1)+"already occupied")
         else: 
@@ -170,7 +158,6 @@ class Sample(HasIO,Drivable):
     attached_robot = Attached(mandatory = True)
     attached_storage = Attached(mandatory = True)
     
-    nsamples = 12 #TODO better solution needed
 
     
     value = Parameter("Active Sample held by robot arm",
@@ -183,7 +170,7 @@ class Sample(HasIO,Drivable):
                       default = 'empty')
     
     sample_struct = Parameter("Sample Object",
-                    datatype=sample_datatype,
+                    datatype=SchokiStructOf(nsamples),
                     readonly = True,
                     group = 'sample') 
     
@@ -225,71 +212,6 @@ class Sample(HasIO,Drivable):
     def read_target(self):
         return self.target
     
-
-    def read_sample_struct(self):
-        if self._holding_sample():
-            current_sample = self._get_current_sample()
-            return current_sample.toStructOf()
-        
-        return {'type' : 'none',
-                'sample_pos': 0,
-                'manufacturer':'none',
-                'sample_id':'none',
-                'color': 'none',
-                'weight':0
-                }
-    
-
-
-    
-    def read_type(self):
-        if self._holding_sample():
-            sample = self._get_current_sample()
-            return sample.type
-        return 'none'
-    
-    def read_color(self):
-        if self._holding_sample() :
-            sample = self._get_current_sample()
-            return sample.color
-        return 'none'
-    
-    def read_sample_id(self):
-        if self._holding_sample():
-            sample = self._get_current_sample()
-            return sample.uuid
-        return 'none'
-   
-        
-    def read_manufacturer(self):
-        if self._holding_sample():
-            sample = self._get_current_sample()
-            return sample.Manufacturer
-        return 'none'
-    
-    def read_weight(self):
-        if self._holding_sample():
-            sample = self._get_current_sample()
-            return sample.weight
-        return 0
-    
-    def _holding_sample(self):
-        if self.value.value == 0:
-            return False
-        return True
-        
-
-    def _run_robot_program(self,prog_name):
-        self.attached_robot.write_target(prog_name)
-        if self.attached_robot.status[0] == ERROR:
-            return False
-        
-        return True
-    
-    
-    def _get_current_sample(self):
-        return self.attached_storage.mag.get_sample(self.value)
-    
     def write_target(self,target):
         
         # check if robot is currently holding a Sample from Storage
@@ -303,9 +225,6 @@ class Sample(HasIO,Drivable):
             return self.target
         
         return target
-    
-    
-
     
     
     def read_status(self):
@@ -330,9 +249,67 @@ class Sample(HasIO,Drivable):
             return BUSY , "Robot is in use by other module"
         
         return robo_stat
-
-
     
+
+    def read_sample_struct(self):
+        if self._holding_sample():
+            current_sample = self._get_current_sample()
+            return current_sample.toStructOf()
+        
+        return {'type' : 'none',
+                'sample_pos': 0,
+                'manufacturer':'none',
+                'sample_id':'none',
+                'color': 'none',
+                'weight':0
+                }
+    
+   
+    def read_type(self):
+        if self._holding_sample():
+            sample = self._get_current_sample()
+            return sample.type
+        return 'none'
+    
+    def read_color(self):
+        if self._holding_sample() :
+            sample = self._get_current_sample()
+            return sample.color
+        return 'none'
+    
+    def read_sample_id(self):
+        if self._holding_sample():
+            sample = self._get_current_sample()
+            return sample.uuid
+        return 'none'
+   
+    def read_manufacturer(self):
+        if self._holding_sample():
+            sample = self._get_current_sample()
+            return sample.Manufacturer
+        return 'none'
+    
+    def read_weight(self):
+        if self._holding_sample():
+            sample = self._get_current_sample()
+            return sample.weight
+        return 0
+    
+    def _holding_sample(self):
+        if self.value.value == 0:
+            return False
+        return True
+    
+    def _run_robot_program(self,prog_name):
+        self.attached_robot.write_target(prog_name)
+        if self.attached_robot.status[0] == ERROR:
+            return False
+        
+        return True
+       
+    def _get_current_sample(self):
+        return self.attached_storage.mag.get_sample(self.value)
+        
     @Command
     def mount(self):
         """Mount Sample to Robot arm"""
@@ -370,10 +347,7 @@ class Sample(HasIO,Drivable):
         self.status = 301 , "Mounting Sample"
         # Robot successfully mounted the sample
         self.value = self.target
-        
-        
-
-    
+     
     @Command
     def unmount(self):
         """Unmount Sample to Robot arm"""
@@ -468,9 +442,6 @@ class Sample(HasIO,Drivable):
     
 class Storage(HasIO,Readable):
     
-    
-
-
     attached_sample =  Attached(mandatory=True)
     
     attached_robot = Attached(mandatory = True)
@@ -480,28 +451,20 @@ class Storage(HasIO,Readable):
                             readonly = True,
                             default = 1,
                             visibility ="expert")
-    
-     
-    
-
-
-    
+       
     
     value = Parameter("Sample objects in Storage",
-                    datatype=ArrayOf(sample_datatype,0,nsamples),
-                    readonly = True
-                )
+                    datatype=ArrayOf(SchokiStructOf(nsamples),0,nsamples),
+                    readonly = True)
+    
     
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
-        self.mag = Magazin(nsamples,'Storage')
+        self.mag = Magazin(nsamples)
         
-    
-    
     def read_value(self):      
         return self.mag.mag2Arrayof()
     
-
 
     def read_status(self):
         return  IDLE, ''
@@ -551,10 +514,7 @@ class Storage(HasIO,Readable):
             self.status = ERROR, "Sample Pos already occupied"
             return
         
-        
-
-               
-        
+              
         
     @Command(IntRange(minval=1,maxval=nsamples),result=None)    
     def unload(self,sample_pos):

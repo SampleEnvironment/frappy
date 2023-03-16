@@ -40,7 +40,7 @@ Mod('Storage',
     attached_robot = 'Robot',
     group = 'sample changer',
     storage_size = nsamples,
-    pollinterval = 5
+    pollinterval = 1
   
 )
 
@@ -51,7 +51,7 @@ Mod('Sample',
     attached_robot = 'Robot',
     attached_storage = 'Storage',
     group = 'sample changer',
-    pollinterval = 5
+    pollinterval = 1
     )
 
 
