@@ -233,7 +233,7 @@ class AsynSerial(AsynConn):
     scheme = 'serial'
     PARITY_NAMES = {name[0]: name for name in ['NONE', 'ODD', 'EVEN', 'MARK', 'SPACE']}
     ARG_SEP = re.compile('[+&]')  # allow + or & as options separator in uri
-    SETTINGS = set(Serial(None).get_settings())  # keys of valid Serial settings
+    SETTINGS = set(Serial(None).get_settings()) if Serial else None  # keys of valid Serial settings
 
     def __init__(self, uri, *args, **kwargs):
         if Serial is None:
