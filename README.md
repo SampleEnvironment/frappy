@@ -1,7 +1,7 @@
 Frappy: Framework for programming secnodes in Python
 ====================================================
 
-Frappy is a Pyhthon-framework for writing SECoP servers (called SECNodes or Nodes) and Clients.
+Frappy is a Python-framework for writing SECoP servers (called SECNodes or Nodes) and Clients.
 It comes with its own Graphical client and a collection of example Nodes.
 It is able to use TCP and Serial connections.
 
