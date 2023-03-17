@@ -1243,6 +1243,26 @@ class LimitsType(TupleOf):
 
 class StatusType(TupleOf):
     # shorten initialisation and allow access to status enumMembers from status values
+    DISABLED = 0
+    IDLE = 100
+    STANDBY = 130
+    PREPARED = 150
+    WARN = 200
+    WARN_STANDBY = 230
+    WARN_PREPARED = 250
+    UNSTABLE = 270  # no SECoP standard (yet)
+    BUSY = 300
+    DISABLING = 310
+    INITIALIZING = 320
+    PREPARING = 340
+    STARTING = 360
+    RAMPING = 370
+    STABILIZING = 380
+    FINALIZING = 390
+    ERROR = 400
+    ERROR_STANDBY = 430
+    ERROR_PREPARED = 450
+
     def __init__(self, enum):
         super().__init__(EnumType(enum), StringType())
         self._enum = enum

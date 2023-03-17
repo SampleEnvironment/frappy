@@ -1,3 +1,4 @@
+from frappy.datatypes import StatusType
 from frappy.gui.qt import QIcon, Qt, QTreeWidget, QTreeWidgetItem, pyqtSignal
 
 
@@ -24,10 +25,7 @@ class ModuleItem(QTreeWidgetItem):
         self._hasTarget = 'target' in parameters
         #if self._hasTarget:
         #    self.setFlags(self.flags() | Qt.ItemIsEditable)
-        if 'value' in parameters:
-            props = node.getProperties(self.module, 'value')
-            self._unit = props.get('unit', '')
-        else:
+        if 'status' not in parameters:
             self.setIcon(self.display['status'], ModuleItem.icons['clear'])
 
         self.setText(0, self.module)
@@ -72,16 +70,14 @@ class ModuleItem(QTreeWidgetItem):
         if parameter not in self.display:
             return
         if parameter == 'status':
-            self.setIcon(self.display[parameter], ModuleItem.statusIcon(value.value[0].value))
-            self.setText(self.display['status/text'], value.value[1])
-        else:
-            # TODO: stopgap
             if value.readerror:
-                strvalue = str(value)
+                self.setIcon(self.display[parameter], ModuleItem.statusIcon(StatusType.ERROR))
+                self.setText(self.display['status/text'], str(value.readerror))
             else:
-                strvalue = ('%g' if isinstance(value.value, float)
-                            else '%s') % (value.value,)
-            self.setText(self.display[parameter], '%s %s' % (strvalue, self._unit))
+                self.setIcon(self.display[parameter], ModuleItem.statusIcon(value.value[0].value))
+                self.setText(self.display['status/text'], value.value[1])
+        else:
+            self.setText(self.display[parameter], value.formatted())
 
     def disconnected(self):
         self.setIcon(self.display['status'], ModuleItem.icons['unknown'])
@@ -91,7 +87,6 @@ class ModuleItem(QTreeWidgetItem):
 
     def hasTarget(self):
         return self._hasTarget
-
 
     def _rebuildAdvanced(self, advanced):
         if advanced:
