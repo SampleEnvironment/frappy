@@ -28,7 +28,8 @@ Mod('Robot',
     joint_current = [0,0,0,0,0,0],
     robot_voltage = 0,
     robot_current = 0,
-    pollinterval = 0.1
+    pollinterval = 0.1,
+    stop_State = {'stopped' : False,'interrupted_prog' : 'none'}
 
 )
 

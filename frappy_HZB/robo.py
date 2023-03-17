@@ -1,6 +1,9 @@
 from frappy.datatypes import BoolType, EnumType, FloatRange, StringType, TupleOf, ArrayOf
 
-from frappy.core import Command, Parameter, Readable, HasIO, StringIO,StructOf, Property, IDLE, BUSY, WARN, ERROR, IntRange, Drivable, nopoll
+from frappy.core import StatusType ,Command, Parameter, Readable, HasIO, StringIO,StructOf, Property, IDLE, BUSY, WARN, ERROR, IntRange, Drivable, nopoll
+
+from frappy.lib.enum import Enum
+
 
 import re
 import time
@@ -53,6 +56,19 @@ class UR_Robot(HasIO,Drivable):
                 time.sleep(.5)
         
     
+    
+    Status = Enum(
+        Drivable.Status,
+        PREPARING = StatusType.PREPARING,
+        PAUSED = 304,
+        STOPPED = 402,
+        STANDBY = StatusType.STANDBY        
+        )  #: status codes
+
+    status = Parameter(datatype=StatusType(Status))  # override Readable.status
+
+    
+    
     value = Parameter("current loaded Program",
                        datatype=StringType(),
                        default = '<unknown>.urp',
@@ -79,7 +95,8 @@ class UR_Robot(HasIO,Drivable):
                            datatype=StringType(),
                            default = "none",
                            readonly = True,
-                           group = "Robot Info")
+                           group = "Robot Info",
+                           visibility = 'expert')
     
     robotmode = Parameter("Current mode of Robot",
                           datatype=EnumType("Robot Mode",ROBOT_MODE_ENUM),
@@ -130,6 +147,19 @@ class UR_Robot(HasIO,Drivable):
                   
                     )
     
+    stop_State = Parameter("Robot State when stop was pressed",
+                           datatype=StructOf(stopped = BoolType(),
+                                             interrupted_prog = StringType(),
+                                             ),
+                           visibility = 'expert'
+                           )
+    
+    pause_State = Parameter("Robot State when pause was pressed",
+                           datatype=StructOf(paused = BoolType(),
+                                             interrupted_prog = StringType(),
+                                             ),
+                           visibility = 'expert')
+    
     def doPoll(self):
         self.read_value()
         self.read_status()
@@ -166,39 +196,47 @@ class UR_Robot(HasIO,Drivable):
 
 
 
-    def write_target(self,prog_name):
+    def write_target(self,target):
         old_prog_name = self.target
-        load_reply = str(self.communicate(f'load {prog_name}'))
+        load_reply = str(self.communicate(f'load {target}'))
         
         
         
-        if re.match(r'Loading program: .*%s' % prog_name,load_reply):
-            self.status = BUSY, 'loaded Program: ' #+prog_name
-            play_reply = self.communicate('play')
-                
-            
-            if play_reply.__eq__('Starting program'):
-                self.status = BUSY, 'running Program: '# +prog_name
-                self.value = prog_name
-                return prog_name
-            else:
-                self.status = ERROR, 'Failed to execute: ' + prog_name         
-            
+        if re.match(r'Loading program: .*%s' % target,load_reply):
+            self.status = IDLE, 'loaded Program: ' #+prog_name
+            return target
+           
         
-        elif re.match(r'File not found: .*%s' % prog_name,load_reply):
-            self.status = ERROR, 'Program not found: '+prog_name
+        elif re.match(r'File not found: .*%s' % target,load_reply):
+            self.status = WARN, 'Program not found: '+target
         
-        elif re.match(r'Error while loading program: .*%s' % prog_name,load_reply):
-            self.status = ERROR, 'ERROR while loading Program: '+ prog_name
+        elif re.match(r'Error while loading program: .*%s' % target,load_reply):
+            self.status = WARN, 'ERROR while loading Program: '+ target
             
         else:
-            self.status = ERROR, 'unknown Answer: '+load_reply 
+            self.status = WARN, 'unknown Answer: '+load_reply 
            
             
         return old_prog_name
     
     
-
+    def run_program(self,prog_name):
+        # PAUSED: continue loaded Program first
+        # STOPPED: resolve STOPPED ERROR first
+        if self.pause_State['paused']  or self.stop_State['stopped']:
+            return False
+            
+        if self.write_target(prog_name) != prog_name:
+            return False
+        
+        self.play()
+        
+        if self.status[0] == BUSY:
+            return True
+        
+        return False   
+            
+            
 
         
     
@@ -233,7 +271,8 @@ class UR_Robot(HasIO,Drivable):
             return 'POWER_ON' 
         else:
             return 'POWER_OFF'
-
+    
+    
     def write_powerstate(self,powerstate):
         p_str = powerstate.name
         
@@ -249,42 +288,86 @@ class UR_Robot(HasIO,Drivable):
 
     
     def read_status(self):
+        if self.pause_State['paused']:
+            return PAUSED, 'Program execution paused'
+        
+        if self.stop_State['stopped']:
+            return STOPPED, 'Program execution stopped'
+                
+        if self.status[0] == ERROR:
+            return self.status
+        
+        if self.status[0] == UNKNOWN:
+            return self.status
+        
+        
         self.read_robotmode()
                 
-        if self._program_running():
+        if self._program_running() and self.robotmode[0] == 'RUNNING':
             return BUSY, 'Program running'    	    
+        
         return ROBOT_MODE_STATUS[self.robotmode.name]
 
 
     @Command
     def stop(self):
         """Stop execution of program"""
+        
+        stopped_struct = {'stopped' : self._program_running(), 'interrupted_prog' : self.value}
+        
+     
         stop_reply  = str(self.communicate('stop'))
         
-        if stop_reply.__eq__('Stopped'):
-            self.status = IDLE, "Stopped Execution"
-        else:
+        if stop_reply ==  'Stopped' and stopped_struct['stopped']:
+            self.status = STOPPED, "Stopped Execution"
+        elif stop_reply == 'Failed to execute: stop':
             self.status = ERROR, "Failed to execute: stop"
+            return
+            
+        self.stop_State = stopped_struct
     
-    @Command
+    @Command()
     def play(self):
-        """Start execution of program"""
+        """Start/continue execution of program"""
+        if self.stop_State['stopped']:
+            return
+        
+        if self.pause_State['paused'] and self.pause_State['interrupted_prog'] != self.value:
+            self.status = ERROR, "Paused and loaded Program dont Match"
+            self.pause_State = {'paused' : False, 'interrupted_prog' : self.value}
+            return
+        
         play_reply  = str(self.communicate('play'))
         
-        if play_reply.__eq__('Starting program'):
+        # Reset paused state
+        self.pause_State = {'paused' : False, 'interrupted_prog' : self.value}
+        
+        if play_reply == 'Starting program':
             self.status = BUSY, "Starting program"
+            
+            
+
         else:
             self.status = ERROR, "Failed to execute: play"
+
             
     @Command
     def pause(self):
         """Pause execution of program"""
+        if self.stop_State['stopped']:
+            return
+        
+        paused_struct = {'paused' : self._program_running(), 'interrupted_prog' : self.value}
+        
         play_reply  = str(self.communicate('pause'))
         
-        if play_reply.__eq__('Pausing program'):
-            self.status = IDLE, "Pausing program"
+        if play_reply == 'Pausing program':
+            self.status = PAUSED, "Paused program execution"
         else:
             self.status = ERROR, "Failed to execute: pause"
+            return
+        
+        self.pause_State = paused_struct
     
     def _program_running(self): 
         running_reply = str(self.communicate('running')).removeprefix('Program running: ') 
@@ -294,16 +377,24 @@ class UR_Robot(HasIO,Drivable):
         else:
             return False	    
         
+        
+PAUSED     = UR_Robot.Status.PAUSED
+STOPPED    = UR_Robot.Status.STOPPED
+UNKNOWN    = Readable.Status.UNKNOWN
+PREPAIRING = UR_Robot.Status.PREPAIRING
+DISABLED   = UR_Robot.Status.DISABLED
+STANDBY    = UR_Robot.Status.STANDBY 
+        
     
 ROBOT_MODE_STATUS = {
     'NO_CONTROLLER' :(ERROR,'NO_CONTROLLER'),
-    'DISCONNECTED' :(0,'DISCONNECTED'),
-    'CONFIRM_SAFETY' :(0,'CONFIRM_SAFETY'),
-    'BOOTING' :(0,'BOOTING'),
-    'POWER_OFF' :(0,'POWER_OFF'),
-    'POWER_ON' :(WARN,'POWER_ON'),
+    'DISCONNECTED' :(DISABLED,'DISCONNECTED'),
+    'CONFIRM_SAFETY' :(DISABLED,'CONFIRM_SAFETY'),
+    'BOOTING' :(PREPAIRING,'BOOTING'),
+    'POWER_OFF' :(DISABLED,'POWER_OFF'),
+    'POWER_ON' :(STANDBY,'POWER_ON'),
     'IDLE' :(IDLE,'IDLE'),
-    'BACKDRIVE' :(IDLE,'BACKDRIVE'),
+    'BACKDRIVE' :(PREPAIRING,'BACKDRIVE'),
     'RUNNING' :(IDLE,'IDLE'),
 }
 
@@ -323,5 +414,4 @@ POWER_STATE = {
     'POWER_OFF' : 'power off'
 }
 
-        
-        
+

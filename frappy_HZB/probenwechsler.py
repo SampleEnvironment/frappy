@@ -151,7 +151,14 @@ class Magazin:
 
 class Sample(HasIO,Drivable):
     
-    Status = Enum(Drivable.Status,IDLE_HOLDING_SAMPLE = 101, MOUNTING=301,UNMOUNTING = 302,MEASURING = 303)  #: status codes
+    Status = Enum(Drivable.Status,
+                  HOLDING_SAMPLE = 101, 
+                  MOUNTING=301,
+                  UNMOUNTING = 302,
+                  MEASURING = 303,
+                  PAUSED = 304,
+                  STOPPED = 402
+                  )  #: status codes
 
     status = Parameter(datatype=StatusType(Status))  # override Readable.status
 
@@ -234,7 +241,7 @@ class Sample(HasIO,Drivable):
         # Robot Idle and sample in Gripper
         if robo_stat[0] == IDLE and self._holding_sample():
             
-            return IDLE_HOLDING_SAMPLE , "IDLE with Sample in Gripper"
+            return HOLDING_SAMPLE , "IDLE with Sample in Gripper"
         
         # Robot Arm is Busy        
         if robo_stat[0] == BUSY:
@@ -300,12 +307,7 @@ class Sample(HasIO,Drivable):
             return False
         return True
     
-    def _run_robot_program(self,prog_name):
-        self.attached_robot.write_target(prog_name)
-        if self.attached_robot.status[0] == ERROR:
-            return False
-        
-        return True
+
        
     def _get_current_sample(self):
         return self.attached_storage.mag.get_sample(self.value)
@@ -338,7 +340,7 @@ class Sample(HasIO,Drivable):
         
         assert(re.match(r'messpos\d+\.urp',prog_name) )
         
-        success = self._run_robot_program(prog_name)
+        success =  self.attached_robot.run_program(prog_name)
         
         # errors while loading robot program
         if not success:
@@ -371,7 +373,7 @@ class Sample(HasIO,Drivable):
         
         assert(re.match(r'messposin\d+\.urp',prog_name) )
         
-        success = self._run_robot_program(prog_name)
+        success =  self.attached_robot.run_program(prog_name)
         
         # errors while loading robot program
         if not success:
@@ -407,7 +409,7 @@ class Sample(HasIO,Drivable):
         
   
         
-        success = self._run_robot_program(prog_name)
+        success =  self.attached_robot.run_program(prog_name)
         
         # errors while loading robot program
         if not success:
@@ -420,12 +422,8 @@ class Sample(HasIO,Drivable):
     @Command
     def stop(self):
         """Stop execution of program"""
-        stop_reply  = str(self.communicate('stop'))
-        
-        if stop_reply.__eq__('Stopped'):
-            self.status = IDLE, "Stopped Execution"
-        else:
-            self.status = ERROR, "Failed to execute: stop"
+        self.attached_robot.stop()
+        #TODO
         
     # @Command(group = 'admin commands',visibility = 'expert')
     # def force_mount(self):
@@ -441,6 +439,16 @@ class Sample(HasIO,Drivable):
     
     
 class Storage(HasIO,Readable):
+    
+    Status = Enum(
+        Drivable.Status,
+        LOADING=301,
+        UNLOADING = 302,
+        PAUSED = 304,
+        STOPPED = 402
+        )  #: status codes
+
+    status = Parameter(datatype=StatusType(Status))  # override Readable.status
     
     attached_sample =  Attached(mandatory=True)
     
@@ -469,12 +477,7 @@ class Storage(HasIO,Readable):
     def read_status(self):
         return  IDLE, ''
     
-    def _run_robot_program(self,prog_name):
-        self.attached_robot.write_target(prog_name)
-        if self.attached_robot.status[0] == ERROR:
-            return False
-        
-        return True
+
     
     
     @Command(StructOf(type = EnumType(SCHOKO_SORTEN_ENUM) ,samplepos = IntRange(minval= 1,maxval= nsamples)),result=None)
@@ -499,7 +502,7 @@ class Storage(HasIO,Readable):
         # Run Robot script to insert actual Sample        
         prog_name = 'in'+ str(samplepos)+ '.urp'
         assert(re.match(r'in\d+\.urp',prog_name))
-        success = self._run_robot_program(prog_name)
+        success =  self.attached_robot.run_program(prog_name)
         
         # errors while loading robot program
         if not success:
@@ -538,7 +541,7 @@ class Storage(HasIO,Readable):
         # Run Robot script to insert actual Sample        
         prog_name = 'out'+ str(sample_pos) +'.urp'
         assert(re.match(r'out\d+\.urp',prog_name))
-        success = self._run_robot_program(prog_name)
+        success = self.attached_robot.run_program(prog_name)
         
         # errors while loading robot program
         if not success:
@@ -551,7 +554,17 @@ class Storage(HasIO,Readable):
             self.status = ERROR, "No sample at Pos "
             
 
-MOUNTING = Sample.Status.MOUNTING
-UNMOUNTING = Sample.Status.UNMOUNTING
-MEASURING = Sample.Status.MEASURING
-IDLE_HOLDING_SAMPLE = Sample.Status.IDLE_HOLDING_SAMPLE
+MOUNTING         = Sample.Status.MOUNTING
+UNMOUNTING       = Sample.Status.UNMOUNTING
+MEASURING        = Sample.Status.MEASURING
+HOLDING_SAMPLE   = Sample.Status.HOLDING_SAMPLE
+PAUSED_SAMPLE    = Sample.Status.PAUSED
+STOPPED_SAMPLE   = Sample.Status.STOPPED
+
+
+LOADING          = Storage.Status.LOADING
+UNLOADING        = Storage.Status.UNLOADING
+PAUSED_STORAGE   = Storage.Status.PAUSED
+STOPPED_STORAGE  = Storage.Status.STOPPED
+
+
