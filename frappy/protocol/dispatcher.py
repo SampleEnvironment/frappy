@@ -43,7 +43,7 @@ from collections import OrderedDict
 from time import time as currenttime
 
 from frappy.errors import NoSuchCommandError, NoSuchModuleError, \
-    NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPServerError
+    NoSuchParameterError, ProtocolError, ReadOnlyError
 from frappy.params import Parameter
 from frappy.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
@@ -55,7 +55,7 @@ def make_update(modulename, pobj):
     if pobj.readerror:
         return (ERRORPREFIX + EVENTREPLY, '%s:%s' % (modulename, pobj.export),
                 # error-report !
-                [pobj.readerror.name, repr(pobj.readerror), {'t': pobj.timestamp}])
+                [pobj.readerror.name, str(pobj.readerror), {'t': pobj.timestamp}])
     return (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
             [pobj.export_value(), {'t': pobj.timestamp}])
 
@@ -297,7 +297,7 @@ class Dispatcher:
 
             if handler:
                 return handler(conn, specifier, data)
-            raise SECoPServerError('unhandled message: %s' % repr(msg))
+            raise ProtocolError('unhandled message: %s' % repr(msg))
 
     # now the (defined) handlers for the different requests
     def handle_help(self, conn, specifier, data):

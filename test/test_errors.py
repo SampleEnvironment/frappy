@@ -21,16 +21,28 @@
 # *****************************************************************************
 """test data types."""
 
-import frappy.errors
-from frappy.errors import EXCEPTIONS, SECoPError
+import pytest
+from frappy.errors import RangeError, WrongTypeError, ProgrammingError, \
+    ConfigError, InternalError, DiscouragedConversion, secop_error, make_secop_error
 
 
-def test_errors():
-    """check consistence of frappy.errors.EXCEPTIONS"""
-    for e in EXCEPTIONS.values():
-        assert EXCEPTIONS[e().name] == e
-    # check that all defined secop errors are in EXCEPTIONS
-    for cls in frappy.errors.__dict__.values():
-        if isinstance(cls, type) and issubclass(cls, SECoPError):
-            if cls != SECoPError:
-                assert cls().name in EXCEPTIONS
+@pytest.mark.parametrize('exc, name, text, echk', [
+    (RangeError('out of range'), 'RangeError', 'out of range', None),
+    (WrongTypeError('bad type'), 'WrongType', 'bad type', None),
+    (ProgrammingError('x'), 'InternalError', 'ProgrammingError: x', None),
+    (ConfigError('y'), 'InternalError', 'ConfigError: y', None),
+    (InternalError('z'), 'InternalError', 'z', None),
+    (DiscouragedConversion('w'), 'InternalError', 'DiscouragedConversion: w', None),
+    (ValueError('v'), 'InternalError', "ValueError: v", InternalError("ValueError: v")),
+    (None, 'InternalError', "UnknownError: v", InternalError("UnknownError: v")),
+])
+def test_errors(exc, name, text, echk):
+    """check consistence of frappy.errors"""
+    if exc:
+        err = secop_error(exc)
+        assert err.name == name
+        assert str(err) == text
+    recheck = make_secop_error(name, text)
+    echk = echk or exc
+    assert type(recheck) == type(echk)
+    assert str(recheck) == str(echk)

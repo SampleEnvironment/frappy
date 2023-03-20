@@ -593,8 +593,7 @@ class SecopClient(ProxyClient):
             raise ConnectionError('connection closed before reply')
         action, _, data = entry[2]  # pylint: disable=unpacking-non-sequence
         if action.startswith(ERRORPREFIX):
-            errcls = self.error_map(data[0])
-            raise errcls(data[1])
+            raise frappy.errors.make_secop_error(*data[0:2])
         return entry[2]  # reply
 
     def request(self, action, ident=None, data=None):
@@ -647,14 +646,8 @@ class SecopClient(ProxyClient):
 
     # the following attributes may be/are intended to be overwritten by a subclass
 
-    ERROR_MAP = frappy.errors.EXCEPTIONS
-    DEFAULT_EXCEPTION = frappy.errors.SECoPError
     PREDEFINED_NAMES = set(frappy.params.PREDEFINED_ACCESSIBLES)
     activate = True
-
-    def error_map(self, exc):
-        """how to convert SECoP and unknown exceptions"""
-        return self.ERROR_MAP.get(exc, self.DEFAULT_EXCEPTION)
 
     def internalize_name(self, name):
         """how to create internal names"""

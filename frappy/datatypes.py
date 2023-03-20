@@ -29,7 +29,7 @@ import sys
 from base64 import b64decode, b64encode
 
 from frappy.errors import WrongTypeError, RangeError, \
-    ConfigError, ProgrammingError, ProtocolError
+    ConfigError, ProgrammingError, ProtocolError, DiscouragedConversion
 from frappy.lib import clamp, generalConfig
 from frappy.lib.enum import Enum
 from frappy.parse import Parser
@@ -43,11 +43,6 @@ DEFAULT_MAX_INT = 16777216
 UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for any datatype size
 
 Parser = Parser()
-
-
-class DiscouragedConversion(WrongTypeError):
-    """the discouraged conversion string - > float happened"""
-    log_message = True
 
 
 def shortrepr(value):

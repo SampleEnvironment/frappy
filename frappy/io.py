@@ -31,7 +31,8 @@ import threading
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, FloatRange, IntRange, \
     StringType, TupleOf, ValueType
-from frappy.errors import CommunicationFailedError, ConfigError, ProgrammingError
+from frappy.errors import CommunicationFailedError, ConfigError, ProgrammingError, \
+    SilentCommunicationFailedError as SilentError
 from frappy.modules import Attached, Command, \
     Communicator, Module, Parameter, Property
 from frappy.lib import generalConfig
@@ -39,10 +40,6 @@ from frappy.lib import generalConfig
 generalConfig.set_default('legacy_hasiodev', False)
 
 HEX_CODE = re.compile(r'[0-9a-fA-F][0-9a-fA-F]$')
-
-
-class SilentError(CommunicationFailedError):
-    silent = True
 
 
 class HasIO(Module):

@@ -20,14 +20,25 @@
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
-"""Define (internal) SECoP Errors"""
+"""Define (internal) SECoP Errors
+
+all error classes inherited from SECoPError should be placed in this module,
+else they might not be registered and can therefore not be rebuilt on the client side
+"""
 
 import re
-from ast import literal_eval
 
 
 class SECoPError(RuntimeError):
     silent = False   # silent = True indicates that the error is already logged
+    clsname2class = {}  # needed to convert error reports back to classes
+    name = 'InternalError'
+    name2class = {}
+
+    def __init_subclass__(cls):
+        cls.clsname2class[cls.__name__] = cls
+        if 'name' in cls.__dict__:
+            cls.name2class[cls.name] = cls
 
     def __init__(self, *args, **kwds):
         super().__init__()
@@ -44,52 +55,67 @@ class SECoPError(RuntimeError):
             res.append(args)
         if kwds:
             res.append(kwds)
-        return '%s(%s)' % (self.name, ', '.join(res))
-
-    @property
-    def name(self):
-        return self.__class__.__name__[:-len('Error')]
-
-
-class SECoPServerError(SECoPError):
-    name = 'InternalError'
+        return '%s(%s)' % (self.name or type(self).__name__, ', '.join(res))
 
 
 class InternalError(SECoPError):
+    """uncatched error"""
     name = 'InternalError'
 
 
 class ProgrammingError(SECoPError):
-    name = 'InternalError'
+    """catchable programming error"""
 
 
 class ConfigError(SECoPError):
-    name = 'InternalError'
+    """invalid configuration"""
 
 
 class ProtocolError(SECoPError):
+    """A malformed request or on unspecified message was sent
+
+    This includes non-understood actions and malformed specifiers.
+    Also if the message exceeds an implementation defined maximum size.
+    """
     name = 'ProtocolError'
 
 
 class NoSuchModuleError(SECoPError):
+    """missing module
+
+    The action can not be performed as the specified module is non-existent"""
     name = 'NoSuchModule'
 
 
-# pylint: disable=redefined-builtin
-class NotImplementedError(NotImplementedError, SECoPError):
-    pass
+class NotImplementedSECoPError(NotImplementedError, SECoPError):
+    """not (yet) implemented
+
+    A (not yet) implemented action or combination of action and specifier
+    was requested. This should not be used in productive setups, but is very
+    helpful during development."""
+    name = 'NotImplemented'
 
 
 class NoSuchParameterError(SECoPError):
-    pass
+    """missing parameter
+
+    The action can not be performed as the specified parameter is non-existent.
+    Also raised when trying to use a command name in a 'read' or 'change' message.
+    """
+    name = 'NoSuchParameter'
 
 
 class NoSuchCommandError(SECoPError):
-    pass
+    """The specified command does not exist
+
+    Also raised when trying to use a parameter name in a 'do' message.
+    """
+    name = 'NoSuchCommand'
 
 
 class ReadOnlyError(SECoPError):
-    pass
+    """The requested write can not be performed on a readonly value"""
+    name = 'ReadOnly'
 
 
 class BadValueError(SECoPError):
@@ -97,42 +123,106 @@ class BadValueError(SECoPError):
 
 
 class RangeError(ValueError, BadValueError):
+    """data out of range
+
+    The requested parameter change or Command can not be performed as the
+    argument value is not in the allowed range specified by the datainfo
+    property. This also happens if an unspecified Enum variant is tried
+    to be used, the size of a Blob or String does not match the limits
+    given in the descriptive data, or if the number of elements in an
+    array does not match the limits given in the descriptive data."""
     name = 'RangeError'
 
 
+class BadJSONError(SECoPError):
+    """The data part of the message can not be parsed, i.e. the JSON-data is no valid JSON.
+
+    not used in Frappy, but might appear on the client side from a foreign SEC Node
+    """
+    # TODO: check whether this should not be removed from specs!
+    name = 'BadJSON'
+
+
 class WrongTypeError(TypeError, BadValueError):
-    pass
+    """Wrong data type
+
+    The requested parameter change or Command can not be performed as the
+    argument has the wrong type. (i.e. a string where a number is expected.)
+    It may also be used if an incomplete struct is sent, but a complete
+    struct is expected."""
+    name = 'WrongType'
+
+
+class DiscouragedConversion(ProgrammingError):
+    """the discouraged conversion string - > float happened"""
+    log_message = True
 
 
 class CommandFailedError(SECoPError):
-    pass
+    name = 'CommandFailed'
 
 
 class CommandRunningError(SECoPError):
-    pass
+    """The command is already executing.
+
+    request may be retried after the module is no longer BUSY
+    (retryable)"""
+    name = 'CommandRunning'
 
 
 class CommunicationFailedError(SECoPError):
-    pass
+    """Some communication (with hardware controlled by this SEC node) failed
+    (retryable)"""
+    name = 'CommunicationFailed'
+
+
+class SilentCommunicationFailedError(CommunicationFailedError):
+    silent = True
 
 
 class IsBusyError(SECoPError):
-    pass
+    """The requested action can not be performed while the module is Busy
+    or the command still running"""
+    name = 'IsBusy'
 
 
 class IsErrorError(SECoPError):
-    pass
+    """The requested action can not be performed while the module is in error state"""
+    name = 'IsError'
 
 
 class DisabledError(SECoPError):
-    pass
+    """The requested action can not be performed while the module is disabled"""
+    name = 'disabled'
+
+
+class ImpossibleError(SECoPError):
+    """The requested action can not be performed at the moment"""
+    name = 'Impossible'
+
+
+class ReadFailedError(SECoPError):
+    """The requested parameter can not be read just now"""
+    name = 'ReadFailed'
+
+
+class OutOfRangeError(SECoPError):
+    """The requested parameter can not be read just now"""
+    name = 'OutOfRange'
 
 
 class HardwareError(SECoPError):
+    """The connected hardware operates incorrect or may not operate at all
+    due to errors inside or in connected components."""
     name = 'HardwareError'
 
 
-FRAPPY_ERROR = re.compile(r'(.*)\(.*\)$')
+class TimeoutSECoPError(TimeoutError, SECoPError):
+    """Some initiated action took longer than the maximum allowed time (retryable)"""
+    name = 'TimeoutError'
+
+
+FRAPPY_ERROR = re.compile(r'(\w*): (.*)$')
 
 
 def make_secop_error(name, text):
@@ -142,47 +232,26 @@ def make_secop_error(name, text):
     :param text: the second item of a SECoP error report
     :return: the built instance of SECoPError
     """
-    try:
-        # try to interprete the error text as a repr(<instance of SECoPError>)
-        # as it would be created by a Frappy server
-        cls, textarg = FRAPPY_ERROR.match(text).groups()
-        errcls = locals()[cls]
-        if errcls.name == name:
-            # convert repr(<string>) to <string>
-            text = literal_eval(textarg)
-    except Exception:
-        # probably not a Frappy server, or running a different version
-        errcls = EXCEPTIONS.get(name, InternalError)
-    return errcls(text)
+    match = FRAPPY_ERROR.match(text)
+    if match:
+        clsname, errtext = match.groups()
+        errcls = SECoPError.clsname2class.get(clsname)
+        if errcls:
+            return errcls(errtext)
+    return SECoPError.name2class.get(name, InternalError)(text)
 
 
-def secop_error(exception):
-    if isinstance(exception, SECoPError):
-        return exception
-    return InternalError(repr(exception))
+def secop_error(exc):
+    """turn into InternalError, if not already a SECoPError"""
+    if isinstance(exc, SECoPError):
+        if SECoPError.name2class.get(exc.name) != type(exc):
+            return type(exc)('%s: %s' % (type(exc).__name__, exc))
+        return exc
+    return InternalError('%s: %s' % (type(exc).__name__, exc))
 
-
-EXCEPTIONS = {e().name: e for e in [
-    NoSuchModuleError,
-    NoSuchParameterError,
-    NoSuchCommandError,
-    CommandFailedError,
-    CommandRunningError,
-    ReadOnlyError,
-    BadValueError,
-    RangeError,
-    WrongTypeError,
-    CommunicationFailedError,
-    HardwareError,
-    IsBusyError,
-    IsErrorError,
-    DisabledError,
-    ProtocolError,
-    NotImplementedError,
-    InternalError]}
 
 # TODO: check if these are really needed:
-EXCEPTIONS.update(
+SECoPError.name2class.update(
     SyntaxError=ProtocolError,
     # internal short versions (candidates for spec)
     Protocol=ProtocolError,
