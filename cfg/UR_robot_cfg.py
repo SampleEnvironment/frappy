@@ -13,6 +13,8 @@ Mod('Robot',
     'frappy_HZB.robo.UR_Robot',
     'Module for controlling the Robotarm. It provides diagnostic information on the tool center point, joint information and general status of the robot',
     io='io',
+    attached_sample = 'Sample',
+    attached_storage = 'Storage',
     group = 'UR_Robot',
     
     

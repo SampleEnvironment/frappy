@@ -4,6 +4,7 @@ from frappy.core import StatusType ,Command, Parameter, Readable, HasIO, StringI
 
 from frappy.lib.enum import Enum
 
+from frappy.modules import Attached
 
 import re
 import time
@@ -44,18 +45,23 @@ class UR_Robot(HasIO,Drivable):
 
     def initModule(self):
         super().initModule()
+        
+        nopref = self.io.uri 
         for i in range(30):
             try:
-         
-                self._r = urx.Robot("192.168.56.3", use_rt=True, urFirm=5.1)
+                ip = re.search(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',self.io.uri).group()
+                self._r = urx.Robot(ip, use_rt=True, urFirm=5.1)
+            
                 
-
                 break
             except:
-                print('Error')
+
                 time.sleep(.5)
         
     
+    attached_sample =  Attached(mandatory=True)
+    
+    attached_storage = Attached(mandatory=True)
     
     Status = Enum(
         Drivable.Status,
@@ -157,14 +163,16 @@ class UR_Robot(HasIO,Drivable):
                            datatype=StructOf(stopped = BoolType(),
                                              interrupted_prog = StringType(),
                                              ),
-                           visibility = 'expert'
+                           visibility = 'expert',
+                           default = {'stopped':False,'interrupted_prog':'none'}
                            )
     
     pause_State = Parameter("Robot State when pause was pressed",
                            datatype=StructOf(paused = BoolType(),
                                              interrupted_prog = StringType(),
                                              ),
-                           visibility = 'expert')
+                           visibility = 'expert',
+                           default = {'paused':False,'interrupted_prog':'none'})
     
     def doPoll(self):
         self.read_value()
@@ -321,6 +329,10 @@ class UR_Robot(HasIO,Drivable):
     def stop(self):
         """Stop execution of program"""
         
+        # already stopped
+        if self.stop_State['stopped']:
+            return
+        
         stopped_struct = {'stopped' : self._program_running(), 'interrupted_prog' : self.value}
         
      
@@ -328,6 +340,32 @@ class UR_Robot(HasIO,Drivable):
         
         if stop_reply ==  'Stopped' and stopped_struct['stopped']:
             self.status = STOPPED, "Stopped Execution"
+            
+            # Rollback side effects of stopped Program
+            if re.match(r'in\d+\.urp',stopped_struct['interrupted_prog']):
+                pos = self.attached_storage.last_pos
+                self.attached_storage.mag.removeSample(pos)
+                 
+            if re.match(r'out\d+\.urp',stopped_struct['interrupted_prog']):
+                #Sample is already removed from internal structure
+                pass
+            
+            if re.match(r'messpos\d+\.urp',stopped_struct['interrupted_prog']):
+                pos = self.attached_sample.value
+                self.attached_storage.mag.removeSample(pos)
+                self.attached_sample.value = 0
+
+            
+            if re.match(r'messposin\d+\.urp',stopped_struct['interrupted_prog']):
+                pos = self.attached_sample.value
+                self.attached_storage.mag.removeSample(pos)
+                self.attached_sample.value = 0
+                
+            if re.match(r'messen.urp',stopped_struct['interrupted_prog']):
+                pos = self.attached_sample.value
+                self.attached_storage.mag.removeSample(pos)
+                self.attached_sample.value = 0
+            
         elif stop_reply == 'Failed to execute: stop':
             self.status = ERROR, "Failed to execute: stop"
             return

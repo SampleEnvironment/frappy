@@ -1,7 +1,7 @@
 
 from frappy.datatypes import  EnumType, FloatRange, StringType, ArrayOf,StatusType
 
-from frappy.core import Command, Parameter, Readable, HasIO,StructOf, IDLE, BUSY, ERROR, IntRange, Drivable, nopoll
+from frappy.core import Command, Parameter, Readable, HasIO,StructOf, IDLE, BUSY, ERROR, IntRange, Drivable
 
 
 from frappy.lib.enum import Enum
@@ -62,23 +62,19 @@ SCHOKO_TO_SUBSTANCE_ID = {
     'unknown':7
 }
 
-SAMPLE_POS = {
-    'empty':0,
-    '(1,1)':1,
-    '(1,2)':2,
-    '(1,3)':3,
-    '(2,1)':4,
-    '(2,2)':5,
-    '(2,3)':6,
-    '(3,1)':7,
-    '(3,2)':8,
-    '(3,3)':9,
-    '(4,1)':10,
-    '(4,2)':11,
-    '(4,3)':12
-}
 
 
+
+
+
+#TODO reset Command Sample
+#TODO reset Command Storage
+
+#TODO clear_error Command Sample
+#TODO clear_error Command Storage
+#TODO reset.urp Program
+
+#TODO describe None {...} -->  describe . {...}
 
 class SchokiStructOf(StructOf):
     def __init__(self, nsamples):
@@ -93,14 +89,14 @@ class SchokiStructOf(StructOf):
                         )
 
 class Schoki:
-    def __init__(self, substance,samplePos, substance_code = None, Manufacturer = None ,color = None,uuid = None,mass =None ) -> None:
+    def __init__(self, substance,samplePos, substance_code = None, Manufacturer = None ,color = None,sample_id = None,mass =None ) -> None:
         self.substance = substance
         self.samplePos =samplePos
         
         self.substance_code = substance_code
         self.Manufacturer = Manufacturer
         self.color = color
-        self.uuid = uuid
+        self.sample_id = sample_id
         self.mass = mass
         
         if substance_code == None:
@@ -109,8 +105,8 @@ class Schoki:
             self.Manufacturer = 'Rittersport'
         if color == None:
             self.color = SCHOKO_FARBE.get(self.substance,None)
-        if uuid == None:
-            self.uuid = str(uuid.uuid4())
+        if sample_id == None:
+            self.sample_id = str(uuid.uuid4())
         if mass == None:
             self.mass = 0.0167
                 
@@ -120,7 +116,7 @@ class Schoki:
                 'substance_code': str(self.substance_code),
                 'sample_pos':self.samplePos,
                 'manufacturer':self.Manufacturer,
-                'sample_id':self.uuid,
+                'sample_id':self.sample_id,
                 'color': self.color,
                 'mass':self.mass
                 }
@@ -182,13 +178,13 @@ class Sample(HasIO,Drivable):
 
     
     value = Parameter("Active Sample held by robot arm",
-                      datatype=EnumType("active Sample",SAMPLE_POS),
+                      datatype=IntRange(minval=0,maxval=nsamples),
                       readonly = True,
-                      default = 'empty') 
+                      default = 0) 
 
     target =  Parameter("Target Sample to be held by robot arm",
-                      datatype=EnumType("target Sample",SAMPLE_POS),
-                      default = 'empty')
+                      datatype=IntRange(minval=0,maxval=nsamples),
+                      default = 0)
     
     sample_struct = Parameter("Sample Object",
                     datatype=SchokiStructOf(nsamples),
@@ -241,15 +237,24 @@ class Sample(HasIO,Drivable):
     def write_target(self,target):
         
         # check if robot is currently holding a Sample from Storage
-        if self._holding_sample():
+        if self._holding_sample() and target != 0:
             self.status = ERROR, 'Gripper not empty, holding sample: ' + str(self.value)
             return self.target
         
         # check if sample is present in Storage
-        if not self.attached_storage.mag.get_sample(target):
+        if not self.attached_storage.mag.get_sample(target) and target != 0:
             self.status = ERROR, 'no Sample at Pos' +str(target)
             return self.target
         
+        self.target = target
+        
+        ### Mount:
+        if target != 0:
+            self._mount()
+        ### Unmount:
+        if target == 0:
+            self._unmount()
+            
         return target
     
     
@@ -313,7 +318,7 @@ class Sample(HasIO,Drivable):
     def read_sample_id(self):
         if self._holding_sample():
             sample = self._get_current_sample()
-            return sample.uuid
+            return sample.sample_id
         return 'none'
    
     def read_manufacturer(self):
@@ -329,7 +334,7 @@ class Sample(HasIO,Drivable):
         return 0
     
     def _holding_sample(self):
-        if self.value.value == 0:
+        if self.value == 0:
             return False
         return True
     
@@ -338,11 +343,11 @@ class Sample(HasIO,Drivable):
     def _get_current_sample(self):
         return self.attached_storage.mag.get_sample(self.value)
         
-    @Command
-    def mount(self):
+    
+    def _mount(self):
         """Mount Sample to Robot arm"""
         
-        if self.target == 'empty':
+        if self.target == 0:
             self.status = ERROR, 'not a valid Target'
             return 
         
@@ -362,7 +367,7 @@ class Sample(HasIO,Drivable):
 
         
         # Run Robot script to mount actual Sample        
-        prog_name = 'messpos'+ str(self.target.value) + '.urp'
+        prog_name = 'messpos'+ str(self.target) + '.urp'
         
         assert(re.match(r'messpos\d+\.urp',prog_name) )
         
@@ -376,8 +381,8 @@ class Sample(HasIO,Drivable):
         # Robot successfully mounted the sample
         self.value = self.target
      
-    @Command
-    def unmount(self):
+
+    def _unmount(self):
         """Unmount Sample to Robot arm"""
                 # check if robot is ready to mount sample
         if not self._holding_sample():
@@ -388,14 +393,14 @@ class Sample(HasIO,Drivable):
             self.status = ERROR, 'Robot Arm is not ready to be used'  
             return
         
-        # check if Sample is present in Storage
+        # check if Sample slot is is present in Storage
         if self._get_current_sample == None :
             self.status = ERROR, "Sample Pos "+ str(self.value) +" does not contain a sample"
             return
 
         
         # Run Robot script to unmount Sample        
-        prog_name = 'messposin'+ str(self.target.value) + '.urp'
+        prog_name = 'messposin'+ str(self.value) + '.urp'
         
         assert(re.match(r'messposin\d+\.urp',prog_name) )
         
@@ -409,7 +414,7 @@ class Sample(HasIO,Drivable):
         self.status = 302 , "Unmounting Sample"
         
         # Robot successfully unmounted the sample
-        self.value = 'empty'
+        self.value = 0
 
     @Command
     def measure(self):
@@ -449,7 +454,7 @@ class Sample(HasIO,Drivable):
     def stop(self):
         """Stop execution of program"""
         self.attached_robot.stop()
-        #TODO
+
         
     # @Command(group = 'admin commands',visibility = 'expert')
     # def force_mount(self):
@@ -491,6 +496,11 @@ class Storage(HasIO,Readable):
                     datatype=ArrayOf(SchokiStructOf(nsamples),0,nsamples),
                     readonly = True)
     
+    last_pos = Parameter("Last loaded or unloaded sample_pos",
+             datatype = IntRange(minval= 0,maxval=nsamples),
+             default = 1 ,
+             readonly = True)
+    
     
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -501,15 +511,28 @@ class Storage(HasIO,Readable):
     
 
     def read_status(self):
-        return  IDLE, ''
+        robo_stat = self.attached_robot.status
+        
+        
+        
+        # Robot Arm is Busy        
+        if robo_stat[0] == BUSY:
+            if re.match(r'in\d+\.urp',self.attached_robot.value):
+                return  LOADING, "Loading Sample"
+            if re.match(r'out\d+\.urp',self.attached_robot.value):
+                return UNLOADING , "Unloading Sample"
+            
+            # Robot Running and No sample in Gripper
+            return BUSY , "Robot is in use by other module"
+        
+        return robo_stat
     
-                #'substance' : 'none',
-                #'substance_code':'none',
-                #'sample_pos': 0,
-                #'manufacturer':'none',
-                #'sample_id':'none',
-                #'color': 'none',
-                #'mass':0
+    @Command()
+    def stop(self):
+        """Stop execution of program"""
+        self.attached_robot.stop()
+        return    
+
     
     @Command(SchokiStructOf(nsamples=nsamples),result=None)
     def load(self,substance,substance_code,sample_pos,manufacturer,sample_id,color,mass):
@@ -524,6 +547,7 @@ class Storage(HasIO,Readable):
             self.status = ERROR, 'Robot Arm is not ready to be used'  
             return
         
+               
         # check if Sample position is already occupied
         if self.mag.get_sample(sample_pos) != None:
             self.status = ERROR, "Sample Pos "+ str(sample_pos) +" already occupied"
@@ -548,13 +572,17 @@ class Storage(HasIO,Readable):
             substance_code=substance_code,
             Manufacturer=manufacturer,
             color=color,
-            uuid=sample_id,
+            sample_id =sample_id,
             mass=mass) 
         try:
             self.mag.insertSample(new_Sample)
         except:
-            self.status = ERROR, "Sample Pos already occupied"
+            self.status = ERROR, "Sample Pos already occupied in Magazin Array"
             return
+        
+        self.last_pos = sample_pos
+        
+        return
     
     
     
@@ -570,6 +598,8 @@ class Storage(HasIO,Readable):
         if self.attached_robot.status[0] != IDLE:
             self.status = ERROR, 'Robot Arm is not ready to be used'  
             return
+        
+        
         
         # check if Sample position is already occupied
         if self.mag.get_sample(samplepos) != None:
@@ -593,9 +623,12 @@ class Storage(HasIO,Readable):
         try:
             self.mag.insertSample(Schoki(substance.name,samplepos))
         except:
-            self.status = ERROR, "Sample Pos already occupied"
+            self.status = ERROR, "Sample Pos already occupied in Magazin Array"
             return
         
+        self.last_pos = samplepos
+        
+        return
               
         
     @Command(IntRange(minval=1,maxval=nsamples),result=None)    
@@ -628,11 +661,16 @@ class Storage(HasIO,Readable):
             return
         
         
-        #TODO execute this once robotprogram finished
+
         try:
             self.mag.removeSample(sample_pos)
         except:
-            self.status = ERROR, "No sample at Pos "
+            self.status = ERROR, "No sample at Array Pos " + str(sample_pos)
+            return
+        
+        self.last_pos = sample_pos
+        
+        return
             
 
 MOUNTING         = Sample.Status.MOUNTING
