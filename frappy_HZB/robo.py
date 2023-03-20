@@ -69,15 +69,21 @@ class UR_Robot(HasIO,Drivable):
 
     
     
-    value = Parameter("current loaded Program",
+    value = Parameter("Currently executing Program",
                        datatype=StringType(),
                        default = '<unknown>.urp',
                        readonly = True)
 
-    target = Parameter("Sample number to retrieve",
+    target = Parameter("Program that is to be executed",
                        datatype=StringType(),
                        default = 'none',
                        readonly = False)
+    
+    loaded_prog = Parameter("Program that is currently loaded",
+                            datatype= StringType(),
+                            default = "<unknown>.urp",
+                            readonly = True,
+                            visibility = 'expert')
     
     model = Parameter("Model name of the robot",
                       datatype=StringType(),
@@ -236,20 +242,22 @@ class UR_Robot(HasIO,Drivable):
         
         return False   
             
-            
+    
+    def read_loaded_prog(self):
+        loaded_prog_reply =  str(self.communicate('get loaded program'))
+
+        if loaded_prog_reply == 'No program loaded':
+            return 'no_program_loaded'
+        else:
+            return re.search(r'([^\/]+.urp)',loaded_prog_reply).group()
 
         
     
     def read_value(self):
-        loaded_prog_reply =  str(self.communicate('get loaded program'))
-
-        if loaded_prog_reply.__eq__('No program loaded'):
-            return 'no_program_loaded'
+        if(self._program_running()):
+            return self.read_loaded_prog()
         else:
-            prog_name = re.search(r'([^\/]+.urp)',loaded_prog_reply).group()
-
-            return prog_name
-            
+            return 'none'     
 
 
     def read_model(self):
@@ -301,9 +309,9 @@ class UR_Robot(HasIO,Drivable):
             return self.status
         
         
-        self.read_robotmode()
+
                 
-        if self._program_running() and self.robotmode[0] == 'RUNNING':
+        if self._program_running() and 'RUNNING' == self.read_robotmode():
             return BUSY, 'Program running'    	    
         
         return ROBOT_MODE_STATUS[self.robotmode.name]
@@ -332,15 +340,15 @@ class UR_Robot(HasIO,Drivable):
         if self.stop_State['stopped']:
             return
         
-        if self.pause_State['paused'] and self.pause_State['interrupted_prog'] != self.value:
+        if self.pause_State['paused'] and self.pause_State['interrupted_prog'] != self.loaded_prog:
             self.status = ERROR, "Paused and loaded Program dont Match"
-            self.pause_State = {'paused' : False, 'interrupted_prog' : self.value}
+            self.pause_State = {'paused' : False, 'interrupted_prog' : self.loaded_prog}
             return
         
         play_reply  = str(self.communicate('play'))
         
         # Reset paused state
-        self.pause_State = {'paused' : False, 'interrupted_prog' : self.value}
+        self.pause_State = {'paused' : False, 'interrupted_prog' : self.loaded_prog}
         
         if play_reply == 'Starting program':
             self.status = BUSY, "Starting program"
@@ -381,7 +389,7 @@ class UR_Robot(HasIO,Drivable):
 PAUSED     = UR_Robot.Status.PAUSED
 STOPPED    = UR_Robot.Status.STOPPED
 UNKNOWN    = Readable.Status.UNKNOWN
-PREPAIRING = UR_Robot.Status.PREPAIRING
+PREPARING = UR_Robot.Status.PREPARING
 DISABLED   = UR_Robot.Status.DISABLED
 STANDBY    = UR_Robot.Status.STANDBY 
         
@@ -390,11 +398,11 @@ ROBOT_MODE_STATUS = {
     'NO_CONTROLLER' :(ERROR,'NO_CONTROLLER'),
     'DISCONNECTED' :(DISABLED,'DISCONNECTED'),
     'CONFIRM_SAFETY' :(DISABLED,'CONFIRM_SAFETY'),
-    'BOOTING' :(PREPAIRING,'BOOTING'),
+    'BOOTING' :(PREPARING,'BOOTING'),
     'POWER_OFF' :(DISABLED,'POWER_OFF'),
     'POWER_ON' :(STANDBY,'POWER_ON'),
     'IDLE' :(IDLE,'IDLE'),
-    'BACKDRIVE' :(PREPAIRING,'BACKDRIVE'),
+    'BACKDRIVE' :(PREPARING,'BACKDRIVE'),
     'RUNNING' :(IDLE,'IDLE'),
 }
 

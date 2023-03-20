@@ -18,50 +18,48 @@ nsamples = 12
 
 
 SCHOKO_SORTEN = {
-    'None':0,
-    'Nuss-Splitter':1,
-    'Joghurt':2,
-    'Nugat':3,
-    'Knusperflakes':4,
+    'Knusperkeks':0,
+    'Edel-Vollmilch':1,
+    'Knusperflakes':2,
+    'Nuss-Splitter':3,
+    'Nugat':4,
     'Marzipan':5,
-    'Knusperkeks':6,
-    'Edel-Vollmilch':7,
-    'Mandel':8
+    'Joghurt':6,
 }
 
 SCHOKO_SORTEN_ENUM = {
-    'Nuss-Splitter':1,
-    'Joghurt':2,
-    'Nugat':3,
-    'Knusperflakes':4,
+    'Knusperkeks':0,
+    'Edel-Vollmilch':1,
+    'Knusperflakes':2,
+    'Nuss-Splitter':3,
+    'Nugat':4,
     'Marzipan':5,
-    'Knusperkeks':6,
-    'Edel-Vollmilch':7,
-    'Mandel':8
+    'Joghurt':6,
+    'unknown':7
 }
 
 SCHOKO_FARBE = {
-    'None':'None',
-    'Nuss-Splitter':'green',
-    'Joghurt':'white',
-    'Nugat':'dark blue',
-    'Knusperflakes':'yellow',
-    'Marzipan':'red',
     'Knusperkeks':'brown',
     'Edel-Vollmilch':'blue',
-    'Mandel':'dark green'
+    'Knusperflakes':'yellow',
+    'Nuss-Splitter':'green',
+    'Nugat':'dark blue',
+    'Marzipan':'red',
+    'Joghurt':'white',
+    'unknown':'none'
 }
 
-SCHOKO_FARBE_ENUM = {
-    'None':0,
-    'Nuss-Splitter':1,
-    'Joghurt':2,
-    'Nugat':3,
-    'Knusperflakes':4,
+
+
+SCHOKO_TO_SUBSTANCE_ID = {
+    'Knusperkeks':0,
+    'Edel-Vollmilch':1,
+    'Knusperflakes':2,
+    'Nuss-Splitter':3,
+    'Nugat':4,
     'Marzipan':5,
-    'Knusperkeks':6,
-    'Edel-Vollmilch':7,
-    'Mandel':8
+    'Joghurt':6,
+    'unknown':7
 }
 
 SAMPLE_POS = {
@@ -84,31 +82,47 @@ SAMPLE_POS = {
 
 class SchokiStructOf(StructOf):
     def __init__(self, nsamples):
-        super().__init__( type = StringType(),
+        super().__init__( 
+                        substance = StringType(),
+                        substance_code = StringType(),
                         sample_pos =IntRange(minval= 0,maxval=nsamples),                        
                         manufacturer = StringType(),
                         sample_id = StringType(),
                         color = StringType(),
-                        weight = FloatRange(minval=0,maxval=1,unit = 'kg')
+                        mass = FloatRange(minval=0,maxval=1,unit = 'kg')
                         )
 
 class Schoki:
-    def __init__(self, type, samplePos, Manufacturer = 'Rittersport' ,weight =0.0167 ) -> None:
-        self.type = type
+    def __init__(self, substance,samplePos, substance_code = None, Manufacturer = None ,color = None,uuid = None,mass =None ) -> None:
+        self.substance = substance
         self.samplePos =samplePos
+        
+        self.substance_code = substance_code
         self.Manufacturer = Manufacturer
-        self.color = SCHOKO_FARBE.get(self.type,None)
-        self.uuid = str(uuid.uuid4())
-        self.weight = weight
+        self.color = color
+        self.uuid = uuid
+        self.mass = mass
+        
+        if substance_code == None:
+            self.substance_code = SCHOKO_SORTEN[substance]
+        if Manufacturer == None:
+            self.Manufacturer = 'Rittersport'
+        if color == None:
+            self.color = SCHOKO_FARBE.get(self.substance,None)
+        if uuid == None:
+            self.uuid = str(uuid.uuid4())
+        if mass == None:
+            self.mass = 0.0167
                 
     def toStructOf(self):
 
-        return {'type' : self.type,
+        return {'substance' : self.substance,
+                'substance_code': str(self.substance_code),
                 'sample_pos':self.samplePos,
                 'manufacturer':self.Manufacturer,
                 'sample_id':self.uuid,
                 'color': self.color,
-                'weight':self.weight
+                'mass':self.mass
                 }
         
         
@@ -181,7 +195,12 @@ class Sample(HasIO,Drivable):
                     readonly = True,
                     group = 'sample') 
     
-    type = Parameter("Sample type currently held my robot Arm",
+    substance = Parameter("Sample substance currently held my robot Arm",
+                     datatype=StringType(),
+                     default = 'none',
+                     readonly= True,
+                     group = 'sample')
+    substance_code = Parameter("substance_code of Sample currently held my robot Arm",
                      datatype=StringType(),
                      default = 'none',
                      readonly= True,
@@ -201,7 +220,7 @@ class Sample(HasIO,Drivable):
                      default = 'none',
                      readonly= True,
                      group = 'sample')
-    weight = Parameter("weight of sample currently held my robot Arm",
+    mass = Parameter("mass of sample currently held my robot Arm",
                      datatype=FloatRange(minval=0,maxval=1,unit = 'kg'),
                      default = 0,
                      readonly= True,
@@ -263,19 +282,26 @@ class Sample(HasIO,Drivable):
             current_sample = self._get_current_sample()
             return current_sample.toStructOf()
         
-        return {'type' : 'none',
+        return {'substance' : 'none',
+                'substance_code':'none',
                 'sample_pos': 0,
                 'manufacturer':'none',
                 'sample_id':'none',
                 'color': 'none',
-                'weight':0
+                'mass':0
                 }
     
+    def read_substance_code(self):
+       if self._holding_sample():
+           sample = self._get_current_sample()
+           return str(sample.substance_code)
+       return 'none'
+           
    
-    def read_type(self):
+    def read_substance(self):
         if self._holding_sample():
             sample = self._get_current_sample()
-            return sample.type
+            return sample.substance
         return 'none'
     
     def read_color(self):
@@ -296,10 +322,10 @@ class Sample(HasIO,Drivable):
             return sample.Manufacturer
         return 'none'
     
-    def read_weight(self):
+    def read_mass(self):
         if self._holding_sample():
             sample = self._get_current_sample()
-            return sample.weight
+            return sample.mass
         return 0
     
     def _holding_sample(self):
@@ -477,11 +503,63 @@ class Storage(HasIO,Readable):
     def read_status(self):
         return  IDLE, ''
     
+                #'substance' : 'none',
+                #'substance_code':'none',
+                #'sample_pos': 0,
+                #'manufacturer':'none',
+                #'sample_id':'none',
+                #'color': 'none',
+                #'mass':0
+    
+    @Command(SchokiStructOf(nsamples=nsamples),result=None)
+    def load(self,substance,substance_code,sample_pos,manufacturer,sample_id,color,mass):
+        """load sample into storage"""
+        
+        # check if robot is ready to load sample
+        if self.attached_sample._holding_sample():
+            self.status = ERROR, 'Gripper already holding Sample'
+            return
+        
+        if self.attached_robot.status[0] != IDLE:
+            self.status = ERROR, 'Robot Arm is not ready to be used'  
+            return
+        
+        # check if Sample position is already occupied
+        if self.mag.get_sample(sample_pos) != None:
+            self.status = ERROR, "Sample Pos "+ str(sample_pos) +" already occupied"
+            return
 
+        
+        # Run Robot script to insert actual Sample        
+        prog_name = 'in'+ str(sample_pos)+ '.urp'
+        assert(re.match(r'in\d+\.urp',prog_name))
+        success =  self.attached_robot.run_program(prog_name)
+        
+        # errors while loading robot program
+        if not success:
+            self.status = ERROR, 'failed to run <load> Robot Program'
+            return
+        
+        
+        # Insert new Sample in Storage Array (it is assumed that the robot programm executed successfully)
+        new_Sample = Schoki(
+            substance= substance,
+            samplePos=sample_pos,
+            substance_code=substance_code,
+            Manufacturer=manufacturer,
+            color=color,
+            uuid=sample_id,
+            mass=mass) 
+        try:
+            self.mag.insertSample(new_Sample)
+        except:
+            self.status = ERROR, "Sample Pos already occupied"
+            return
     
     
-    @Command(StructOf(type = EnumType(SCHOKO_SORTEN_ENUM) ,samplepos = IntRange(minval= 1,maxval= nsamples)),result=None)
-    def load(self,samplepos,type):
+    
+    @Command(StructOf(substance = EnumType(SCHOKO_SORTEN_ENUM) ,samplepos = IntRange(minval= 1,maxval= nsamples)),result=None)
+    def load_short(self,samplepos,substance):
         """load sample into storage"""
         
         # check if robot is ready to load sample
@@ -511,8 +589,9 @@ class Storage(HasIO,Readable):
         
         
         # Insert new Sample in Storage Array (it is assumed that the robot programm executed successfully)
+
         try:
-            self.mag.insertSample(Schoki(type.name,samplepos))
+            self.mag.insertSample(Schoki(substance.name,samplepos))
         except:
             self.status = ERROR, "Sample Pos already occupied"
             return
@@ -538,7 +617,7 @@ class Storage(HasIO,Readable):
             return
 
         
-        # Run Robot script to insert actual Sample        
+        # Run Robot script to unload actual Sample        
         prog_name = 'out'+ str(sample_pos) +'.urp'
         assert(re.match(r'out\d+\.urp',prog_name))
         success = self.attached_robot.run_program(prog_name)
@@ -548,6 +627,8 @@ class Storage(HasIO,Readable):
             self.status = ERROR, 'failed to run <unload> Robot Program'
             return
         
+        
+        #TODO execute this once robotprogram finished
         try:
             self.mag.removeSample(sample_pos)
         except:

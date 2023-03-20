@@ -15,10 +15,9 @@ Mod('Robot',
     io='io',
     group = 'UR_Robot',
     
-
+    
     model = "none",
     serial = "none",
-    robotmode = "none",
     ur_version = "none",
     
     tcp_position = [0,0,0],
