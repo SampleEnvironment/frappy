@@ -833,10 +833,7 @@ class Readable(Module):
     Status = Enum('Status',
                   IDLE=StatusType.IDLE,
                   WARN=StatusType.WARN,
-                  UNSTABLE=270,  # not SECoP standard. TODO: remove and adapt entangle
                   ERROR=StatusType.ERROR,
-                  DISABLED=StatusType.DISABLED,
-                  UNKNOWN=401,  # not SECoP standard. TODO: remove and adapt entangle and epics
                   )  #: status code Enum: extended automatically in inherited modules
     value = Parameter('current value of the module', FloatRange())
     status = Parameter('current status of the module', StatusType(Status),

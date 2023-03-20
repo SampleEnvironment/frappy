@@ -21,7 +21,7 @@
 # *****************************************************************************
 
 
-from frappy.datatypes import EnumType, FloatRange, StringType
+from frappy.datatypes import EnumType, FloatRange, StringType, StatusType
 from frappy.modules import Drivable, Parameter, Readable
 
 try:
@@ -71,7 +71,7 @@ class EpicsReadable(Readable):
     status_pv = Parameter('EPICS pv_name of status',
                       datatype=StringType(),
                       default="unset", export=False)
-
+    status = Parameter(datatype=StatusType(Readable, 'UNKNOWN'))
 
     # Generic read and write functions
     def _read_pv(self, pv_name):
@@ -132,6 +132,7 @@ class EpicsDrivable(Drivable):
                      default="unset", export=False)
     status_pv = Parameter('EPICS pv_name of status', datatype=StringType(),
                       default="unset", export=False)
+    status = Parameter(datatype=StatusType(Drivable, 'UNKNOWN'))
 
 
     # Generic read and write functions

@@ -41,7 +41,7 @@ from frappy.datatypes import ArrayOf, EnumType, FloatRange, \
 from frappy.errors import CommunicationFailedError, \
     ConfigError, HardwareError, ProgrammingError
 from frappy.lib import lazy_property
-from frappy.modules import Command, \
+from frappy.modules import Command, StatusType, \
     Drivable, Module, Parameter, Readable
 
 #####
@@ -173,11 +173,11 @@ class BasePyTangoDevice:
                             )
 
     tango_status_mapping = {
-        PyTango.DevState.ON:     Drivable.Status.IDLE,
-        PyTango.DevState.ALARM:  Drivable.Status.WARN,
-        PyTango.DevState.OFF:    Drivable.Status.DISABLED,
-        PyTango.DevState.FAULT:  Drivable.Status.ERROR,
-        PyTango.DevState.MOVING: Drivable.Status.BUSY,
+        PyTango.DevState.ON:     StatusType.IDLE,
+        PyTango.DevState.ALARM:  StatusType.WARN,
+        PyTango.DevState.OFF:    StatusType.DISABLED,
+        PyTango.DevState.FAULT:  StatusType.ERROR,
+        PyTango.DevState.MOVING: StatusType.BUSY,
     }
 
     @lazy_property
@@ -364,13 +364,15 @@ class BasePyTangoDevice:
 class PyTangoDevice(BasePyTangoDevice):
     """Base for "normal" devices with status."""
 
+    status = Parameter(datatype=StatusType(Readable, 'UNKNOWN', 'DISABLED'))
+
     def read_status(self):
         # Query status code and string
         tangoState = self._dev.State()
         tangoStatus = self._dev.Status()
 
         # Map status
-        myState = self.tango_status_mapping.get(tangoState, Drivable.Status.UNKNOWN)
+        myState = self.tango_status_mapping.get(tangoState, StatusType.UNKNOWN)
 
         return (myState, tangoStatus)
 
@@ -456,6 +458,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
                         default=60.0, readonly=False,
                         datatype=FloatRange(0, 900, unit='s'), group='stability',
                         )
+    status = Parameter(datatype=StatusType(PyTangoDevice, 'BUSY', 'UNSTABLE'))
 
     _history = ()
     _timeout = None
@@ -520,7 +523,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
 
     def read_status(self):
         status = super().read_status()
-        if status[0] in (Readable.Status.DISABLED, Readable.Status.ERROR):
+        if status[0] in (StatusType.DISABLED, StatusType.ERROR):
             self.setFastPoll(False)
             return status
         if self._isAtTarget():
@@ -857,7 +860,7 @@ class PartialDigitalInput(NamedDigitalInput):
         return value  # mapping is done by datatype upon export()
 
 
-class DigitalOutput(PyTangoDevice, Drivable):
+class DigitalOutput(PyTangoDevice):
     """A device that can set and read a digital value corresponding to a
     bitfield.
     """
