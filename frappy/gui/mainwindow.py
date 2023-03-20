@@ -229,6 +229,7 @@ class MainWindow(QMainWindow):
         try:
             node = self.tab.widget(index).getSecNode()
             # disconnect node from all events
+            node.terminate_connection()
             self._nodes.pop(node.nodename)
             self.log.debug("Closing tab with node %s" % node.nodename)
         except AttributeError:
@@ -247,6 +248,5 @@ class MainWindow(QMainWindow):
     def _onQuit(self):
         for node in self._nodes.values():
             # this is only qt signals deconnecting!
-            # TODO: terminate node.conn explicitly?
-            node.disconnect()
+            node.terminate_connection()
         self.logwin.onClose()

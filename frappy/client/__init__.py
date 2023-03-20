@@ -493,6 +493,8 @@ class SecopClient(ProxyClient):
                 self.txq.get(False)
         except Exception:
             pass
+        if self.io:
+            self.io.shutdown()
         if self._txthread:
             self.txq.put(None)  # shutdown marker
             self._txthread.join()

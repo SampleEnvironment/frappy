@@ -107,3 +107,6 @@ class QSECNode(QObject):
 
     def unhandledMessage(self, action, specifier, data):
         self.unhandledMsg.emit('%s %s %r' % (action, specifier, data))
+
+    def terminate_connection(self):
+        self.conn.disconnect()
