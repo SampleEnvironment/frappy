@@ -220,6 +220,11 @@ class HasAccessibles(HasProperties):
                 raise ProgrammingError('%s.%s defined, but %r is no parameter'
                                        % (cls.__name__, attrname, pname))
 
+        try:
+            # update Status type
+            cls.Status = cls.status.datatype.members[0]._enum
+        except AttributeError:
+            pass
         res = {}
         # collect info about properties
         for pn, pv in cls.propertyDict.items():
@@ -825,7 +830,6 @@ class Module(HasAccessibles):
 
 class Readable(Module):
     """basic readable module"""
-    # pylint: disable=invalid-name
     Status = Enum('Status',
                   IDLE=StatusType.IDLE,
                   WARN=StatusType.WARN,
@@ -833,11 +837,10 @@ class Readable(Module):
                   ERROR=StatusType.ERROR,
                   DISABLED=StatusType.DISABLED,
                   UNKNOWN=401,  # not SECoP standard. TODO: remove and adapt entangle and epics
-                  )  #: status codes
-
+                  )  #: status code Enum: extended automatically in inherited modules
     value = Parameter('current value of the module', FloatRange())
     status = Parameter('current status of the module', StatusType(Status),
-                       default=(Status.IDLE, ''))
+                       default=(StatusType.IDLE, ''))
     pollinterval = Parameter('default poll interval', FloatRange(0.1, 120),
                              default=5, readonly=False, export=True)
 
@@ -868,9 +871,7 @@ class Writable(Readable):
 class Drivable(Writable):
     """basic drivable module"""
 
-    Status = Enum(Readable.Status, BUSY=StatusType.BUSY)  #: status codes
-
-    status = Parameter(datatype=StatusType(Status))  # override Readable.status
+    status = Parameter(datatype=StatusType(Readable, 'BUSY'))  # extend Readable.status
 
     def isBusy(self, status=None):
         """check for busy, treating substates correctly
