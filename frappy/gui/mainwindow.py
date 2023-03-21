@@ -22,7 +22,7 @@
 # *****************************************************************************
 
 from frappy.gui.qt import QAction, QInputDialog, QKeySequence, QMainWindow, \
-    QMessageBox, QPixmap, QSettings, QShortcut, QWidget, pyqtSignal, \
+    QMessageBox, QPixmap, QSettings, QShortcut, Qt, QWidget, pyqtSignal, \
     pyqtSlot
 
 import frappy.version
@@ -44,6 +44,10 @@ class Greeter(QWidget):
             # maybe change it at runtime instead of second file?
             self.logoLabel.setPixmap(QPixmap(':/icons/logo_subtitle_light'))
         self.loadRecent()
+        self.recentNodes.itemDoubleClicked.connect(self.recentNodeDoubleClicked)
+        self.shortcut = QShortcut(QKeySequence("Return"), self.recentNodes,
+                                  self.on_connectRecentButton_clicked,
+                                  context=Qt.ShortcutContext.WidgetWithChildrenShortcut)
 
     def loadRecent(self):
         self.recentNodes.clear()
@@ -66,6 +70,9 @@ class Greeter(QWidget):
     def on_AddSECNodeButton_clicked(self):
         self.addnodes.emit([self.secnodeEdit.text()
                             or self.secnodeEdit.placeholderText()])
+
+    def recentNodeDoubleClicked(self, item):
+        self.addnodes.emit([item.text()])
 
 
 class MainWindow(QMainWindow):
