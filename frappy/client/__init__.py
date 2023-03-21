@@ -141,6 +141,8 @@ class CacheItem(tuple):
 
     def formatted(self):
         """format value with using unit"""
+        if self[2]:  # readerror
+            return repr(self[2])
         return self.format_value(self[0])
 
     def __repr__(self):

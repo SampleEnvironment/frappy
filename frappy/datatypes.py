@@ -844,9 +844,16 @@ class ArrayOf(DataType):
         return self(value)
 
     def format_value(self, value, unit=None):
+        innerunit = ''
         if unit is None:
-            unit = self.unit or self.members.unit
-        res = '[%s]' % (', '.join([self.members.format_value(elem, '') for elem in value]))
+            members = self.members
+            while isinstance(members, ArrayOf):
+                members = members.members
+            if members.unit:
+                unit = members.unit
+            else:
+                innerunit = None
+        res = '[%s]' % (', '.join([self.members.format_value(elem, innerunit) for elem in value]))
         if unit:
             return ' '.join([res, unit])
         return res

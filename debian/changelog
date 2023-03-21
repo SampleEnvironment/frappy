@@ -1,3 +1,146 @@
+frappy-core (0.17.3) focal; urgency=medium
+
+  * UNRELEASED
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 21 Mar 2023 15:55:09 +0100
+
+frappy-core (0.17.2) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * Fix Simulation and Proxy
+
+  [ Markus Zolliker ]
+  * cfg path quick fix for hands-on session
+
+  [ Georg Brandl ]
+  * add pyqtgraph to gui dependencies
+
+  [ Markus Zolliker ]
+  * allow super calls on read_/write_ methods
+
+  [ Alexander Zaft ]
+  * Add greeter tab to UI
+  * Add recent SECNodes to Drop down menu
+  * Remove auto-connect to 10767 on startup
+
+  [ Markus Zolliker ]
+  * do not reuse address on Windows
+
+  [ Georg Brandl ]
+  * version.py: sync with other projects
+
+  [ Alexander Zaft ]
+  * Fix forge link in README
+
+  [ Markus Zolliker ]
+  * better guess for cfg file location
+  * fix ppms with proxy
+  * default settings on the IO class
+  * demo lakeshore with simulation
+
+  [ Georg Brandl ]
+  * cfg editor: fixes
+  * installer: add config for frappy gui exe
+
+  [ Markus Zolliker ]
+  * make doc should not fail when version is not available
+
+  [ Alexander Zaft ]
+  * Add reconnect Action
+
+  [ Georg Brandl ]
+  * readme: fix make call
+  * gui: add about dialog, remove "about Qt" menu entry
+  * gui: move QSECNode to separate module
+  * gui: isort
+
+  [ Alexander Zaft ]
+  * Fix Node adding logic
+  * Remove unneeded constants
+  * Make input field more distinct
+
+  [ Markus Zolliker ]
+  * AsynConn.uri: better handling for missing scheme
+
+  [ Georg Brandl ]
+  * gui: remove unused ui file
+  * gui: better label for param set button
+
+  [ Alexander Zaft ]
+  * Always make a greeter tab
+
+  [ Markus Zolliker ]
+  * improve online help of frappy-cli
+  * refresh logging when reconnected while watching
+
+  [ Alexander Zaft ]
+  * [Needs Feedback] Add PyQt6. Remove PyQt4
+  * Merge resource files
+  * Extend Node and Module widgets
+  * Scroll Module area instead of replacing widgets
+  * Remove Modulectrl Widget
+
+  [ Georg Brandl ]
+  * gui: better display of protocol version
+  * gui: cleanup code in modulewidget
+  * gui: always show scrollbar in nodewidget
+
+  [ Alexander Zaft ]
+  * Short background Color animation on scroll
+
+  [ Markus Zolliker ]
+  * treat returning None from write_<param> properly
+
+  [ Alexander Zaft ]
+  * Fix doubled module info
+
+  [ Georg Brandl ]
+  * Jenkinsfile: isort does not fail the build
+  * isort: add firstparty
+
+  [ Alexander Zaft ]
+  * gui: make module details button checkable
+  * gui: Logo in greeter
+
+  [ Enrico Faulhaber ]
+  * handle connection close more gracefully
+
+  [ Markus Zolliker ]
+  * split BadValue into WrongType and RangeError
+
+  [ Georg Brandl ]
+  * demo: fixup Switch class
+
+  [ Alexander Zaft ]
+  * fix importing AsynCon without serial
+
+  [ Markus Zolliker ]
+  * gui: support proper formatting of values
+  * central point for status codes
+
+  [ Alexander Zaft ]
+  * fix README typo
+  * gui: terminate connection on tab close
+  * check configured names for spaces
+
+  [ Markus Zolliker ]
+  * make return value 'Done' unneccessary
+  * enhanced parameter range checks
+  * simplify status type declaration
+  * improve frappy.errors
+  * remove UNKNOWN, UNSTABLE and DISABLED from Readable.status
+  * fix generalConfig defaults
+
+  [ Alexander Zaft ]
+  * Add SECoP link to readme
+  * gui: more greeter interactions
+
+  [ Markus Zolliker ]
+  * fix issues when closing tabs
+  * format unit properly in the case of nested arrays
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 21 Mar 2023 15:49:06 +0100
+
 frappy-core (0.17.1) focal; urgency=medium
 
   [ Georg Brandl ]

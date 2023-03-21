@@ -420,6 +420,9 @@ def test_ArrayOf():
     dt = ArrayOf(EnumType('myenum', single=0), 5)
     copytest(dt)
 
+    dt = ArrayOf(ArrayOf(FloatRange(unit='m')))
+    assert dt.format_value([[0, 1], [2, 3]]) == '[[0, 1], [2, 3]] m'
+
 
 def test_TupleOf():
     # test constructor catching illegal arguments
