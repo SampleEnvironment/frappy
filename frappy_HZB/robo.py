@@ -2,6 +2,9 @@ from frappy.datatypes import BoolType, EnumType, FloatRange, StringType, TupleOf
 
 from frappy.core import StatusType ,Command, Parameter, Readable, HasIO, StringIO,StructOf, Property, IDLE, BUSY, WARN, ERROR, IntRange, Drivable, nopoll
 
+from frappy.errors import IsErrorError, CommunicationFailedError,InternalError, HardwareError, RangeError, ImpossibleError, IsBusyError
+
+
 from frappy.lib.enum import Enum
 
 from frappy.modules import Attached
@@ -65,8 +68,10 @@ class UR_Robot(HasIO,Drivable):
     
     Status = Enum(
         Drivable.Status,
+        DISABLED = StatusType.DISABLED,
         PREPARING = StatusType.PREPARING,
         PAUSED = 304,
+        UNKNOWN = StatusType.UNKNOWN,
         STOPPED = 402,
         STANDBY = StatusType.STANDBY        
         )  #: status codes
@@ -211,45 +216,46 @@ class UR_Robot(HasIO,Drivable):
 
 
     def write_target(self,target):
-        old_prog_name = self.target
+        
+        if self.stop_State['stopped']:
+            raise IsErrorError('cannot run Program when Stopped')
+        
+        if self.pause_State['paused']:
+            raise ImpossibleError("continue loaded program before executing "+ target)
+        
+        if self.status[0] == BUSY or self.status[0] == PREPARING:
+            raise IsBusyError('Robot is already executing another Program')
+        
         load_reply = str(self.communicate(f'load {target}'))
-        
-        
+              
         
         if re.match(r'Loading program: .*%s' % target,load_reply):
-            self.status = IDLE, 'loaded Program: ' #+prog_name
+            self._run_loaded_program()
             return target
            
-        
         elif re.match(r'File not found: .*%s' % target,load_reply):
-            self.status = WARN, 'Program not found: '+target
+            raise InternalError('Program not found: '+target)
         
         elif re.match(r'Error while loading program: .*%s' % target,load_reply):
-            self.status = WARN, 'ERROR while loading Program: '+ target
+            raise InternalError('write_targetERROR while loading Program: '+ target)
             
         else:
-            self.status = WARN, 'unknown Answer: '+load_reply 
-           
-            
-        return old_prog_name
+            raise InternalError('unknown Answer: '+load_reply) 
+        
+        
     
     
-    def run_program(self,prog_name):
-        # PAUSED: continue loaded Program first
-        # STOPPED: resolve STOPPED ERROR first
-        if self.pause_State['paused']  or self.stop_State['stopped']:
-            return False
-            
-        if self.write_target(prog_name) != prog_name:
-            return False
+    def _run_loaded_program(self):
+        play_reply  = str(self.communicate('play'))
         
-        self.play()
+        # Reset paused state
+        self.pause_State = {'paused' : False, 'interrupted_prog' : self.loaded_prog}
         
-        if self.status[0] == BUSY:
-            return True
+        if play_reply == 'Starting program':
+            self.status = BUSY, "Starting program"
+        else:
+            raise InternalError("Failed to execute: play")
         
-        return False   
-            
     
     def read_loaded_prog(self):
         loaded_prog_reply =  str(self.communicate('get loaded program'))
@@ -324,14 +330,23 @@ class UR_Robot(HasIO,Drivable):
         
         return ROBOT_MODE_STATUS[self.robotmode.name]
 
+    def _program_running(self): 
+        running_reply = str(self.communicate('running')).removeprefix('Program running: ') 
+        
+        if running_reply == 'true':
+            return True
+        else:
+            return False	    
+        
+    
 
-    @Command
+    @Command(group ='control')
     def stop(self):
         """Stop execution of program"""
         
         # already stopped
         if self.stop_State['stopped']:
-            return
+            raise ImpossibleError('module is already stopped')
         
         stopped_struct = {'stopped' : self._program_running(), 'interrupted_prog' : self.value}
         
@@ -367,67 +382,63 @@ class UR_Robot(HasIO,Drivable):
                 self.attached_sample.value = 0
             
         elif stop_reply == 'Failed to execute: stop':
-            self.status = ERROR, "Failed to execute: stop"
-            return
+            raise InternalError("Failed to execute: stop")
+            
             
         self.stop_State = stopped_struct
     
-    @Command()
+    @Command(group ='control')
     def play(self):
         """Start/continue execution of program"""
+        if self.status[0] == BUSY or self.status[0] == PREPARING:
+            raise IsBusyError('Robot is already executing another Program')
+        
         if self.stop_State['stopped']:
-            return
+            raise IsErrorError('cannot run Program when Stopped')
         
         if self.pause_State['paused'] and self.pause_State['interrupted_prog'] != self.loaded_prog:
-            self.status = ERROR, "Paused and loaded Program dont Match"
             self.pause_State = {'paused' : False, 'interrupted_prog' : self.loaded_prog}
-            return
-        
-        play_reply  = str(self.communicate('play'))
-        
-        # Reset paused state
-        self.pause_State = {'paused' : False, 'interrupted_prog' : self.loaded_prog}
-        
-        if play_reply == 'Starting program':
-            self.status = BUSY, "Starting program"
+            raise ImpossibleError("Paused and loaded Program dont Match")
+                    
+        self._run_loaded_program()
             
-            
-
-        else:
-            self.status = ERROR, "Failed to execute: play"
-
-            
-    @Command
+    @Command(group ='control')
     def pause(self):
         """Pause execution of program"""
+       
         if self.stop_State['stopped']:
-            return
+            raise IsErrorError('cannot pause Program when Stopped')
         
-        paused_struct = {'paused' : self._program_running(), 'interrupted_prog' : self.value}
+        if not self._program_running():
+            raise ImpossibleError('Currently not executing a Program')
+        
+        paused_struct = {'paused' : True, 'interrupted_prog' : self.value}
         
         play_reply  = str(self.communicate('pause'))
         
         if play_reply == 'Pausing program':
             self.status = PAUSED, "Paused program execution"
         else:
-            self.status = ERROR, "Failed to execute: pause"
-            return
+            raise InternalError("Failed to execute: pause")
+            
         
         self.pause_State = paused_struct
     
-    def _program_running(self): 
-        running_reply = str(self.communicate('running')).removeprefix('Program running: ') 
-        
-        if running_reply == 'true':
-            return True
-        else:
-            return False	    
-        
-        
+    @Command(visibility = 'expert',group ='error_handling')
+    def clear_error(self):
+        """Trys to Clear Errors"""
+        pass
+    
+    @Command(visibility ='expert',group ='error_handling' )
+    def reset(self):
+        """Reset Robot Module (Returns to Home Position and powers down afterwards)"""
+        pass
+    
+  
 PAUSED     = UR_Robot.Status.PAUSED
 STOPPED    = UR_Robot.Status.STOPPED
-UNKNOWN    = Readable.Status.UNKNOWN
-PREPARING = UR_Robot.Status.PREPARING
+UNKNOWN    = UR_Robot.Status.UNKNOWN
+PREPARING  = UR_Robot.Status.PREPARING
 DISABLED   = UR_Robot.Status.DISABLED
 STANDBY    = UR_Robot.Status.STANDBY 
         
@@ -443,8 +454,6 @@ ROBOT_MODE_STATUS = {
     'BACKDRIVE' :(PREPARING,'BACKDRIVE'),
     'RUNNING' :(IDLE,'IDLE'),
 }
-
-
 
 ROBOT_PROG = {
  'initpos' : 'initpos.urp',

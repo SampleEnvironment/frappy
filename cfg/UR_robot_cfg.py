@@ -9,12 +9,12 @@ Mod('io',  # the name of the module
     uri='tcp://192.168.56.3:29999',  # the serial connection
 )    
     
-Mod('Robot',
+Mod('robot',
     'frappy_HZB.robo.UR_Robot',
     'Module for controlling the Robotarm. It provides diagnostic information on the tool center point, joint information and general status of the robot',
     io='io',
-    attached_sample = 'Sample',
-    attached_storage = 'Storage',
+    attached_sample = 'sample',
+    attached_storage = 'storage',
     group = 'UR_Robot',
     
     
@@ -34,25 +34,25 @@ Mod('Robot',
 
 )
 
-Mod('Storage',
+Mod('storage',
     'frappy_HZB.probenwechsler.Storage',
     'Samplestorage with slots for holding samples',
     io ='io',
-    attached_sample = 'Sample',
-    attached_robot = 'Robot',
-    group = 'sample changer',
+    attached_sample = 'sample',
+    attached_robot = 'robot',
+    group = 'sample_changer',
     storage_size = nsamples,
     pollinterval = 1
   
 )
 
-Mod('Sample',
+Mod('sample',
     'frappy_HZB.probenwechsler.Sample',
     'Active Sample held by Robot',
     io ='io',
-    attached_robot = 'Robot',
-    attached_storage = 'Storage',
-    group = 'sample changer',
+    attached_robot = 'robot',
+    attached_storage = 'storage',
+    group = 'sample_changer',
     pollinterval = 1
     )
 
