@@ -291,11 +291,9 @@ class Parameter(Accessible):
         if modobj:
             if self.update_unchanged == -1:
                 t = modobj.omit_unchanged_within
-                print(self, t)
                 self.omit_unchanged_within = generalConfig.omit_unchanged_within if t is None else t
             else:
                 self.omit_unchanged_within = float(self.update_unchanged)
-            print(self, self.omit_unchanged_within, generalConfig.defaults, generalConfig._config)
 
     def export_value(self):
         return self.datatype.export_value(self.value)
