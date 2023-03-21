@@ -1,3 +1,9 @@
+frappy-core (0.17.3) focal; urgency=medium
+
+  * UNRELEASED
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 21 Mar 2023 15:55:09 +0100
+
 frappy-core (0.17.2) focal; urgency=medium
 
   [ Alexander Zaft ]
