@@ -111,7 +111,6 @@ class MainWindow(QMainWindow):
         self.recentNodesChanged.connect(greeter.loadRecent)
         self.tab.addPanel(greeter, 'Welcome')
 
-        self._nodes = {}
         self._nodeWidgets = {}
 
         # add localhost (if available) and SEC nodes given as arguments
@@ -187,6 +186,10 @@ class MainWindow(QMainWindow):
                                  'Connecting to %s failed!' % host, str(e))
 
     def _addNode(self, host):
+        prevWidget = self._nodeWidgets.get(host)
+        if prevWidget:
+            self.tab.setCurrentWidget(prevWidget)
+            return
         # create client
         node = QSECNode(host, self.log, parent=self)
         nodeWidget = NodeWidget(node)
@@ -194,10 +197,8 @@ class MainWindow(QMainWindow):
         nodeWidget._rebuildAdvanced(self.actionDetailed_View.isChecked())
 
         # Node and NodeWidget created without error
-        nodename = node.nodename
-        self._nodes[nodename] = node
         self.tab.addTab(nodeWidget, node.equipmentId)
-        self._nodeWidgets[nodename] = nodeWidget
+        self._nodeWidgets[host] = nodeWidget
         self.tab.setCurrentWidget(nodeWidget)
 
         # add to recent nodes
@@ -208,7 +209,6 @@ class MainWindow(QMainWindow):
         recent.insert(0, host)
         settings.setValue('recent', recent)
         self.recentNodesChanged.emit()
-        return nodename
 
     def buildRecentNodeMenu(self):
         settings = QSettings()
@@ -233,15 +233,17 @@ class MainWindow(QMainWindow):
         self.recentNodesChanged.emit()
 
     def _handleTabClose(self, index):
+        nodeWidget = self.tab.widget(index)
         try:
-            node = self.tab.widget(index).getSecNode()
-            # disconnect node from all events
-            node.terminate_connection()
-            self._nodes.pop(node.nodename)
-            self.log.debug("Closing tab with node %s" % node.nodename)
+            node = nodeWidget.getSecNode()
         except AttributeError:
             # Closing the greeter
             self.log.debug("Greeter Tab closed")
+        else:
+            # disconnect node from all events
+            node.terminate_connection()
+            self._nodeWidgets.pop(node.contactPoint)
+            self.log.debug("Closing tab with node %s" % node.nodename)
         self.tab.removeTab(index)
 
     def _rebuildAdvanced(self, advanced):
@@ -253,7 +255,7 @@ class MainWindow(QMainWindow):
             widget._rebuildAdvanced(advanced)
 
     def _onQuit(self):
-        for node in self._nodes.values():
+        for widget in self._nodeWidgets.values():
             # this is only qt signals deconnecting!
-            node.terminate_connection()
+            widget.getSecNode().terminate_connection()
         self.logwin.onClose()

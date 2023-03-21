@@ -182,7 +182,10 @@ class AsynTcp(AsynConn):
 
     def shutdown(self):
         if self.connection:
-            self.connection.shutdown(socket.SHUT_RDWR)
+            try:
+                self.connection.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass  # in case socket is already disconnected
 
     def disconnect(self):
         if self.connection:
