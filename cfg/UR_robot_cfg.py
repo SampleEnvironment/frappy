@@ -30,7 +30,8 @@ Mod('robot',
     robot_voltage = 0,
     robot_current = 0,
     pollinterval = 0.1,
-    stop_State = {'stopped' : False,'interrupted_prog' : 'none'}
+    stop_State = {'stopped' : False,'interrupted_prog' : 'none'},
+    pause_State = {'paused' : False,'interrupted_prog' : 'none'}
 
 )
 

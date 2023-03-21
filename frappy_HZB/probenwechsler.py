@@ -236,10 +236,6 @@ class Sample(HasIO,Drivable):
                      group = 'sample')
     
     
-    def doPoll(self):
-        self.read_value()
-        self.read_status()
-
     def read_value(self):
         return self.value
        
@@ -252,9 +248,7 @@ class Sample(HasIO,Drivable):
         if not self.attached_storage.mag.get_sample(target) and target != 0:
             raise ImpossibleError('no Sample stored at Pos: ' +str(target))
         
-        if self.attached_robot.status[0] != IDLE:
-            raise IsBusyError('Robot Arm is not ready to be used')             
-              
+             
         ### Mount:
         if target != 0:
             self._mount(target)
@@ -350,13 +344,10 @@ class Sample(HasIO,Drivable):
         if self.value == 0:
             return False
         return True
-    
-
-       
+           
     def _get_current_sample(self):
         return self.attached_storage.mag.get_sample(self.value)
         
-    
     def _mount(self,target):
         """Mount Sample to Robot arm"""
         assert(target != 0)
@@ -371,11 +362,7 @@ class Sample(HasIO,Drivable):
         assert(re.match(r'messpos\d+\.urp',prog_name) )
         
         self.attached_robot.write_target(prog_name)
-        
-        # errors while loading robot program
-        #if not success:
-        #    raise InternalError( 'failed to execute '+ prog_name +' Robot Program')
-            
+ 
         self.status = MOUNTING , "Mounting Sample"
         
         self.target = target
@@ -399,12 +386,7 @@ class Sample(HasIO,Drivable):
         assert(re.match(r'messposin\d+\.urp',prog_name) )
         
         self.attached_robot.write_target(prog_name)
-        
-        # errors while loading robot program
-        #if not success:
-        #    raise InternalError( 'failed to execute '+ prog_name +' Robot Program')
-            
-            
+
         self.status = UNMOUNTING , "Unmounting Sample"
         
         self.target = target
@@ -435,13 +417,7 @@ class Sample(HasIO,Drivable):
   
         
         self.attached_robot.write_target(prog_name)
-        
-        # errors while loading robot program
-        #if not success:
-        #    raise  InternalError('failed to run '+ prog_name +' Robot Program')
-            
-        
-        
+       
         self.status = MEASURING , "Measuring Sample"
         
     @Command
@@ -452,6 +428,7 @@ class Sample(HasIO,Drivable):
     @Command(visibility = 'expert',group ='error_handling')
     def reset(self):
         """Reset Sample Module (Remove Sample from Gripper)"""
+        
         pass
     
     @Command(visibility = 'expert',group ='error_handling')
@@ -560,28 +537,17 @@ class Storage(HasIO,Readable):
         if self.attached_sample._holding_sample():            
             raise ImpossibleError('Gripper is already holding Sample' + str(self.attached_sample.value))
         
-        #TODO CommandRUnning ERRor            
-        
-        if self.attached_robot.status[0] != IDLE:
-            raise IsBusyError('Robotarm is already in busy')
-         
-                       
+                     
         # check if Sample position is already occupied
         if self.mag.get_sample(sample_pos) != None:
             raise ImpossibleError( "Sample Pos "+ str(sample_pos) +" already occupied")
             
-
         
         # Run Robot script to insert actual Sample        
         prog_name = 'in'+ str(sample_pos)+ '.urp'
         assert(re.match(r'in\d+\.urp',prog_name))
+        
         self.attached_robot.write_target(prog_name)
-        
-        # errors while loading robot program
-        #if not success:
-        #    raise InternalError( 'failed to execute '+ prog_name +' Robot Program')
-          
-        
         
         # Insert new Sample in Storage Array (it is assumed that the robot programm executed successfully)
         new_Sample = Schoki(
@@ -613,10 +579,7 @@ class Storage(HasIO,Readable):
         if self.attached_sample._holding_sample():
             raise ImpossibleError('Gripper is already holding Sample' + str(self.attached_sample.value))
         
-        if self.attached_robot.status[0] != IDLE:
-            raise IsBusyError('Robotarm is already in busy')  
-            
-        
+       
         
         # check if Sample position is already occupied
         if self.mag.get_sample(samplepos) != None:
@@ -630,14 +593,7 @@ class Storage(HasIO,Readable):
         
         self.attached_robot.write_target(prog_name)
         
-        # errors while loading robot program
-        #if not success:
-        #    raise InternalError( 'failed to execute '+ prog_name +' Robot Program')
-            
-        
-        
         # Insert new Sample in Storage Array (it is assumed that the robot programm executed successfully)
-
         try:
             self.mag.insertSample(Schoki(substance.name,samplepos))
         except:
@@ -657,11 +613,7 @@ class Storage(HasIO,Readable):
         if self.attached_sample._holding_sample() == True:
             raise ImpossibleError('Gripper is already holding Sample' + str(self.attached_sample.value))
             
-        
-        if self.attached_robot.status[0] != IDLE:
-            raise IsBusyError('Robotarm is already in busy')    
-            
-        
+
         # check if Sample position is already occupied
         if self.mag.get_sample(sample_pos) == None:
             raise ImpossibleError( "No sample present at pos: "+ str(sample_pos) )
@@ -671,12 +623,6 @@ class Storage(HasIO,Readable):
         assert(re.match(r'out\d+\.urp',prog_name))
         
         self.attached_robot.run_program(prog_name)
-        
-        # errors while loading robot program
-        #if not success:
-        #    raise InternalError( 'failed to execute '+ prog_name +' Robot Program')
-     
-        
 
         try:
             self.mag.removeSample(sample_pos)

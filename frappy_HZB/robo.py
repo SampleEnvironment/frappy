@@ -182,12 +182,7 @@ class UR_Robot(HasIO,Drivable):
     def doPoll(self):
         self.read_value()
         self.read_status()
-        self.read_tcp_position()
-        self.read_tcp_orientation()
-        self.read_joint_current()
-        self.read_joint_voltage()
-        self.read_robot_current()
-        self.read_robot_voltage()
+
     
     
     def read_tcp_position(self):
@@ -221,7 +216,7 @@ class UR_Robot(HasIO,Drivable):
             raise IsErrorError('cannot run Program when Stopped')
         
         if self.pause_State['paused']:
-            raise ImpossibleError("continue loaded program before executing "+ target)
+            raise IsBusyError("continue loaded program before executing "+ target)
         
         if self.status[0] == BUSY or self.status[0] == PREPARING:
             raise IsBusyError('Robot is already executing another Program')
@@ -425,6 +420,7 @@ class UR_Robot(HasIO,Drivable):
         self.pause_State = paused_struct
     
     @Command(visibility = 'expert',group ='error_handling')
+    
     def clear_error(self):
         """Trys to Clear Errors"""
         pass
