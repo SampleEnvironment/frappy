@@ -31,18 +31,15 @@ import threading
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, FloatRange, IntRange, \
     StringType, TupleOf, ValueType
-from frappy.errors import CommunicationFailedError, ConfigError, ProgrammingError
+from frappy.errors import CommunicationFailedError, ConfigError, ProgrammingError, \
+    SilentCommunicationFailedError as SilentError
 from frappy.modules import Attached, Command, \
-    Communicator, Done, Module, Parameter, Property
+    Communicator, Module, Parameter, Property
 from frappy.lib import generalConfig
 
 generalConfig.set_default('legacy_hasiodev', False)
 
 HEX_CODE = re.compile(r'[0-9a-fA-F][0-9a-fA-F]$')
-
-
-class SilentError(CommunicationFailedError):
-    silent = True
 
 
 class HasIO(Module):
@@ -110,7 +107,8 @@ class IOBase(Communicator):
                    """, datatype=StringType())
     timeout = Parameter('timeout', datatype=FloatRange(0), default=2)
     wait_before = Parameter('wait time before sending', datatype=FloatRange(), default=0)
-    is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, default=False)
+    is_connected = Parameter('connection state', datatype=BoolType(), readonly=False, default=False,
+                             update_unchanged='never')
     pollinterval = Parameter('reconnect interval', datatype=FloatRange(0), readonly=False, default=10)
     #: a dict of default settings for a device, e.g. for a LakeShore 336:
     #:
@@ -151,20 +149,20 @@ class IOBase(Communicator):
         self.is_connected is changed only by self.connectStart or self.closeConnection
         """
         if self.is_connected:
-            return Done  # no need for intermediate updates
+            return True
         try:
             self.connectStart()
             if self._last_error:
                 self.log.info('connected')
                 self._last_error = 'connected'
                 self.callCallbacks()
-                return Done
+                return self.is_connected
         except Exception as e:
             if str(e) != self._last_error:
                 self._last_error = str(e)
                 self.log.error(self._last_error)
             raise SilentError(repr(e)) from e
-        return Done
+        return self.is_connected
 
     def write_is_connected(self, value):
         """value = True: connect if not yet done

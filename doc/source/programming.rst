@@ -31,9 +31,6 @@ def read\_\ *<parameter>*\ (self):
     Called on a ``read`` SECoP message and whenever the internal poll mechanism
     of Frappy tries to get a new value. The return value should be the
     retrieved value.
-    In special cases :data:`Done <frappy.modules.Done>` might be returned instead,
-    when the internal code has already updated the parameter, or
-    when the value has not changed and no updates should be emitted.
     This method might also be called internally, in case a fresh value of
     the parameter is needed.
 
@@ -55,9 +52,6 @@ def write\_\ *<parameter>*\ (self, value):
     value would be the same, as if it would be done by the ``read_<parameter>``
     method. Often the easiest implementation is just returning the result of
     a call to the ``read_<parameter>`` method.
-    Also, :ref:`Done <done unique>` might be returned in special
-    cases, e.g. when the code was written in a way, when self.<parameter> is
-    assigned already before returning from the method.
 
 .. admonition:: behind the scenes
 

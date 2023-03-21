@@ -31,7 +31,7 @@ import time
 from ast import literal_eval
 
 import frappy.io
-from frappy.datatypes import BoolType, EnumType, FloatRange, IntRange
+from frappy.datatypes import BoolType, EnumType, FloatRange, IntRange, StatusType
 from frappy.lib import formatStatusBits
 from frappy.core import Done, Drivable, Parameter, Property, CommonReadHandler, CommonWriteHandler
 from frappy.io import HasIO
@@ -158,6 +158,7 @@ class ResChannel(Channel):
     channel = Property('the Lakeshore channel', datatype=IntRange(1, 16), export=False)
 
     value = Parameter(datatype=FloatRange(unit='Ohm'))
+    status = Parameter(datatype=StatusType(Drivable, 'DISABLED'))
     pollinterval = Parameter(visibility=3, default=1)
     range = Parameter('reading range', readonly=False,
                       datatype=EnumType(**RES_RANGE))

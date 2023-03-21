@@ -28,7 +28,7 @@ import numpy as np
 from scipy.interpolate import splev, splrep  # pylint: disable=import-error
 
 from frappy.core import Attached, BoolType, Parameter, Readable, StringType, \
-    FloatRange, Done
+    FloatRange
 
 
 def linear(x):
@@ -95,7 +95,7 @@ class Parser340(StdParser):
 KINDS = {
     "340": (Parser340, {}),  # lakeshore 340 format
     "inp": (StdParser, {}),  # M. Zollikers *.inp calcurve format
-    "caldat": (StdParser, dict(x=1, y=2)),  # format from sea/tcl/startup/calib_ext.tcl
+    "caldat": (StdParser, {'x': 1, 'y': 2}),  # format from sea/tcl/startup/calib_ext.tcl
     "dat": (StdParser, {}),  # lakeshore raw data *.dat format
 }
 
@@ -179,7 +179,7 @@ class Sensor(Readable):
     abs = Parameter('True: take abs(raw) before calib', datatype=BoolType(), readonly=False, default=True)
     value = Parameter(datatype=FloatRange(unit='K'))
     pollinterval = Parameter(export=False)
-    status = Parameter(default=(Readable.Status.ERROR, 'unintialized'))
+    status = Parameter(default=(Readable.Status.ERROR, 'unintialized'), update_unchanged='never')
 
     description = 'a calibrated sensor value'
     _value_error = None
@@ -227,4 +227,4 @@ class Sensor(Readable):
 
     def read_status(self):
         self.update_status(self.rawsensor.status)
-        return Done
+        return self.status

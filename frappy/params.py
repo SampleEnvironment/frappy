@@ -26,13 +26,14 @@
 import inspect
 
 from frappy.datatypes import BoolType, CommandType, DataType, \
-    DataTypeType, EnumType, NoneOr, OrType, \
+    DataTypeType, EnumType, NoneOr, OrType, FloatRange, \
     StringType, StructOf, TextType, TupleOf, ValueType
 from frappy.errors import BadValueError, WrongTypeError, ProgrammingError
 from frappy.properties import HasProperties, Property
 from frappy.lib import generalConfig
 
 generalConfig.set_default('tolerate_poll_property', False)
+generalConfig.set_default('omit_unchanged_within', 0.1)
 
 
 class Accessible(HasProperties):
@@ -77,7 +78,7 @@ class Accessible(HasProperties):
         """
         raise NotImplementedError
 
-    def finish(self):
+    def finish(self, modobj=None):
         """ensure consistency"""
         raise NotImplementedError
 
@@ -160,14 +161,19 @@ class Parameter(Accessible):
     needscfg = Property(
         '[internal] needs value in config', NoneOr(BoolType()),
         export=False, default=False)
-    # optional = Property(
-    #     '[internal] is this parameter optional?', BoolType(),
-    #     export=False, settable=False, default=False)
+    update_unchanged = Property(
+        '''[internal] updates of unchanged values
+        
+        - one of the values 'always', 'never', 'default'
+          or the minimum time between updates of equal values [sec]''',
+        OrType(FloatRange(0), EnumType(always=0, never=999999999, default=-1)),
+        export=False, default=-1)
 
     # used on the instance copy only
     # value = None
     timestamp = 0
     readerror = None
+    omit_unchanged_within = 0
 
     def __init__(self, description=None, datatype=None, inherit=True, **kwds):
         super().__init__()
@@ -261,8 +267,11 @@ class Parameter(Accessible):
         self.init(merged_properties)
         self.finish()
 
-    def finish(self):
-        """ensure consistency"""
+    def finish(self, modobj=None):
+        """ensure consistency
+
+        :param modobj: final call, called from Module.__init__
+        """
 
         if self.constant is not None:
             constant = self.datatype(self.constant)
@@ -279,6 +288,12 @@ class Parameter(Accessible):
                 except BadValueError:
                     # clear, if it does not match datatype
                     pass
+        if modobj:
+            if self.update_unchanged == -1:
+                t = modobj.omit_unchanged_within
+                self.omit_unchanged_within = generalConfig.omit_unchanged_within if t is None else t
+            else:
+                self.omit_unchanged_within = float(self.update_unchanged)
 
     def export_value(self):
         return self.datatype.export_value(self.value)
@@ -450,7 +465,7 @@ class Command(Accessible):
         self.init(merged_properties)
         self.finish()
 
-    def finish(self):
+    def finish(self, modobj=None):
         """ensure consistency"""
         self.datatype = CommandType(self.argument, self.result)
 

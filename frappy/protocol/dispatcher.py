@@ -43,7 +43,7 @@ from collections import OrderedDict
 from time import time as currenttime
 
 from frappy.errors import NoSuchCommandError, NoSuchModuleError, \
-    NoSuchParameterError, ProtocolError, ReadOnlyError, SECoPServerError
+    NoSuchParameterError, ProtocolError, ReadOnlyError
 from frappy.params import Parameter
 from frappy.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
@@ -55,17 +55,15 @@ def make_update(modulename, pobj):
     if pobj.readerror:
         return (ERRORPREFIX + EVENTREPLY, '%s:%s' % (modulename, pobj.export),
                 # error-report !
-                [pobj.readerror.name, repr(pobj.readerror), dict(t=pobj.timestamp)])
+                [pobj.readerror.name, str(pobj.readerror), {'t': pobj.timestamp}])
     return (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
-            [pobj.export_value(), dict(t=pobj.timestamp)])
+            [pobj.export_value(), {'t': pobj.timestamp}])
 
 
 class Dispatcher:
     def __init__(self, name, logger, options, srv):
         # to avoid errors, we want to eat all options here
         self.equipment_id = options.pop('equipment_id', name)
-        # time interval for omitting updates of unchanged values
-        self.omit_unchanged_within = options.pop('omit_unchanged_within', 0.1)
         self.nodeprops = {}
         for k in list(options):
             self.nodeprops[k] = options.pop(k)
@@ -230,7 +228,7 @@ class Dispatcher:
         result = cobj.do(moduleobj, argument)
         if cobj.result:
             result = cobj.result.export_value(result)
-        return result, dict(t=currenttime())
+        return result, {'t': currenttime()}
 
     def _setParameterValue(self, modulename, exportedname, value):
         moduleobj = self.get_module(modulename)
@@ -253,7 +251,7 @@ class Dispatcher:
         # note: exceptions are handled in handle_request, not here!
         getattr(moduleobj, 'write_' + pname)(value)
         # return value is ignored here, as already handled
-        return pobj.export_value(), dict(t=pobj.timestamp) if pobj.timestamp else {}
+        return pobj.export_value(), {'t': pobj.timestamp} if pobj.timestamp else {}
 
     def _getParameterValue(self, modulename, exportedname):
         moduleobj = self.get_module(modulename)
@@ -272,7 +270,7 @@ class Dispatcher:
         # note: exceptions are handled in handle_request, not here!
         getattr(moduleobj, 'read_' + pname)()
         # return value is ignored here, as already handled
-        return pobj.export_value(), dict(t=pobj.timestamp) if pobj.timestamp else {}
+        return pobj.export_value(), {'t': pobj.timestamp} if pobj.timestamp else {}
 
     #
     # api to be called from the 'interface'
@@ -299,7 +297,7 @@ class Dispatcher:
 
             if handler:
                 return handler(conn, specifier, data)
-            raise SECoPServerError('unhandled message: %s' % repr(msg))
+            raise ProtocolError('unhandled message: %s' % repr(msg))
 
     # now the (defined) handlers for the different requests
     def handle_help(self, conn, specifier, data):

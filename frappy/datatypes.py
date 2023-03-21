@@ -29,7 +29,7 @@ import sys
 from base64 import b64decode, b64encode
 
 from frappy.errors import WrongTypeError, RangeError, \
-    ConfigError, ProgrammingError, ProtocolError
+    ConfigError, ProgrammingError, ProtocolError, DiscouragedConversion
 from frappy.lib import clamp, generalConfig
 from frappy.lib.enum import Enum
 from frappy.parse import Parser
@@ -43,11 +43,6 @@ DEFAULT_MAX_INT = 16777216
 UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for any datatype size
 
 Parser = Parser()
-
-
-class DiscouragedConversion(WrongTypeError):
-    """the discouraged conversion string - > float happened"""
-    log_message = True
 
 
 def shortrepr(value):
@@ -1212,7 +1207,7 @@ class OrType(DataType):
         """accepts any of the given types, takes the first valid"""
         for t in self.types:
             try:
-                return t(value)
+                return t.validate(value)  # use always strict validation
             except Exception:
                 pass
         raise WrongTypeError("Invalid Value, must conform to one of %s" % (', '.join((str(t) for t in self.types))))
@@ -1242,7 +1237,12 @@ class LimitsType(TupleOf):
 
 
 class StatusType(TupleOf):
-    # shorten initialisation and allow access to status enumMembers from status values
+    """convenience type for status
+
+    :param first: an Enum or Module to inherit from, or the first member name
+    :param args: member names (codes will be taken from class attributes below)
+    :param kwds: additional members not matching the standard
+    """
     DISABLED = 0
     IDLE = 100
     STANDBY = 130
@@ -1250,7 +1250,7 @@ class StatusType(TupleOf):
     WARN = 200
     WARN_STANDBY = 230
     WARN_PREPARED = 250
-    UNSTABLE = 270  # no SECoP standard (yet)
+    UNSTABLE = 270  # not in SECoP standard (yet)
     BUSY = 300
     DISABLING = 310
     INITIALIZING = 320
@@ -1262,13 +1262,30 @@ class StatusType(TupleOf):
     ERROR = 400
     ERROR_STANDBY = 430
     ERROR_PREPARED = 450
+    UNKNOWN = 401  # not in SECoP standard (yet)
 
-    def __init__(self, enum):
-        super().__init__(EnumType(enum), StringType())
-        self._enum = enum
+    def __init__(self, first, *args, **kwds):
+        if first:
+            if isinstance(first, str):
+                args = (first,) + args
+                first = 'Status'  # enum name
+            else:
+                if not isinstance(first, Enum):
+                    # assume first is a Module with a status parameter
+                    try:
+                        first = first.status.datatype.members[0]._enum
+                    except AttributeError:
+                        raise ProgrammingError('first argument must be either str, Enum or a module') from None
+        else:
+            first = 'Status'  # enum name
+        bad = {n for n in args if n not in StatusType.__dict__ or n.startswith('_')}  # avoid built-in attributes
+        if bad:
+            raise ProgrammingError('positional arguments %r must be standard status code names' % bad)
+        self.enum = Enum(Enum(first, **{n: StatusType.__dict__[n] for n in args}), **kwds)
+        super().__init__(EnumType(self.enum), StringType())
 
     def __getattr__(self, key):
-        return getattr(self._enum, key)
+        return self.enum[key]
 
 
 def floatargs(kwds):

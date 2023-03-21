@@ -20,6 +20,7 @@
 #
 # *****************************************************************************
 import os
+import re
 
 from frappy.errors import ConfigError
 from frappy.lib import generalConfig
@@ -35,7 +36,6 @@ class Node(dict):
             description,
             interface=None,
             cls='frappy.protocol.dispatcher.Dispatcher',
-            omit_unchanged_within=1.1,
             **kwds
     ):
         super().__init__(
@@ -43,7 +43,6 @@ class Node(dict):
             description=description,
             interface=interface,
             cls=cls,
-            omit_unchanged_within=omit_unchanged_within,
             **kwds
         )
 
@@ -65,6 +64,12 @@ class Mod(dict):
             cls=cls,
             description=description
         )
+
+        # matches name from spec
+        if not re.match(r'^[a-zA-Z]\w{0,62}$', name, re.ASCII):
+            raise ConfigError('Not a valid SECoP Module name: "%s". '
+                              'Does it only contain letters, numbers and underscores?'
+                              % (name))
         # Make parameters out of all keywords
         groups = {}
         for key, val in kwds.items():

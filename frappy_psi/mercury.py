@@ -26,7 +26,7 @@ import re
 import time
 
 from frappy.core import Drivable, HasIO, Writable, \
-    Parameter, Property, Readable, StringIO, Attached, Done, IDLE, nopoll
+    Parameter, Property, Readable, StringIO, Attached, IDLE, nopoll
 from frappy.datatypes import EnumType, FloatRange, StringType, StructOf, BoolType
 from frappy.errors import HardwareError
 from frappy_psi.convergence import HasConvergence
@@ -70,7 +70,7 @@ class MercuryChannel(HasIO):
                     example: DB6.T1,DB1.H1
                     slot ids for sensor (and control output)''',
                     StringType())
-    channel_name = Parameter('mercury nick name', StringType(), default='')
+    channel_name = Parameter('mercury nick name', StringType(), default='', update_unchanged='never')
     channel_type = ''  #: channel type(s) for sensor (and control) e.g. TEMP,HTR or PRES,AUX
 
     def _complete_adr(self, adr):
@@ -158,7 +158,7 @@ class MercuryChannel(HasIO):
 
     def read_channel_name(self):
         if self.channel_name:
-            return Done  # channel name will not change
+            return self.channel_name  # channel name will not change
         return self.query('0:NICK', as_string)
 
 
@@ -189,14 +189,14 @@ class HasInput(MercuryChannel):
 
     def write_controlled_by(self, value):
         if self.controlled_by == value:
-            return Done
+            return value
         self.controlled_by = value
         if value == SELF:
             self.log.warning('switch to manual mode')
             for input_module in self.input_modules:
                 if input_module.control_active:
                     input_module.write_control_active(False)
-        return Done
+        return value
 
 
 class Loop(HasConvergence, MercuryChannel, Drivable):
@@ -261,7 +261,8 @@ class HeaterOutput(HasInput, MercuryChannel, Writable):
     """
     channel_type = 'HTR'
     value = Parameter('heater output', FloatRange(unit='W'), readonly=False)
-    target = Parameter('heater output', FloatRange(0, 100, unit='$'), readonly=False)
+    status = Parameter(update_unchanged='never')
+    target = Parameter('heater output', FloatRange(0, 100, unit='$'), readonly=False, update_unchanged='never')
     resistivity = Parameter('heater resistivity', FloatRange(10, 1000, unit='Ohm'),
                             readonly=False)
     true_power = Parameter('calculate power from measured current', BoolType(), readonly=False, default=True)
@@ -288,13 +289,10 @@ class HeaterOutput(HasInput, MercuryChannel, Writable):
             if not self.true_power:
                 self._volt_target = math.sqrt(self._last_target * self.resistivity)
             self.change('HTR:SIG:VOLT', self._volt_target)
-        return Done
+        return self.resistivity
 
     def read_status(self):
-        status = IDLE, ('true power' if self.true_power else 'fixed resistivity')
-        if self.status != status:
-            return status
-        return Done
+        return IDLE, ('true power' if self.true_power else 'fixed resistivity')
 
     def read_value(self):
         if self._last_target is None:  # on init
@@ -317,7 +315,7 @@ class HeaterOutput(HasInput, MercuryChannel, Writable):
         if self.controlled_by != 0 and self.target:
             return 0
         if self._last_target is not None:
-            return Done
+            return self.target
         self._volt_target = self.query('HTR:SIG:VOLT')
         self.resistivity = max(10, self.query('HTR:RES'))
         self._last_target = self._volt_target ** 2 / max(10, self.resistivity)
@@ -389,7 +387,7 @@ class TemperatureLoop(TemperatureSensor, Loop, Drivable):
             self.set_target(value)
         else:
             self.set_target(target)
-        return Done
+        return self.target
 
     def read_enable_ramp(self):
         return self.query('TEMP:LOOP:RENA', off_on)
@@ -472,7 +470,7 @@ class PressureLoop(PressureSensor, Loop, Drivable):
     def write_target(self, value):
         target = self.change('PRES:LOOP:PRST', value)
         self.set_target(target)
-        return Done
+        return self.target
 
 
 class HeLevel(MercuryChannel, Readable):

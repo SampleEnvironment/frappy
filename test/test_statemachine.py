@@ -24,6 +24,7 @@
 from frappy.core import Drivable, Parameter
 from frappy.datatypes import StatusType, Enum
 from frappy.states import StateMachine, Stop, Retry, Finish, Start, HasStates, status_code
+from frappy.lib import generalConfig
 
 
 class LoggerStub:
@@ -189,9 +190,9 @@ class DispatcherStub:
     # initial value from the timestamp. However, in the test below
     # the second update happens after the updates dict is cleared
     # -> we have to inhibit the 'omit unchanged update' feature
-    omit_unchanged_within = 0
 
     def __init__(self, updates):
+        generalConfig.testinit(omit_unchanged_within=0)
         self.updates = updates
 
     def announce_update(self, modulename, pname, pobj):

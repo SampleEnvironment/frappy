@@ -58,7 +58,6 @@ Example 2: addressable HW parameters
 """
 
 import functools
-from frappy.modules import Done
 from frappy.errors import ProgrammingError
 
 
@@ -134,8 +133,6 @@ class ReadHandler(Handler):
         def method(module, pname=key, func=self.func):
             with module.accessLock:
                 value = func(module, pname)
-                if value is Done:
-                    return getattr(module, pname)
                 setattr(module, pname, value)
                 return value
 
@@ -156,7 +153,7 @@ class CommonReadHandler(ReadHandler):
         def method(module, pname=key, func=self.func):
             with module.accessLock:
                 ret = func(module)
-                if ret not in (None, Done):
+                if ret is not None:
                     raise ProgrammingError('a method wrapped with CommonReadHandler must not return any value')
                 return getattr(module, pname)
 
@@ -174,8 +171,7 @@ class WriteHandler(Handler):
         def method(module, value, pname=key, func=self.func):
             with module.accessLock:
                 value = func(module, pname, value)
-                if value is not Done:
-                    setattr(module, pname, value)
+                setattr(module, pname, value)
                 return value
         return method
 
@@ -217,7 +213,7 @@ class CommonWriteHandler(WriteHandler):
                 values = WriteParameters(module)
                 values[pname] = value
                 ret = func(module, values)
-                if ret not in (None, Done):
+                if ret is not None:
                     raise ProgrammingError('a method wrapped with CommonWriteHandler must not return any value')
                 # remove pname from writeDict. this was not removed in WriteParameters, as it was not missing
                 module.writeDict.pop(pname, None)

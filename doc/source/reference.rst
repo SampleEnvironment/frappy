@@ -11,10 +11,6 @@ imported from the frappy.core module.
 Module Base Classes
 ...................
 
-.. _done unique:
-
-.. autodata:: frappy.modules.Done
-
 .. autoclass:: frappy.modules.Module
     :members: earlyInit, initModule, startModule
 

@@ -28,9 +28,10 @@ import threading
 from collections import OrderedDict
 
 from frappy.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
-    IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion
+    IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion, \
+    NoneOr
 from frappy.errors import BadValueError, CommunicationFailedError, ConfigError, \
-    ProgrammingError, SECoPError, secop_error
+    ProgrammingError, SECoPError, secop_error, RangeError
 from frappy.lib import formatException, mkthread, UniqueObject
 from frappy.lib.enum import Enum
 from frappy.params import Accessible, Command, Parameter
@@ -131,7 +132,7 @@ class HasAccessibles(HasProperties):
                             self.log.debug("read_%s failed with %r", pname, e)
                             self.announceUpdate(pname, None, e)
                             raise
-                        if value is Done:
+                        if value is Done:  # TODO: to be removed when all code using Done is updated
                             return getattr(self, pname)
                         setattr(self, pname, value)  # important! trigger the setter
                         return value
@@ -149,21 +150,38 @@ class HasAccessibles(HasProperties):
             new_rfunc.__module__ = cls.__module__
             cls.wrappedAttributes[rname] = new_rfunc
 
+            cname = 'check_' + pname
+            for postfix in ('_limits', '_min', '_max'):
+                limname = pname + postfix
+                if limname in accessibles:
+                    # find the base class, where the parameter <limname> is defined first.
+                    # we have to check all bases, as they may not be treated yet when
+                    # not inheriting from HasAccessibles
+                    base = next(b for b in reversed(base.__mro__) if limname in b.__dict__)
+                    if cname not in base.__dict__:
+                        # there is no check method yet at this class
+                        # add check function to the class where the limit was defined
+                        setattr(base, cname, lambda self, value, pname=pname: self.checkLimits(value, pname))
+
+            cfuncs = tuple(filter(None, (b.__dict__.get(cname) for b in cls.__mro__)))
             wname = 'write_' + pname
             wfunc = getattr(cls, wname, None)
             if wfunc:
                 # allow write method even when parameter is readonly, but internally writable
 
-                def new_wfunc(self, value, pname=pname, wfunc=wfunc):
+                def new_wfunc(self, value, pname=pname, wfunc=wfunc, check_funcs=cfuncs):
                     with self.accessLock:
                         pobj = self.accessibles[pname]
-                        self.log.debug('validate %r for %r', value, pname)
+                        self.log.debug('convert %r to datatype of %r', value, pname)
                         # we do not need to handle errors here, we do not
                         # want to make a parameter invalid, when a write failed
                         new_value = pobj.datatype(value)
+                        for c in check_funcs:
+                            if c(self, value):
+                                break
                         new_value = wfunc(self, new_value)
                         self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
-                        if new_value is Done:
+                        if new_value is Done:  # TODO: to be removed when all code using Done is updated
                             return getattr(self, pname)
                         if new_value is None:
                             new_value = value
@@ -174,7 +192,11 @@ class HasAccessibles(HasProperties):
                 new_wfunc = None
             else:
 
-                def new_wfunc(self, value, pname=pname):
+                def new_wfunc(self, value, pname=pname, check_funcs=cfuncs):
+                    value = self.accessibles[pname].datatype(value)
+                    for c in check_funcs:
+                        if c(self, value):
+                            break
                     setattr(self, pname, value)
                     return value
 
@@ -198,6 +220,11 @@ class HasAccessibles(HasProperties):
                 raise ProgrammingError('%s.%s defined, but %r is no parameter'
                                        % (cls.__name__, attrname, pname))
 
+        try:
+            # update Status type
+            cls.Status = cls.status.datatype.members[0]._enum
+        except AttributeError:
+            pass
         res = {}
         # collect info about properties
         for pn, pv in cls.propertyDict.items():
@@ -299,6 +326,8 @@ class Module(HasAccessibles):
     features = Property('list of features', ArrayOf(StringType()), extname='features')
     pollinterval = Property('poll interval for parameters handled by doPoll', FloatRange(0.1, 120), default=5)
     slowinterval = Property('poll interval for other parameters', FloatRange(0.1, 120), default=15)
+    omit_unchanged_within = Property('default for minimum time between updates of unchanged values',
+                                     NoneOr(FloatRange(0)), export=False, default=None)
     enablePoll = True
 
     # properties, parameters and commands are auto-merged upon subclassing
@@ -314,7 +343,6 @@ class Module(HasAccessibles):
     def __init__(self, name, logger, cfgdict, srv):
         # remember the dispatcher object (for the async callbacks)
         self.DISPATCHER = srv.dispatcher
-        self.omit_unchanged_within = getattr(self.DISPATCHER, 'omit_unchanged_within', 0.1)
         self.log = logger
         self.name = name
         self.valueCallbacks = {}
@@ -415,8 +443,27 @@ class Module(HasAccessibles):
             self.errorCallbacks[pname] = []
 
             if not pobj.hasDatatype():
-                errors.append('%s needs a datatype' % pname)
-                continue
+                head, _, postfix = pname.rpartition('_')
+                if postfix not in ('min', 'max', 'limits'):
+                    errors.append('%s needs a datatype' % pname)
+                    continue
+                # when datatype is not given, properties are set automagically
+                pobj.setProperty('readonly', False)
+                baseparam = self.parameters.get(head)
+                if not baseparam:
+                    errors.append('parameter %r is given, but not %r' % (pname, head))
+                    continue
+                dt = baseparam.datatype
+                if dt is None:
+                    continue  # an error will be reported on baseparam
+                if postfix == 'limits':
+                    pobj.setProperty('datatype', TupleOf(dt, dt))
+                    pobj.setProperty('default', (dt.min, dt.max))
+                else:
+                    pobj.setProperty('datatype', dt)
+                    pobj.setProperty('default', getattr(dt, postfix))
+                if not pobj.description:
+                    pobj.setProperty('description', 'limit for %s' % pname)
 
             if pobj.value is None:
                 if pobj.needscfg:
@@ -442,7 +489,7 @@ class Module(HasAccessibles):
 
         # 5) ensure consistency
         for aobj in self.accessibles.values():
-            aobj.finish()
+            aobj.finish(self)
 
         # Modify units AFTER applying the cfgdict
         mainvalue = self.parameters.get('value')
@@ -501,7 +548,7 @@ class Module(HasAccessibles):
                 err = secop_error(err)
                 if str(err) == str(pobj.readerror):
                     return  # no updates for repeated errors
-            elif not changed and timestamp < (pobj.timestamp or 0) + self.omit_unchanged_within:
+            elif not changed and timestamp < (pobj.timestamp or 0) + pobj.omit_unchanged_within:
                 # no change within short time -> omit
                 return
             pobj.timestamp = timestamp or time.time()
@@ -758,22 +805,39 @@ class Module(HasAccessibles):
                 raise ValueError('remote handler not found')
         self.remoteLogHandler.set_conn_level(self, conn, level)
 
+    def checkLimits(self, value, parametername='target'):
+        """check for limits
+
+        :param value: the value to be checked for <parametername>_min <= value <= <parametername>_max
+        :param parametername: parameter name, default is 'target'
+
+        raises RangeError in case the value is not valid
+
+        This method is called automatically and needs therefore rarely to be
+        called by the programmer. It might be used in a check_<param> method,
+        when no automatic super call is desired.
+        """
+        try:
+            min_, max_ = getattr(self, parametername + '_limits')
+        except AttributeError:
+            min_ = getattr(self, parametername + '_min', float('-inf'))
+            max_ = getattr(self, parametername + '_max', float('inf'))
+        if not min_ <= value <= max_:
+            if min_ > max_:
+                raise RangeError('invalid limits: [%g, %g]' % (min_, max_))
+            raise RangeError('limits violation: %g outside [%g, %g]' % (value, min_, max_))
+
 
 class Readable(Module):
     """basic readable module"""
-    # pylint: disable=invalid-name
     Status = Enum('Status',
                   IDLE=StatusType.IDLE,
                   WARN=StatusType.WARN,
-                  UNSTABLE=270,  # not SECoP standard. TODO: remove and adapt entangle
                   ERROR=StatusType.ERROR,
-                  DISABLED=StatusType.DISABLED,
-                  UNKNOWN=401,  # not SECoP standard. TODO: remove and adapt entangle and epics
-                  )  #: status codes
-
+                  )  #: status code Enum: extended automatically in inherited modules
     value = Parameter('current value of the module', FloatRange())
     status = Parameter('current status of the module', StatusType(Status),
-                       default=(Status.IDLE, ''))
+                       default=(StatusType.IDLE, ''))
     pollinterval = Parameter('default poll interval', FloatRange(0.1, 120),
                              default=5, readonly=False, export=True)
 
@@ -804,9 +868,7 @@ class Writable(Readable):
 class Drivable(Writable):
     """basic drivable module"""
 
-    Status = Enum(Readable.Status, BUSY=StatusType.BUSY)  #: status codes
-
-    status = Parameter(datatype=StatusType(Status))  # override Readable.status
+    status = Parameter(datatype=StatusType(Readable, 'BUSY'))  # extend Readable.status
 
     def isBusy(self, status=None):
         """check for busy, treating substates correctly

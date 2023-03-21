@@ -27,10 +27,11 @@ import threading
 import pytest
 
 from frappy.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
-from frappy.errors import ProgrammingError, ConfigError
+from frappy.errors import ProgrammingError, ConfigError, RangeError
 from frappy.modules import Communicator, Drivable, Readable, Module
 from frappy.params import Command, Parameter
 from frappy.rwhandler import ReadHandler, WriteHandler, nopoll
+from frappy.lib import generalConfig
 
 
 class DispatcherStub:
@@ -38,9 +39,9 @@ class DispatcherStub:
     # initial value from the timestamp. However, in the test below
     # the second update happens after the updates dict is cleared
     # -> we have to inhibit the 'omit unchanged update' feature
-    omit_unchanged_within = 0
 
     def __init__(self, updates):
+        generalConfig.testinit(omit_unchanged_within=0)
         self.updates = updates
 
     def announce_update(self, modulename, pname, pobj):
@@ -239,12 +240,12 @@ def test_ModuleMagic():
         'export', 'group', 'description', 'features',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'slowinterval', 'b2',
-        'cmd2', 'value', 'a1'}
+        'cmd2', 'value', 'a1', 'omit_unchanged_within'}
     assert set(cfg['value'].keys()) == {
         'group', 'export', 'relative_resolution',
         'visibility', 'unit', 'default', 'value', 'datatype', 'fmtstr',
         'absolute_resolution', 'max', 'min', 'readonly', 'constant',
-        'description', 'needscfg'}
+        'description', 'needscfg', 'update_unchanged'}
 
     # check on the level of classes
     # this checks Newclass1 too, as it is inherited by Newclass2
@@ -739,3 +740,165 @@ def test_write_method_returns_none():
     mod = Mod('mod', LoggerStub(), {'description': ''}, ServerStub({}))
     mod.write_a(1.5)
     assert mod.a == 1.5
+
+
+@pytest.mark.parametrize('arg, value', [
+    ('always', 0),
+    (0, 0),
+    ('never', 999999999),
+    (999999999, 999999999),
+    ('default', 0.25),
+    (1, 1),
+])
+def test_update_unchanged_ok(arg, value):
+    srv = ServerStub({})
+    generalConfig.testinit(omit_unchanged_within=0.25)  # override value from DispatcherStub
+
+    class Mod1(Module):
+        a = Parameter('', FloatRange(), default=0, update_unchanged=arg)
+
+    mod1 = Mod1('mod1', LoggerStub(), {'description': ''}, srv)
+    par = mod1.parameters['a']
+    assert par.omit_unchanged_within == value
+    assert Mod1.a.omit_unchanged_within == 0
+
+    class Mod2(Module):
+        a = Parameter('', FloatRange(), default=0)
+
+    mod2 = Mod2('mod2', LoggerStub(), {'description': '', 'a': {'update_unchanged': arg}}, srv)
+    par = mod2.parameters['a']
+    assert par.omit_unchanged_within == value
+    assert Mod2.a.omit_unchanged_within == 0
+
+
+def test_omit_unchanged_within():
+    srv = ServerStub({})
+    generalConfig.testinit(omit_unchanged_within=0.25)  # override call from DispatcherStub
+
+    class Mod(Module):
+        a = Parameter('', FloatRange())
+
+    mod1 = Mod('mod1', LoggerStub(), {'description': ''}, srv)
+    assert mod1.parameters['a'].omit_unchanged_within == 0.25
+
+    mod2 = Mod('mod2', LoggerStub(), {'description': '', 'omit_unchanged_within': 0.125}, srv)
+    assert mod2.parameters['a'].omit_unchanged_within == 0.125
+
+
+stdlim = {
+    'a_min': -1, 'a_max': 2,
+    'b_min': 0,
+    'c_max': 10,
+    'd_limits': (-1, 1),
+}
+
+
+class Lim(Module):
+    a = Parameter('', FloatRange(-10, 10), readonly=False, default=0)
+    a_min = Parameter()
+    a_max = Parameter()
+
+    b = Parameter('', FloatRange(0, None), readonly=False, default=0)
+    b_min = Parameter()
+
+    c = Parameter('', IntRange(None, 100), readonly=False, default=0)
+    c_max = Parameter()
+
+    d = Parameter('', FloatRange(-5, 5), readonly=False, default=0)
+    d_limits = Parameter()
+
+    e = Parameter('', IntRange(0, 8), readonly=False, default=0)
+
+    def check_e(self, value):
+        if value % 2:
+            raise RangeError('e must not be odd')
+
+
+def test_limit_defaults():
+
+    srv = ServerStub({})
+
+    mod = Lim('mod', LoggerStub(), {'description': 'test'}, srv)
+
+    assert mod.a_min == -10
+    assert mod.a_max == 10
+    assert isinstance(mod.a_min, float)
+    assert isinstance(mod.a_max, float)
+
+    assert mod.b_min == 0
+    assert isinstance(mod.b_min, float)
+
+    assert mod.c_max == 100
+    assert isinstance(mod.c_max, int)
+
+    assert mod.d_limits == (-5, 5)
+    assert isinstance(mod.d_limits[0], float)
+    assert isinstance(mod.d_limits[1], float)
+
+
+@pytest.mark.parametrize('limits, pname, good, bad', [
+    (stdlim, 'a', [-1, 2, 0], [-2, 3]),
+    (stdlim, 'b', [0, 1e99], [-1, -1e99]),
+    (stdlim, 'c', [-999, 0, 10], [11, 999]),
+    (stdlim, 'd', [-1, 0.1, 1], [-1.001, 1.001]),
+    ({'a_min': 0, 'a_max': -1}, 'a', [], [0, -1]),
+    (stdlim, 'e', [0, 2, 4, 6, 8], [-1, 1, 7, 9]),
+])
+def test_limits(limits, pname, good, bad):
+
+    srv = ServerStub({})
+
+    mod = Lim('mod', LoggerStub(), {'description': 'test'}, srv)
+    mod.check_a = 0  # this should not harm. check_a is never called on the instance
+
+    for k, v in limits.items():
+        setattr(mod, k, v)
+
+    for v in good:
+        getattr(mod, 'write_' + pname)(v)
+    for v in bad:
+        with pytest.raises(RangeError):
+            getattr(mod, 'write_' + pname)(v)
+
+
+def test_limit_inheritance():
+    srv = ServerStub({})
+
+    class Base(Module):
+        a = Parameter('', FloatRange(), readonly=False, default=0)
+
+        def check_a(self, value):
+            if int(value * 4) != value * 4:
+                raise ValueError('value is not a multiple of 0.25')
+
+    class Mixin:
+        a_min = Parameter()
+        a_max = Parameter()
+
+    class Mod(Mixin, Base):
+        def check_a(self, value):
+            if value == 0:
+                raise ValueError('value must not be 0')
+
+    mod = Mod('mod', LoggerStub(), {'description': 'test', 'a_min': {'value': -1}, 'a_max': {'value': 1}}, srv)
+
+    for good in [-1, -0.75, 0.25, 1]:
+        mod.write_a(good)
+
+    for bad in [-2, -0.1, 0, 0.9, 1.1]:
+        with pytest.raises(ValueError):
+            mod.write_a(bad)
+
+    class Mod2(Mixin, Base):
+        def check_a(self, value):
+            if value == 0:
+                raise ValueError('value must not be 0')
+            return True  # indicates stop checking
+
+    mod2 = Mod2('mod2', LoggerStub(), {'description': 'test', 'a_min': {'value': -1}, 'a_max': {'value': 1}}, srv)
+
+    for good in [-2, -1, -0.75, 0.25, 1, 1.1]:
+        mod2.write_a(good)
+
+    with pytest.raises(ValueError):
+        mod2.write_a(0)

@@ -90,8 +90,9 @@ def main(argv=None):
     args = parseArgv(argv[1:])
 
     loglevel = 'debug' if args.verbose else ('error' if args.quiet else 'info')
-    generalConfig.defaults = {k: args.relaxed for k in (
-        'lazy_number_validation', 'disable_value_range_check', 'legacy_hasiodev', 'tolerate_poll_property')}
+    generalConfig.set_default('lazy_number_validation', args.relaxed)
+    generalConfig.set_default('legacy_hasiodev', args.relaxed)
+    generalConfig.set_default('tolerate_poll_property', args.relaxed)
     generalConfig.init(args.gencfg)
     logger.init(loglevel)
 

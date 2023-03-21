@@ -83,3 +83,12 @@ def test_Enum_bool():
     e = Enum('OffOn', off=0, on=1)
     assert bool(e(0)) is False
     assert bool(e(1)) is True
+
+
+def test_Enum_duplicate():
+    e = Enum('x', a=1, b=2)
+    Enum(e, b=2, c=3)  # matching duplicate
+    with pytest.raises(TypeError):
+        Enum(e, b=3, c=4)  # duplicate name with value mismatch
+    with pytest.raises(TypeError):
+        Enum(e, c=1)  # duplicate value with name mismatch

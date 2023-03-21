@@ -264,8 +264,7 @@ class Enum(dict):
         names = set()
         values = set()
 
-        # pylint: disable=dangerous-default-value
-        def add(self, k, v, names=names, value=values):
+        def add(self, k, v):
             """helper for creating the enum members"""
             if v is None:
                 # sugar: take the next free number if value was None
@@ -285,10 +284,10 @@ class Enum(dict):
             v = _v
 
             # check for duplicates
-            if k in names:
-                raise TypeError('duplicate name %r' % k)
-            if v in values:
-                raise TypeError('duplicate value %d (key=%r)' % (v, k))
+            if self.get(k, v) != v:
+                raise TypeError('%s=%d conflicts with %s=%d' % (k, v, k, self[k]))
+            if self.get(v, k) != k:
+                raise TypeError('%s=%d conflicts with %s=%d' % (k, v, self[v].name, v))
 
             # remember it
             self[v] = self[k] = EnumMember(self, k, v)

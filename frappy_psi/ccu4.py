@@ -23,7 +23,7 @@
 """drivers for CCU4, the cryostat control unit at SINQ"""
 # the most common Frappy classes can be imported from frappy.core
 from frappy.core import EnumType, FloatRange, \
-    HasIO, Parameter, Readable, StringIO
+    HasIO, Parameter, Readable, StringIO, StatusType
 
 
 class CCU4IO(StringIO):
@@ -51,16 +51,16 @@ class HeLevel(HasIO, Readable):
                             readonly=False)
     sample_rate = Parameter('sample rate', EnumType(slow=0, fast=1), readonly=False)
 
-    Status = Readable.Status
+    status = Parameter(datatype=StatusType(Readable, 'DISABLED'))
 
     # conversion of the code from the CCU4 parameter 'hsf'
     STATUS_MAP = {
-        0: (Status.IDLE, 'sensor ok'),
-        1: (Status.ERROR, 'sensor warm'),
-        2: (Status.ERROR, 'no sensor'),
-        3: (Status.ERROR, 'timeout'),
-        4: (Status.ERROR, 'not yet read'),
-        5: (Status.DISABLED, 'disabled'),
+        0: (StatusType.IDLE, 'sensor ok'),
+        1: (StatusType.ERROR, 'sensor warm'),
+        2: (StatusType.ERROR, 'no sensor'),
+        3: (StatusType.ERROR, 'timeout'),
+        4: (StatusType.ERROR, 'not yet read'),
+        5: (StatusType.DISABLED, 'disabled'),
     }
 
     def query(self, cmd):

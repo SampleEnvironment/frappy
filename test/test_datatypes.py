@@ -26,7 +26,7 @@
 import pytest
 
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, \
-    CommandType, ConfigError, DataType, Enum, EnumType, FloatRange, \
+    CommandType, ConfigError, DataType, EnumType, FloatRange, \
     IntRange, ProgrammingError, ScaledInteger, StatusType, \
     StringType, StructOf, TextType, TupleOf, get_datatype, \
     DiscouragedConversion
@@ -495,11 +495,23 @@ def test_Command():
 
 
 def test_StatusType():
-    status_codes = Enum('Status', IDLE=100, WARN=200, BUSY=300, ERROR=400)
-    dt = StatusType(status_codes)
-    assert dt.IDLE == status_codes.IDLE
-    assert dt.ERROR == status_codes.ERROR
-    assert dt._enum == status_codes
+    dt = StatusType('IDLE', 'WARN', 'ERROR', 'DISABLED')
+    assert dt.IDLE == StatusType.IDLE == 100
+    assert dt.ERROR == StatusType.ERROR == 400
+
+    dt2 = StatusType(None, IDLE=100, WARN=200, ERROR=400, DISABLED=0)
+    assert dt2.export_datatype() == dt.export_datatype()
+
+    dt3 = StatusType(dt.enum)
+    assert dt3.export_datatype() == dt.export_datatype()
+
+    with pytest.raises(ProgrammingError):
+        StatusType('__init__')  # built in attribute of StatusType
+
+    with pytest.raises(ProgrammingError):
+        StatusType(dt.enum, 'custom')  # not a standard attribute
+
+    StatusType(dt.enum, custom=499)  # o.k., if value is given
 
 
 def test_get_datatype():
