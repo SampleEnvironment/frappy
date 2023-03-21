@@ -1,0 +1,44 @@
+<RCC>
+  <qresource prefix="leds">
+    <file alias="gray">leds/simplegray.png</file>
+    <file alias="clear">leds/clear.png</file>
+    <file alias="green">leds/simplegreen.png</file>
+    <file alias="orange">leds/simpleorange.png</file>
+    <file alias="red">leds/simplered.png</file>
+    <file alias="unknown">leds/simpleunknown.png</file>
+    <file alias="white">leds/simplewhite.png</file>
+    <file alias="yellow">leds/simpleyellow.png</file>
+  </qresource>
+  <qresource prefix="cfg_editor">
+    <file alias="add_comment.png">cfg_editor/icons/add_comment.png</file>
+    <file alias="add_interface.png">cfg_editor/icons/add_interface.png</file>
+    <file alias="add_module.png">cfg_editor/icons/add_module.png</file>
+    <file alias="add_parameter.png">cfg_editor/icons/add_parameter.png</file>
+    <file alias="add_property.png">cfg_editor/icons/add_property.png</file>
+    <file alias="comment.png">cfg_editor/icons/comment.png</file>
+    <file alias="delete.png">cfg_editor/icons/delete.png</file>
+    <file alias="duplicate.png">cfg_editor/icons/duplicate.png</file>
+    <file alias="edit.png">cfg_editor/icons/edit.png</file>
+    <file alias="empty.png">cfg_editor/icons/empty.png</file>
+    <file alias="interface.png">cfg_editor/icons/interface.png</file>
+    <file alias="module.png">cfg_editor/icons/module.png</file>
+    <file alias="new.png">cfg_editor/icons/new.png</file>
+    <file alias="open.png">cfg_editor/icons/open.png</file>
+    <file alias="parameter.png">cfg_editor/icons/parameter.png</file>
+    <file alias="property.png">cfg_editor/icons/property.png</file>
+    <file alias="save.png">cfg_editor/icons/save.png</file>
+  </qresource>
+  <qresource prefix="icons">
+    <file alias="logo_subtitle_light">SECoP_subtitle-light.svg</file>
+    <file alias="logo_righttitle">SECoP_righttitle.svg</file>
+    <file alias="logo_subtitle">SECoP_subtitle.svg</file>
+    <file alias="logo">SECoP-logo.svg</file>
+    <file alias="details">icons/magnifier.png</file>
+    <file alias="stop">icons/cross-circle.png</file>
+    <file alias="trash">icons/bin.png</file>
+    <file alias="plot-add">icons/system-monitor--plus.png</file>
+    <file alias="submit">icons/arrow-turn-180.png</file>
+    <file alias="connect">icons/plug--plus.png</file>
+    <file alias="plot">icons/system-monitor.png</file>
+  </qresource>
+</RCC>

@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+# Copyright (c) 2015-2016 by the authors, see LICENSE
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Markus Zolliker <markus.zolliker@psi.ch>
+#
+# *****************************************************************************
+
+from __future__ import print_function
+
+import sys
+import code
+from os import path
+
+# Add import path for inplace usage
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+from frappy.client.interactive import Client, watch
+
+_USAGE = """
+Usage:
+%s
+# for all SECoP modules objects are created in the main namespace
+
+<module>                            # list all parameters
+<module>.<param> = <value>          # change parameter
+<module>(<target>)                  # set target and wait until not busy
+                                    # 'status' and 'value' changes are shown every 1 sec
+%s.mininterval = 0.2               # change minimal update interval to 0.2 sec (default is 1 second)
+
+watch(T)                            # watch changes of T.status and T.value (stop with ctrl-C)
+watch(T='status target')            # watch status and target parameters
+watch(io, T=True)                   # watch io and all parameters of T
+"""
+
+_CLIENT_USAGE = """
+c = Client('localhost:5000')
+"""
+
+Client.show_usage = False
+
+if len(sys.argv) < 2:
+    _usage_args = ("\ncli = Client('localhost:5000')\n", 'cli')
+    success = True
+else:
+    _usage_args = ('', '_c0')
+    success = False
+
+for _idx, _node in enumerate(sys.argv[1:]):
+    _client_name = '_c%d' % _idx
+    try:
+        setattr(sys.modules['__main__'], _client_name, Client(_node, name=_client_name))
+        success = True
+    except Exception as e:
+        print(repr(e))
+
+if success:
+    print(_USAGE % _usage_args)
+    code.interact(banner='', local=sys.modules['__main__'].__dict__)

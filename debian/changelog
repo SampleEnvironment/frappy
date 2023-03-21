@@ -1,0 +1,1179 @@
+frappy-core (0.17.1) focal; urgency=medium
+
+  [ Georg Brandl ]
+  * gitignore: ignore demo PID file
+  * config: demo config fixes
+  * cfg: repair demo cfg after conversion
+  * gui: make spacing more consistent
+
+  [ Markus Zolliker ]
+  * fix links in doc/introduction
+
+  [ Georg Brandl ]
+  * gui console: better formatting of input/output
+  * gui: as a stopgap measure, apply %g format to floats
+  * gui: clear tree selection by clicking into empty space
+  * gui: make plot windows children of the node, so they close automatically
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 17:44:56 +0100
+
+frappy-core (0.17.0) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * Rework GUI.
+
+  [ Georg Brandl ]
+  * ci: remove duplicate variable
+  * doc: fix trailing comma in authors
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 13:52:17 +0100
+
+frappy-core (0.16.1) focal; urgency=medium
+
+  * UNRELEASED
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 08:44:28 +0100
+
+frappy-core (0.16.4) focal; urgency=medium
+
+  * UNRELEASED
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 08:09:20 +0100
+
+frappy-core (0.16.3) focal; urgency=medium
+
+  * UNRELEASED
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 08:00:15 +0100
+
+frappy-core (0.16.2) focal; urgency=medium
+
+  * gui: move icon resources for the cfg editor to its subdirectory
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 07:50:13 +0100
+
+frappy-core (0.16.1) focal; urgency=medium
+
+  * add frappy-cli to package
+
+ -- Enrico Faulhaber <jenkins@frm2.tum.de>  Mon, 20 Feb 2023 17:17:23 +0100
+
+frappy-core (0.16.0) focal; urgency=medium
+
+  [ Enrico Faulhaber ]
+  * fix sorce package name
+
+  [ Markus Zolliker ]
+  * interactive client: fix detection of overriding modules
+
+  [ Alexander Zaft ]
+  * Fix error Message for too large arrays
+
+  [ Markus Zolliker ]
+  * redesign of the state machine
+
+  [ Alexander Zaft ]
+  * Fix identification response
+  * GUI: add logging infra, switch to argparse
+
+  [ Bjoern Pedersen ]
+  * Improve jenkinsfile
+
+  [ Alexander Zaft ]
+  * Change config to Python
+
+  [ Markus Zolliker ]
+  * improve He level tutorial
+  * client: detect original frappy error class
+  * rework datatypes (setter should not check limits)
+
+  [ Alexander Zaft ]
+  * Bring demo up to date
+  * Revert limit change in demo
+
+  [ Markus Zolliker ]
+  * improve parameter initialisation
+  * fix copy method of Attached
+
+  [ Alexander Zaft ]
+  * Add .desktop file
+
+  [ Markus Zolliker ]
+  * improve persistent parameters
+  * do not throw ZeroDivisonError when pollinterval is 0
+  * HasStates: fix status code inheritance
+  * HasControlledBy and HasOutputModule mixins
+  * adapt tutorial to new config file format
+  * raise ProtcolError when specifier is missing
+  * interactive client: improve watch function
+  * add lakeshore demo for hands-on workshop
+  * T controller tutorial and improve documentation
+  * do proper value import on the client side
+
+  [ Alexander Zaft ]
+  * Add initial README
+  * Change Readme title
+  * Convert example configs to python
+
+  [ Markus Zolliker ]
+  * README: add link to doc on forge.frm2.tum.de
+
+ -- Enrico Faulhaber <jenkins@frm2.tum.de>  Mon, 20 Feb 2023 16:15:10 +0100
+
+frappy-core (0.15.0) focal; urgency=medium
+
+  [ Björn Pedersen ]
+  * Remove iohandler left-overs from docs
+
+  [ Georg Brandl ]
+  * Makefile: fix release target
+
+  [ Alexander Zaft ]
+  * Add requirements-gui.txt and add PyQT5
+
+  [ Christian Felder ]
+  * Fix typo in .description
+
+  [ Alexander Zaft ]
+  * fixed pylint warnings
+  * Rename from secop to frappy
+  * rename debian package files
+
+  [ Björn Pedersen ]
+  * CI build: upgrade base image
+
+  [ Alexander Zaft ]
+  * rename debian files
+
+  [ Björn Pedersen ]
+  * Fix doc warnings/errors
+
+ -- Björn Pedersen <jenkins@frm2.tum.de>  Thu, 10 Nov 2022 14:46:01 +0100
+
+secop-core (0.14.3) focal; urgency=medium
+
+  [ Enrico Faulhaber ]
+  * change repo to secop/frappy
+
+  [ Georg Brandl ]
+  * secop_mlz/amagnet: formatting fixup
+
+  [ Bjoern Pedersen ]
+  * Upgrade for ci
+
+  [ Enrico Faulhaber ]
+  * MLZ/entangle: fix AnalogOutput.read_status()
+
+ -- Enrico Faulhaber <jenkins@frm2.tum.de>  Thu, 03 Nov 2022 13:51:52 +0100
+
+secop-core (0.14.2) focal; urgency=medium
+
+  * systemd generator: adapt to changed config API
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 20 Oct 2022 15:38:45 +0200
+
+secop-core (0.14.1) focal; urgency=medium
+
+  [ Markus Zolliker ]
+  * secop_psi.entangle.AnalogInput: fix main value
+
+  [ Georg Brandl ]
+  * gui: clarify needed input for "add sec node" dialog
+  * mlz: avoid error on import due to consistency check
+  * Makefile: fix Jenkins host
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Thu, 20 Oct 2022 14:04:07 +0200
+
+secop-core (0.14.0) focal; urgency=medium
+
+  * add simple interactive python client
+  * fix undefined status in softcal
+  * improve HasConvergence mixin
+  * fix bug in persistent.py
+  * fix bug when restarting statemachine
+  * improve general config
+  * improvements on interactive client
+  * apply main unit also in structured types
+  * HasIO: automatic creation of io from uri fails
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Wed, 19 Oct 2022 11:31:50 +0200
+
+secop-core (0.13.1) focal; urgency=medium
+
+  [ Markus Zolliker ]
+  * an enum with value 0 should be interpreted as False
+  * make startup faster in case of errors
+
+  [ Enrico Faulhaber ]
+  * secop_mlz: minor rework entangle client
+
+ -- Markus Zolliker <jenkins@jenkins02.admin.frm2.tum.de>  Tue, 02 Aug 2022 15:31:52 +0200
+
+secop-core (0.13.0) focal; urgency=medium
+
+  [ Georg Brandl ]
+  * debian: fix email addresses in changelog
+
+  [ Markus Zolliker ]
+  * various small changes
+  * automatic saving of persistent parameters
+  * add more tests and fixes for command inheritance
+  * entangle.AnalogOutput: fix window mechanism
+  * remote logging (issue 46)
+  * add timeouts to MultiEvents
+  * introduce general config file
+  * improve handling of module init methods
+  * check for bad read_* and write_* methods
+  * change name of read_hw_status method in sequencer mixin
+  * fix doc (stringio - > io)
+  * enhance logging
+  * UniqueObject
+  * ReadHandler and WriteHandler decorators
+  * do not convert string to float
+  * check for problematic value range
+  * unify name and module on Attached property
+  * ppms: replace IOHandler by Read/WriteHandler
+  * fix handling commands
+  * common read/write handlers
+  * implement a state machine
+  * proper return value in handler read_* methods
+  * new poll mechanism
+  * support for fast poll when busy
+  * various small fixes
+  * reset connection on identification
+  * improve softcal
+  * move markdown to requirements-dev.txt
+  * improve k2601b driver
+  * fix and improved Attached
+  * fix error in write wrapper and more
+  * support write_ method on readonly param and more
+  * init generalConfig.defaults only in secop-server
+  * HasConvergence mixin
+  * avoid race conditions in read_*/write_* methods
+  * reintroduced individual init of generalConfig.defaults
+  * fix statemachine
+  * use a common poller thread for modules sharing io
+  * motor valve using trinamic motor
+  * improved trinamic driver
+  * fix error in secop.logging
+  * avoid deadlock in proxy
+  * improve poller error handling
+  * support for OI mercury series
+  * add 'ts' to the ppms simulation
+  * allow a configfile path as single argument to secop-server
+  * fix keithley 2601b after tests
+  * channel switcher for Lakeshore 370 with scanner
+  * feature implementation
+  * allow to convert numpy arrays to ArrayOf
+  * remove IOHandler stuff
+
+  [ Enrico Faulhaber ]
+  * default unit to UTF8
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 02 Aug 2022 09:47:06 +0200
+
+secop-core (0.12.4) focal; urgency=medium
+
+  * fix command inheritance
+
+ -- Markus Zolliker <jenkins@jenkins01.admin.frm2.tum.de>  Thu, 11 Nov 2021 16:21:19 +0100
+
+secop-core (0.12.3) focal; urgency=medium
+
+  [ Georg Brandl ]
+  * Makefile: fix docker image
+
+  [ Markus Zolliker ]
+  * various fixes
+  * remove irrelevant comments
+  * introduce BytesIO
+  * GUI fixes
+  * persistent params / trinamic motor
+  * fix Parameter/Command copy method
+  * show first instead of last traceback on multiple errors
+  * fix parameter inheritance
+  * fix property inheritance
+  * fix python 3.5 compatibility
+  * omit updates of unchanged values within short time
+  * improve simulation
+  * automatically register subclasses of AsynConn
+  * fix feature for removing commands
+
+ -- Georg Brandl <jenkins@jenkins01.admin.frm2.tum.de>  Wed, 10 Nov 2021 16:33:19 +0100
+
+secop-core (0.12.2) focal; urgency=medium
+
+  [ Markus Zolliker ]
+  * fix issue with new syntax in simulation
+  * treat specifier of describe message
+  * allow to remove accessibles
+
+  [ Enrico Faulhaber ]
+  * secop_mlz: small fixes
+
+ -- Markus Zolliker <jenkins@jenkins01.admin.frm2.tum.de>  Tue, 18 May 2021 10:29:17 +0200
+
+secop-core (0.12.1) focal; urgency=medium
+
+  * remove secop-console from debian *.install file
+
+ -- Enrico Faulhaber <jenkins@jenkins02.admin.frm2.tum.de>  Tue, 04 May 2021 09:42:53 +0200
+
+secop-core (0.12.0) focal; urgency=medium
+
+  [ Markus Zolliker ]
+  * make datatypes immutable
+  * customizable general config
+  * support for multiple secop servers
+  * secop.asynconn without pyserial
+  * change cfg file format
+  * fix bug in secop.gui.valuewidgets
+  * fix deadlock when reconnecting client
+  * allow class instead of class name in proxy_class
+  * fix pylint command in Makefile
+  * change arguments of stringio-server
+  * router bug fix
+  * introduce update callbacks
+  * improve error handling on client connections
+  * ppms: improve status and temperature
+  * rework tcp server
+  * cosmetics on datatypes.TextType
+  * improve error handling in SecopClient
+  * improve HasIodev
+  * HasIodev bug fix
+  * fix handling of StructOf datatype
+  * more flexible end_of_line in stringio
+  * improvements on PPMS and LS370
+  * add readbytes method to AsynConn
+  * Param(..., initwrite=True) works only with poll=True
+  * fix initwrite behaviour
+  * make order of accessibles work again
+  * main module of LS370 is now drivable
+  * improve softcal
+  * make arguments of Parameter and Override consistent
+  * new syntax for parameter/commands/properties
+  * enhance documentation
+  * removed old style syntax
+  * after running isort
+  * try to follow PEP8
+  * fix inheritance order
+  * remove obsolete code
+  * lookup cfg files in a list of directories
+  * added hook for optional history writer
+  * fixed errors during migration
+  * move historywriter to secop_psi
+  * fix autoscan behaviour in ls370res
+
+  [ l_samenv ]
+  * improve tutorial_helevel
+  * fixed bugs from syntax migration
+
+  [ Markus Zolliker ]
+  * user friendly reporting of config errors
+
+  [ Bjoern Pedersen ]
+  * Jenkisfile: verification
+  * Fixes to Jenkinsfile
+  * No pull for images, they are recreated in the job
+  * Another Jenkisfile error
+  * Correct checks enum
+
+ -- Markus Zolliker <jenkins@jenkins02.admin.frm2.tum.de>  Tue, 04 May 2021 08:49:57 +0200
+
+secop-core (0.11.6) unstable; urgency=medium
+
+  * fix secop-generator
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Thu, 09 Apr 2020 17:04:32 +0200
+
+secop-core (0.11.5) unstable; urgency=medium
+
+  * basic systemd integration
+  * add UNKNOWN status code
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Thu, 09 Apr 2020 16:05:17 +0200
+
+secop-core (0.11.4) unstable; urgency=medium
+
+  * [MLZ] fix entangle integration
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Thu, 09 Apr 2020 14:44:33 +0200
+
+secop-core (0.11.3) unstable; urgency=medium
+
+  * provide make target for pkg-building
+  * secop-mlz fix dependencies
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Thu, 09 Apr 2020 09:34:11 +0200
+
+secop-core (0.11.2) unstable; urgency=medium
+
+  [ Markus Zolliker ]
+  * improve ls370res driver
+
+  [ Enrico Faulhaber ]
+  * fix debain *.install files
+
+  [ Markus Zolliker ]
+
+ -- Markus Zolliker <jenkins@jenkinsng.admin.frm2.tum.de>  Tue, 07 Apr 2020 15:48:12 +0200
+
+secop-core (0.11.1) unstable; urgency=medium
+
+  * fix py2/py3 incompat für pkgbuilding
+  * introduce secop.core for easy imports
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Tue, 07 Apr 2020 12:21:43 +0200
+
+secop-core (0.11.0) unstable; urgency=medium
+
+  [ Enrico Faulhaber ]
+  * move ppms.cfg to right place
+
+  [ Markus Zolliker ]
+  * fix config path
+  * bug fixes in ppms
+
+  [ Enrico Faulhaber ]
+  * Adapt sim_* cfg's to current syntax
+
+  [ Markus Zolliker ]
+  * bug fix in secop_psi.ppms.Level
+  * improve ppms simulation
+  * configurables must contain only settable properties
+  * secop-gui: ask for reconnect
+  * introduced attached modules
+  * allow server.run without python-daemon
+  * make secop.poller.Poller default
+  * introduce command handlers
+  * parameters with a handler are polled by default
+  * improve error handling
+  * write configured parameters to the hardware
+  * simple possiblity for overriding properties
+  * introduced StringIO
+  * poll all parameters after reconnect
+  * driver for Lakeshore Model 370 resistivity measurement
+  * ppms driver now uses command handlers
+  * improved commandhandler
+  * accept module properties without leading '.' in config files
+  * autogeneration of iodevs
+  * make most important classes available from secop
+  * drivers for AH700 and K2601B
+  * renamed commandhandler to iohandler
+  * added missing write methods to AH2700 driver
+  * changed/fixed behaviour of stop commands in PPMS
+  * moved some code from iohandler.py to metaclass.py
+
+  [ cermak ]
+  * Compatibility with Python 3.4
+
+  [ Markus Zolliker ]
+  * allow to set exported properties in code
+  * add test for message encode/decode
+  * new generic secop client
+  * implement SECoP proxy modules
+  * fix configured path on windows
+  * secop-gui based on secop.client.Client
+  * move argument handling from mainwindow.py to bin/secop-gui
+  * add multiplexer/router
+  * moved naming of enum types
+  * stringio now works with serial connections
+  * fix again configuration paths on windows
+  * adjustments on client.SecopClient
+  * change to secop.client.ProxyClient.register_callback
+  * adjust mechanism of write function with iohandler
+  * clean up Parameter/Command.for_export
+  * move getParameter method from ProxyClient to SecopClient
+  * int datatype must not accept fractional floats
+  * do not update exported parameters of unexported modules
+  * improvements on secop.client.Client
+
+  [ Enrico Faulhaber ]
+
+ -- Enrico Faulhaber <jenkins@jenkinsng.admin.frm2.tum.de>  Tue, 07 Apr 2020 10:46:57 +0200
+
+secop-core (0.10.5) unstable; urgency=low
+
+  [ Markus Zolliker ]
+  * use Properties from secop.properties for datatypes
+  * revert default of poll to False
+
+  [ Enrico Faulhaber ]
+  * Remove obsolete protocol specification
+
+  [ Markus Zolliker ]
+  * fix DataType.copy for nested types
+  * added PPMS driver
+  * windows interface for the PPMS driver
+  * modified ppms driver
+  * readonly is mandatory for SECoP
+  * make baseclient work without mlzlog
+  * change interfaces_class to interface_classes
+
+  [ Enrico Faulhaber ]
+  * minor fixups
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 29 Oct 2019 16:33:18 +0100
+
+secop-core (0.10.3) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix for different python versions
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 11 Oct 2019 10:49:43 +0200
+
+secop-core (0.10.2) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * upgrading debian files to compat 11
+  * fix packaging
+  * reduce verbosity of package building
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 11 Oct 2019 10:42:58 +0200
+
+secop-core (0.10.1) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Further dependency changes
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 26 Sep 2019 16:41:10 +0200
+
+secop-core (0.10.0) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * move pytest to build-depends
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 26 Sep 2019 16:31:14 +0200
+
+secop-core (0.9.0) unstable; urgency=low
+
+  [ Björn Pedersen ]
+  * Upgrade CI environment to python3
+
+  [ Markus Zolliker ]
+  * fix some remaining py3 incompatibilites
+
+  [ Enrico Faulhaber ]
+  * Remove py2 support
+
+  [ Markus Zolliker ]
+  * further fixes of py3 issues
+
+  [ Lutz Rossa ]
+  * allow parsing of isUTF8 flag for strings
+
+  [ Markus Zolliker ]
+  * remove more py2 relicts
+
+  [ Enrico Faulhaber ]
+  * fix debian files
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 26 Sep 2019 16:26:07 +0200
+
+secop-core (0.8.1) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Provide systemd files
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Wed, 25 Sep 2019 15:40:44 +0200
+
+secop-core (0.8.0) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * remove support for declaring parameters/commands as accessibles
+
+  [ Markus Zolliker ]
+  * changed started_callback mechanism
+  * - added Module.is_busy() for treating substates of BUSY correctly
+
+  [ Enrico Faulhaber ]
+  * rename framework methods to camelCase
+
+  [ Markus Zolliker ]
+  * moved creation parameters + commands to Module.__init__
+  * as_json on FloatRange and ScaledInteger must be a property
+  * validator should take resolution into account
+  * introduced Datatype.copy
+  * replace Datatype.as_json by Datatype.export_datatype()
+  * remove 'maxage' argument for read_* methods
+
+  [ Enrico Faulhaber ]
+  * Add basic validators
+  * rework property handling
+  * configurables: switch from list to dict
+
+  [ Markus Zolliker ]
+  * remove test for started_callback function in Test_ModuleMeta
+  * fixes in datatype.py
+
+  [ Enrico Faulhaber ]
+  * interface/tcp: provide properties
+
+  [ Seger Sandra ]
+  * add cfg-editor
+
+  [ Markus Zolliker ]
+  * handle SEC node connection properly in client
+
+  [ Enrico Faulhaber ]
+  * Provide Properties with a description
+  * Add TextType to ease gui generation
+  * Use new TextType
+  * ValueWidget: use only PlainText
+
+  [ Markus Zolliker ]
+  * fix behaviour of exported predefined parameters
+  * avoid lost messages after activate message
+  * fixes in datatypes
+  * fix: test_params randomly failes
+  * changes according to new syntax decided on vidconf 2019-08-07
+  * improved poller
+  * improve traceback info
+
+  [ Björn Pedersen ]
+  * [CI]: Update to use label dockerhost
+
+  [ Enrico Faulhaber ]
+  * rename host argument to client
+  * lib: fix lazy_property descriptor
+
+  [ Markus Zolliker ]
+  * change again SECoP datatype syntax
+  * change datatype property to datainfo
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Wed, 25 Sep 2019 10:27:51 +0200
+
+secop-core (0.7.0) unstable; urgency=low
+
+  [ Markus Zolliker ]
+  * treat return value of write_<par> correctly
+  * Override does not change the order of inherited accessibles.
+
+  [ Björn Pedersen ]
+  * Switch to warnings-ng plugin
+  * Use system site packages to get pytango
+  * Ensure pylint results file exists and has version
+  * Fix typo
+
+  [ Enrico Faulhaber ]
+  * add default role to doc conf.py
+  * include isort target in Makefile
+  * isort result
+  * secop_demo/modules: use distinct state codes for the phases
+  * datatypes: adapt Syntax to latest decisions
+  * Implement ScaledInteger type
+  * datatypes: implement hints (unit, fmtstr, *_precision)
+  * datatypes: implement format_value() method
+  * fixup: rename *subtype* in client code as well
+  * params: move unit into datatypes, support for constant property
+  * datatypes: Change default fmtstr to %g
+  * Dispatcher: fix activate <module>
+  * all: rename parameters to accessibles in module classes
+  * secop_mlz: remove dangerous try except ImportError + fix typo
+  * demo: fix test/Temp `target` declaration
+  * rework message syntax to conform to latest decisions
+  * interface/tcp: default to no extra error-info
+  * interface/tcp: rework exception handling
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 28 Mar 2019 13:46:08 +0100
+
+secop-core (0.6.4) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * [MLZ:entangle] fix windowtimeout
+  * [server.py] rename initialisation steps for better clarity
+  * minor fixes
+
+  [ Björn Pedersen ]
+  * Add dockerized ci infrastructure
+  * Remove bootstrapping code from Jenkinsfile
+  * Add venv initialisation
+  * Add docs test/build
+  * Remove jenkins bootstrapping code
+  * Fix git reference for docker env
+  * CI: Add pytango  dependency
+  * Use correct locale
+
+  [ Enrico Faulhaber ]
+  * by default export all modules
+  * fix sequencing in secop_demo.modules.MagnetiField
+  * various unicode fixes
+  * remove Message objects + rewrite server startup
+  * big rework to comply to current spec
+  * fix isort
+  * fix tests
+
+  [ Georg Brandl ]
+  * move path manipulation into single module
+
+  [ Enrico Faulhaber ]
+  * fix Makefile
+  * reorder PHONY in Makefile
+
+  [ Björn Pedersen ]
+  * Improve build process
+
+  [ Georg Brandl ]
+  * fix changed Jenkinsfile
+  * datatypes: require min, max ordering for size limits
+
+  [ Enrico Faulhaber ]
+  * fix simulation
+
+  [ Markus Zolliker ]
+  * allow Override also for Commands
+
+  [ Björn Pedersen ]
+  * docker image: add mlz tools
+  * Include pylint into Jenkinsfile
+  * Add stage around pylint run
+  * Run publish outside of docker container
+  * Correctly publish pylint results
+  * Adjust path for docs
+
+  [ Markus Zolliker ]
+  * additional parameter properties
+  * added 'export_as' for parameters and commands
+
+  [ Björn Pedersen ]
+  * doc: Add a last-updated timestamp to html
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 20 Dec 2018 16:44:03 +0100
+
+secop-core (0.6.3) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Makefile: include targets for making pkg's
+  * datatypes: fix converting command datatype
+  * improve debug output if polling loop crashes
+  * pylintrc: increase allowed module length
+  * MLZ: fix typo
+  * fix several regressions from switching to accessibles
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 27 Jul 2018 09:31:59 +0200
+
+secop-core (0.6.2) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix equipment_id handling
+  * fix internal event handling
+  * rework polling
+  * rework EnumType to use better Enum's
+  * Allow units of parameters to reference the unit of the main value
+  * Add new 'pseudo' datatypes to simplifiy coding
+
+  [ Markus Zolliker ]
+  * - remove obsolete option static_only of Param.as_dict - remove obsolete import of format_time - fix commit message
+  * commands must be specified explicitely
+  * rename as_dict methods to for_export
+
+  [ Enrico Faulhaber ]
+  * fix leftover status imports
+  * rename Param -> Parameter
+  * accessibles: provide global counter
+  * add features
+
+  [ Markus Zolliker ]
+  * read parameters from hardware before starting up server
+
+  [ Enrico Faulhaber ]
+  * server: allow absolute pathnames for cfg files
+  * MLZ_ccr12: update config file
+
+  [ Markus Zolliker ]
+  * merge 'parameters' and 'commands' to 'accessibles'
+
+  [ Enrico Faulhaber ]
+  * secop/modules: make polling thread more robust
+  * interface/tcp: handle dead connection correctly
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Wed, 18 Jul 2018 12:06:57 +0200
+
+secop-core (0.6.1) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * py2/3: provide fallback if six is missing.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 19 Apr 2018 10:24:44 +0200
+
+secop-core (0.6.0) unstable; urgency=low
+
+  [ Jens Krüger ]
+  * STRESSIHTF2: Fix maximum ramp value
+
+  [ Enrico Faulhaber ]
+  * GUI: Fix doubled slot on 'set' button click
+
+  [ Jens Krüger ]
+  * GUI: clean up callback for enum ComboBoxes
+
+  [ Enrico Faulhaber ]
+  * MLZ: fix tango WindowTimeout
+  * improve Py2/3 compat
+  * [MLZ:stressihtf2] add sensor
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 17 Apr 2018 17:38:52 +0200
+
+secop-core (0.5.0) unstable; urgency=low
+
+  [ Markus Zolliker ]
+  * revision of SECoP documentation
+  * - fixed documentation hierarchy
+
+  [ Enrico Faulhaber ]
+  * fix amagnet
+  * add info about Meeting @PSI
+  * fix typo and include comment from Niklas
+  * give sequencermixin a loopcounter (per step)
+
+  [ Frank Wutzler ]
+  * describe SECoP motivation discussed in meeting 2017-11-27
+
+  [ Enrico Faulhaber ]
+  * extend datatypes
+  * Provide a mean for simulation dummy devices
+  * Fix gui (leftover from extending datatypes)
+
+  [ Lutz Rossa ]
+  * fix a connection timeout bug
+
+  [ Enrico Faulhaber ]
+  * Provide mlz_ccr12 simulation mockup cfg
+  * fix PARAMS handling + initialisation for simulation
+  * replace last references to device by module
+  * fix exceptions
+  * minor fixes
+  * More simulation cfg's
+  * Remove old demo code (no longer used)
+  * fix regression from renaming device to module
+  * Makefile: allow specifying only a subset of the tests to run
+  * secop/errors: add comments
+  * Add value parser + use it for the gui
+  * Avoid race condition upon gui start with autoconnect
+  * remember Widgets for modulectrl and paramctl
+  * GUI: Saveguard against missing mandatory parameter status
+  * fix unbound unit access
+  * minor adoptions
+  * Support PyQt5 (fallback to PyQt4)
+
+  [ Jens Krüger ]
+  * UI: Add connection from exit button to close the window
+  * MLZ: enable the 'setposition' commands in entangle
+  * NODECTRL: Fix some problems with logging and callbacks
+
+  [ Enrico Faulhaber ]
+  * improve readability be renaming PARAMS,PROPS,CMDS
+  * MLZ: Fix mapping in NamedDigitalOutput device
+
+  [ Jens Krüger ]
+  * STRESSIHTF2: add setup
+  * CCR12: Fix setup to new parameter names
+
+  [ Enrico Faulhaber ]
+  * amagnet: fix wrongly renamed tangomodule
+  * [GUI] fix 'double' click on go-buttons
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 17 Apr 2018 12:45:58 +0200
+
+secop-core (0.4.4) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * amagnet: fix switching sequence
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Sun, 24 Sep 2017 22:25:01 +0200
+
+secop-core (0.4.3) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * wait for tango
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 22 Sep 2017 17:29:46 +0200
+
+secop-core (0.4.2) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * MLZ_entangle: use generous timings for initial device connect
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 22 Sep 2017 16:37:59 +0200
+
+secop-core (0.4.1) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix init script
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 22 Sep 2017 13:25:28 +0200
+
+secop-core (0.4.0) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Remove obsolete protocol implementations
+  * fix entangle integration
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Fri, 22 Sep 2017 10:33:04 +0200
+
+secop-core (0.3.0) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix formatting of timestamps
+  * add doc/open_questions.md
+  * fixups
+  * Only send async updates for exported params
+  * fixups
+  * fixups
+
+  [ Alexander Lenz ]
+  * doc: initial sphinx files.
+  * Improve doc.
+
+  [ Enrico Faulhaber ]
+  * fixups
+  * adopt to new jsonify of string/blob/arrayof datatyes
+  * gix broken stop command for cryo
+  * fix transport and display of node-properties
+  * update descriptions of provided configurations
+  * fix requirements.txt
+  * fixups
+
+  [ Alexander Lenz ]
+  * doc: add datatypes.
+
+  [ Enrico Faulhaber ]
+  * remove unneeded commands
+  * implement Writable as specified.
+  * make sip optional
+
+  [ Alexander Lenz ]
+  * doc: improve layout.
+  * doc: fix protocol/datatypes.
+  * Fix requirements files.
+  * doc: remove html escapes.
+  * doc: Fix escapes.
+  * doc: fix cp errors.
+
+  [ Markus Zolliker ]
+  * doc update (commands and datatypes)
+
+  [ Alexander Lenz ]
+  * doc: fix format.
+
+  [ Enrico Faulhaber ]
+  * provide an mean to use commands in the gui
+
+  [ Alexander Lenz ]
+  * Makefile: add convenience targets.
+  * Add pylintrc.
+
+  [ Enrico Faulhaber ]
+  * Improve pylintrc.
+
+  [ Alexander Lenz ]
+  * tmp: test gerrit pylint.
+
+  [ Enrico Faulhaber ]
+  * fix tests
+  * make StringType default maximum size = 255 Bytes
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Mon, 18 Sep 2017 14:18:36 +0200
+
+secop-core (0.2.0) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * [GUI]: create buttons for commands
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 07 Sep 2017 14:55:41 +0200
+
+secop-core (0.1.1) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * Fix wrong paths.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 07 Sep 2017 11:02:19 +0200
+
+secop-core (0.1.0) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * Fix path detection.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 07 Sep 2017 10:50:24 +0200
+
+secop-core (0.0.8) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * [deb] include init script in secop-core pkg.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 01 Aug 2017 14:13:11 +0200
+
+secop-core (0.0.7) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * secop-server: import compability for daemon pkgs.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 01 Aug 2017 13:52:15 +0200
+
+secop-core (0.0.6) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * setup.py: install init script.
+  * [deb] install init script.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 01 Aug 2017 13:39:07 +0200
+
+secop-core (0.0.5) unstable; urgency=low
+
+  [ Alexander Lenz ]
+  * init script: add should start.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Tue, 01 Aug 2017 13:11:43 +0200
+
+secop-core (0.0.4) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * fix typo
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 27 Jul 2017 11:39:42 +0200
+
+secop-core (0.0.3) unstable; urgency=low
+
+  [ Enrico Faulhaber ]
+  * Add lib/sequence support
+  * provide setup for MLZ_Amagnet to be used @PSI soon (fixes: #3381)
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Thu, 27 Jul 2017 11:27:28 +0200
+
+secop-core (0.0.2) unstable; urgency=medium
+
+  [ Enrico Faulhaber ]
+  * Changes.
+  * First checkin, base point for development
+  * move handlers to messages
+  * enhance docu a little
+
+  [ Erik Dahlbäck ]
+  * This is a test commit
+  * Revert "This is a test commit"
+
+  [ Enrico Faulhaber ]
+  * Devices infrastructure and minimal server
+  * rework on transport (encoding/framing) and dispatcher
+
+  [ Alexander Lenz ]
+  * Improvements.
+  * Fix/Improve startup/init.
+  * Fix deprecated imports.
+
+  [ Enrico Faulhaber ]
+  * [Test] Erik is testing SECoP with PVEPICS module
+  * demo syntax from Markus Zolliker, initial commit + test file
+  * Implement a variant of the Demo protocol from Markus
+  * split epics related devices into epics.py
+  * apply validators to before calling write_func
+  * use per instance copies of PARAMS
+  * Remove Features
+  * coding style: adopt pep8
+  * provide class and baseclass parameters
+  * Unify error handling (a little more)
+  * provide a status2 parameter
+  * unsubscribe upon disconnect
+  * Fix dispatcher._setParamValue
+  * reworking messages
+  * fix wrong replies for change and do
+  * Update docu to reflect current implementation.
+  * Provide basic client Object
+  * Pep8 improvements + cleanup
+  * Fix some bugs.
+
+  [ Alexander Lenz ]
+  * Stub debug client gui.
+
+  [ Enrico Faulhaber ]
+  * Polishing
+  * Bug hunting and polishing
+  * polishing for a demo
+  * implement configurable module-properties
+  * provide anchor point for test suite using pytest
+  * Use mlzlog for better logging
+
+  [ Erik Dahlbäck ]
+  * rework Epics support/testing with LS336
+  * fix whitespace issues
+
+  [ Enrico Faulhaber ]
+  * autopep8
+  * GUI: show grouping of parameters
+  * implement datatypes
+  * replace validators with datatypes
+  * update docs
+  * remove obsolete file
+  * (over-)improve error loging during startup
+  * datatypes: fix serialisation for unlimited types
+  * fix logging
+  * Switch descriptive data to new format
+  * provide debian control files
+
+  [ Alexander Lenz ]
+  * [deb] Add build deps and rename src pkg.
+  * [deb] Split into multiple packages.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2.tum.de>  Wed, 19 Jul 2017 11:44:13 +0200

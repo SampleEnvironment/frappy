@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+# pylint: disable=invalid-name
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+# Copyright (c) 2015-2016 by the authors, see LICENSE
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#
+# *****************************************************************************
+
+from __future__ import print_function
+
+import sys
+import argparse
+from os import path
+
+# Add import path for inplace usage
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+import logging
+from mlzlog import ColoredConsoleHandler
+
+from frappy.gui.qt import QApplication
+from frappy.gui.mainwindow import MainWindow
+
+def parseArgv(argv):
+    parser = argparse.ArgumentParser()
+    loggroup = parser.add_mutually_exclusive_group()
+    loggroup.add_argument('-d', '--debug',
+                          help='Enable debug output',
+                          action='store_true', default=False)
+    loggroup.add_argument('-q', '--quiet',
+                          help='Supress everything but errors',
+                          action='store_true', default=False)
+    parser.add_argument('node',
+                        help='Nodes the Gui should connect to.\n', metavar='host[:port]',
+                        nargs='*', type=str, default=[])
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    args = parseArgv(argv[1:])
+
+    loglevel = logging.DEBUG if args.debug else (logging.ERROR if args.quiet else logging.INFO)
+    logger = logging.getLogger('gui')
+    logger.setLevel(logging.DEBUG)
+    console = ColoredConsoleHandler()
+    console.setLevel(loglevel)
+    logger.addHandler(console)
+
+    app = QApplication(argv)
+
+    win = MainWindow(args.node, logger)
+    app.aboutToQuit.connect(win._onQuit)
+    win.show()
+
+    return app.exec()
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

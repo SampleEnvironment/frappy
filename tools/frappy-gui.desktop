@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Frappy GUI
+Exec=frappy-gui
+Type=Application
+Categories=Utility;Science;
+Comment=Graphical client for SECoP
+

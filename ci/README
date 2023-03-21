@@ -1,0 +1,20 @@
+This directory contains the necessary files for running tests inside a docker container.
+
+The Dockerfile defines two images:
+- base
+  -> this is the image used for testing
+- docs
+  -> Include a latex install for sphinx pdf builds
+
+(The following assumes you have a docker daemon running on your working computer)
+
+To create the images:
+
+  docker build --target <base|docs> --tag frappy_<base|docs>:latest .
+
+To test images interactivly:
+  docker run -u jenkins -i -t frappy<base|docs> /bin/bash
+
+The Jenkinsfile uses this Dockerfile (only approved checked-in versions from master)
+to build the images (a rebuild will only happen if the Dockerfile is changed as docker
+ caches the images and build information) and  run the test suite inside the container.

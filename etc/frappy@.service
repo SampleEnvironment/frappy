@@ -1,0 +1,12 @@
+[Unit]
+Description=FRAPPY SECoP SEC-node: %i
+After=network-online.service
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/frappy-server %I
+Restart=on-abnormal
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

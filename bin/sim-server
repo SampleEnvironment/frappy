@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+# pylint: disable=invalid-name
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Markus Zolliker <markus.zolliker@psi.ch>
+# *****************************************************************************
+"""server for a string communicator
+
+Usage:
+
+    bin/stringio-server <communciator> <server port>
+
+open a server on <server port> to communicate with the string based <communicator> over TCP/IP.
+
+Use cases, mainly for test purposes:
+- as a T, if the hardware allows only one connection, and more than one is needed
+- relay to a communicator not using TCP/IP, if Frappy should run on an other host
+- relay to a hardware simulation written as a communicator
+"""
+
+import sys
+import argparse
+from os import path
+import asyncore
+import socket
+import time
+
+# Add import path for inplace usage
+sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+
+from frappy.lib import get_class, formatException, mkthread
+
+
+class LineHandler(asyncore.dispatcher_with_send):
+
+    def __init__(self, sock):
+        self.buffer = b""
+        asyncore.dispatcher_with_send.__init__(self, sock)
+        self.crlf = 0
+
+    def handle_line(self, line):
+        raise NotImplementedError
+
+    def handle_read(self):
+        data = self.recv(8192)
+        if data:
+            parts = data.split(b"\n")
+            if len(parts) == 1:
+                self.buffer += data
+            else:
+                self.handle_line((self.buffer + parts[0]).decode('latin_1'))
+                for part in parts[1:-1]:
+                    if part[-1] == b"\r":
+                        self.crlf = True
+                        part = part[:-1]
+                    else:
+                        self.crlf = False
+                    self.handle_line(part.decode('latin_1'))
+                self.buffer = parts[-1]
+
+    def send_line(self, line):
+        self.send((line + ("\r\n" if self.crlf else "\n")).encode('latin_1'))
+
+
+class LineServer(asyncore.dispatcher):
+
+    def __init__(self, port, line_handler_cls, handler_args):
+        asyncore.dispatcher.__init__(self)
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.set_reuse_addr()
+        self.bind(('0.0.0.0', port))
+        self.listen(5)
+        print('accept connections at port', port)
+        self.line_handler_cls = line_handler_cls
+        self.handler_args = handler_args
+
+    def handle_accept(self):
+        pair = self.accept()
+        if pair is not None:
+            sock, addr = pair
+            print("Incoming connection from %s" % repr(addr))
+            self.line_handler_cls(sock, self.handler_args)
+
+    def loop(self):
+        asyncore.loop()
+
+
+class Server(LineServer):
+
+    class Dispatcher:
+        def announce_update(self, *_):
+            pass
+
+        def announce_update_error(self, *_):
+            pass
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.dispatcher = self.Dispatcher()
+
+
+class Handler(LineHandler):
+    def __init__(self, sock, handler_args):
+        super().__init__(sock)
+        self.module = handler_args['module']
+        self.verbose = handler_args['verbose']
+
+    def handle_line(self, line):
+        try:
+            reply = self.module.communicate(line.strip())
+            if self.verbose:
+                print('%-40s | %s' % (line, reply))
+        except Exception:
+            print(formatException(verbose=True))
+            return
+        self.send_line(reply)
+
+
+class Logger:
+    def debug(self, *args):
+        pass
+
+    def log(self, level, *args):
+        pass
+
+    def info(self, *args):
+        print(*args)
+
+    exception = error = warn = info
+
+
+def parse_argv(argv):
+    parser = argparse.ArgumentParser(description="Simulate HW with a serial interface")
+    parser.add_argument("-v", "--verbose",
+                        help="output full communication",
+                        action='store_true', default=False)
+    parser.add_argument("cls",
+                        type=str,
+                        help="simulator class.\n",)
+    parser.add_argument('-p',
+                        '--port',
+                        action='store',
+                        help='server port or uri',
+                        default=2089)
+    return parser.parse_args(argv)
+
+
+def poller(pollfunc):
+    while True:
+        time.sleep(1.0)
+        pollfunc()
+
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    args = parse_argv(argv[1:])
+
+    opts = {'description': 'simulator'}
+
+    handler_args = {'verbose': args.verbose}
+    srv = Server(int(args.port), Handler, handler_args)
+    module = get_class(args.cls)(args.cls, Logger(), opts, srv)
+    handler_args['module'] = module
+    module.earlyInit()
+    mkthread(poller, module.doPoll)
+    srv.loop()
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

@@ -1,0 +1,225 @@
+properties([
+    buildDiscarder(logRotator(artifactDaysToKeepStr: '',
+                              artifactNumToKeepStr: '',
+                              daysToKeepStr: '',
+                              numToKeepStr: '50')),
+    parameters([
+         string(defaultValue: 'secop/frappy',
+                description: '', name: 'GERRIT_PROJECT'),
+         string(defaultValue: 'master',
+                description: '', name: 'GERRIT_BRANCH'),
+         string(defaultValue: 'refs/heads/master',
+                description: '', name: 'GERRIT_REFSPEC'),
+         choice(choices: '''\
+patchset-created
+ref-updated
+change-merged''',
+                description: '', name: 'GERRIT_EVENT_TYPE')])
+])
+
+
+
+this.verifyresult = [:]
+def changedFiles = '';
+
+
+def run_pylint(pyver) {
+  stage ('pylint-' + pyver) {
+    def status = 'OK'
+    changedFiles = sh returnStdout: true, script: '''\
+#!/bin/bash
+git diff HEAD~1... --name-only --diff-filter=ARCM -- \\*.py
+'''
+    changedFiles = changedFiles.replaceAll("[\r\n]", " ").trim()
+
+    res = sh returnStatus: true, script: """\
+#!/bin/bash -x
+. /home/jenkins/secopvenv/bin/activate
+pip install -r requirements-dev.txt
+pip install -r requirements.txt
+pip install isort pylint
+pip install -e .
+export PYTHONIOENCODING=utf8
+
+echo "$changedFiles"
+if [[  -n "$changedFiles" ]]; then
+   set -o pipefail
+   pylint $changedFiles | tee pylint_results.txt
+   isort --df $changedFiles || true | tee isort_results.txt
+fi
+"""
+    withCredentials([string(credentialsId: 'GERRITHTTP',
+                     variable: 'GERRITHTTP')]) {
+        sh """\
+#!/bin/bash
+        if [ -f pylint_results.txt ] ; then
+          /home/jenkins/tools2/bin/pylint2gerrit
+          mv pylint_results.txt pylint-${pyver}.txt
+        else
+          touch pylint-${pyver}.txt
+        fi
+        """
+    } // credentials
+
+    echo "pylint result: $res"
+    if ( res != 0 ) {
+        currentBuild.result='FAILURE'
+        status = 'FAILURE'
+    }
+
+    archiveArtifacts([allowEmptyArchive: true,
+                          artifacts: 'pylint-*.txt'])
+    recordIssues([enabledForFailure: true,
+                  ignoreQualityGate: true,
+                  tools: [pyLint(id: 'pylint'+pyver, name: "Pylint $pyver", pattern: "pylint-${pyver}.txt")],
+                  unhealthy: 2,
+                  healthy: 1,
+                  failedTotalAll: 1])
+
+
+  }
+} // run_pylint
+
+
+def run_tests(pyver) {
+    stage('Test:' + pyver) {
+        writeFile file: 'setup.cfg', text: '''
+[tool:pytest]
+addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
+
+    def status = "OK"
+    try {
+        timeout(5) {
+            sh '''\
+#!/bin/bash
+. /home/jenkins/secopvenv/bin/activate
+pip install -r requirements-dev.txt
+pip install -r requirements.txt
+pip install -e .
+make test
+'''
+        }
+    } catch (all) {
+        currentBuild.result = 'FAILURE'
+        status = 'FAILURE'
+    }
+
+    step([$class: 'JUnitResultArchiver', allowEmptyResults: true,
+          keepLongStdio: true, testResults: 'pytest.xml'])
+  }
+}
+
+def run_docs() {
+    stage('prepare') {
+        sh '''
+        . /home/jenkins/secopvenv/bin/activate
+        pip install -r requirements-dev.txt
+        pip install -r requirements.txt
+        pip install -e .
+        '''
+    }
+
+    stage('check links') {
+        sh '''
+        . /home/jenkins/secopvenv/bin/activate
+
+        make -C doc linkcheck
+        '''
+    }
+
+    stage('build html') {
+        sh '''
+        . /home/jenkins/secopvenv/bin/activate
+        make -C doc html
+        '''
+    }
+
+    stage('build singlehtml') {
+        sh '''
+        . /home/jenkins/secopvenv/bin/activate
+        make -C doc singlehtml
+        '''
+    }
+
+    stage('build latexpdf') {
+        sh '''
+        . /home/jenkins/secopvenv/bin/activate
+        make -C doc latexpdf
+        '''
+    }
+
+    stage('build man') {
+        sh '''
+        . /home/jenkins/secopvenv/bin/activate
+        make -C doc man
+        '''
+    }
+
+    stage('store html doc for build') {
+        publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'doc/_build/html', reportFiles: 'index.html', reportName: 'Built documentation', reportTitles: ''])
+    }
+}
+
+
+
+node("dockerhost") {
+    stage('clean workspace')
+    {
+        cleanWs()
+    }
+   stage('checkout') {
+        checkout poll: false,
+            scm: [$class: 'GitSCM',
+                   branches: [[name: '${GERRIT_BRANCH}']],
+                   doGenerateSubmoduleConfigurations: false,
+                   extensions: [
+                      [$class: 'CleanCheckout'],
+                      [$class: 'hudson.plugins.git.extensions.impl.BuildChooserSetting',
+                       buildChooser: [$class: "com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTriggerBuildChooser"]],
+                  ],
+                   submoduleCfg: [],
+                   userRemoteConfigs:
+                    [[
+                        refspec: GERRIT_REFSPEC,
+                        credentialsId: 'jenkins_ecdsa_x',
+                        url: 'ssh://jenkins@forge.frm2.tum.de:29418/${GERRIT_PROJECT}']]]
+        sh 'git show'
+   }
+    stage('(re-)generate image') {
+       sh '''#!/bin/bash
+        git worktree add tmpmaster origin/master
+        cd tmpmaster
+        docker build --target base --tag frappy_base:latest ci
+        docker build --target docs --tag frappy_docs:latest ci
+        cd ..
+        rm -rf tmpmaster
+        '''
+   }
+
+    stage('execute tests') {
+    def img = docker.image('frappy_base:latest')
+    def docimg = docker.image('frappy_docs:latest')
+
+    parallel 'Test': {
+        img.inside {
+            run_tests('python3')
+        }},
+            'Pylint': {
+        img.inside {
+            run_pylint('python3')
+        }},
+            'Docs': {
+        docimg.inside {
+            run_docs()
+        }
+        stage('publish') {
+            if (GERRIT_EVENT_TYPE == 'change-merged')
+            {
+                sh '''
+                rsync -rlv doc/_build/* /ictrlsrv/share/public/doc/frappy
+                '''
+            }
+        }}, failFast: false
+    }
+    setGerritReview()
+}

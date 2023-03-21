@@ -1,0 +1,20 @@
+div.wy-nav-content
+{
+	    max-width: 100% !important;
+}
+
+/* make some bullet lists more dense (this rule exists in theme.css, but not important)*/
+.wy-plain-list-disc li p:last-child, .rst-content .section ul li p:last-child, .rst-content .toctree-wrapper ul li p:last-child, article ul li p:last-child {
+   margin-bottom: 0 !important;
+}
+
+/* overwrite custom font (to save bandwidth not using a custom font) */
+body {
+    font-family: "proxima-nova", "Helvetica Neue", Arial, sans-serif;
+}
+
+h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend {
+    font-family: "ff-tisa-web-pro", "Georgia", Arial, sans-serif;
+}
+
+
