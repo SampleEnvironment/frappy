@@ -32,17 +32,17 @@ MLZ TANGO interface for the respective device classes.
 
 import re
 import threading
-from time import sleep
-from time import time as currenttime
+from time import sleep, time as currenttime
 
 import PyTango
-from frappy.datatypes import ArrayOf, EnumType, FloatRange, \
-    IntRange, LimitsType, StringType, TupleOf
-from frappy.errors import CommunicationFailedError, \
-    ConfigError, HardwareError, ProgrammingError
+
+from frappy.datatypes import ArrayOf, EnumType, FloatRange, IntRange, \
+    LimitsType, StringType, TupleOf
+from frappy.errors import CommunicationFailedError, ConfigError, \
+    HardwareError, ProgrammingError
 from frappy.lib import lazy_property
-from frappy.modules import Command, StatusType, \
-    Drivable, Module, Parameter, Readable
+from frappy.modules import Command, Drivable, Module, Parameter, Readable, \
+    StatusType, Writable
 
 #####
 
@@ -860,20 +860,20 @@ class PartialDigitalInput(NamedDigitalInput):
         return value  # mapping is done by datatype upon export()
 
 
-class DigitalOutput(PyTangoDevice):
+class DigitalOutput(PyTangoDevice, Writable):
     """A device that can set and read a digital value corresponding to a
     bitfield.
     """
 
     # overrides
-    value = Parameter(datatype=IntRange())
-    target = Parameter(datatype=IntRange())
+    value = Parameter('current value', datatype=IntRange())
+    target = Parameter('target value', datatype=IntRange())
 
     def read_value(self):
         return self._dev.value  # mapping is done by datatype upon export()
 
     def read_status(self):
-        status = self.read_status()
+        status = super().read_status()
         self.setFastPoll(self.isBusy(status))
         return status
 

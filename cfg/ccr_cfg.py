@@ -1,9 +1,10 @@
-Node('MLZ_ccr12',
-    'CCR box of MLZ Sample environment group\n'
-    '\n'
-    'Contains a Lakeshore 336 and an PLC controlling the compressor\n'
-    'and some valves.',
-    'localhost:10767',
+desc = '''CCR box of MLZ Sample environment group
+
+ Contains a Lakeshore 336 and an PLC controlling the compressor
+ and some valves.'''
+Node('MLZ_ccr',
+     desc,
+    'tcp://10767',
 )
 
 Mod('automatik',
@@ -12,14 +13,14 @@ Mod('automatik',
     '\n'
     'selects between off, regulate on p1 or regulate on p2 sensor',
     tangodevice = 'tango://localhost:10000/box/plc/_automatik',
-    mapping={'Off':0,'p1':1,'p2':2},
+    mapping="{'Off':0,'p1':1,'p2':2}",
 )
 
 Mod('compressor',
     'frappy_mlz.entangle.NamedDigitalOutput',
     'control the compressor (on/off)',
     tangodevice = 'tango://localhost:10000/box/plc/_cooler_onoff',
-    mapping={'Off':0,'On':1},
+    mapping="{'Off':0,'On':1}",
 )
 
 Mod('gas',
@@ -30,7 +31,7 @@ Mod('gas',
     'note: activation de-activates the vacuum inlet\n'
     'note: if the pressure regulation is active, it enslave this device',
     tangodevice = 'tango://localhost:10000/box/plc/_gas_onoff',
-    mapping={'Off':0,'On':1},
+    mapping="{'Off':0,'On':1}",
 )
 
 Mod('vacuum',
@@ -39,8 +40,8 @@ Mod('vacuum',
     '\n'
     'note: activation de-activates the gas inlet\n'
     'note: if the pressure regulation is active, it enslave this device',
-    tangodevice = 'tango://localhost:10000/box/plc/_vacuum_Onoff',
-    mapping={'Off':0,'On':1},
+    tangodevice = 'tango://localhost:10000/box/plc/_vacuum_onoff',
+    mapping="{'Off':0,'On':1}",
 )
 
 Mod('p1',
@@ -72,88 +73,76 @@ Mod('curve_p2',
         'CMR364':24, 'CMR365':25}",
 )
 
-# sensors
+Mod('T_tube_regulation',
+    'frappy_mlz.entangle.TemperatureController',
+    'regulation of tube temperature',
+    tangodevice = 'tango://localhost:10000/box/tube/control1',
+    value = Param(unit = 'K'),
+    heateroutput = 0,
+    ramp = 6,
+    speed = 0.1,
+    setpoint = 0,
+    pid = (40, 10, 1),
+    p = 40,
+    i = 10,
+    d = 1,
+    abslimits = (0, 500),
+)
+
+Mod('T_stick_regulation',
+    'frappy_mlz.entangle.TemperatureController',
+    'regualtion of stick temperature',
+    tangodevice = 'tango://localhost:10000/box/stick/control2',
+    value = Param(unit = 'K'),
+    heateroutput = 0,
+    ramp = 6,
+    speed = 0.1,
+    setpoint = 0,
+    pid = (40, 10, 1),
+    p = 40,
+    i = 10,
+    d = 1,
+    abslimits = (0, 500),
+)
 Mod('T_sample',
     'frappy_mlz.entangle.Sensor',
     'sample temperature',
     tangodevice = 'tango://localhost:10000/box/sample/sensora',
-    value = Param(unit='K'),
+    value = Param(unit = 'K'),
 )
 
 Mod('T_stick',
     'frappy_mlz.entangle.Sensor',
     'temperature at bottom of sample stick',
     tangodevice = 'tango://localhost:10000/box/stick/sensorb',
-    value = Param(unit='K'),
+    value = Param(unit = 'K'),
 )
 
 Mod('T_coldhead',
     'frappy_mlz.entangle.Sensor',
     'temperature at coldhead',
-    tangodevice = 'tango://localhost:10000/box/stick/sensorc',
-    value = Param(unit='K'),
+    tangodevice = 'tango://localhost:10000/box/coldhead/sensorc',
+    value = Param(unit = 'K'),
 )
 
 Mod('T_tube',
     'frappy_mlz.entangle.Sensor',
     'temperature at thermal coupling tube <-> stick',
     tangodevice = 'tango://localhost:10000/box/tube/sensord',
-    value = Param(unit='K'),
+    value = Param(unit = 'K'),
 )
 
-# regulations
-
-Mod('T_stick_regulation',
-    'frappy_mlz.entangle.TemperatureController',
-    'regulation of stick temperature',
-    tangodevice = 'tango://localhost:10000/box/stick/control2',
-    heateroutput = 0,
-    ramp = 6,
-    speed = 0.1,
-    setpoint = 0,
-    pid = (40,10,1),
-    p = 40,
-    i = 10,
-    d = 1,
-    abslimits = (0,500),
-    value = Param(unit='K'),
-)
-
-# OMG! a NamedDigitalOutput, but with float'ints' 0..3
-Mod('T_stick_regulation_heaterrange',
-    'frappy_mlz.entangle.AnalogOutput',
-    'heaterrange for stick regulation',
-    tangodevice = 'tango://localhost:10000/box/stick/range2',
-    precision = 1,
-    abslimits = (0,3),
-)
-
-Mod('module T_tube_regulation',
-    'frappy_mlz.entangle.TemperatureController',
-    'regulation of tube temperature',
-    tangodevice = 'tango://localhost:10000/box/tube/control1',
-    heateroutput = 0,
-    ramp = 6,
-    speed = 0.1,
-    setpoint = 0,
-    pid = (40,10,1),
-    p = 40,
-    i = 10,
-    d = 1,
-    abslimits = (0,500),
-    value = Param(unit='K'),
-)
-
-# OMG! a NamedDigitalOutput, but with float'ints' 0..3
-#[module T_tube_regulation_heaterrange]
-#class=frappy_mlz.entangle.AnalogOutput
-#tangodevice=tango://localhost:10000/box/tube/range1
-#precision.default=1
-#abslimits=(0,3)
-
+# THIS IS A HACK: due to entangle (in controller)
 Mod('T_tube_regulation_heaterrange',
     'frappy_mlz.entangle.NamedDigitalOutput',
     'heaterrange for tube regulation',
     tangodevice = 'tango://localhost:10000/box/tube/range1',
-    mapping={'Off':0,'Low':1,'Medium':2,'High':3},
+    mapping="{'Off':0,'Low':1,'Medium':2, 'High':3}",
+)
+
+Mod('T_stick_regulation_heaterrange',
+    'frappy_mlz.entangle.NamedDigitalOutput',
+    'heaterrange for stick regulation',
+    tangodevice = 'tango://localhost:10000/box/stick/range2',
+    mapping="{'Off':0,'Low':1,'Medium':2, 'High':3}",
 )
