@@ -226,8 +226,10 @@ class ModuleWidget(QWidget):
     def _initModuleInfo(self):
         props = dict(self._node.getModuleProperties(self._name))
         self.moduleName.setText(self._name)
-        self.moduleDescription.setText(props.pop('description',
-                                                 'no description provided'))
+        self._moduleDescription = props.pop('description',
+                                            'no description provided')
+        text = self._moduleDescription.split('\n', 1)[0]
+        self.moduleDescription.setText(text)
 
         self.groupInfo.setText(props.pop('group', '-'))
         feats = ','.join(props.pop('features', [])) or '-'
@@ -401,6 +403,11 @@ class ModuleWidget(QWidget):
                 self._setParamHidden(param, True)
 
     def showDetails(self, show):
+        if show:
+            self.moduleDescription.setText(self._moduleDescription)
+        else:
+            text = self._moduleDescription.split('\n', 1)[0]
+            self.moduleDescription.setText(text)
         self.infoGrid.setHidden(not show)
         for param in self.independentParams:
             if param in ['value', 'status', 'target']:
