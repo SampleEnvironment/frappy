@@ -148,12 +148,14 @@ class NodeWidget(QWidget):
                                 self.plotParam(module, param))
             widget.plotAdd.connect(lambda param, module=module:
                                    self._plotPopUp(module, param))
+            widget.paramDetails.connect(self.showDetailedParam)
             widget.showDetails(self.detailed)
             self.noPlots.connect(widget.plotsPresent)
             self._modules[module] = widget
             self._detailedParams[module] = {}
             for param in node.getParameters(module):
                 view = ParameterView(node, module, param)
+                view.setWindowTitle('%s:%s:%s - Properties' % (self._node.equipmentId, module, param))
                 self._detailedParams[module][param] = view
             viewLayout.addWidget(widget)
 
@@ -207,6 +209,9 @@ class NodeWidget(QWidget):
         settings = QSettings()
         if settings.value('highlightanimation', True, bool):
             widget.triggerAnimation()
+
+    def showDetailedParam(self, module, param):
+        self._detailedParams[module][param].show()
 
     def _treeContextMenu(self, pos):
         index = self.tree.indexAt(pos)

@@ -123,6 +123,7 @@ class AnimatedLabelHandthrough(QWidget):
 class ModuleWidget(QWidget):
     plot = pyqtSignal(str)
     plotAdd = pyqtSignal(str)
+    paramDetails = pyqtSignal(str, str)
     def __init__(self, node, name, parent=None):
         super().__init__(parent)
         loadUi(self, 'modulewidget.ui')
@@ -285,7 +286,7 @@ class ModuleWidget(QWidget):
         l.addWidget(nameLabel, row,0,1,1)
         l.addWidget(display, row,1,1,5)
         l.addWidget(unitLabel, row,6)
-        self._addPlotButtons(param, row)
+        self._addButtons(param, row)
 
     def _addRWParam(self, param, row):
         props = self._node.getProperties(self._name, param)
@@ -316,9 +317,9 @@ class ModuleWidget(QWidget):
         l.addWidget(inputEdit, row,4,1,2)
         l.addWidget(unitLabel2, row,6,1,1)
         l.addWidget(submitButton, row, 7)
-        self._addPlotButtons(param, row)
+        self._addButtons(param, row)
 
-    def _addPlotButtons(self, param, row):
+    def _addButtons(self, param, row):
         if param == 'status':
             return
         plotButton = QToolButton()
@@ -328,17 +329,24 @@ class ModuleWidget(QWidget):
         plotAddButton.setIcon(QIcon(':/icons/plot-add'))
         plotAddButton.setToolTip('Plot With...')
 
+        detailsButton= QToolButton()
+        detailsButton.setIcon(QIcon(':/icons/plot-add'))
+        detailsButton.setToolTip('show parameter details')
+
         plotButton.clicked.connect(lambda: self.plot.emit(param))
         plotAddButton.clicked.connect(lambda: self.plotAdd.emit(param))
+        detailsButton.clicked.connect(lambda: self.showParamDetails(param))
 
         self._addbtns.append(plotAddButton)
         plotAddButton.setDisabled(True)
         self._paramWidgets[param].append(plotButton)
         self._paramWidgets[param].append(plotAddButton)
+        self._paramWidgets[param].append(detailsButton)
 
         l = self.moduleDisplay.layout()
         l.addWidget(plotButton, row, 8)
         l.addWidget(plotAddButton, row, 9)
+        l.addWidget(detailsButton, row, 10)
 
     def _addCommands(self, startrow):
         cmdicons = {
@@ -400,6 +408,9 @@ class ModuleWidget(QWidget):
             self._setParamHidden(param, not show)
         for group in self._groups:
             self._setGroupHidden(group, show)
+
+    def showParamDetails(self, param):
+        self.paramDetails.emit(self._name, param)
 
     def _button_pressed(self, param):
         target = self._paramInputs[param].text()
