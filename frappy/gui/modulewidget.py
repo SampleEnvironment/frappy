@@ -112,8 +112,9 @@ class AnimatedLabelHandthrough(QWidget):
         super().__init__(parent)
         self.label = label
         box = QHBoxLayout()
-        box.addWidget(label)
         box.addWidget(btn)
+        box.addWidget(label)
+        box.setContentsMargins(0,0,0,0)
         self.setLayout(box)
 
     def triggerAnimation(self):
@@ -173,6 +174,7 @@ class ModuleWidget(QWidget):
                     button = QToolButton()
                     button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
                     button.setText('+')
+                    button.setObjectName('collapseButton')
                     button.pressed.connect(
                         lambda group=key: self._toggleGroupCollapse(group))
                     groupLabel = AnimatedLabelHandthrough(name, button)
@@ -190,11 +192,13 @@ class ModuleWidget(QWidget):
                     button = QToolButton()
                     button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
                     button.setText('+')
+                    button.setObjectName('collapseButton')
                     button.pressed.connect(
                         lambda group=key: self._toggleGroupCollapse(group))
                     box = QHBoxLayout()
-                    box.addWidget(name)
                     box.addWidget(button)
+                    box.addWidget(name)
+                    box.setContentsMargins(0,0,0,0)
                     groupLabel = QWidget()
                     groupLabel.setLayout(box)
 
@@ -390,6 +394,12 @@ class ModuleWidget(QWidget):
         self._groupStatus[group] = collapsed
         for param in self._groups[group]:
             if param == group: # dont hide the top level
+                btn = self._paramWidgets[param][0].findChild(QToolButton,
+                                                             'collapseButton')
+                if collapsed:
+                    btn.setText('+')
+                else:
+                    btn.setText('-')
                 continue
             self._setParamHidden(param, collapsed)
 
