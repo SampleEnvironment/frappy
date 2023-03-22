@@ -1,3 +1,15 @@
+frappy-core (0.17.5) focal; urgency=medium
+
+  * Fix generator
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 22 Mar 2023 12:32:06 +0100
+
+frappy-core (0.17.4) focal; urgency=medium
+
+  * Fix entangle integration bugs
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 22 Mar 2023 11:44:34 +0100
+
 frappy-core (0.17.3) focal; urgency=medium
 
   * UNRELEASED
