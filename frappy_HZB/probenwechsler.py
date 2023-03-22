@@ -168,6 +168,8 @@ class Magazin:
 class Sample(HasIO,Drivable):
     
     Status = Enum(Drivable.Status,
+                  DISABLED = StatusType.DISABLED,
+                  PREPARING = StatusType.PREPARING,
                   HOLDING_SAMPLE = 101, 
                   MOUNTING=301,
                   UNMOUNTING = 302,
@@ -453,6 +455,8 @@ class Storage(HasIO,Readable):
     
     Status = Enum(
         Drivable.Status,
+        DISABLED = StatusType.DISABLED,
+        PREPARING = StatusType.PREPARING,
         LOADING=301,
         UNLOADING = 302,
         PAUSED = 304,
@@ -648,3 +652,5 @@ PAUSED_STORAGE   = Storage.Status.PAUSED
 STOPPED_STORAGE  = Storage.Status.STOPPED
 
 
+PREPARING  = Storage.Status.PREPARING
+DISABLED   = Storage.Status.DISABLED
