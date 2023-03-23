@@ -21,14 +21,12 @@
 #
 # *****************************************************************************
 
-import json
 from collections import OrderedDict
 
-from frappy.gui.qt import QCursor, QFont, QFontMetrics, QIcon, QInputDialog, \
-    QMenu, QSettings, QTextCursor, QVBoxLayout, QWidget, pyqtSignal, \
-    pyqtSlot, toHtmlEscaped
+from frappy.gui.qt import QCursor, QIcon, QInputDialog, QMenu, QSettings, \
+    QVBoxLayout, QWidget, pyqtSignal
 
-from frappy.errors import SECoPError
+from frappy.gui.console import Console
 from frappy.gui.moduleoverview import ModuleOverview
 from frappy.gui.modulewidget import ModuleWidget
 from frappy.gui.paramview import ParameterView
@@ -36,82 +34,9 @@ from frappy.gui.plotting import getPlotWidget
 from frappy.gui.util import Colors, loadUi
 
 
-class Console(QWidget):
-    def __init__(self, node, parent=None):
-        super().__init__(parent)
-        loadUi(self, 'console.ui')
-        self._node = node
-        self._clearLog()
-
-    @pyqtSlot()
-    def on_sendPushButton_clicked(self):
-        msg = self.msgLineEdit.text().strip()
-
-        if not msg:
-            return
-
-        self._addLogEntry(
-            '<span style="font-weight:bold">Request:</span> '
-            '<tt>%s</tt>' % toHtmlEscaped(msg),
-            raw=True)
-        #        msg = msg.split(' ', 2)
-        try:
-            reply = self._node.syncCommunicate(*self._node.decode_message(msg))
-            if msg == 'describe':
-                _, eid, stuff = self._node.decode_message(reply)
-                reply = '%s %s %s' % (_, eid, json.dumps(
-                    stuff, indent=2, separators=(',', ':'), sort_keys=True))
-                self._addLogEntry(reply.rstrip('\n'))
-            else:
-                self._addLogEntry(reply.rstrip('\n'))
-        except SECoPError as e:
-            einfo = e.args[0] if len(e.args) == 1 else json.dumps(e.args)
-            self._addLogEntry('%s: %s' % (e.name, einfo), error=True)
-        except Exception as e:
-            self._addLogEntry('error when sending %r: %r' % (msg, e),
-                              error=True)
-
-        self.msgLineEdit.selectAll()
-
-    @pyqtSlot()
-    def on_clearPushButton_clicked(self):
-        self._clearLog()
-
-    def _clearLog(self):
-        self.logTextBrowser.clear()
-
-        self._addLogEntry('<div style="font-weight: bold">'
-                          'SECoP Communication Shell<br/>'
-                          '=========================<br/></div>',
-                          raw=True)
-
-    def _addLogEntry(self, msg, raw=False, error=False):
-        if not raw:
-            if error:
-                msg = ('<div style="color:#FF0000"><b><pre>%s</pre></b></div>'
-                       % toHtmlEscaped(str(msg)).replace('\n', '<br />'))
-            else:
-                msg = ('<pre>%s</pre>'
-                       % toHtmlEscaped(str(msg)).replace('\n', '<br />'))
-
-        content = ''
-        if self.logTextBrowser.toPlainText():
-            content = self.logTextBrowser.toHtml()
-        content += msg
-
-        self.logTextBrowser.setHtml(content)
-        self.logTextBrowser.moveCursor(QTextCursor.MoveOperation.End)
-
-    def _getLogWidth(self):
-        fontMetrics = QFontMetrics(QFont('Monospace'))
-        # calculate max avail characters by using an m (which is possible
-        # due to monospace)
-        result = self.logTextBrowser.width() / fontMetrics.width('m')
-        return result
-
-
 class NodeWidget(QWidget):
     noPlots = pyqtSignal(bool)
+    consoleTextSent = pyqtSignal(str)
 
     def __init__(self, node, parent=None):
         super().__init__(parent)
@@ -139,6 +64,7 @@ class NodeWidget(QWidget):
 
         self.consoleWidget.setTitle('Console')
         cmd = Console(node, self.consoleWidget)
+        cmd.msgLineEdit.sentText.connect(self.consoleTextSent.emit)
         self.consoleWidget.replaceWidget(cmd)
 
         viewLayout = self.viewContent.layout()

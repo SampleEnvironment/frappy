@@ -65,7 +65,7 @@ p, li { white-space: pre-wrap; }
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="msgLineEdit"/>
+      <widget class="ConsoleLineEdit" name="msgLineEdit"/>
      </item>
      <item>
       <widget class="QPushButton" name="clearPushButton">
@@ -91,6 +91,13 @@ p, li { white-space: pre-wrap; }
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ConsoleLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>frappy.gui.console.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>

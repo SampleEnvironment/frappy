@@ -22,8 +22,8 @@
 # *****************************************************************************
 
 from frappy.gui.qt import QAction, QInputDialog, QKeySequence, QMainWindow, \
-    QMessageBox, QPixmap, QSettings, QShortcut, Qt, QWidget, pyqtSignal, \
-    pyqtSlot
+    QMessageBox, QObject, QPixmap, QSettings, QShortcut, Qt, QWidget, \
+    pyqtSignal, pyqtSlot
 
 import frappy.version
 from frappy.gui.connection import QSECNode
@@ -75,6 +75,19 @@ class Greeter(QWidget):
         self.addnodes.emit([item.text()])
 
 
+class HistorySerializer(QObject):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        settings = QSettings()
+        self.history = settings.value('consoleHistory', [])
+
+    def append(self, text):
+        self.history.append(text)
+
+    def saveHistory(self):
+        settings = QSettings()
+        settings.setValue('consoleHistory', self.history)
+
 class MainWindow(QMainWindow):
     recentNodesChanged = pyqtSignal()
 
@@ -84,6 +97,7 @@ class MainWindow(QMainWindow):
         self.log = logger
         self.logwin = LogWindow(logger, self)
         self.logwin.hide()
+        self.historySerializer = HistorySerializer()
 
         loadUi(self, 'mainwin.ui')
         Colors._setPalette(self.palette())
@@ -194,6 +208,7 @@ class MainWindow(QMainWindow):
         node = QSECNode(host, self.log, parent=self)
         nodeWidget = NodeWidget(node)
         nodeWidget.setParent(self)
+        nodeWidget.consoleTextSent.connect(self.historySerializer.append)
         nodeWidget._rebuildAdvanced(self.actionDetailed_View.isChecked())
 
         # Node and NodeWidget created without error
@@ -258,4 +273,5 @@ class MainWindow(QMainWindow):
         for widget in self._nodeWidgets.values():
             # this is only qt signals deconnecting!
             widget.getSecNode().terminate_connection()
+        self.historySerializer.saveHistory()
         self.logwin.onClose()
