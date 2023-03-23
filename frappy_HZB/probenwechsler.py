@@ -68,12 +68,7 @@ SCHOKO_TO_SUBSTANCE_ID = {
 
 
 
-#TODO reset Command Sample
-#TODO reset Command Storage
-#TODO reset.urp Program
 
-#TODO clear_error Command Sample
-#TODO clear_error Command Storage
 
 
 #TODO describe None {...} -->  describe . {...}
@@ -430,13 +425,17 @@ class Sample(HasIO,Drivable):
     @Command(visibility = 'expert',group ='error_handling')
     def reset(self):
         """Reset Sample Module (Remove Sample from Gripper)"""
+        self.attached_robot.reset()
         
-        pass
+        
+        
+ 
     
     @Command(visibility = 'expert',group ='error_handling')
     def clear_error(self):
         """Trys to Clear Errors"""
-        pass
+        self.reset()
+        self.attached_robot.clear_error()
         
     # @Command(group = 'admin commands',visibility = 'expert')
     # def force_mount(self):
@@ -525,12 +524,14 @@ class Storage(HasIO,Readable):
     @Command(visibility = 'expert',group ='error_handling')
     def reset(self):
         """Reset Storage Module (Removes all samples from Storage)"""
-        pass
+        self.mag = Magazin(nsamples)        
+        
+        
     
     @Command(visibility = 'expert',group ='error_handling')
     def clear_error(self):
         """Trys to Clear Errors"""
-        pass
+        self.attached_robot.clear_error()
     
     
     @Command(SchokiStructOf(nsamples=nsamples),result=None)

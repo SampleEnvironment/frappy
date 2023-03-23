@@ -28,6 +28,8 @@ ROBOT_MODE_ENUM = {
 }
 
 
+RESET_PROG = 'reset.urp'
+
 class RobotIO(StringIO):
     pass
     
@@ -226,15 +228,17 @@ class UR_Robot(HasIO,Drivable):
         
         if re.match(r'Loading program: .*%s' % target,load_reply):
             self._run_loaded_program()
+            self.value = target
             return target
            
         elif re.match(r'File not found: .*%s' % target,load_reply):
             raise InternalError('Program not found: '+target)
         
         elif re.match(r'Error while loading program: .*%s' % target,load_reply):
-            raise InternalError('write_targetERROR while loading Program: '+ target)
+            raise InternalError('write_target ERROR while loading Program: '+ target)
             
         else:
+            self.status = ERROR, 'unknown Answer: '+ load_reply 
             raise InternalError('unknown Answer: '+load_reply) 
         
         
@@ -321,6 +325,9 @@ class UR_Robot(HasIO,Drivable):
 
                 
         if self._program_running() and 'RUNNING' == self.read_robotmode():
+            if self.value == RESET_PROG:
+                return BUSY , 'resetting robot'
+            
             return BUSY, 'Program running'    	    
         
         return ROBOT_MODE_STATUS[self.robotmode.name]
@@ -330,8 +337,8 @@ class UR_Robot(HasIO,Drivable):
         
         if running_reply == 'true':
             return True
-        else:
-            return False	    
+        
+        return False	    
         
     
 
@@ -422,13 +429,33 @@ class UR_Robot(HasIO,Drivable):
     @Command(visibility = 'expert',group ='error_handling')
     
     def clear_error(self):
-        """Trys to Clear Errors"""
-        pass
+        """Trys to Clear Errors and resets module to a working IDLE state"""
+        if self.status[0] == STOPPED:
+            self.stop_State['stopped'] = False
+            self.reset()
+            
     
     @Command(visibility ='expert',group ='error_handling' )
     def reset(self):
-        """Reset Robot Module (Returns to Home Position and powers down afterwards)"""
-        pass
+        """Reset Robot Module (Returns to Home Position)"""
+        
+        self.write_target(RESET_PROG)
+        
+        # Robot was holding a sample before
+        if self.attached_sample._holding_sample():
+            # remove sample from Storage (robot just dropped it)
+            try:
+                self.attached_storage.mag.removeSample(self.attached_sample.value)
+            except:
+                pass # Sample was already not holding a sample
+            # set sample.value to zero --> robot not holding a Sample
+            self.attached_sample.target = 0
+            self.attached_sample.value = 0
+            
+            
+
+            
+            
     
   
 PAUSED     = UR_Robot.Status.PAUSED
@@ -438,7 +465,8 @@ PREPARING  = UR_Robot.Status.PREPARING
 DISABLED   = UR_Robot.Status.DISABLED
 STANDBY    = UR_Robot.Status.STANDBY 
         
-    
+
+
 ROBOT_MODE_STATUS = {
     'NO_CONTROLLER' :(ERROR,'NO_CONTROLLER'),
     'DISCONNECTED' :(DISABLED,'DISCONNECTED'),
