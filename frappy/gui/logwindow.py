@@ -1,45 +1,72 @@
-from logging import DEBUG, NOTSET, Handler
+from logging import NOTSET, Handler
 
 from frappy.gui.qt import QMainWindow, QObject, pyqtSignal
 
-from frappy.gui.util import loadUi
+from frappy.gui.util import Colors, loadUi
 
 
 class LogWindowHandler(Handler, QObject):
 
-    logmessage = pyqtSignal(str, int)
+    logmessage = pyqtSignal(object)
 
     def __init__(self, level=NOTSET):
         QObject.__init__(self)
         Handler.__init__(self, level)
+        self.log = []
 
     def emit(self, record):
-        self.logmessage.emit(record.getMessage(), record.levelno)
+        self.log.append(record)
+        self.logmessage.emit(record)
+
+    def getEntries(self, level):
+        return [rec for rec in self.log if rec.levelno >= level]
 
 class LogWindow(QMainWindow):
+    closed = pyqtSignal()
     levels = {'Debug':10, 'Info':20, 'Warning':30, 'Error':40}
-    def __init__(self, logger, parent=None):
+
+    def __init__(self, handler, parent=None):
         super().__init__(parent)
         loadUi(self, 'logwindow.ui')
-        self.log = []
+        self.timecolor = Colors.colors['gray']
         self.level = self.levels['Info']
-        handler = LogWindowHandler(DEBUG)
-        handler.logmessage.connect(self.newEntry)
-        logger.addHandler(handler)
+        self.messagecolors = {
+            10 : Colors.colors['gray'],
+            20 : Colors.palette.windowText().color(),
+            30 : Colors.colors['orange'],
+            40 : Colors.colors['red'],
+        }
+        self.handler = handler
+        self.handler.logmessage.connect(self.newEntry)
+        self.setMessages(self.handler.getEntries(self.level))
 
-    def newEntry(self, msg, lvl):
-        self.log.append((lvl, msg))
-        if lvl >= self.level:
-            self.logBrowser.append(msg)
+    def setMessages(self, msgs):
+        for msg in msgs:
+            self.appendMessage(msg)
+
+    def newEntry(self, record):
+        if record.levelno >= self.level:
+            self.appendMessage(record)
+
+    def appendMessage(self, record):
+        s = record.getMessage()
+        time = record.created
+        if record.levelno == self.levels['Error']:
+            s = '<b>%s</b>' %s
+        s='<span style="color:%s">[%s] </span><span style="color:%s">%s: %s</span>' \
+            % (self.timecolor.name(), time, \
+               self.messagecolors[record.levelno].name(), \
+               record.name, s)
+        self.logBrowser.append(s)
 
     def on_logLevel_currentTextChanged(self, level):
         self.level = self.levels[level]
         self.logBrowser.clear()
-        self.logBrowser.setPlainText('\n'.join(msg for (lvl, msg) in self.log if lvl >= self.level))
+        self.setMessages(self.handler.getEntries(self.level))
 
     def on_clear_pressed(self):
         self.logBrowser.clear()
-        self.log.clear()
 
-    def onClose(self):
-        pass
+    def closeEvent(self, event):
+        self.closed.emit()
+        self.deleteLater()

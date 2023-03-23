@@ -27,7 +27,7 @@ from frappy.gui.qt import QAction, QInputDialog, QKeySequence, QMainWindow, \
 
 import frappy.version
 from frappy.gui.connection import QSECNode
-from frappy.gui.logwindow import LogWindow
+from frappy.gui.logwindow import LogWindow, LogWindowHandler
 from frappy.gui.nodewidget import NodeWidget
 from frappy.gui.tabwidget import TearOffTabWidget
 from frappy.gui.util import Colors, is_light_theme, loadUi
@@ -94,9 +94,11 @@ class MainWindow(QMainWindow):
     def __init__(self, hosts, logger, parent=None):
         super().__init__(parent)
 
+        # centralized handling for logging and cmd-history
+        self.loghandler = LogWindowHandler()
         self.log = logger
-        self.logwin = LogWindow(logger, self)
-        self.logwin.hide()
+        self.log.addHandler(self.loghandler)
+        self.logwin = None
         self.historySerializer = HistorySerializer()
 
         loadUi(self, 'mainwin.ui')
@@ -173,7 +175,18 @@ class MainWindow(QMainWindow):
         self._rebuildAdvanced(toggled)
 
     def on_actionShow_Logs_toggled(self, active):
-        self.logwin.setHidden(not active)
+        if not active and self.logwin:
+            self.logwin.close()
+            self.logwin = None
+            return
+        self.logwin = LogWindow(self.loghandler, self)
+        self.logwin.closed.connect(self.onLogWindowClose)
+        self.logwin.show()
+
+    def onLogWindowClose(self):
+        if self.actionShow_Logs.isChecked():
+            self.actionShow_Logs.toggle()
+        self.logwin = None
 
     def on_actionHighlightAnimation_toggled(self, toggled):
         settings = QSettings()
@@ -274,4 +287,3 @@ class MainWindow(QMainWindow):
             # this is only qt signals deconnecting!
             widget.getSecNode().terminate_connection()
         self.historySerializer.saveHistory()
-        self.logwin.onClose()

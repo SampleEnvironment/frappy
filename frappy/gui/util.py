@@ -47,6 +47,8 @@ class Colors:
         cls.palette = palette
         if is_light_theme(palette): # light
             cls.colors = {
+                          'gray' : QColor('#696969'),
+                          'red' : QColor('#FF0000'),
                           'orange': QColor('#FA6800'),
                           'yellow': QColor('#FCFFa4'),
                           'plot-fg': QColor('black'),
@@ -60,6 +62,8 @@ class Colors:
                           }
         else: # dark
             cls.colors = {
+                          'gray' : QColor('#AAAAAA'),
+                          'red' : QColor('#FF0000'),
                           'orange': QColor('#FA6800'),
                           'yellow': QColor('#FEFE22'),
                           'plot-fg': QColor('white'),
