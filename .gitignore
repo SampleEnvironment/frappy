@@ -24,3 +24,6 @@ doc/_build
 # pyinstaller
 dist/
 
+.vscode/launch.json
+.vscode/settings.json
+.vscode/tasks.json
