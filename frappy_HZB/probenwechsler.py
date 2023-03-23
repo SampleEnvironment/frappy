@@ -158,7 +158,7 @@ class Magazin:
             
         return storage_arr
 
-            
+
 
 class Sample(HasIO,Drivable):
     
@@ -168,11 +168,12 @@ class Sample(HasIO,Drivable):
                   HOLDING_SAMPLE = 101, 
                   MOUNTING=301,
                   UNMOUNTING = 302,
-                  UNLOADING = 305,
+                  UNLOADING = 304,
                   MEASURING = 303,
-                  PAUSED = 304,
+                  PAUSED = 305,
                   UNKNOWN = 401,
-                  STOPPED = 402
+                  STOPPED = 402,
+                  LOCAL_CONTROL = 403
                   )  #: status codes
 
     status = Parameter(datatype=StatusType(Status))  # override Readable.status
@@ -495,10 +496,11 @@ class Storage(HasIO,Readable):
         Drivable.Status,
         DISABLED = StatusType.DISABLED,
         PREPARING = StatusType.PREPARING,
-        LOADING=301,
-        UNLOADING = 302,
-        PAUSED = 304,
-        STOPPED = 402
+        LOADING=303,
+        UNLOADING = 304,
+        PAUSED = 305,
+        STOPPED = 402,
+        LOCAL_CONTROL = 403
         )  #: status codes
 
     status = Parameter(datatype=StatusType(Status))  # override Readable.status
@@ -576,6 +578,7 @@ class Storage(HasIO,Readable):
     @Command(SchokiStructOf(nsamples=nsamples),result=None)
     def load(self,sample_name,substance,substance_code,sample_pos,manufacturer,sample_id,color,mass):
         """load sample into storage"""
+     
         
         # check if robot is ready to load sample
         if self.attached_sample._holding_sample():            
@@ -655,7 +658,7 @@ class Storage(HasIO,Readable):
         
         # check if robot is ready to load sample
         if self.attached_sample._holding_sample() == True:
-            self.attached_sample.unload()
+            raise ImpossibleError('Gripper is already holding Sample' + str(self.attached_sample.value)+' try unloading via sample module')
             
 
         # check if Sample position is already occupied
@@ -690,7 +693,7 @@ LOADING          = Storage.Status.LOADING
 UNLOADING        = Storage.Status.UNLOADING
 PAUSED_STORAGE   = Storage.Status.PAUSED
 STOPPED_STORAGE  = Storage.Status.STOPPED
-
+LOCAL_CONTROL    = Storage.Status.LOCAL_CONTROL 
 
 PREPARING  = Storage.Status.PREPARING
 DISABLED   = Storage.Status.DISABLED

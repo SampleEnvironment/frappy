@@ -27,6 +27,20 @@ ROBOT_MODE_ENUM = {
     'RUNNING'        :8
 }
 
+SAFETYSTATUS = {
+    'NORMAL' :0,
+    'REDUCED' :1,
+    'PROTECTIVE_STOP' :2,
+    'RECOVERY' :3,
+    'SAFEGUARD_STOP' :4,
+    'SYSTEM_EMERGENCY_STOP' :5,
+    'ROBOT_EMERGENCY_STOP' :6,
+    'VIOLATION' :7,
+    'FAULT' :8,
+    'AUTOMATIC_MODE_SAFEGUARD_STOP' :9,
+    'SYSTEM_THREE_POSITION_ENABLING_STOP' :10
+} 
+
 
 RESET_PROG = 'reset.urp'
 
@@ -72,10 +86,11 @@ class UR_Robot(HasIO,Drivable):
         Drivable.Status,
         DISABLED = StatusType.DISABLED,
         PREPARING = StatusType.PREPARING,
-        PAUSED = 304,
+        PAUSED = 305,
         UNKNOWN = StatusType.UNKNOWN,
         STOPPED = 402,
-        STANDBY = StatusType.STANDBY        
+        STANDBY = StatusType.STANDBY,
+        LOCAL_CONTROL = 403        
         )  #: status codes
 
     status = Parameter(datatype=StatusType(Status))  # override Readable.status
@@ -121,12 +136,13 @@ class UR_Robot(HasIO,Drivable):
                           datatype=EnumType("Robot Mode",ROBOT_MODE_ENUM),
                           default = "DISCONNECTED",
                           readonly = True,
-                          group = "Robot Info")
+                          group = "Status Info")
     
     powerstate = Parameter("Powerstate of Robot",
                            datatype=EnumType("Pstate",POWER_OFF= None,POWER_ON = None ),
                            default = "POWER_OFF" ,
-                           readonly = False)
+                           readonly = False,
+                           group = "Status Info")
 
     tcp_position = Parameter("Tool Center Point (TCP) Position x,y,z",
                       datatype=ArrayOf(FloatRange(unit = 'm'),3,3),
@@ -166,6 +182,18 @@ class UR_Robot(HasIO,Drivable):
                   
                     )
     
+    safetystatus = Parameter("Safetystatusby specifying if a given Safeguard Stop was caused by the permanent safeguard I/O stop,a configurable I/O automatic mode safeguard stop or a configurable I/O three position enabling device stop.",
+                             datatype=EnumType(),
+                             readonly = True,
+                             group = 'Satus Info')
+    
+    is_in_remote_control = Parameter("Control status of robot arm",
+                                     datatype=BoolType,
+                                     readonly = True,
+                                     default = False,
+                                     group = 'Status Info')
+    
+    
     stop_State = Parameter("Robot State when stop was pressed",
                            datatype=StructOf(stopped = BoolType(),
                                              interrupted_prog = StringType(),
@@ -180,6 +208,7 @@ class UR_Robot(HasIO,Drivable):
                                              ),
                            visibility = 'expert',
                            default = {'paused':False,'interrupted_prog':'none'})
+    
     
     def doPoll(self):
         self.read_value()
@@ -210,10 +239,19 @@ class UR_Robot(HasIO,Drivable):
     def read_robot_voltage(self):
         return self._rt_data['robot_voltage']
 
-
+    def read_is_in_remote_control(self):
+        remote_control =  str(self.communicate('is in remote control'))
+        
+        if remote_control == 'true':
+            return True
+        return False
 
     def write_target(self,target):
+        # Is Robot in remot control Mode?        
+        if self.status[0] == LOCAL_CONTROL:
+            raise ImpossibleError('Robot arm is in local control mode, please change control mode on the Robot controller tablet')
         
+        # Is the Robot in a stpped state?
         if self.stop_State['stopped'] and target != RESET_PROG:
             raise IsErrorError('cannot run Program when Stopped')
         
@@ -222,6 +260,9 @@ class UR_Robot(HasIO,Drivable):
         
         if self.status[0] == BUSY or self.status[0] == PREPARING:
             raise IsBusyError('Robot is already executing another Program')
+        
+        if self.status[0] >= 400 and self.status[0] != STOPPED:
+            raise IsErrorError('Robot is in an Error State. Program '+target+ ' cannot be exectuted')
         
         load_reply = str(self.communicate(f'load {target}'))
               
@@ -309,6 +350,9 @@ class UR_Robot(HasIO,Drivable):
 
     
     def read_status(self):
+        if not self.read_is_in_remote_control():
+            return LOCAL_CONTROL, 'Robot is in local control Mode '
+               
         if self.pause_State['paused']:
             return PAUSED, 'Program execution paused'
         
@@ -398,6 +442,11 @@ class UR_Robot(HasIO,Drivable):
     @Command(group ='control')
     def play(self):
         """Start/continue execution of program"""
+        # Is Robot in remot control Mode?        
+        if self.status[0] == LOCAL_CONTROL:
+            raise ImpossibleError('Robot arm is in local control mode, please change control mode on the Robot controller tablet')
+        
+        
         if self.status[0] == BUSY or self.status[0] == PREPARING:
             raise IsBusyError('Robot is already executing another Program')
         
@@ -413,7 +462,7 @@ class UR_Robot(HasIO,Drivable):
     @Command(group ='control')
     def pause(self):
         """Pause execution of program"""
-       
+              
         if self.stop_State['stopped']:
             raise IsErrorError('cannot pause Program when Stopped')
         
@@ -465,13 +514,13 @@ class UR_Robot(HasIO,Drivable):
             
     
   
-PAUSED     = UR_Robot.Status.PAUSED
-STOPPED    = UR_Robot.Status.STOPPED
-UNKNOWN    = UR_Robot.Status.UNKNOWN
-PREPARING  = UR_Robot.Status.PREPARING
-DISABLED   = UR_Robot.Status.DISABLED
-STANDBY    = UR_Robot.Status.STANDBY 
-        
+PAUSED           = UR_Robot.Status.PAUSED
+STOPPED          = UR_Robot.Status.STOPPED
+UNKNOWN          = UR_Robot.Status.UNKNOWN
+PREPARING        = UR_Robot.Status.PREPARING
+DISABLED         = UR_Robot.Status.DISABLED
+STANDBY          = UR_Robot.Status.STANDBY 
+LOCAL_CONTROL    = UR_Robot.Status.LOCAL_CONTROL 
 
 
 ROBOT_MODE_STATUS = {
