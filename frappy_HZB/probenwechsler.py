@@ -168,6 +168,7 @@ class Sample(HasIO,Drivable):
                   HOLDING_SAMPLE = 101, 
                   MOUNTING=301,
                   UNMOUNTING = 302,
+                  UNLOADING = 305,
                   MEASURING = 303,
                   PAUSED = 304,
                   UNKNOWN = 401,
@@ -273,6 +274,8 @@ class Sample(HasIO,Drivable):
                 return UNMOUNTING , "Unmounting Sample"
             if re.match(r'messen+\.urp',self.attached_robot.value):
                 return MEASURING , "Measuring Sample"
+            if re.match(r'messout+\.urp',self.attached_robot.value):
+                return UNLOADING , "Unloading Sample"
             
             # Robot Running and No sample in Gripper
             return BUSY , "Robot is in use by other module"
@@ -417,6 +420,42 @@ class Sample(HasIO,Drivable):
        
         self.status = MEASURING , "Measuring Sample"
         
+    @Command()
+    def unload(self):
+        """"Unload Sample currently held by Robot"""
+         # check if robot is holding a sample
+        if not self._holding_sample():
+            raise ImpossibleError('Gripper is currently not holding a Sample')
+            
+        
+        if self.attached_robot.status[0] != IDLE:
+            raise IsBusyError('Robot Arm is not ready to be used')  
+            
+        
+        # check if Sample is present in Storage
+        if self._get_current_sample == None :
+            ImpossibleError("Sample Pos "+ str(self.value) +" does not contain a sample")
+            return
+
+        
+        # Run Robot script to unmount Sample        
+        prog_name = 'messout.urp'   
+  
+        
+        self.attached_robot.write_target(prog_name)
+       
+        self.status = UNLOADING , "Unloading Sample"
+        
+        try:
+            self.attached_storage.mag.removeSample(self.value)
+        except:
+            raise ImpossibleError( "No sample at Array Pos " + str(self.value))
+        
+        self.value = 0
+        self.target = 0
+        
+        
+    
     @Command
     def stop(self):
         """Stop execution of program"""
@@ -614,9 +653,9 @@ class Storage(HasIO,Readable):
     def unload(self,sample_pos):
         """unload sample from storage"""
         
-               # check if robot is ready to load sample
+        # check if robot is ready to load sample
         if self.attached_sample._holding_sample() == True:
-            raise ImpossibleError('Gripper is already holding Sample' + str(self.attached_sample.value))
+            self.attached_sample.unload()
             
 
         # check if Sample position is already occupied
@@ -627,7 +666,7 @@ class Storage(HasIO,Readable):
         prog_name = 'out'+ str(sample_pos) +'.urp'
         assert(re.match(r'out\d+\.urp',prog_name))
         
-        self.attached_robot.run_program(prog_name)
+        self.attached_robot.write_target(prog_name)
 
         try:
             self.mag.removeSample(sample_pos)

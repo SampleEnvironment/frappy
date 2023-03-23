@@ -214,7 +214,7 @@ class UR_Robot(HasIO,Drivable):
 
     def write_target(self,target):
         
-        if self.stop_State['stopped']:
+        if self.stop_State['stopped'] and target != RESET_PROG:
             raise IsErrorError('cannot run Program when Stopped')
         
         if self.pause_State['paused']:
@@ -367,6 +367,10 @@ class UR_Robot(HasIO,Drivable):
                 #Sample is already removed from internal structure
                 pass
             
+            if re.match(r'messout.urp',stopped_struct['interrupted_prog']):
+                #Sample is already removed from internal structure
+                pass
+            
             if re.match(r'messpos\d+\.urp',stopped_struct['interrupted_prog']):
                 pos = self.attached_sample.value
                 self.attached_storage.mag.removeSample(pos)
@@ -382,6 +386,8 @@ class UR_Robot(HasIO,Drivable):
                 pos = self.attached_sample.value
                 self.attached_storage.mag.removeSample(pos)
                 self.attached_sample.value = 0
+                
+            
             
         elif stop_reply == 'Failed to execute: stop':
             raise InternalError("Failed to execute: stop")
@@ -431,8 +437,9 @@ class UR_Robot(HasIO,Drivable):
     def clear_error(self):
         """Trys to Clear Errors and resets module to a working IDLE state"""
         if self.status[0] == STOPPED:
-            self.stop_State['stopped'] = False
+            self.stop_State = {'stopped' : False, 'interrupted_prog' : self.value}
             self.reset()
+            self.status = BUSY
             
     
     @Command(visibility ='expert',group ='error_handling' )
