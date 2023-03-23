@@ -44,3 +44,10 @@ Mod('Lower',
     'frappy_demo.test.Lower',
     'something else',
 )
+
+Mod('Decision',
+    'frappy_demo.test.Mapped',
+    'Random value from configured property choices. Config accepts anything ' \
+    'that can be converted to a list',
+    choices = ['Yes', 'Maybe', 'No'],
+)

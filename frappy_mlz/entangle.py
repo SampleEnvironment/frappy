@@ -37,12 +37,12 @@ from time import sleep, time as currenttime
 import PyTango
 
 from frappy.datatypes import ArrayOf, EnumType, FloatRange, IntRange, \
-    LimitsType, StringType, TupleOf
+    LimitsType, StringType, TupleOf, ValueType
 from frappy.errors import CommunicationFailedError, ConfigError, \
     HardwareError, ProgrammingError
 from frappy.lib import lazy_property
 from frappy.modules import Command, Drivable, Module, Parameter, Readable, \
-    StatusType, Writable
+    StatusType, Writable, Property
 
 #####
 
@@ -812,19 +812,13 @@ class NamedDigitalInput(DigitalInput):
     """
 
     # parameters
-    mapping = Parameter('A dictionary mapping state names to integers',
-                        datatype=StringType(), export=False)  # XXX:!!!
+    mapping = Property('A dictionary mapping state names to integers',
+                        datatype=ValueType(dict))
 
     def initModule(self):
         super().initModule()
         try:
             mapping = self.mapping
-            if isinstance(mapping, str):
-                # pylint: disable=eval-used
-                mapping = eval(self.mapping.replace('\n', ' '))
-            if isinstance(mapping, str):
-                # pylint: disable=eval-used
-                mapping = eval(mapping)
             self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
         except Exception as e:
             raise ValueError(f'Illegal Value for mapping: {self.mapping!r}') from e
@@ -889,19 +883,13 @@ class NamedDigitalOutput(DigitalOutput):
     """
 
     # parameters
-    mapping = Parameter('A dictionary mapping state names to integers',
-                        datatype=StringType(), export=False)
+    mapping = Property('A dictionary mapping state names to integers',
+                        datatype=ValueType(dict))
 
     def initModule(self):
         super().initModule()
         try:
             mapping = self.mapping
-            if isinstance(mapping, str):
-                # pylint: disable=eval-used
-                mapping = eval(self.mapping.replace('\n', ' '))
-            if isinstance(mapping, str):
-                # pylint: disable=eval-used
-                mapping = eval(mapping)
             self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
             self.accessibles['target'].setProperty('datatype', EnumType('target', **mapping))
         except Exception as e:

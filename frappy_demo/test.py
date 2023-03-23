@@ -23,8 +23,9 @@
 
 import random
 
-from frappy.datatypes import FloatRange, StringType
-from frappy.modules import Communicator, Drivable, Parameter, Readable
+from frappy.datatypes import FloatRange, StringType, ValueType
+from frappy.modules import Communicator, Drivable, Parameter, Property, \
+    Readable
 from frappy.params import Command
 
 
@@ -93,3 +94,10 @@ class Lower(Communicator):
     def communicate(self, command):
         """lowercase a string"""
         return str(command).lower()
+
+class Mapped(Readable):
+    value = Parameter(datatype=StringType())
+    choices = Property('List of choices',
+                        datatype=ValueType(list))
+    def read_value(self):
+        return self.choices[random.randrange(len(self.choices))]
