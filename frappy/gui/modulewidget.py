@@ -288,7 +288,7 @@ class ModuleWidget(QWidget):
         if mod != self._name:
             return
         if param in self._paramDisplays:
-            self._paramDisplays[param].setText(str(val))
+            self._paramDisplays[param].setText(val.formatted())
 
     def _addParam(self, param, row):
         paramProps = self._node.getProperties(self._name, param)
@@ -298,30 +298,23 @@ class ModuleWidget(QWidget):
             self._addRWParam(param, row)
 
     def _addRParam(self, param, row):
-        props = self._node.getProperties(self._name, param)
-
         nameLabel = AnimatedLabel(param)
-        unitLabel = QLabel(props.get('unit', ''))
         display = QLineEdit()
 
         p = display.palette()
         p.setColor(display.backgroundRole(), Colors.palette.window().color())
         display.setPalette(p)
         self._paramDisplays[param] = display
-        self._paramWidgets[param] = [nameLabel, unitLabel, display]
+        self._paramWidgets[param] = [nameLabel, display]
 
         l = self.moduleDisplay.layout()
         l.addWidget(nameLabel, row,0,1,1)
         l.addWidget(display, row,1,1,5)
-        l.addWidget(unitLabel, row,6)
+        l.addWidget(QLabel(''), row,6,1,1)
         self._addButtons(param, row)
 
     def _addRWParam(self, param, row):
-        props = self._node.getProperties(self._name, param)
-
         nameLabel = AnimatedLabel(param)
-        unitLabel = QLabel(props.get('unit', ''))
-        unitLabel2 = QLabel(props.get('unit', ''))
         display = QLineEdit()
         inputEdit = QLineEdit()
         submitButton = QPushButton('set')
@@ -335,16 +328,13 @@ class ModuleWidget(QWidget):
         inputEdit.returnPressed.connect(lambda: self._button_pressed(param))
         self._paramDisplays[param] = display
         self._paramInputs[param] = inputEdit
-        self._paramWidgets[param] = [nameLabel, unitLabel, unitLabel2,
-                                     display, inputEdit, submitButton]
+        self._paramWidgets[param] = [nameLabel, display, inputEdit, submitButton]
 
         l = self.moduleDisplay.layout()
         l.addWidget(nameLabel, row,0,1,1)
         l.addWidget(display, row,1,1,2)
-        l.addWidget(unitLabel, row,3,1,1)
         l.addWidget(inputEdit, row,4,1,2)
-        l.addWidget(unitLabel2, row,6,1,1)
-        l.addWidget(submitButton, row, 7)
+        l.addWidget(submitButton, row, 6)
         self._addButtons(param, row)
 
     def _addButtons(self, param, row):
@@ -372,9 +362,9 @@ class ModuleWidget(QWidget):
         self._paramWidgets[param].append(detailsButton)
 
         l = self.moduleDisplay.layout()
-        l.addWidget(plotButton, row, 8)
-        l.addWidget(plotAddButton, row, 9)
-        l.addWidget(detailsButton, row, 10)
+        l.addWidget(plotButton, row, 7)
+        l.addWidget(plotAddButton, row, 8)
+        l.addWidget(detailsButton, row, 9)
 
     def _addCommands(self, startrow):
         cmdicons = {
