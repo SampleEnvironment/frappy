@@ -28,7 +28,7 @@ import threading
 from collections import OrderedDict
 
 from frappy.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
-    IntRange, StatusType, StringType, TextType, TupleOf, DiscouragedConversion, \
+    IntRange, StatusType, StringType, TextType, TupleOf, \
     NoneOr
 from frappy.errors import BadValueError, CommunicationFailedError, ConfigError, \
     ProgrammingError, SECoPError, secop_error, RangeError
@@ -128,13 +128,17 @@ class HasAccessibles(HasProperties):
                         try:
                             value = rfunc(self)
                             self.log.debug("read_%s returned %r", pname, value)
+                            if value is Done:  # TODO: to be removed when all code using Done is updated
+                                return getattr(self, pname)
+                            pobj = self.accessibles[pname]
+                            value = pobj.datatype(value)
                         except Exception as e:
                             self.log.debug("read_%s failed with %r", pname, e)
-                            self.announceUpdate(pname, None, e)
+                            if isinstance(e, SECoPError):
+                                e.raising_methods.append('%s.read_%s' % (self.name, pname))
+                            self.announceUpdate(pname, err=e)
                             raise
-                        if value is Done:  # TODO: to be removed when all code using Done is updated
-                            return getattr(self, pname)
-                        setattr(self, pname, value)  # important! trigger the setter
+                        self.announceUpdate(pname, value, validate=False)
                         return value
 
                 new_rfunc.poll = getattr(rfunc, 'poll', True)
@@ -166,41 +170,32 @@ class HasAccessibles(HasProperties):
             cfuncs = tuple(filter(None, (b.__dict__.get(cname) for b in cls.__mro__)))
             wname = 'write_' + pname
             wfunc = getattr(cls, wname, None)
-            if wfunc:
+            if wfunc or not pobj.readonly:
                 # allow write method even when parameter is readonly, but internally writable
 
                 def new_wfunc(self, value, pname=pname, wfunc=wfunc, check_funcs=cfuncs):
                     with self.accessLock:
-                        pobj = self.accessibles[pname]
-                        self.log.debug('convert %r to datatype of %r', value, pname)
-                        # we do not need to handle errors here, we do not
-                        # want to make a parameter invalid, when a write failed
-                        new_value = pobj.datatype(value)
-                        for c in check_funcs:
-                            if c(self, value):
-                                break
-                        new_value = wfunc(self, new_value)
-                        self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
-                        if new_value is Done:  # TODO: to be removed when all code using Done is updated
-                            return getattr(self, pname)
-                        if new_value is None:
-                            new_value = value
-                        setattr(self, pname, new_value)  # important! trigger the setter
+                        self.log.debug('validate %r to datatype of %r', value, pname)
+                        validate = self.parameters[pname].datatype.validate
+                        try:
+                            new_value = validate(value)
+                            for c in check_funcs:
+                                if c(self, value):
+                                    break
+                            if wfunc:
+                                new_value = wfunc(self, new_value)
+                                self.log.debug('write_%s(%r) returned %r', pname, value, new_value)
+                                if new_value is Done:  # TODO: to be removed when all code using Done is updated
+                                    return getattr(self, pname)
+                                new_value = value if new_value is None else validate(new_value)
+                        except Exception as e:
+                            if isinstance(e, SECoPError):
+                                e.raising_methods.append('%s.write_%s' % (self.name, pname))
+                            self.announceUpdate(pname, err=e)
+                            raise
+                        self.announceUpdate(pname, new_value, validate=False)
                         return new_value
 
-            elif pobj.readonly:
-                new_wfunc = None
-            else:
-
-                def new_wfunc(self, value, pname=pname, check_funcs=cfuncs):
-                    value = self.accessibles[pname].datatype(value)
-                    for c in check_funcs:
-                        if c(self, value):
-                            break
-                    setattr(self, pname, value)
-                    return value
-
-            if new_wfunc:
                 new_wfunc.__name__ = wname
                 new_wfunc.__qualname__ = wrapped_name + '.' + wname
                 new_wfunc.__module__ = cls.__module__
@@ -259,7 +254,7 @@ class PollInfo:
         self.interval = pollinterval
         self.last_main = 0
         self.last_slow = 0
-        self.last_error = {}  # dict [<name of poll func>] of (None or str(last exception))
+        self.pending_errors = set()
         self.polled_parameters = []
         self.fast_flag = False
         self.trigger_event = trigger_event
@@ -376,7 +371,7 @@ class Module(HasAccessibles):
                                   (key, value, self.propertyDict[key].datatype))
 
         # 3) set automatic properties
-        mycls = self.__class__
+        mycls, = self.__class__.__bases__  # skip the wrapper class
         myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
         self.implementation = myclassname
         # list of all 'secop' modules
@@ -524,43 +519,50 @@ class Module(HasAccessibles):
         for pobj in self.parameters.values():
             pobj.datatype.set_main_unit(mainunit)
 
-    def announceUpdate(self, pname, value=None, err=None, timestamp=None):
-        """announce a changed value or readerror"""
+    def announceUpdate(self, pname, value=None, err=None, timestamp=None, validate=True):
+        """announce a changed value or readerror
+
+        :param pname: parameter name
+        :param value: new value or None in case of error
+        :param err: None or an exception
+        :param timestamp: a timestamp or None for taking current time
+        :param validate: True: convert to datatype, in case of error store in readerror
+        :return:
+
+        when err=None and validate=False, the value must already be converted to the datatype
+        """
 
         with self.updateLock:
-            # TODO: remove readerror 'property' and replace value with exception
             pobj = self.parameters[pname]
             timestamp = timestamp or time.time()
-            try:
-                value = pobj.datatype(value)
-                changed = pobj.value != value
-                # store the value even in case of error
-                pobj.value = value
-            except Exception as e:
-                if isinstance(e, DiscouragedConversion):
-                    if DiscouragedConversion.log_message:
-                        self.log.error(str(e))
-                        self.log.error('you may disable this behaviour by running the server with --relaxed')
-                        DiscouragedConversion.log_message = False
-                if not err:  # do not overwrite given error
+            if not err:
+                try:
+                    if validate:
+                        value = pobj.datatype(value)
+                except Exception as e:
                     err = e
+                else:
+                    changed = pobj.value != value
+                    # store the value even in case of error
+                    pobj.value = value
             if err:
-                err = secop_error(err)
-                if str(err) == str(pobj.readerror):
+                if secop_error(err) == pobj.readerror:
+                    err.report_error = False
                     return  # no updates for repeated errors
+                err = secop_error(err)
             elif not changed and timestamp < (pobj.timestamp or 0) + pobj.omit_unchanged_within:
                 # no change within short time -> omit
                 return
             pobj.timestamp = timestamp or time.time()
-            pobj.readerror = err
-            if pobj.export:
-                self.DISPATCHER.announce_update(self.name, pname, pobj)
             if err:
                 callbacks = self.errorCallbacks
-                arg = err
+                pobj.readerror = arg = err
             else:
                 callbacks = self.valueCallbacks
                 arg = value
+                pobj.readerror = None
+            if pobj.export:
+                self.DISPATCHER.announce_update(self.name, pname, pobj)
             cblist = callbacks[pname]
             for cb in cblist:
                 try:
@@ -665,21 +667,25 @@ class Module(HasAccessibles):
         """call read method with proper error handling"""
         try:
             rfunc()
-            self.pollInfo.last_error[rfunc.__name__] = None
+            if rfunc.__name__ in self.pollInfo.pending_errors:
+                self.log.info('%s: o.k.', rfunc.__name__)
+                self.pollInfo.pending_errors.discard(rfunc.__name__)
         except Exception as e:
-            name = rfunc.__name__
-            if str(e) != self.pollInfo.last_error.get(name):
-                self.pollInfo.last_error[name] = str(e)
+            if getattr(e, 'report_error', True):
+                name = rfunc.__name__
+                self.pollInfo.pending_errors.add(name)  # trigger o.k. message after error is resolved
                 if isinstance(e, SECoPError):
+                    e.raising_methods.append(name)
                     if e.silent:
-                        self.log.debug('%s: %s', name, str(e))
+                        self.log.debug('%s', e.format(False))
                     else:
-                        self.log.error('%s: %s', name, str(e))
+                        self.log.error('%s', e.format(False))
+                    if raise_com_failed and isinstance(e, CommunicationFailedError):
+                        raise
                 else:
-                    # uncatched error: this is more serious
-                    self.log.error('%s: %s', name, formatException())
-            if raise_com_failed and isinstance(e, CommunicationFailedError):
-                raise
+                    # not a SECoPError: this is proabably a programming error
+                    # we want to log the traceback
+                    self.log.error('%s', formatException())
 
     def __pollThread(self, modules, started_callback):
         """poll thread body
@@ -734,7 +740,8 @@ class Module(HasAccessibles):
                 pinfo = mobj.pollInfo
                 wait_time = min(pinfo.last_main + pinfo.interval - now, wait_time,
                                 pinfo.last_slow + mobj.slowinterval - now)
-            if wait_time > 0:
+            if wait_time > 0 and not to_poll:
+                # nothing to do
                 self.triggerPoll.wait(wait_time)
                 self.triggerPoll.clear()
                 continue

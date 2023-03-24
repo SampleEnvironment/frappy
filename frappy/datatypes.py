@@ -28,8 +28,8 @@
 import sys
 from base64 import b64decode, b64encode
 
-from frappy.errors import ConfigError, DiscouragedConversion, \
-    ProgrammingError, ProtocolError, RangeError, WrongTypeError
+from frappy.errors import ConfigError, ProgrammingError, \
+    ProtocolError, RangeError, WrongTypeError
 from frappy.lib import clamp, generalConfig
 from frappy.lib.enum import Enum
 from frappy.parse import Parser
@@ -223,11 +223,11 @@ class FloatRange(HasUnit, DataType):
             value += 0.0  # do not accept strings here
         except Exception:
             try:
+                if not generalConfig.lazy_number_validation:
+                    raise
                 value = float(value)
             except Exception:
                 raise WrongTypeError('can not convert %s to a float' % shortrepr(value)) from None
-            if not generalConfig.lazy_number_validation:
-                raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
 
         # map +/-infty to +/-max possible number
         return clamp(-sys.float_info.max, value, sys.float_info.max)
@@ -240,8 +240,9 @@ class FloatRange(HasUnit, DataType):
         if self.min - prec <= value <= self.max + prec:
             # silently clamp when outside by not more than prec
             return clamp(self.min, value, self.max)
-        raise RangeError('%.14g must be between %d and %d' %
-                         (value, self.min, self.max))
+        info = self.exportProperties()
+        raise RangeError('%.14g must be between %g and %g' %
+                         (value, info.get('min', float('-inf')), info.get('max', float('inf'))))
 
     def __repr__(self):
         hints = self.get_info()
@@ -308,12 +309,12 @@ class IntRange(DataType):
             value = int(value)
         except Exception:
             try:
+                if not generalConfig.lazy_number_validation:
+                    raise
                 fvalue = float(value)
                 value = int(value)
             except Exception:
                 raise WrongTypeError('can not convert %s to an int' % shortrepr(value)) from None
-            if not generalConfig.lazy_number_validation:
-                raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
         if round(fvalue) != fvalue:
             raise WrongTypeError('%r should be an int')
         return value
@@ -430,11 +431,11 @@ class ScaledInteger(HasUnit, DataType):
             value += 0.0  # do not accept strings here
         except Exception:
             try:
+                if not generalConfig.lazy_number_validation:
+                    raise
                 value = float(value)
             except Exception:
                 raise WrongTypeError('can not convert %s to float' % shortrepr(value)) from None
-            if not generalConfig.lazy_number_validation:
-                raise DiscouragedConversion('automatic string to float conversion no longer supported') from None
         intval = int(round(value / self.scale))
         return float(intval * self.scale)   # return 'actual' value (which is more discrete than a float)
 

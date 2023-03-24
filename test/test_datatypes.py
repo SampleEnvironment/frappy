@@ -26,7 +26,7 @@
 import pytest
 
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, CommandType, \
-    ConfigError, DataType, DiscouragedConversion, EnumType, FloatRange, \
+    ConfigError, DataType, EnumType, FloatRange, \
     IntRange, ProgrammingError, ScaledInteger, StatusType, StringType, \
     StructOf, TextType, TupleOf, ValueType, get_datatype
 from frappy.errors import BadValueError, RangeError, WrongTypeError
@@ -702,7 +702,7 @@ def test_lazy_validation(dt):
     generalConfig.defaults['lazy_number_validation'] = True
     dt('0')
     generalConfig.defaults['lazy_number_validation'] = False
-    with pytest.raises(DiscouragedConversion):
+    with pytest.raises(WrongTypeError):
         dt('0')
 
 
