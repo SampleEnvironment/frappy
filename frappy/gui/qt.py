@@ -36,8 +36,8 @@ try:
         QPointF, QPropertyAnimation, QRectF, QSettings, QSize, Qt, \
         pyqtProperty, pyqtSignal, pyqtSlot
     from PyQt6.QtGui import QAction, QBrush, QColor, QCursor, QDrag, QFont, \
-        QFontMetrics, QIcon, QKeySequence, QMouseEvent, QPainter, QPalette, \
-        QPen, QPixmap, QPolygonF, QShortcut, QStandardItem, \
+        QFontMetrics, QIcon, QKeyEvent, QKeySequence, QMouseEvent, QPainter, \
+        QPalette, QPen, QPixmap, QPolygonF, QShortcut, QStandardItem, \
         QStandardItemModel, QTextCursor
     from PyQt6.QtWidgets import QApplication, QCheckBox, QComboBox, QDialog, \
         QDialogButtonBox, QDoubleSpinBox, QFileDialog, QFrame, QGridLayout, \
@@ -56,9 +56,9 @@ except ImportError as e:
         QPointF, QPropertyAnimation, QRectF, QSettings, QSize, Qt, \
         pyqtProperty, pyqtSignal, pyqtSlot
     from PyQt5.QtGui import QBrush, QColor, QCursor, QDrag, QFont, \
-        QFontMetrics, QIcon, QKeySequence, QMouseEvent, QPainter, QPalette, \
-        QPen, QPixmap, QPolygonF, QStandardItem, QStandardItemModel, \
-        QTextCursor
+        QFontMetrics, QIcon, QKeyEvent, QKeySequence, QMouseEvent, QPainter, \
+        QPalette, QPen, QPixmap, QPolygonF, QStandardItem, \
+        QStandardItemModel, QTextCursor
     from PyQt5.QtWidgets import QAction, QApplication, QCheckBox, QComboBox, \
         QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog, QFrame, \
         QGridLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, \

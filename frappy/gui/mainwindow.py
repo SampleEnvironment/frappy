@@ -1,6 +1,6 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
-# Copyright (c) 2015-2016 by the authors, see LICENSE
+# Copyright (c) 2015-2023 by the authors, see LICENSE
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,16 +18,17 @@
 #
 # Module authors:
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#   Alexander Zaft <a.zaft@fz-juelich.de>
 #
 # *****************************************************************************
 
 from frappy.gui.qt import QAction, QInputDialog, QKeySequence, QMainWindow, \
-    QMessageBox, QPixmap, QSettings, QShortcut, Qt, QWidget, pyqtSignal, \
-    pyqtSlot
+    QMessageBox, QObject, QPixmap, QSettings, QShortcut, Qt, QWidget, \
+    pyqtSignal, pyqtSlot
 
 import frappy.version
 from frappy.gui.connection import QSECNode
-from frappy.gui.logwindow import LogWindow
+from frappy.gui.logwindow import LogWindow, LogWindowHandler
 from frappy.gui.nodewidget import NodeWidget
 from frappy.gui.tabwidget import TearOffTabWidget
 from frappy.gui.util import Colors, is_light_theme, loadUi
@@ -75,15 +76,31 @@ class Greeter(QWidget):
         self.addnodes.emit([item.text()])
 
 
+class HistorySerializer(QObject):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        settings = QSettings()
+        self.history = settings.value('consoleHistory', [])
+
+    def append(self, text):
+        self.history.append(text)
+
+    def saveHistory(self):
+        settings = QSettings()
+        settings.setValue('consoleHistory', self.history)
+
 class MainWindow(QMainWindow):
     recentNodesChanged = pyqtSignal()
 
     def __init__(self, hosts, logger, parent=None):
         super().__init__(parent)
 
+        # centralized handling for logging and cmd-history
+        self.loghandler = LogWindowHandler()
         self.log = logger
-        self.logwin = LogWindow(logger, self)
-        self.logwin.hide()
+        self.log.addHandler(self.loghandler)
+        self.logwin = None
+        self.historySerializer = HistorySerializer()
 
         loadUi(self, 'mainwin.ui')
         Colors._setPalette(self.palette())
@@ -159,7 +176,18 @@ class MainWindow(QMainWindow):
         self._rebuildAdvanced(toggled)
 
     def on_actionShow_Logs_toggled(self, active):
-        self.logwin.setHidden(not active)
+        if not active and self.logwin:
+            self.logwin.close()
+            self.logwin = None
+            return
+        self.logwin = LogWindow(self.loghandler, self)
+        self.logwin.closed.connect(self.onLogWindowClose)
+        self.logwin.show()
+
+    def onLogWindowClose(self):
+        if self.actionShow_Logs.isChecked():
+            self.actionShow_Logs.toggle()
+        self.logwin = None
 
     def on_actionHighlightAnimation_toggled(self, toggled):
         settings = QSettings()
@@ -194,6 +222,7 @@ class MainWindow(QMainWindow):
         node = QSECNode(host, self.log, parent=self)
         nodeWidget = NodeWidget(node)
         nodeWidget.setParent(self)
+        nodeWidget.consoleTextSent.connect(self.historySerializer.append)
         nodeWidget._rebuildAdvanced(self.actionDetailed_View.isChecked())
 
         # Node and NodeWidget created without error
@@ -258,4 +287,4 @@ class MainWindow(QMainWindow):
         for widget in self._nodeWidgets.values():
             # this is only qt signals deconnecting!
             widget.getSecNode().terminate_connection()
-        self.logwin.onClose()
+        self.historySerializer.saveHistory()

@@ -1,3 +1,26 @@
+#  -*- coding: utf-8 -*-
+# *****************************************************************************
+# Copyright (c) 2015-2023 by the authors, see LICENSE
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Alexander Zaft <a.zaft@fz-juelich.de>
+#
+# *****************************************************************************
+
 from frappy.gui.qt import QColor, QDialog, QHBoxLayout, QIcon, QLabel, \
     QLineEdit, QMessageBox, QPropertyAnimation, QPushButton, Qt, QToolButton, \
     QWidget, pyqtProperty, pyqtSignal
@@ -112,8 +135,9 @@ class AnimatedLabelHandthrough(QWidget):
         super().__init__(parent)
         self.label = label
         box = QHBoxLayout()
-        box.addWidget(label)
         box.addWidget(btn)
+        box.addWidget(label)
+        box.setContentsMargins(0,0,0,0)
         self.setLayout(box)
 
     def triggerAnimation(self):
@@ -123,6 +147,7 @@ class AnimatedLabelHandthrough(QWidget):
 class ModuleWidget(QWidget):
     plot = pyqtSignal(str)
     plotAdd = pyqtSignal(str)
+    paramDetails = pyqtSignal(str, str)
     def __init__(self, node, name, parent=None):
         super().__init__(parent)
         loadUi(self, 'modulewidget.ui')
@@ -172,6 +197,7 @@ class ModuleWidget(QWidget):
                     button = QToolButton()
                     button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
                     button.setText('+')
+                    button.setObjectName('collapseButton')
                     button.pressed.connect(
                         lambda group=key: self._toggleGroupCollapse(group))
                     groupLabel = AnimatedLabelHandthrough(name, button)
@@ -189,11 +215,13 @@ class ModuleWidget(QWidget):
                     button = QToolButton()
                     button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
                     button.setText('+')
+                    button.setObjectName('collapseButton')
                     button.pressed.connect(
                         lambda group=key: self._toggleGroupCollapse(group))
                     box = QHBoxLayout()
-                    box.addWidget(name)
                     box.addWidget(button)
+                    box.addWidget(name)
+                    box.setContentsMargins(0,0,0,0)
                     groupLabel = QWidget()
                     groupLabel.setLayout(box)
 
@@ -225,8 +253,10 @@ class ModuleWidget(QWidget):
     def _initModuleInfo(self):
         props = dict(self._node.getModuleProperties(self._name))
         self.moduleName.setText(self._name)
-        self.moduleDescription.setText(props.pop('description',
-                                                 'no description provided'))
+        self._moduleDescription = props.pop('description',
+                                            'no description provided')
+        text = self._moduleDescription.split('\n', 1)[0]
+        self.moduleDescription.setText(text)
 
         self.groupInfo.setText(props.pop('group', '-'))
         feats = ','.join(props.pop('features', [])) or '-'
@@ -285,7 +315,7 @@ class ModuleWidget(QWidget):
         l.addWidget(nameLabel, row,0,1,1)
         l.addWidget(display, row,1,1,5)
         l.addWidget(unitLabel, row,6)
-        self._addPlotButtons(param, row)
+        self._addButtons(param, row)
 
     def _addRWParam(self, param, row):
         props = self._node.getProperties(self._name, param)
@@ -316,9 +346,9 @@ class ModuleWidget(QWidget):
         l.addWidget(inputEdit, row,4,1,2)
         l.addWidget(unitLabel2, row,6,1,1)
         l.addWidget(submitButton, row, 7)
-        self._addPlotButtons(param, row)
+        self._addButtons(param, row)
 
-    def _addPlotButtons(self, param, row):
+    def _addButtons(self, param, row):
         if param == 'status':
             return
         plotButton = QToolButton()
@@ -328,17 +358,24 @@ class ModuleWidget(QWidget):
         plotAddButton.setIcon(QIcon(':/icons/plot-add'))
         plotAddButton.setToolTip('Plot With...')
 
+        detailsButton= QToolButton()
+        detailsButton.setIcon(QIcon(':/icons/plot-add'))
+        detailsButton.setToolTip('show parameter details')
+
         plotButton.clicked.connect(lambda: self.plot.emit(param))
         plotAddButton.clicked.connect(lambda: self.plotAdd.emit(param))
+        detailsButton.clicked.connect(lambda: self.showParamDetails(param))
 
         self._addbtns.append(plotAddButton)
         plotAddButton.setDisabled(True)
         self._paramWidgets[param].append(plotButton)
         self._paramWidgets[param].append(plotAddButton)
+        self._paramWidgets[param].append(detailsButton)
 
         l = self.moduleDisplay.layout()
         l.addWidget(plotButton, row, 8)
         l.addWidget(plotAddButton, row, 9)
+        l.addWidget(detailsButton, row, 10)
 
     def _addCommands(self, startrow):
         cmdicons = {
@@ -380,6 +417,12 @@ class ModuleWidget(QWidget):
         self._groupStatus[group] = collapsed
         for param in self._groups[group]:
             if param == group: # dont hide the top level
+                btn = self._paramWidgets[param][0].findChild(QToolButton,
+                                                             'collapseButton')
+                if collapsed:
+                    btn.setText('+')
+                else:
+                    btn.setText('-')
                 continue
             self._setParamHidden(param, collapsed)
 
@@ -393,6 +436,11 @@ class ModuleWidget(QWidget):
                 self._setParamHidden(param, True)
 
     def showDetails(self, show):
+        if show:
+            self.moduleDescription.setText(self._moduleDescription)
+        else:
+            text = self._moduleDescription.split('\n', 1)[0]
+            self.moduleDescription.setText(text)
         self.infoGrid.setHidden(not show)
         for param in self.independentParams:
             if param in ['value', 'status', 'target']:
@@ -400,6 +448,9 @@ class ModuleWidget(QWidget):
             self._setParamHidden(param, not show)
         for group in self._groups:
             self._setGroupHidden(group, show)
+
+    def showParamDetails(self, param):
+        self.paramDetails.emit(self._name, param)
 
     def _button_pressed(self, param):
         target = self._paramInputs[param].text()
