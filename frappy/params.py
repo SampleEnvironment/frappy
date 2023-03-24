@@ -163,7 +163,7 @@ class Parameter(Accessible):
         export=False, default=False)
     update_unchanged = Property(
         '''[internal] updates of unchanged values
-        
+
         - one of the values 'always', 'never', 'default'
           or the minimum time between updates of equal values [sec]''',
         OrType(FloatRange(0), EnumType(always=0, never=999999999, default=-1)),
