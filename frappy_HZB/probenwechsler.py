@@ -173,7 +173,8 @@ class Sample(HasIO,Drivable):
                   PAUSED = 305,
                   UNKNOWN = 401,
                   STOPPED = 402,
-                  LOCAL_CONTROL = 403
+                  LOCAL_CONTROL = 403,
+                  LOCKED = 404 
                   )  #: status codes
 
     status = Parameter(datatype=StatusType(Status))  # override Readable.status
@@ -450,7 +451,7 @@ class Sample(HasIO,Drivable):
         try:
             self.attached_storage.mag.removeSample(self.value)
         except:
-            raise ImpossibleError( "No sample at Array Pos " + str(self.value))
+            raise ImpossibleError( "No sample stored at Array Pos " + str(self.value))
         
         self.value = 0
         self.target = 0
@@ -500,7 +501,8 @@ class Storage(HasIO,Readable):
         UNLOADING = 304,
         PAUSED = 305,
         STOPPED = 402,
-        LOCAL_CONTROL = 403
+        LOCAL_CONTROL = 403,
+        LOCKED = 404 
         )  #: status codes
 
     status = Parameter(datatype=StatusType(Status))  # override Readable.status
@@ -694,6 +696,7 @@ UNLOADING        = Storage.Status.UNLOADING
 PAUSED_STORAGE   = Storage.Status.PAUSED
 STOPPED_STORAGE  = Storage.Status.STOPPED
 LOCAL_CONTROL    = Storage.Status.LOCAL_CONTROL 
+LOCKED           = Storage.Status.LOCKED
 
 PREPARING  = Storage.Status.PREPARING
 DISABLED   = Storage.Status.DISABLED

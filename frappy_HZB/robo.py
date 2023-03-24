@@ -2,7 +2,7 @@ from frappy.datatypes import BoolType, EnumType, FloatRange, StringType, TupleOf
 
 from frappy.core import StatusType ,Command, Parameter, Readable, HasIO, StringIO,StructOf, Property, IDLE, BUSY, WARN, ERROR, IntRange, Drivable, nopoll
 
-from frappy.errors import IsErrorError, CommunicationFailedError,InternalError, HardwareError, RangeError, ImpossibleError, IsBusyError
+from frappy.errors import IsErrorError, ReadFailedError, CommunicationFailedError,InternalError, HardwareError, RangeError, ImpossibleError, IsBusyError
 
 
 from frappy.lib.enum import Enum
@@ -24,7 +24,7 @@ ROBOT_MODE_ENUM = {
     'POWER_ON'       :5,
     'IDLE'           :6,
     'BACKDRIVE'      :7,
-    'RUNNING'        :8
+    'RUNNING'        :8          
 }
 
 SAFETYSTATUS = {
@@ -38,7 +38,9 @@ SAFETYSTATUS = {
     'VIOLATION' :7,
     'FAULT' :8,
     'AUTOMATIC_MODE_SAFEGUARD_STOP' :9,
-    'SYSTEM_THREE_POSITION_ENABLING_STOP' :10
+    'SYSTEM_THREE_POSITION_ENABLING_STOP' :10,
+    'UNKNOWN':11
+
 } 
 
 
@@ -90,14 +92,16 @@ class UR_Robot(HasIO,Drivable):
         UNKNOWN = StatusType.UNKNOWN,
         STOPPED = 402,
         STANDBY = StatusType.STANDBY,
-        LOCAL_CONTROL = 403        
+        LOCAL_CONTROL = 403,
+        LOCKED = 404        
+                
         )  #: status codes
 
     status = Parameter(datatype=StatusType(Status))  # override Readable.status
 
     
     
-    value = Parameter("Currently executing Program",
+    value = Parameter("Currently loaded Program",
                        datatype=StringType(),
                        default = '<unknown>.urp',
                        readonly = True)
@@ -143,6 +147,12 @@ class UR_Robot(HasIO,Drivable):
                            default = "POWER_OFF" ,
                            readonly = False,
                            group = "Status Info")
+    
+    safetystatus = Parameter("Safetystatusby specifying if a given Safeguard Stop was caused by the permanent safeguard I/O stop,a configurable I/O automatic mode safeguard stop or a configurable I/O three position enabling device stop.",
+                             datatype=EnumType(SAFETYSTATUS),
+                             default = "NORMAL",
+                             readonly = True,
+                             group = 'Status Info')
 
     tcp_position = Parameter("Tool Center Point (TCP) Position x,y,z",
                       datatype=ArrayOf(FloatRange(unit = 'm'),3,3),
@@ -182,10 +192,7 @@ class UR_Robot(HasIO,Drivable):
                   
                     )
     
-    safetystatus = Parameter("Safetystatusby specifying if a given Safeguard Stop was caused by the permanent safeguard I/O stop,a configurable I/O automatic mode safeguard stop or a configurable I/O three position enabling device stop.",
-                             datatype=EnumType(),
-                             readonly = True,
-                             group = 'Satus Info')
+
     
     is_in_remote_control = Parameter("Control status of robot arm",
                                      datatype=BoolType,
@@ -246,13 +253,26 @@ class UR_Robot(HasIO,Drivable):
             return True
         return False
 
+    def read_safetystatus(self):
+        safety_stat = str(self.communicate('safetystatus')).removeprefix("Safetystatus: ")
+
+        if safety_stat in SAFETYSTATUS:
+            return safety_stat
+
+        raise ReadFailedError("Unknown safetytatus:" + safety_stat)
+
     def write_target(self,target):
-        # Is Robot in remot control Mode?        
-        if self.status[0] == LOCAL_CONTROL:
-            raise ImpossibleError('Robot arm is in local control mode, please change control mode on the Robot controller tablet')
+        # Is Robot in remote control Mode?        
+        
+        if self.safetystatus > SAFETYSTATUS['REDUCED']:
+            raise IsErrorError('Robots is locked due to a safety related Problem (' + str(self.safetystatus.name) + ") Please refer to instructions on the controller tablet or try 'clear_error' command.")
+            
+        
+        if not self.is_in_remote_control:
+            raise ImpossibleError('Robot arm is in local control mode, please switch to remote control mode on the Robot controller tablet')
         
         # Is the Robot in a stpped state?
-        if self.stop_State['stopped'] and target != RESET_PROG:
+        if self.stop_State['stopped']:
             raise IsErrorError('cannot run Program when Stopped')
         
         if self.pause_State['paused']:
@@ -288,10 +308,12 @@ class UR_Robot(HasIO,Drivable):
     def _run_loaded_program(self):
         play_reply  = str(self.communicate('play'))
         
-        # Reset paused state
-        self.pause_State = {'paused' : False, 'interrupted_prog' : self.loaded_prog}
+
         
         if play_reply == 'Starting program':
+            # Reset paused state
+            self.pause_State = {'paused'  : False, 'interrupted_prog' : self.loaded_prog}
+            self.stop_State  = {'stopped' : False, 'interrupted_prog' : self.loaded_prog}
             self.status = BUSY, "Starting program"
         else:
             raise InternalError("Failed to execute: play")
@@ -308,10 +330,8 @@ class UR_Robot(HasIO,Drivable):
         
     
     def read_value(self):
-        if(self._program_running()):
-            return self.read_loaded_prog()
-        else:
-            return 'none'     
+        return self.read_loaded_prog()
+
 
 
     def read_model(self):
@@ -325,7 +345,12 @@ class UR_Robot(HasIO,Drivable):
         return str(self.communicate('version'))
     
     def read_robotmode(self):
-        return str(self.communicate('robotmode')).removeprefix('Robotmode: ')
+        robo_mode =  str(self.communicate('robotmode')).removeprefix('Robotmode: ')
+    
+        if robo_mode in ROBOT_MODE_ENUM:
+            return robo_mode
+
+        raise ReadFailedError("Unknown robot mode:" + robo_mode)
     
     def read_powerstate(self):
         self.read_robotmode()
@@ -350,8 +375,14 @@ class UR_Robot(HasIO,Drivable):
 
     
     def read_status(self):
+    
+        
         if not self.read_is_in_remote_control():
             return LOCAL_CONTROL, 'Robot is in local control Mode '
+
+        self.read_safetystatus()
+        if  self.safetystatus > 1:
+            return LOCKED, str(self.safetystatus.name)
                
         if self.pause_State['paused']:
             return PAUSED, 'Program execution paused'
@@ -442,8 +473,12 @@ class UR_Robot(HasIO,Drivable):
     @Command(group ='control')
     def play(self):
         """Start/continue execution of program"""
+        
+        if self.safetystatus > SAFETYSTATUS['REDUCED']:
+            raise IsErrorError('Robots is locked due to a safety related Problem: ' + str(self.safetystatus) )
+        
         # Is Robot in remot control Mode?        
-        if self.status[0] == LOCAL_CONTROL:
+        if not self.is_in_remote_control:
             raise ImpossibleError('Robot arm is in local control mode, please change control mode on the Robot controller tablet')
         
         
@@ -484,11 +519,27 @@ class UR_Robot(HasIO,Drivable):
     @Command(visibility = 'expert',group ='error_handling')
     
     def clear_error(self):
-        """Trys to Clear Errors and resets module to a working IDLE state"""
+        """Trys to Clear Errors and resets module to a working IDLE state (a subsequent reset() is recommended)"""
         if self.status[0] == STOPPED:
             self.stop_State = {'stopped' : False, 'interrupted_prog' : self.value}
-            self.reset()
-            self.status = BUSY
+            self.status = IDLE
+            
+            
+            
+        if self.status[0] == LOCKED and self.safetystatus.name == 'PROTECTIVE_STOP':
+            # try unlocking protective Stop
+            unlock_reply = str(self.communicate("unlock protective stop"))
+            
+            if unlock_reply == "Protective stop releasing":
+                self.communicate('close safety popup')
+                self.status = IDLE
+                return
+                
+            raise ImpossibleError('Cannot unlock protective stop until 5s after occurrence. Always inspect cause of protective stop before unlocking')
+                
+                
+            
+        
             
     
     @Command(visibility ='expert',group ='error_handling' )
@@ -521,6 +572,7 @@ PREPARING        = UR_Robot.Status.PREPARING
 DISABLED         = UR_Robot.Status.DISABLED
 STANDBY          = UR_Robot.Status.STANDBY 
 LOCAL_CONTROL    = UR_Robot.Status.LOCAL_CONTROL 
+LOCKED           = UR_Robot.Status.LOCKED
 
 
 ROBOT_MODE_STATUS = {
