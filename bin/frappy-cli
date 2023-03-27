@@ -25,14 +25,14 @@
 from __future__ import print_function
 
 import sys
-import code
 import argparse
 from os import path
 
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-from frappy.client.interactive import Client, watch
+from frappy.client.interactive import Client, watch, Console
+
 
 def parseArgv(argv):
     parser = argparse.ArgumentParser()
@@ -46,6 +46,7 @@ def parseArgv(argv):
                         help='Nodes the client should connect to.\n', metavar='host:port',
                         nargs='*', type=str, default=[])
     return parser.parse_args(argv)
+
 
 _USAGE = """
 Usage:
@@ -101,4 +102,4 @@ if success:
         print('skipping interactive mode')
         exit()
     print(_USAGE % _usage_args)
-    code.interact(banner='', local=sys.modules['__main__'].__dict__)
+    Console(sys.modules['__main__'].__dict__)
