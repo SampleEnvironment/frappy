@@ -30,3 +30,14 @@ Das Passwort des Roboters ist ``easybot``
 ```/bin/frappy-server -c UR_robot_cfg.py robo```
 
 
+## Trouble shooting:
+
+ -``STATUS: LOCAL_CONTROL``: Roboter ist im ``local control`` modus. Der Roboter kann nur am controller Tablet in den ``remote control`` modus umgestellt werden. 
+
+ -``STATUS: DISABLED (POWER_OFF)``: ``POWER_ON`` in das accessible ``powerstate`` im ``robot`` Modul schreiben.
+
+POWER_ON: ``change robot:_powerstate 2`` 
+
+POWER_OFF: ``change robot:_powerstate 1`` 
+
+
