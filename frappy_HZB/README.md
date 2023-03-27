@@ -4,8 +4,11 @@
 ```cfg/UR_robot_cfg```
 
 
+
 SEC-Node Port und Roboter IP-Adresse eintragen:
-```python:
+
+Also ``SECNODEPORT`` und ``ROBOT-IP-ADRESS`` in ```cfg/UR_robot_cfg``` ersetzen.
+```python
 Node('sample_changer.HZB',  # a globally unique identification
      'Sample Changer\n\nThis is an demo for a  SECoP (Sample Environment Communication Protocol) sample changer SEC-Node.',  # describes the node
       'tcp://SECNODEPORT',
@@ -20,6 +23,7 @@ Mod('io',  # the name of the module
 
 Folgender Befehl leitet die Ports weiter:
 ```ssh -L 29999:localhost:29999 -L 30001:localhost:30001 -L 30002:localhost:30002 -L 30003:localhost:30003 -L 30004:localhost:30004 ur@<roboIP>```
+
 Das Passwort des Roboters ist ``easybot``
 
 ## 3. SEC-Node Starten
