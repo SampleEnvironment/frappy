@@ -397,8 +397,6 @@ class UR_Robot(HasIO,Drivable):
             return self.status
         
         
-
-                
         if self._program_running() and 'RUNNING' == self.read_robotmode():
             if self.value == RESET_PROG:
                 return BUSY , 'resetting robot'
