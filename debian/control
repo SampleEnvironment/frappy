@@ -54,6 +54,7 @@ Architecture: all
 Depends: frappy-core,
  ${misc:Depends},
  ${python3:Depends},
+ python3-pyqtgraph (>=0.11.0)
  python3-pyqt5 (>=5)
 Replaces: secop-gui (<= 0.14.3)
 Breaks: secop-gui (<= 0.14.3)
