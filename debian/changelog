@@ -1,3 +1,23 @@
+frappy-core (0.17.6) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * gui: show parameter properties again
+  * gui: full module description only in detailed mode
+  * gui: switch group button order, change text
+  * gui: add console history
+  * gui: logwindow improvements
+  * add copyright headers where missing
+  * add optional validation to ValueType
+  * cli: add argparse and inlcudes before repl
+
+  [ Markus Zolliker ]
+  * improve error messages
+
+  [ Jens Krüger ]
+  * Fix debian GUI package dependency
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 04 Apr 2023 08:42:26 +0200
+
 frappy-core (0.17.5) focal; urgency=medium
 
   * Fix generator
