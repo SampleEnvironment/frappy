@@ -1,3 +1,9 @@
+frappy-core (0.17.7) focal; urgency=medium
+
+  * Debian: add pyqtgraph dependency
+
+ -- Jens Krüger <jenkins@frm2.tum.de>  Wed, 05 Apr 2023 07:07:24 +0200
+
 frappy-core (0.17.6) focal; urgency=medium
 
   [ Alexander Zaft ]
