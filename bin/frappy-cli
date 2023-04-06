@@ -25,13 +25,28 @@
 from __future__ import print_function
 
 import sys
-import code
+import argparse
 from os import path
 
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-from frappy.client.interactive import Client, watch
+from frappy.client.interactive import Client, watch, Console
+
+
+def parseArgv(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--include',
+                        help='file to execute after connecting to the clients', metavar='file',
+                        type=str, action='append', default=[])
+    parser.add_argument('-o', '--only-execute',
+                        help='Do not go into interactive mode after executing files. \
+                        Has no effect without --include.', action='store_true')
+    parser.add_argument('node',
+                        help='Nodes the client should connect to.\n', metavar='host:port',
+                        nargs='*', type=str, default=[])
+    return parser.parse_args(argv)
+
 
 _USAGE = """
 Usage:
@@ -55,14 +70,16 @@ c = Client('localhost:5000')
 
 Client.show_usage = False
 
-if len(sys.argv) < 2:
+
+args = parseArgv(sys.argv[1:])
+if not args.node:
     _usage_args = ("\ncli = Client('localhost:5000')\n", 'cli')
     success = True
 else:
     _usage_args = ('', '_c0')
     success = False
 
-for _idx, _node in enumerate(sys.argv[1:]):
+for _idx, _node in enumerate(args.node):
     _client_name = '_c%d' % _idx
     try:
         setattr(sys.modules['__main__'], _client_name, Client(_node, name=_client_name))
@@ -70,6 +87,19 @@ for _idx, _node in enumerate(sys.argv[1:]):
     except Exception as e:
         print(repr(e))
 
+
+file_success = False
+try:
+    for file in args.include:
+        with open(file, 'r') as f:
+            exec(f.read())
+    file_success = True
+except Exception as e:
+    print('Error while executing %s: %s' % (file, e))
+
 if success:
+    if args.include and file_success and args.only_execute:
+        print('skipping interactive mode')
+        exit()
     print(_USAGE % _usage_args)
-    code.interact(banner='', local=sys.modules['__main__'].__dict__)
+    Console(sys.modules['__main__'].__dict__)

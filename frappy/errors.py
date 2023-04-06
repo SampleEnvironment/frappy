@@ -34,6 +34,8 @@ class SECoPError(RuntimeError):
     clsname2class = {}  # needed to convert error reports back to classes
     name = 'InternalError'
     name2class = {}
+    report_error = True
+    raising_methods = None
 
     def __init_subclass__(cls):
         cls.clsname2class[cls.__name__] = cls
@@ -43,19 +45,45 @@ class SECoPError(RuntimeError):
     def __init__(self, *args, **kwds):
         super().__init__()
         self.args = args
+        self.kwds = kwds
         for k, v in list(kwds.items()):
             setattr(self, k, v)
+        self.raising_methods = []
 
     def __repr__(self):
-        args = ', '.join(map(repr, self.args))
-        kwds = ', '.join(['%s=%r' % i for i in list(self.__dict__.items())
-                          if i[0] != 'silent'])
         res = []
-        if args:
-            res.append(args)
-        if kwds:
-            res.append(kwds)
+        res.extend((repr(a) for a in self.args))
+        #res.extend(('%s=%r' % i for i in self.kwds.items()))
         return '%s(%s)' % (self.name or type(self).__name__, ', '.join(res))
+
+    def __str__(self):
+        return self.format(True)
+
+    def format(self, stripped):
+        """format with info about raising methods
+
+        :param stripped: strip last method.
+           Use stripped=True (or str()) for the following cases, as the last method can be derived from the context:
+              - stored in pobj.readerror: read_<pobj.name>
+              - error message from a change command: write_<pname>
+              - error message from a read command: read_<pname>
+            Use stripped=False for the log file, as the related parameter is not known
+        :return: the formatted error message
+        """
+        mlist = self.raising_methods
+        if mlist and stripped:
+            mlist = mlist[:-1]  # do not pop, as this would change self.raising_methods
+        prefix = '' if self.name2class.get(self.name) == type(self) else type(self).__name__
+        prefix += ''.join(' in ' + m for m in mlist).strip()
+        if prefix:
+            return '%s: %s' % (prefix, super().__str__())
+        return super().__str__()
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.args == other.args and self.kwds == other.kwds
+
+    def __ne__(self, other):
+        return not self == other
 
 
 class InternalError(SECoPError):
@@ -122,7 +150,7 @@ class BadValueError(SECoPError):
     """do not raise, but might used for instance checks (WrongTypeError, RangeError)"""
 
 
-class RangeError(ValueError, BadValueError):
+class RangeError(BadValueError, ValueError):
     """data out of range
 
     The requested parameter change or Command can not be performed as the
@@ -143,7 +171,7 @@ class BadJSONError(SECoPError):
     name = 'BadJSON'
 
 
-class WrongTypeError(TypeError, BadValueError):
+class WrongTypeError(BadValueError, TypeError):
     """Wrong data type
 
     The requested parameter change or Command can not be performed as the
@@ -151,11 +179,6 @@ class WrongTypeError(TypeError, BadValueError):
     It may also be used if an incomplete struct is sent, but a complete
     struct is expected."""
     name = 'WrongType'
-
-
-class DiscouragedConversion(ProgrammingError):
-    """the discouraged conversion string - > float happened"""
-    log_message = True
 
 
 class CommandFailedError(SECoPError):
@@ -244,8 +267,6 @@ def make_secop_error(name, text):
 def secop_error(exc):
     """turn into InternalError, if not already a SECoPError"""
     if isinstance(exc, SECoPError):
-        if SECoPError.name2class.get(exc.name) != type(exc):
-            return type(exc)('%s: %s' % (type(exc).__name__, exc))
         return exc
     return InternalError('%s: %s' % (type(exc).__name__, exc))
 

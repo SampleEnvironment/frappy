@@ -25,13 +25,12 @@
 # no fixtures needed
 import pytest
 
-from frappy.datatypes import ArrayOf, BLOBType, BoolType, \
-    CommandType, ConfigError, DataType, EnumType, FloatRange, \
-    IntRange, ProgrammingError, ScaledInteger, StatusType, \
-    StringType, StructOf, TextType, TupleOf, get_datatype, \
-    DiscouragedConversion
+from frappy.datatypes import ArrayOf, BLOBType, BoolType, CommandType, \
+    ConfigError, DataType, EnumType, FloatRange, \
+    IntRange, ProgrammingError, ScaledInteger, StatusType, StringType, \
+    StructOf, TextType, TupleOf, ValueType, get_datatype
+from frappy.errors import BadValueError, RangeError, WrongTypeError
 from frappy.lib import generalConfig
-from frappy.errors import WrongTypeError, RangeError, BadValueError
 
 
 def copytest(dt):
@@ -703,7 +702,7 @@ def test_lazy_validation(dt):
     generalConfig.defaults['lazy_number_validation'] = True
     dt('0')
     generalConfig.defaults['lazy_number_validation'] = False
-    with pytest.raises(DiscouragedConversion):
+    with pytest.raises(WrongTypeError):
         dt('0')
 
 
@@ -725,3 +724,36 @@ def test_main_unit(unit, dt):
     assert '$' in before
     assert before != after
     assert before.replace('$', unit) == after
+
+def ex_validator(i):
+    if i > 10:
+        raise RuntimeError('too large')
+    return i
+
+@pytest.mark.parametrize('validator, value, result', [
+    (dict, [('a', 1)], {'a': 1}),
+    (ex_validator, 5, 5),
+    # pylint: disable=unnecessary-lambda
+    (lambda x: dict(x), {'a': 1}, {'a': 1}),
+    # pylint: disable=unnecessary-lambda
+    (lambda i: ex_validator(i) * 3, 3, 9),
+])
+def test_value_type(validator, value, result):
+    t = ValueType()
+    tv = ValueType(validator)
+    assert t(value) == value
+    assert tv(value) == result
+
+
+@pytest.mark.parametrize('validator, value', [
+    (dict, 'strinput'),
+    (ex_validator, 20),
+    # pylint: disable=unnecessary-lambda
+    (lambda i: list(i), 1),
+])
+def test_value_type_rejecting(validator, value):
+    t = ValueType()
+    tv = ValueType(validator)
+    assert t(value) == value
+    with pytest.raises(ConfigError):
+        tv(value)

@@ -42,18 +42,28 @@ watch(io, T=True)                   # watch io and all parameters of T
 import sys
 import time
 import re
+import code
+import signal
+import os
+from os.path import expanduser
 from queue import Queue
 from frappy.client import SecopClient
 from frappy.errors import SECoPError
 from frappy.datatypes import get_datatype, StatusType
+try:
+    import readline
+except ImportError:
+    readline = None
 
 main = sys.modules['__main__']
 
 LOG_LEVELS = {'debug', 'comlog', 'info', 'warning', 'error', 'off'}
+CLR = '\r\x1b[K'  # code to move to the left and clear current line
 
 
 class Logger:
     show_time = False
+    sigwinch = False
 
     def __init__(self, loglevel='info'):
         func = self.noop
@@ -66,20 +76,21 @@ class Logger:
     def emit(self, fmt, *args, **kwds):
         if self.show_time:
             now = time.time()
-            minute = now // 60
-            if minute != self._minute:
-                self._minute = minute
-                print(time.strftime('--- %H:%M:%S ---', time.localtime(now)))
-            print('%6.3f' % (now % 60.0), str(fmt) % args)
+            tm = time.localtime(now)
+            if tm.tm_min != self._minute:
+                self._minute = tm.tm_min
+                print(CLR + time.strftime('--- %H:%M:%S ---', tm))
+            sec = ('%6.3f' % (now % 60.0)).replace(' ', '0')
+            print(CLR + sec, str(fmt) % args)
         else:
-            print(str(fmt) % args)
+            print(CLR + (str(fmt) % args))
+        if self.sigwinch:
+            # SIGWINCH: 'window size has changed' -> triggers a refresh of the input line
+            os.kill(os.getpid(), signal.SIGWINCH)
 
     @staticmethod
     def noop(fmt, *args, **kwds):
         pass
-
-
-infologger = Logger('info')
 
 
 class PrettyFloat(float):
@@ -118,16 +129,12 @@ class Module:
     def _one_line(self, pname, minwid=0):
         """return <module>.<param> = <value> truncated to one line"""
         param = getattr(type(self), pname)
-        try:
-            value = getattr(self, pname)
-            r = param.format(value)
-        except Exception as e:
-            r = repr(e)
+        result = param.formatted(self)
         pname = pname.ljust(minwid)
         vallen = 113 - len(self._name) - len(pname)
-        if len(r) > vallen:
-            r = r[:vallen - 4] + ' ...'
-        return '%s.%s = %s' % (self._name, pname, r)
+        if len(result) > vallen:
+            result = result[:vallen - 4] + ' ...'
+        return '%s.%s = %s' % (self._name, pname, result)
 
     def _isBusy(self):
         return self.status[0] // 100 == StatusType.BUSY // 100
@@ -185,6 +192,7 @@ class Module:
 
     def _start_watching(self):
         for pname in self._watched_params:
+            self._watch_parameter(self, pname, forced=True)
             self._secnode.register_callback((self._name, pname), updateEvent=self._watch_parameter)
         self._secnode.request('logging', self._name, self._log_level)
         self._secnode.register_callback(None, nodeStateChange=self._set_log_level)
@@ -202,7 +210,7 @@ class Module:
     def read(self, pname='value'):
         value, _, error = self._secnode.readParameter(self._name, pname)
         if error:
-            raise error
+            Console.raise_without_traceback(error)
         return value
 
     def __call__(self, target=None):
@@ -252,8 +260,15 @@ class Param:
             return self
         value, _, error = obj._secnode.cache[obj._name, self.name]
         if error:
+            Console.raise_without_traceback(error)
             raise error
         return value
+
+    def formatted(self, obj):
+        value, _, error = obj._secnode.cache[obj._name, self.name]
+        if error:
+            return repr(error)
+        return self.format(value)
 
     def __set__(self, obj, value):
         if self.name == 'target':
@@ -261,7 +276,8 @@ class Param:
         try:
             obj._secnode.setParameter(obj._name, self.name, value)
         except SECoPError as e:
-            obj._secnode.log.error(repr(e))
+            Console.raise_without_traceback(e)
+            # obj._secnode.log.error(repr(e))
 
     def format(self, value):
         return self.datatype.format_value(value)
@@ -390,3 +406,34 @@ class Client(SecopClient):
 
     def __repr__(self):
         return 'Client(%r)' % self.uri
+
+
+class Console(code.InteractiveConsole):
+    def __init__(self, local):
+        super().__init__(local)
+        history = None
+        if readline:
+            try:
+                history = expanduser('~/.frappy-cli-history')
+                readline.read_history_file(history)
+            except FileNotFoundError:
+                pass
+        try:
+            self.interact('', '')
+        finally:
+            if history:
+                readline.write_history_file(history)
+
+    def raw_input(self, prompt=""):
+        Logger.sigwinch = bool(readline)  # activate refresh signal
+        line = input(prompt)
+        Logger.sigwinch = False
+        return line
+
+    @classmethod
+    def raise_without_traceback(cls, exc):
+        def omit_traceback_once(cls):
+            del Console.showtraceback
+        cls.showtraceback = omit_traceback_once
+        print('ERROR:', repr(exc))
+        raise exc

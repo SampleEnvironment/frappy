@@ -23,7 +23,7 @@
 
 import pytest
 from frappy.errors import RangeError, WrongTypeError, ProgrammingError, \
-    ConfigError, InternalError, DiscouragedConversion, secop_error, make_secop_error
+    ConfigError, InternalError, TimeoutSECoPError, secop_error, make_secop_error
 
 
 @pytest.mark.parametrize('exc, name, text, echk', [
@@ -32,7 +32,7 @@ from frappy.errors import RangeError, WrongTypeError, ProgrammingError, \
     (ProgrammingError('x'), 'InternalError', 'ProgrammingError: x', None),
     (ConfigError('y'), 'InternalError', 'ConfigError: y', None),
     (InternalError('z'), 'InternalError', 'z', None),
-    (DiscouragedConversion('w'), 'InternalError', 'DiscouragedConversion: w', None),
+    (TimeoutSECoPError('t'), 'TimeoutError', 't', None),
     (ValueError('v'), 'InternalError', "ValueError: v", InternalError("ValueError: v")),
     (None, 'InternalError', "UnknownError: v", InternalError("UnknownError: v")),
 ])
