@@ -1,3 +1,9 @@
+frappy-core (0.17.9) focal; urgency=medium
+
+  * interactive client: avoid messing up the input line
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Tue, 11 Apr 2023 16:09:03 +0200
+
 frappy-core (0.17.8) focal; urgency=medium
 
   * Debian: Fix typo
