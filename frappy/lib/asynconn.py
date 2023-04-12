@@ -35,7 +35,7 @@ import time
 import re
 
 from frappy.errors import CommunicationFailedError, ConfigError
-from frappy.lib import closeSocket, parseHostPort, tcpSocket
+from frappy.lib import closeSocket, parse_host_port
 
 try:
     from serial import Serial
@@ -60,7 +60,7 @@ class AsynConn:
         if not iocls:
             # try tcp, if scheme not given
             try:
-                parseHostPort(uri, 1)  # check hostname only
+                parse_host_port(uri, 1)  # check hostname only
             except ValueError:
                 if 'COM' in uri:
                     raise ValueError("the correct uri for a COM port is: "
@@ -175,7 +175,9 @@ class AsynTcp(AsynConn):
         if uri.startswith('tcp://'):
             uri = uri[6:]
         try:
-            self.connection = tcpSocket(uri, self.default_settings.get('port'), self.timeout)
+
+            host, port = parse_host_port(uri, self.default_settings.get('port'))
+            self.connection = socket.create_connection((host, port), timeout=self.timeout)
         except (ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
             # indicate that retrying might make sense
             raise CommunicationFailedError(str(e)) from None

@@ -21,21 +21,28 @@
 # *****************************************************************************
 
 import pytest
-from frappy.lib import parseHostPort
+
+from frappy.lib import parse_host_port
 
 
 @pytest.mark.parametrize('hostport, defaultport, result', [
-    (('box.psi.ch', 9999), 1, ('box.psi.ch', 9999)),
-    (('/dev/tty', 9999), 1, None),
+    ('box.psi.ch:9999', 1, ('box.psi.ch', 9999)),
+    ('/dev/tty:9999', 1, None),
     ('localhost:10767', 1, ('localhost', 10767)),
     ('www.psi.ch', 80, ('www.psi.ch', 80)),
     ('/dev/ttyx:2089', 10767, None),
     ('COM4:', 2089, None),
-    ('underscore_valid.123.hyphen-valid.com', 80, ('underscore_valid.123.hyphen-valid.com', 80)),
+    ('123.hyphen-valid.com', 80, ('123.hyphen-valid.com', 80)),
+    ('underscore_invalid.123.hyphen-valid.com:10000', 80, None),
+    ('::1.1111', 2, ('::1', 1111)),
+    ('[2e::fe]:1', 50, ('2e::fe', 1)),
+    ('127.0.0.1:50', 1337, ('127.0.0.1', 50)),
+    ('234.40.128.3:13212', 1337, ('234.40.128.3', 13212)),
+
 ])
 def test_parse_host(hostport, defaultport, result):
     if result is None:
         with pytest.raises(ValueError):
-            parseHostPort(hostport, defaultport)
+            parse_host_port(hostport, defaultport)
     else:
-        assert result == parseHostPort(hostport, defaultport)
+        assert result == parse_host_port(hostport, defaultport)
