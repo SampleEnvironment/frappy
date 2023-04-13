@@ -186,7 +186,7 @@ class Module:
                 elif item in LOG_LEVELS:
                     self._log_level = item
                 else:
-                    self._secnode.log.error('can not set %r on module %s' % (item, self._name))
+                    self._secnode.log.error('can not set %r on module %s', item, self._name)
             self._watched_params = params
         print('--- %s:\nlog: %s, watch: %s' % (self._name, self._log_level, ' '.join(self._watched_params)))
 

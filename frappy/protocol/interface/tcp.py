@@ -131,7 +131,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                         print('====================')
 
                 if not result:
-                    self.log.error('empty result upon msg %s' % repr(msg))
+                    self.log.error('empty result upon msg %s', repr(msg))
                 if result[0].startswith(ERRORPREFIX) and not detailed_errors:
                     # strip extra information
                     result[2][2].clear()
@@ -193,7 +193,7 @@ class TCPServer(socketserver.ThreadingTCPServer):
         port = int(options.pop('uri').split('://', 1)[-1])
         self.detailed_errors = options.pop('detailed_errors', False)
 
-        self.log.info("TCPServer %s binding to port %d" % (name, port))
+        self.log.info("TCPServer %s binding to port %d", name, port)
         for ntry in range(5):
             try:
                 socketserver.ThreadingTCPServer.__init__(
@@ -204,10 +204,10 @@ class TCPServer(socketserver.ThreadingTCPServer):
                     # this may happen despite of allow_reuse_address
                     time.sleep(0.3 * (1 << ntry))  # max accumulated sleep time: 0.3 * 31 = 9.3 sec
                 else:
-                    self.log.error('could not initialize TCP Server: %r' % e)
+                    self.log.error('could not initialize TCP Server: %r', e)
                     raise
         if ntry:
-            self.log.warning('tried again %d times after "Address already in use"' % ntry)
+            self.log.warning('tried again %d times after "Address already in use"', ntry)
         self.log.info("TCPServer initiated")
 
     # py35 compatibility

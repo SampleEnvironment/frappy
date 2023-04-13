@@ -169,12 +169,12 @@ class MagneticField(Drivable):
             if self._state == self._state.enum.switch_on:
                 # wait until switch is on
                 if self._heatswitch.read_value() == 'on':
-                    self.log.debug('heatswitch is on -> ramp to %.3f' %
+                    self.log.debug('heatswitch is on -> ramp to %.3f',
                                    self.target)
                     self._state = self._state.enum.ramp
             if self._state == self._state.enum.ramp:
                 if self.target == self.value:
-                    self.log.debug('at field! mode is %r' % self.mode)
+                    self.log.debug('at field! mode is %r', self.mode)
                     if self.mode:
                         self.log.debug('at field -> switching heater off')
                         self._state = self._state.enum.switch_off
@@ -190,7 +190,7 @@ class MagneticField(Drivable):
             if self._state == self._state.enum.switch_off:
                 # wait until switch is off
                 if self._heatswitch.read_value() == 'off':
-                    self.log.debug('heatswitch is off at %.3f' % self.value)
+                    self.log.debug('heatswitch is off at %.3f', self.value)
                     self._state = self._state.enum.idle
             self.read_status()  # update async
             time.sleep(max(0.01, ts + loopdelay - time.time()))

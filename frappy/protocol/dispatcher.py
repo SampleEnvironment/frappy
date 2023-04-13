@@ -140,8 +140,8 @@ class Dispatcher:
         self.reset_connection(conn)
 
     def register_module(self, moduleobj, modulename, export=True):
-        self.log.debug('registering module %r as %s (export=%r)' %
-                       (moduleobj, modulename, export))
+        self.log.debug('registering module %r as %s (export=%r)',
+                       moduleobj, modulename, export)
         self._modules[modulename] = moduleobj
         if export:
             self._export.append(modulename)
@@ -168,15 +168,15 @@ class Dispatcher:
         return self._export[:]
 
     def export_accessibles(self, modulename):
-        self.log.debug('export_accessibles(%r)' % modulename)
+        self.log.debug('export_accessibles(%r)', modulename)
         if modulename in self._export:
             # omit export=False params!
             res = OrderedDict()
             for aobj in self.get_module(modulename).accessibles.values():
                 if aobj.export:
                     res[aobj.export] = aobj.for_export()
-            self.log.debug('list accessibles for module %s -> %r' %
-                           (modulename, res))
+            self.log.debug('list accessibles for module %s -> %r',
+                           modulename, res)
             return res
         self.log.debug('-> module is not to be exported!')
         return OrderedDict()
@@ -282,7 +282,7 @@ class Dispatcher:
         will return return reply, may send replies to conn or
         activated connections in addition
         """
-        self.log.debug('Dispatcher: handling msg: %s' % repr(msg))
+        self.log.debug('Dispatcher: handling msg: %s', repr(msg))
 
         # play thread safe !
         # XXX: ONLY ONE REQUEST (per dispatcher) AT A TIME
@@ -292,7 +292,7 @@ class Dispatcher:
             if action == IDENTREQUEST:
                 action, specifier, data = '_ident', None, None
 
-            self.log.debug('Looking for handle_%s' % action)
+            self.log.debug('Looking for handle_%s', action)
             handler = getattr(self, 'handle_%s' % action, None)
 
             if handler:

@@ -42,13 +42,13 @@ class SimBase:
                                      default=0.0)
 
                 def reader(self, pname=k):
-                    self.log.debug('simulated reading %s' % pname)
+                    self.log.debug('simulated reading %s', pname)
                     return self.parameters[pname].value
 
                 attrs['read_' + k] = reader
 
                 def writer(self, newval, pname=k):
-                    self.log.debug('simulated writing %r to %s' % (newval, pname))
+                    self.log.debug('simulated writing %r to %s', newval, pname)
                     self.parameters[pname].value = newval
                     return newval
 

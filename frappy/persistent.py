@@ -108,7 +108,7 @@ class PersistentMixin(Module):
                     result[pname] = self.parameters[pname].datatype.import_value(value)
             except Exception as e:
                 # ignore invalid persistent data (in case parameters have changed)
-                self.log.warning('can not restore %r to %r (%r)' % (pname, value, e))
+                self.log.warning('can not restore %r to %r (%r)', pname, value, e)
         return result
 
     def loadParameters(self):

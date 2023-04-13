@@ -213,7 +213,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
             self.log.error('saved encoder value (%.2f) does not match reading (%.2f %.2f)',
                            self.encoder, encoder_from_hw, adjusted_encoder)
             if adjusted_encoder != encoder_from_hw:
-                self.log.info('take next closest encoder value (%.2f)' % adjusted_encoder)
+                self.log.info('take next closest encoder value (%.2f)', adjusted_encoder)
             self._need_reset = True
             self.status = ERROR, 'saved encoder value does not match reading'
         self._write_axispar(adjusted_encoder - self.zero, ENCODER_ADR, ANGLE_SCALE, readback=False)

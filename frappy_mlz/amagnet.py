@@ -162,7 +162,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
             minslope = min(entry[0]
                            for entry in self.calibrationtable.values())
             self.log.error(
-                'unconfigured calibration for symmetry %r' %
+                'unconfigured calibration for symmetry %r',
                 self._symmetry.value)
             return [minslope, 0, 0, 0, 0]
 

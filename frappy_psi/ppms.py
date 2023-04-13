@@ -386,10 +386,10 @@ class Temp(PpmsDrivable):
             return
         self.setpoint, self.workingramp, self.approachmode = self._last_settings = settings
         if self.setpoint != 10 or not self._wait_at10:
-            self.log.debug('read back target %g %r' % (self.setpoint, self._wait_at10))
+            self.log.debug('read back target %g %r', self.setpoint, self._wait_at10)
             self.target = self.setpoint
         if self.workingramp != 2 or not self._ramp_at_limit:
-            self.log.debug('read back ramp %g %r' % (self.workingramp, self._ramp_at_limit))
+            self.log.debug('read back ramp %g %r', self.workingramp, self._ramp_at_limit)
             self.ramp = self.workingramp
 
     def _write_params(self, setpoint, ramp, approachmode):
@@ -407,7 +407,7 @@ class Temp(PpmsDrivable):
         self._ramp_at_limit = ramp_at_limit
         self.calc_expected(setpoint, ramp)
         self.log.debug(
-            'change_temp v %r s %r r %r w %r l %r' % (self.value, setpoint, ramp, wait_at10, ramp_at_limit))
+            'change_temp v %r s %r r %r w %r l %r', self.value, setpoint, ramp, wait_at10, ramp_at_limit)
         self.comm_write('TEMP %g,%g,%d' % (setpoint, ramp, approachmode))
         self.read_params()
 
@@ -465,7 +465,7 @@ class Temp(PpmsDrivable):
         self.status = (StatusType.BUSY, 'changed target')
         self._last_change = time.time()
         self._write_params(target, self.ramp, self.approachmode)
-        self.log.debug('write_target %s' % repr((self.setpoint, target, self._wait_at10)))
+        self.log.debug('write_target %s', repr((self.setpoint, target, self._wait_at10)))
         return target
 
     def write_approachmode(self, value):

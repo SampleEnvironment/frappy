@@ -237,8 +237,8 @@ class Cryostat(CryoBase):
             heater = self.heater
 
             heatflow = self.__heatLink(regulation, sample)
-            self.log.debug('sample = %.5f, regulation = %.5f, heatflow = %.5g'
-                           % (sample, regulation, heatflow))
+            self.log.debug('sample = %.5f, regulation = %.5f, heatflow = %.5g',
+                           sample, regulation, heatflow)
             newsample = max(0, sample + (self.__sampleLeak(sample) - heatflow)
                             / self.__sampleCP(sample) * h)
             # avoid instabilities due to too small CP
@@ -293,7 +293,7 @@ class Cryostat(CryoBase):
                 lastD = _D
 
                 self.log.debug('PID: P = %.2f, I = %.2f, D = %.2f, '
-                               'heater = %.2f' % (_P, _I, _D, heater))
+                               'heater = %.2f', _P, _I, _D, heater)
 
                 # check for turn-around points to detect oscillations ->
                 # increase damper
@@ -321,8 +321,8 @@ class Cryostat(CryoBase):
                 try:
                     self.setpoint = round(self.setpoint + clamp(
                         self.target - self.setpoint, -maxdelta, maxdelta), 3)
-                    self.log.debug('setpoint changes to %r (target %r)' %
-                                   (self.setpoint, self.target))
+                    self.log.debug('setpoint changes to %r (target %r)',
+                                   self.setpoint, self.target)
                 except (TypeError, ValueError):
                     # self.target might be None
                     pass

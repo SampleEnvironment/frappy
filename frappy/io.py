@@ -98,11 +98,11 @@ class HasIodev(HasIO):
 class IOBase(Communicator):
     """base of StringIO and BytesIO"""
     uri = Property("""uri for serial connection
-    
+
                    one of the following:
-                   
+
                    - ``tcp://<host address>:<portnumber>`` (see :class:`frappy.lib.asynconn.AsynTcp`)
-                   
+
                    - ``serial://<serial device>?baudrate=<value>...`` (see :class:`frappy.lib.asynconn.AsynSerial`)
                    """, datatype=StringType())
     timeout = Parameter('timeout', datatype=FloatRange(0), default=2)
@@ -196,7 +196,7 @@ class IOBase(Communicator):
             try:
                 removeme = not cb()
             except Exception as e:
-                self.log.error('callback: %s' % e)
+                self.log.error('callback: %s', e)
                 removeme = True
             if removeme:
                 self._reconnectCallbacks.pop(key)

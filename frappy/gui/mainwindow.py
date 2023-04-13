@@ -272,7 +272,7 @@ class MainWindow(QMainWindow):
             # disconnect node from all events
             node.terminate_connection()
             self._nodeWidgets.pop(node.contactPoint)
-            self.log.debug("Closing tab with node %s" % node.nodename)
+            self.log.debug("Closing tab with node %s", node.nodename)
         self.tab.removeTab(index)
 
     def _rebuildAdvanced(self, advanced):

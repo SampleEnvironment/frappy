@@ -318,8 +318,8 @@ class SecopClient(ProxyClient):
                     # inform that the other party still uses a legacy identifier
                     # see e.g. Frappy Bug #4659 (https://forge.frm2.tum.de/redmine/issues/4659)
                     if not self.secop_version.startswith(IDENTPREFIX):
-                        self.log.warning('SEC-Node replied with legacy identify reply: %s'
-                                         % self.secop_version)
+                        self.log.warning('SEC-Node replied with legacy identify reply: %s',
+                                         self.secop_version)
 
                     # now its safe to do secop stuff
                     self._running = True

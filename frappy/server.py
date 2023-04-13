@@ -211,7 +211,7 @@ class Server:
         missing_super = set()
         # all objs created, now start them up and interconnect
         for modname, modobj in self.modules.items():
-            self.log.info('registering module %r' % modname)
+            self.log.info('registering module %r', modname)
             self.dispatcher.register_module(modobj, modname, modobj.export)
             # also call earlyInit on the modules
             modobj.earlyInit()
@@ -278,7 +278,7 @@ class Server:
         if not start_events.wait():
             # some timeout happened
             for name in start_events.waiting_for():
-                self.log.warning('timeout when starting %s' % name)
+                self.log.warning('timeout when starting %s', name)
         self.log.info('all modules started')
         history_path = os.environ.get('FRAPPY_HISTORY')
         if history_path:
