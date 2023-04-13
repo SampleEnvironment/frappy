@@ -46,10 +46,10 @@ UPDATE_MESSAGES = {EVENTREPLY, READREPLY, WRITEREPLY, ERRORPREFIX + READREQUEST,
 
 VERSIONFMT= re.compile(r'^[^,]*?ISSE[^,]*,SECoP,')
 
-class UNREGISTER:
-    """a magic value, used a returned value in a callback
 
-    to indicate it has to be unregistered
+class UnregisterCallback(Exception):
+    """raise in a callback to indicate it has to be unregistered
+
     used to implement one shot callbacks
     """
 
@@ -157,8 +157,8 @@ class CacheItem(tuple):
 class ProxyClient:
     """common functionality for proxy clients"""
 
-    CALLBACK_NAMES = ('updateEvent', 'updateItem', 'descriptiveDataChange',
-                      'nodeStateChange', 'unhandledMessage')
+    CALLBACK_NAMES = {'updateEvent', 'updateItem', 'descriptiveDataChange',
+                      'nodeStateChange', 'unhandledMessage'}
     online = False  # connected or reconnecting since a short time
     state = 'disconnected'  # further possible values: 'connecting', 'reconnecting', 'connected'
     log = None
@@ -181,42 +181,41 @@ class ProxyClient:
         """
         for cbfunc in args:
             kwds[cbfunc.__name__] = cbfunc
-        for cbname in self.CALLBACK_NAMES:
-            cbfunc = kwds.pop(cbname, None)
-            if not cbfunc:
-                continue
-            cbdict = self.callbacks[cbname]
-            cbdict[key].append(cbfunc)
+        for cbname, cbfunc in kwds.items():
+            if cbname not in self.CALLBACK_NAMES:
+                raise TypeError(f"unknown callback: {', '.join(kwds)}")
 
             # immediately call for some callback types
-            if cbname == 'updateItem':
-                if key is None:
-                    for (mname, pname), data in self.cache.items():
-                        cbfunc(mname, pname, data)
+            if cbname in ('updateItem', 'updateEvent'):
+                if key is None:  # case generic callback
+                    cbargs = [(m, p, d) for (m, p), d in self.cache.items()]
                 else:
                     data = self.cache.get(key, None)
-                    if data:
-                        cbfunc(*key, data)  # case single parameter
+                    if data:  # case single parameter
+                        cbargs = [key + (data,)]
                     else:  # case key = module
-                        for (mname, pname), data in self.cache.items():
-                            if mname == key:
-                                cbfunc(mname, pname, data)
-            elif cbname == 'updateEvent':
-                if key is None:
-                    for (mname, pname), data in self.cache.items():
-                        cbfunc(mname, pname, *data)
-                else:
-                    data = self.cache.get(key, None)
-                    if data:
-                        cbfunc(*key, *data)  # case single parameter
-                    else:  # case key = module
-                        for (mname, pname), data in self.cache.items():
-                            if mname == key:
-                                cbfunc(mname, pname, *data)
+                        cbargs = [(m, p, d) for (m, p), d in self.cache.items() if m == key]
+
+                if cbname == 'updateEvent':
+                    # expand entry argument to (value, timestamp, readerror)
+                    cbargs = [a[0:2] + a[2] for a in cbargs]
+
             elif cbname == 'nodeStateChange':
-                cbfunc(self.online, self.state)
-        if kwds:
-            raise TypeError(f"unknown callback: {', '.join(kwds)}")
+                cbargs = [(self.online, self.state)]
+            else:
+                cbargs = []
+
+            do_append = True
+            for args in cbargs:
+                try:
+                    cbfunc(*args)
+                except UnregisterCallback:
+                    do_append = False
+                except Exception as e:
+                    if self.log:
+                        self.log.error('error %r calling %s%r', e, cbfunc.__name__, args)
+            if do_append:
+                self.callbacks[cbname][key].append(cbfunc)
 
     def unregister_callback(self, key, *args, **kwds):
         """unregister a callback
@@ -240,20 +239,27 @@ class ProxyClient:
         key=(<module name>, <parameter name): callbacks for specified parameter
         """
         cblist = self.callbacks[cbname].get(key, [])
-        self.callbacks[cbname][key] = [cb for cb in cblist if cb(*args) is not UNREGISTER]
+        for cbfunc in list(cblist):
+            try:
+                cbfunc(*args)
+            except UnregisterCallback:
+                cblist.remove(cbfunc)
+            except Exception as e:
+                if self.log:
+                    self.log.error('error %r calling %s%r', e, cbfunc.__name__, args)
         return bool(cblist)
 
     def updateValue(self, module, param, value, timestamp, readerror):
         entry = CacheItem(value, timestamp, readerror,
-                        self.modules[module]['parameters'][param]['datatype'])
+                          self.modules[module]['parameters'][param]['datatype'])
         self.cache[(module, param)] = entry
         self.callback(None, 'updateItem', module, param, entry)
         self.callback(module, 'updateItem', module, param, entry)
         self.callback((module, param), 'updateItem', module, param, entry)
         # TODO: change clients to use updateItem instead of updateEvent
-        self.callback(None, 'updateEvent', module, param, value, timestamp, readerror)
-        self.callback(module, 'updateEvent', module, param, value, timestamp, readerror)
-        self.callback((module, param), 'updateEvent', module, param, value, timestamp, readerror)
+        self.callback(None, 'updateEvent', module, param, *entry)
+        self.callback(module, 'updateEvent', module, param, *entry)
+        self.callback((module, param), 'updateEvent', module, param, *entry)
 
 
 class SecopClient(ProxyClient):

@@ -122,8 +122,7 @@ class Router(frappy.protocol.dispatcher.Dispatcher):
                             self.node_by_module[module] = node
                         self.nodes.append(node)
                         self.restart()
-                        return frappy.client.UNREGISTER
-                    return None
+                        raise frappy.client.UnregisterCallback()
 
                 node.register_callback(None, nodeStateChange)
                 logger.warning('can not connect to node %r', node.nodename)
