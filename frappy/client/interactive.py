@@ -28,15 +28,18 @@ from frappy.client.interactive import Client
 client = Client('localhost:5000')  # start client.
 # this connects and creates objects for all SECoP modules in the main namespace
 
-<module>                            # list all parameters
-<module>.<param> = <value>          # change parameter
-<module>(<target>)                  # set target and wait until not busy
-                                    # 'status' and 'value' changes are shown every 1 sec
-client.mininterval = 0.2            # change minimal update interval to 0.2 sec (default is 1 second)
+<module>                      # list all parameters
+<module>.<param> = <value>    # change parameter
+<module>(<target>)            # set target and wait until not busy
+                              # 'status' and 'value' changes are shown every 1 sec
+client.mininterval = 0.2      # change minimal update interval to 0.2 s (default is 1 s)
 
-watch(T)                            # watch changes of T.status and T.value (stop with ctrl-C)
-watch(T='status target')            # watch status and target parameters
-watch(io, T=True)                   # watch io and all parameters of T
+watch(T)                      # watch changes of T.status and T.value (stop with ctrl-C)
+watch(T='status target')      # watch status and target parameters
+watch(io, T=True)             # watch io and all parameters of T
+
+run('filename')               # execute a script
+/filename                     # execute a script
 """
 
 import sys
@@ -45,6 +48,7 @@ import re
 import code
 import signal
 import os
+import traceback
 from os.path import expanduser
 from queue import Queue
 from frappy.client import SecopClient
@@ -54,8 +58,6 @@ try:
     import readline
 except ImportError:
     readline = None
-
-main = sys.modules['__main__']
 
 LOG_LEVELS = {'debug', 'comlog', 'info', 'warning', 'error', 'off'}
 CLR = '\r\x1b[K'  # code to move to the left and clear current line
@@ -210,7 +212,7 @@ class Module:
     def read(self, pname='value'):
         value, _, error = self._secnode.readParameter(self._name, pname)
         if error:
-            Console.raise_without_traceback(error)
+            clientenv.raise_with_short_traceback(error)
         return value
 
     def __call__(self, target=None):
@@ -231,7 +233,7 @@ class Module:
         return self.value
 
     def __repr__(self):
-        wid = max(len(k) for k in self._parameters)
+        wid = max((len(k) for k in self._parameters), default=0)
         return '%s\n%s%s' % (
             self._title,
             '\n'.join(self._one_line(k, wid) for k in self._parameters),
@@ -260,8 +262,7 @@ class Param:
             return self
         value, _, error = obj._secnode.cache[obj._name, self.name]
         if error:
-            Console.raise_without_traceback(error)
-            raise error
+            clientenv.raise_with_short_traceback(error)
         return value
 
     def formatted(self, obj):
@@ -275,9 +276,10 @@ class Param:
             obj._running = Queue()
         try:
             obj._secnode.setParameter(obj._name, self.name, value)
+            return
         except SECoPError as e:
-            Console.raise_without_traceback(e)
-            # obj._secnode.log.error(repr(e))
+            clientenv.raise_with_short_traceback(e)
+            obj._secnode.log.error(repr(e))
 
     def format(self, value):
         return self.datatype.format_value(value)
@@ -294,6 +296,8 @@ class Command:
             if args:
                 raise TypeError('mixed arguments forbidden')
             result, _ = self.exec(self.modname, self.name, kwds)
+        elif len(args) == 1:
+            result, _ = self.exec(self.modname, self.name, *args)
         else:
             result, _ = self.exec(self.modname, self.name, args or None)
         return result
@@ -306,7 +310,7 @@ class Command:
 
 def show_parameter(modname, pname, *args, forced=False, mininterval=0):
     """show parameter update"""
-    mobj = getattr(main, modname)
+    mobj = clientenv.namespace[modname]
     mobj._watch_parameter(modname, pname, *args)
 
 
@@ -320,7 +324,7 @@ def watch(*args, **kwds):
         else:
             print(f'do not know {mobj!r}')
     for key, arg in kwds.items():
-        mobj = getattr(main, key, None)
+        mobj = clientenv.namespace.get(key)
         if mobj is None:
             print(f'do not know {key!r}')
         else:
@@ -345,6 +349,9 @@ class Client(SecopClient):
     mininterval = 1
 
     def __init__(self, uri, loglevel='info', name=''):
+        if clientenv.namespace is None:
+            #  called from a simple python interpeter
+            clientenv.init(sys.modules['__main__'].__dict__)
         # remove previous client:
         prev = self.secnodes.pop(uri, None)
         log = Logger(loglevel)
@@ -352,10 +359,10 @@ class Client(SecopClient):
         if prev:
             log.info('remove previous client to %s', uri)
             for modname in prev.modules:
-                prevnode = getattr(getattr(main, modname, None), '_secnode', None)
+                prevnode = getattr(clientenv.namespace.get(modname), '_secnode', None)
                 if prevnode == prev:
                     removed_modules.append(modname)
-                    delattr(main, modname)
+                    clientenv.namespace.pop(modname)
             prev.disconnect()
         self.secnodes[uri] = self
         if name:
@@ -365,7 +372,7 @@ class Client(SecopClient):
         created_modules = []
         skipped_modules = []
         for modname, moddesc in self.modules.items():
-            prev = getattr(main, modname, None)
+            prev = clientenv.namespace.get(modname)
             if prev is None:
                 created_modules.append(modname)
             else:
@@ -383,7 +390,7 @@ class Client(SecopClient):
             if 'status' in mobj._parameters:
                 self.register_callback((modname, 'status'), updateEvent=mobj._status_value_update)
                 self.register_callback((modname, 'value'), updateEvent=mobj._status_value_update)
-            setattr(main, modname, mobj)
+            clientenv.namespace[modname] = mobj
         if removed_modules:
             self.log.info('removed modules: %s', ' '.join(removed_modules))
         if skipped_modules:
@@ -397,7 +404,7 @@ class Client(SecopClient):
         """handle logging messages"""
         if action == 'log':
             modname, loglevel = ident.split(':')
-            modobj = getattr(main, modname, None)
+            modobj = clientenv.namespace.get(modname)
             if modobj:
                 modobj.handle_log_message_(loglevel, data)
                 return
@@ -408,9 +415,54 @@ class Client(SecopClient):
         return f'Client({self.uri!r})'
 
 
+def run(filepath):
+    clientenv.namespace.update({
+        "__file__": filepath,
+        "__name__": "__main__",
+    })
+    with open(filepath, 'rb') as file:
+        # pylint: disable=exec-used
+        exec(compile(file.read(), filepath, 'exec'), clientenv.namespace, None)
+
+
+class ClientEnvironment:
+    namespace = None
+    last_frames = 0
+
+    def init(self, namespace=None):
+        self.namespace = namespace or {}
+        self.namespace.update(run=run, watch=watch, Client=Client)
+
+    def raise_with_short_traceback(self, exc):
+        # count number of lines of internal irrelevant stack (for remote errors)
+        self.last_frames = len(traceback.format_exception(*sys.exc_info()))
+        raise exc
+
+    def short_traceback(self):
+        """cleanup tracback from irrelevant lines"""
+        lines = traceback.format_exception(*sys.exc_info())
+        # line 0: Traceback header
+        # skip line 1+2 (contains unspecific console line and exec code)
+        lines[1:3] = []
+        if '  exec(' in lines[1]:
+            # replace additional irrelevant exec line if needed with run command
+            lines[1:2] = []
+        # skip lines of client code not relevant for remote errors
+        lines[-self.last_frames-1:-1] = []
+        self.last_frames = 0
+        if len(lines) <= 2:  # traceback contains only console line
+            lines = lines[-1:]
+        return ''.join(lines)
+
+
+clientenv = ClientEnvironment()
+
+
 class Console(code.InteractiveConsole):
-    def __init__(self, local, name='cli'):
-        super().__init__(local)
+    def __init__(self, name='cli', namespace=None):
+        if namespace:
+            clientenv.namespace = namespace
+        super().__init__(clientenv.namespace)
         history = None
         if readline:
             try:
@@ -428,12 +480,9 @@ class Console(code.InteractiveConsole):
         Logger.sigwinch = bool(readline)  # activate refresh signal
         line = input(prompt)
         Logger.sigwinch = False
+        if line.startswith('/'):
+            line = f"run('{line[1:].strip()}')"
         return line
 
-    @classmethod
-    def raise_without_traceback(cls, exc):
-        def omit_traceback_once(cls):
-            del Console.showtraceback
-        cls.showtraceback = omit_traceback_once
-        print('ERROR:', repr(exc))
-        raise exc
+    def showtraceback(self):
+        self.write(clientenv.short_traceback())
