@@ -492,8 +492,6 @@ class Command(Accessible):
         # pylint: disable=unnecessary-dunder-call
         func = self.__get__(module_obj)
         if self.argument:
-            # validate
-            argument = self.argument(argument)
             if isinstance(self.argument, TupleOf):
                 res = func(*argument)
             elif isinstance(self.argument, StructOf):

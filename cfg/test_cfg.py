@@ -1,7 +1,7 @@
 Node('test.config.frappy.demo',
      '''short description of the testing sec-node
 
-This description for the Nodecan be as long as you need if you use a multiline string.
+This description for the node can be as long as you need if you use a multiline string.
 
 Very long!
 The needed fields are Equipment id (1st argument), description (this)
@@ -50,4 +50,9 @@ Mod('Decision',
     'Random value from configured property choices. Config accepts anything ' \
     'that can be converted to a list',
     choices = ['Yes', 'Maybe', 'No'],
+)
+
+Mod('c',
+    'frappy_demo.test.Commands',
+    'a command test',
 )

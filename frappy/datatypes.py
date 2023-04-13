@@ -62,6 +62,7 @@ class DataType(HasProperties):
     IS_COMMAND = False
     unit = ''
     default = None
+    client = False  # used on the client side
 
     def __call__(self, value):
         """convert given value to our datatype and validate
@@ -826,6 +827,7 @@ class ArrayOf(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
+        self.check_type(value)
         return [self.members.export_value(elem) for elem in value]
 
     def import_value(self, value):
@@ -893,11 +895,11 @@ class TupleOf(DataType):
 
     def check_type(self, value):
         try:
-            if len(value) != len(self.members):
-                raise WrongTypeError(
-                    f'tuple needs {len(self.members)} elements')
+            if len(value) == len(self.members):
+                return
         except TypeError:
             raise WrongTypeError(f'{type(value).__name__} can not be converted to TupleOf DataType!') from None
+        raise WrongTypeError(f'tuple needs {len(self.members)} elements')
 
     def __call__(self, value):
         """accepts any sequence, converts to tuple"""
@@ -920,6 +922,7 @@ class TupleOf(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
+        self.check_type(value)
         return [sub.export_value(elem) for sub, elem in zip(self.members, value)]
 
     def import_value(self, value):
@@ -990,54 +993,59 @@ class StructOf(DataType):
         return res
 
     def __repr__(self):
-        opt = f', optional={self.optional!r}' if self.optional else ''
+        opt = f', optional={self.optional!r}' if set(self.optional) == set(self.members) else ''
         return 'StructOf(%s%s)' % (', '.join(
             ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
     def __call__(self, value):
         """accepts any mapping, returns an immutable dict"""
+        self.check_type(value)
         try:
-            if set(dict(value)) != set(self.members):
-                raise WrongTypeError('member names do not match') from None
-        except TypeError:
-            raise WrongTypeError(f'{type(value).__name__} can not be converted a StructOf') from None
-        try:
-            return ImmutableDict((str(k), self.members[k](v))
-                                 for k, v in list(value.items()))
+            result = {}
+            for key, val in value.items():
+                if val is not None:  # goodie: allow None instead of missing key
+                    result[key] = self.members[key](val)
+            return ImmutableDict(result)
         except Exception as e:
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
-            raise errcls('can not convert some struct element') from e
+            raise errcls('can not convert struct element %s' % key) from e
 
     def validate(self, value, previous=None):
+        self.check_type(value, True)
+        try:
+            result = dict(previous or {})
+            for key, val in value.items():
+                if val is not None:  # goodie: allow None instead of missing key
+                    result[key] = self.members[key].validate(val)
+            return ImmutableDict(result)
+        except Exception as e:
+            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
+            raise errcls('struct element %s is invalid' % key) from e
+
+    def check_type(self, value, allow_optional=False):
         try:
             superfluous = set(dict(value)) - set(self.members)
         except TypeError:
             raise WrongTypeError(f'{type(value).__name__} can not be converted a StructOf') from None
         if superfluous - set(self.optional):
             raise WrongTypeError(f"struct contains superfluous members: {', '.join(superfluous)}")
-        missing = set(self.members) - set(value) - set(self.optional)
+        missing = set(self.members) - set(value)
+        if self.client or allow_optional:  # on the client side, allow optional elements always
+            missing -= set(self.optional)
         if missing:
             raise WrongTypeError(f"missing struct elements: {', '.join(missing)}")
-        try:
-            if previous is None:
-                return ImmutableDict((str(k), self.members[k].validate(v))
-                                     for k, v in list(value.items()))
-            result = dict(previous)
-            result.update(((k, self.members[k].validate(v, previous[k])) for k, v in value.items()))
-            return ImmutableDict(result)
-        except Exception as e:
-            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
-            raise errcls('some struct elements are invalid') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        self(value)  # check validity
+        self.check_type(value)
         return dict((str(k), self.members[k].export_value(v))
                     for k, v in list(value.items()))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        return self({str(k): self.members[k].import_value(v) for k, v in value.items()})
+        self.check_type(value, True)
+        return {str(k): self.members[k].import_value(v)
+                for k, v in value.items()}
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
@@ -1344,7 +1352,7 @@ DATATYPES = {
 }
 
 
-# important for getting the right datatype from formerly jsonified descr.
+# used on the client side for getting the right datatype from formerly jsonified descr.
 def get_datatype(json, pname=''):
     """returns a DataType object from description
 
@@ -1366,6 +1374,8 @@ def get_datatype(json, pname=''):
             raise WrongTypeError(f'a data descriptor must be a dict containing a "type" key, not {json!r}') from None
 
     try:
-        return DATATYPES[base](pname=pname, **kwargs)
+        datatype = DATATYPES[base](pname=pname, **kwargs)
+        datatype.client = True
+        return datatype
     except Exception as e:
         raise WrongTypeError(f'invalid data descriptor: {json!r} ({str(e)})') from None

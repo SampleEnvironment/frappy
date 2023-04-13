@@ -23,10 +23,10 @@
 
 import random
 
-from frappy.datatypes import FloatRange, StringType, ValueType
-from frappy.modules import Communicator, Drivable, Parameter, Property, \
-    Readable
+from frappy.datatypes import FloatRange, StringType, ValueType, TupleOf, StructOf, ArrayOf
+from frappy.modules import Communicator, Drivable, Parameter, Property, Readable, Module
 from frappy.params import Command
+from frappy.errors import RangeError
 
 
 class LN2(Readable):
@@ -95,9 +95,36 @@ class Lower(Communicator):
         """lowercase a string"""
         return str(command).lower()
 
+
 class Mapped(Readable):
     value = Parameter(datatype=StringType())
     choices = Property('List of choices',
                         datatype=ValueType(list))
+
     def read_value(self):
         return self.choices[random.randrange(len(self.choices))]
+
+
+class Commands(Module):
+    """Command argument tests"""
+
+    @Command(argument=TupleOf(FloatRange(0, 1), StringType()), result=StringType())
+    def t(self, f, s):
+        """a command with positional arguments (tuple)"""
+        return '%g %r' % (f, s)
+
+    @Command(argument=StructOf(a=FloatRange(0, 1), b=StringType()), result=StringType())
+    def s(self, a=0, b=''):
+        """a command with keyword arguments (struct)"""
+        return 'a=%r b=%r' % (a, b)
+
+    @Command(result=FloatRange(0, 1))
+    def n(self):
+        """no args, but returning a value"""
+        return 2  # returning a value outside range should be allowed
+
+    @Command(argument=ArrayOf(FloatRange()))
+    def a(self, a):
+        """array argument. raises an error when sum is negativ"""
+        if sum(a) < 0:
+            raise RangeError('sum must be >= 0')
