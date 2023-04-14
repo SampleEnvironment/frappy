@@ -64,7 +64,7 @@ class Switcher(HasIO, ChannelSwitcher):
         # disable unused channels
         for ch in range(1, 16):
             if ch not in self._channels:
-                self.communicate('INSET %d,0,0,0,0,0;INSET?%d' % (ch, ch))
+                self.communicate(f'INSET {ch},0,0,0,0,0;INSET?{ch}')
         channelno, autoscan = literal_eval(self.communicate('SCAN?'))
         if channelno in self._channels and self._channels[channelno].enabled:
             if not autoscan:
@@ -74,7 +74,7 @@ class Switcher(HasIO, ChannelSwitcher):
             if channelno is None:
                 self.status = 'ERROR', 'no enabled channel'
                 return
-        self.communicate('SCAN %d,0;SCAN?' % channelno)
+        self.communicate(f'SCAN {channelno},0;SCAN?')
 
     def doPoll(self):
         """poll buttons
@@ -87,7 +87,7 @@ class Switcher(HasIO, ChannelSwitcher):
         if autoscan:
             # pressed autoscan button: switch off HW autoscan and toggle soft autoscan
             self.autoscan = not self.autoscan
-            self.communicate('SCAN %d,0;SCAN?' % self.value)
+            self.communicate(f'SCAN {self.value},0;SCAN?')
         if channelno != self.value:
             # channel changed by keyboard, do not yet return new channel
             self.write_target(channelno)
@@ -135,7 +135,7 @@ class Switcher(HasIO, ChannelSwitcher):
             self.measure_delay = chan.dwell
 
     def set_active_channel(self, chan):
-        self.communicate('SCAN %d,0;SCAN?' % chan.channel)
+        self.communicate(f'SCAN {chan.channel},0;SCAN?')
         chan._last_range_change = time.monotonic()
         self.set_delays(chan)
 
@@ -187,7 +187,7 @@ class ResChannel(Channel):
             return [self.Status.DISABLED, 'disabled']
         if not self.channel == self.switcher.value == self.switcher.target:
             return Done
-        result = int(self.communicate('RDGST?%d' % self.channel))
+        result = int(self.communicate(f'RDGST?{self.channel}'))
         result &= 0x37  # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistivities)
         statustext = ' '.join(formatStatusBits(result, STATUS_BIT_LABELS))
         if statustext:
@@ -199,7 +199,7 @@ class ResChannel(Channel):
         now = time.monotonic()
         if now + 0.5 < max(self._last_range_change, self.switcher._start_switch) + self.pause:
             return None
-        result = self.communicate('RDGR?%d' % self.channel)
+        result = self.communicate(f'RDGR?{self.channel}')
         result = float(result)
         if self.autorange:
             self.fix_autorange()
@@ -236,7 +236,7 @@ class ResChannel(Channel):
     @CommonReadHandler(rdgrng_params)
     def read_rdgrng(self):
         iscur, exc, rng, autorange, excoff = literal_eval(
-            self.communicate('RDGRNG?%d' % self.channel))
+            self.communicate(f'RDGRNG?{self.channel}'))
         self._prev_rdgrng = iscur, exc
         if autorange:  # pressed autorange button
             if not self._toggle_autorange:
@@ -283,7 +283,7 @@ class ResChannel(Channel):
     def read_inset(self):
         # ignore curve no and temperature coefficient
         enabled, dwell, pause, _, _ = literal_eval(
-            self.communicate('INSET?%d' % self.channel))
+            self.communicate(f'INSET?{self.channel}'))
         self.enabled = enabled
         self.dwell = dwell
         self.pause = pause
@@ -291,7 +291,7 @@ class ResChannel(Channel):
     @CommonWriteHandler(inset_params)
     def write_inset(self, change):
         _, _, _, curve, tempco = literal_eval(
-            self.communicate('INSET?%d' % self.channel))
+            self.communicate(f'INSET?{self.channel}'))
         self.enabled, self.dwell, self.pause, _, _ = literal_eval(
             self.communicate('INSET %d,%d,%d,%d,%d,%d;INSET?%d' % (
                 self.channel, change['enabled'], change['dwell'], change['pause'], curve, tempco,
@@ -303,14 +303,14 @@ class ResChannel(Channel):
             self.switcher.set_delays(self)
 
     def read_filter(self):
-        on, settle, _ = literal_eval(self.communicate('FILTER?%d' % self.channel))
+        on, settle, _ = literal_eval(self.communicate(f'FILTER?{self.channel}'))
         return settle if on else 0
 
     def write_filter(self, value):
         on = 1 if value else 0
         value = max(1, value)
         on, settle, _ = literal_eval(self.communicate(
-            'FILTER %d,%d,%g,80;FILTER?%d' % (self.channel, on, value, self.channel)))
+            f'FILTER {self.channel},{on},{value:g},80;FILTER?{self.channel}'))
         if not on:
             settle = 0
         return settle

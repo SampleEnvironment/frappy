@@ -180,9 +180,8 @@ class TearOffTabWidget(QTabWidget):
             self.detached = detached
 
         def __repr__(self):
-            return 'index %d, widget %r, title %s, visible %r, detached %r' % (
-                self.index, self.widget, self.title, self.visible,
-                self.detached)
+            return f'index {self.index}, widget {self.widget!r}, title {self.title},' \
+                f' visible {self.visible!r}, detached {self.detached!r}'
 
     def __init__(self, item, window, menuwindow, parent=None):
         QTabWidget.__init__(self, parent)

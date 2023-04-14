@@ -198,7 +198,7 @@ class PpmsSim:
 
     def getdat(self, mask):
         mask = int(mask) & 0x8000ff  # all channels up to i2 plus ts
-        output = ['%d' % mask, f'{time.time() - self.start:.2f}']
+        output = [f'{mask}', f'{time.time() - self.start:.2f}']
         for i, chan in self.CHANNELS.items():
             if (1 << i) & mask:
                 output.append(f"{getattr(self, chan):.7g}")

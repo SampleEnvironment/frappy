@@ -128,7 +128,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
 
     power_down_delay = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
                                 default=0.1, group='motorparam')
-    baudrate = Parameter('', EnumType({'%d' % v: i for i, v in enumerate(BAUDRATES)}),
+    baudrate = Parameter('', EnumType({f'{v}': i for i, v in enumerate(BAUDRATES)}),
                          readonly=False, default=0, visibility=3, group='more')
     pollinterval = Parameter(group='more')
 
@@ -154,7 +154,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
             baudrate = getattr(self.io._conn.connection, 'baudrate', None)
             if baudrate:
                 if baudrate not in BAUDRATES:
-                    raise CommunicationFailedError('unsupported baud rate: %d' % baudrate)
+                    raise CommunicationFailedError(f'unsupported baud rate: {int(baudrate)}')
                 self.io.timeout = 0.03 + 200 / baudrate
 
         exc = None
@@ -178,7 +178,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
         if status != 100:
             self.log.warning('bad status from cmd %r %s: %d', cmd, adr, status)
         if radr != 2 or modadr != self.address or cmd != rcmd:
-            raise CommunicationFailedError('bad reply %r to command %s %d' % (reply, cmd, adr))
+            raise CommunicationFailedError(f'bad reply {reply!r} to command {cmd} {adr}')
         return result
 
     def startModule(self, start_events):
@@ -229,8 +229,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
         if readback:
             result = self.comm(GET_AXIS_PAR, adr)
             if result != rawvalue:
-                raise HardwareError('result for adr=%d scale=%g does not match %g != %g'
-                                    % (adr, scale, result * scale, value))
+                raise HardwareError(f'result for adr={adr} scale={scale:g} does not match {result * scale:g} != {value:g}')
             return result * scale
         return rawvalue * scale
 

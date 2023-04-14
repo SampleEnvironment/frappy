@@ -54,7 +54,7 @@ class MainWindow(QMainWindow):
         self.new_files = 0
 
     def on_actionNew(self):
-        name = 'unnamed_%i.cfg' % self.new_files if self.new_files else \
+        name = f'unnamed_{self.new_files}.cfg' if self.new_files else \
             'unnamed.cfg'
         self.new_node(name)
         self.new_files += 1

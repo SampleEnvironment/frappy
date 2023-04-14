@@ -104,7 +104,7 @@ class EnumMember:
 
     # be human readable (for debugging)
     def __repr__(self):
-        return '<%s%s (%d)>' % (self.enum.name + '.' if self.enum.name else '', self.name, self.value)
+        return f"<{self.enum.name + '.' if self.enum.name else ''}{self.name} ({self.value})>"
 
     def __bool__(self):
         return bool(self.value)
@@ -285,9 +285,9 @@ class Enum(dict):
 
             # check for duplicates
             if self.get(k, v) != v:
-                raise TypeError('%s=%d conflicts with %s=%d' % (k, v, k, self[k]))
+                raise TypeError(f'{k}={v} conflicts with {k}={self[k]}')
             if self.get(v, k) != k:
-                raise TypeError('%s=%d conflicts with %s=%d' % (k, v, self[v].name, v))
+                raise TypeError(f'{k}={v} conflicts with {self[v].name}={v}')
 
             # remember it
             self[v] = self[k] = EnumMember(self, k, v)

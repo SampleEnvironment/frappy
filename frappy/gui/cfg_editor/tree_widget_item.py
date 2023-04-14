@@ -72,8 +72,7 @@ class TreeWidgetItem(QTreeWidgetItem):
 
     def duplicate(self):
         self.duplicates += 1
-        duplicate = TreeWidgetItem(self.kind, '%s_%i' % (self.name,
-                                   self.duplicates), self.get_value(),
+        duplicate = TreeWidgetItem(self.kind, f'{self.name}_{self.duplicates}', self.get_value(),
                                    self.class_object)
         self.parent().addChild(duplicate)
         for i in range(self.childCount()):

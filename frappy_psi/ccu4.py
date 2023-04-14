@@ -96,4 +96,4 @@ class HeLevel(HasIO, Readable):
         return self.query('hf')
 
     def write_sample_rate(self, value):
-        return self.query('hf=%d' % value)
+        return self.query(f'hf={int(value)}')

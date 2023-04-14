@@ -245,8 +245,7 @@ def formatExtendedTraceback(exc_info=None):
     while tb is not None:
         frame = tb.tb_frame
         filename = frame.f_code.co_filename
-        item = '  File "%s", line %d, in %s\n' % (filename, tb.tb_lineno,
-                                                  frame.f_code.co_name)
+        item = f'  File "{filename}", line {tb.tb_lineno}, in {frame.f_code.co_name}\n'
         linecache.checkcache(filename)
         line = linecache.getline(filename, tb.tb_lineno, frame.f_globals)
         if line:
@@ -267,7 +266,7 @@ def formatExtendedStack(level=1):
         co = f.f_code
         filename = co.co_filename
         name = co.co_name
-        item = '  File "%s", line %d, in %s\n' % (filename, lineno, name)
+        item = f'  File "{filename}", line {lineno}, in {name}\n'
         linecache.checkcache(filename)
         line = linecache.getline(filename, lineno, f.f_globals)
         if line:

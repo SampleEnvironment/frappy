@@ -59,11 +59,11 @@ class Ls370Sim(Communicator):
     def simulate(self):
         # not really a simulation. just for testing RDGST
         for channel in self.CHANNELS:
-            _, _, _, _, excoff = self._data['RDGRNG?%d' % channel].split(',')
+            _, _, _, _, excoff = self._data[f'RDGRNG?{channel}'].split(',')
             if excoff == '1':
-                self._data['RDGST?%d' % channel] = '6'
+                self._data[f'RDGST?{channel}'] = '6'
             else:
-                self._data['RDGST?%d' % channel] = '0'
+                self._data[f'RDGST?{channel}'] = '0'
 
     def communicate(self, command):
         self.comLog(f'> {command}')

@@ -97,7 +97,7 @@ class Router(frappy.protocol.dispatcher.Dispatcher):
             self.nodes = [SecopClient(uri, logger.getChild('routed'), self)]
             self.singlenode = self.nodes[0]
         else:
-            self.nodes = [SecopClient(uri, logger.getChild('routed%d' % i), self) for i, uri in enumerate(uris)]
+            self.nodes = [SecopClient(uri, logger.getChild(f'routed{i}'), self) for i, uri in enumerate(uris)]
         # register callbacks
         for node in self.nodes:
             node.register_callback(None, node.updateEvent, node.descriptiveDataChange, node.nodeStateChange)

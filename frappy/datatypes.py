@@ -324,8 +324,7 @@ class IntRange(DataType):
         # check the limits
         if self.min <= value <= self.max:
             return value
-        raise RangeError('%r must be between %d and %d' %
-                         (value, self.min, self.max))
+        raise RangeError(f'{value!r} must be between {self.min} and {self.max}')
 
     def __repr__(self):
         args = (self.min, self.max)
@@ -348,7 +347,7 @@ class IntRange(DataType):
         return self(value)
 
     def format_value(self, value, unit=None):
-        return '%d' % value
+        return f'{value}'
 
     def compatible(self, other):
         if isinstance(other, (IntRange, FloatRange, ScaledInteger)):
@@ -564,7 +563,7 @@ class BLOBType(DataType):
         return self.get_info(type='blob')
 
     def __repr__(self):
-        return 'BLOBType(%d, %d)' % (self.minbytes, self.maxbytes)
+        return f'BLOBType({self.minbytes}, {self.maxbytes})'
 
     def __call__(self, value):
         """accepts bytes only"""
@@ -573,10 +572,10 @@ class BLOBType(DataType):
         size = len(value)
         if size < self.minbytes:
             raise RangeError(
-                '%r must be at least %d bytes long!' % (value, self.minbytes))
+                f'{value!r} must be at least {self.minbytes} bytes long!')
         if size > self.maxbytes:
             raise RangeError(
-                '%r must be at most %d bytes long!' % (value, self.maxbytes))
+                f'{value!r} must be at most {self.maxbytes} bytes long!')
         return value
 
     def export_value(self, value):
@@ -643,10 +642,10 @@ class StringType(DataType):
         size = len(value)
         if size < self.minchars:
             raise RangeError(
-                '%s must be at least %d chars long!' % (shortrepr(value), self.minchars))
+                f'{shortrepr(value)} must be at least {self.minchars} chars long!')
         if size > self.maxchars:
             raise RangeError(
-                '%s must be at most %d chars long!' % (shortrepr(value), self.maxchars))
+                f'{shortrepr(value)} must be at most {self.maxchars} chars long!')
         if '\0' in value:
             raise RangeError(
                 'Strings are not allowed to embed a \\0! Use a Blob instead!')
@@ -690,7 +689,7 @@ class TextType(StringType):
     def __repr__(self):
         if self.maxchars == UNLIMITED:
             return 'TextType()'
-        return 'TextType(%d)' % self.maxchars
+        return f'TextType({self.maxchars})'
 
     def copy(self):
         # DataType.copy will not work, because it is exported as 'string'
@@ -799,11 +798,10 @@ class ArrayOf(DataType):
             # check number of elements
             if self.minlen is not None and len(value) < self.minlen:
                 raise RangeError(
-                    'array too small, needs at least %d elements!' %
-                    self.minlen)
+                    f'array too small, needs at least {self.minlen} elements!')
             if self.maxlen is not None and len(value) > self.maxlen:
                 raise RangeError(
-                    'array too big, holds at most %d elements!' % self.maxlen)
+                    f'array too big, holds at most {self.maxlen} elements!')
         except TypeError:
             raise WrongTypeError(f'{type(value).__name__} can not be converted to ArrayOf DataType!') from None
 

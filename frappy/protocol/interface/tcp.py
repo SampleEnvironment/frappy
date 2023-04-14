@@ -94,7 +94,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 if origin in (HELP, b''):  # empty string -> send help message
                     for idx, line in enumerate(HelpMessage.splitlines()):
                         # not sending HELPREPLY here, as there should be only one reply for every request
-                        self.send_reply(('_', '%d' % (idx+1), line))
+                        self.send_reply(('_', f'{idx + 1}', line))
                     # ident matches request
                     self.send_reply((HELPREPLY, None, None))
                     continue
@@ -181,7 +181,7 @@ class TCPServer(socketserver.ThreadingTCPServer):
     # for cfg-editor
     configurables = {
         'uri': Property('hostname or ip address for binding', StringType(),
-                        default='tcp://%d' % DEF_PORT, export=False),
+                        default=f'tcp://{DEF_PORT}', export=False),
         'detailed_errors': Property('Flag to enable detailed Errorreporting.', BoolType(),
                                     default=False, export=False),
     }

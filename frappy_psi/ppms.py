@@ -94,7 +94,7 @@ class Main(Communicator):
             if channel.enabled:
                 mask |= 1 << self._channel_to_index.get(channelname, 0)
         # send, read and convert to floats and ints
-        data = self.communicate('GETDAT? %d' % mask)
+        data = self.communicate(f'GETDAT? {mask}')
         reply = data.split(',')
         mask = int(reply.pop(0))
         reply.pop(0)  # pop timestamp
@@ -204,7 +204,7 @@ class DriverChannel(Channel):
     @CommonReadHandler(param_names)
     def read_params(self):
         no, self.current, self.powerlimit = literal_eval(
-            self.communicate('DRVOUT? %d' % self.no))
+            self.communicate(f'DRVOUT? {self.no}'))
         if self.no != no:
             raise HardwareError('DRVOUT command: channel number in reply does not match')
 
@@ -215,7 +215,7 @@ class DriverChannel(Channel):
         :param values: a dict like object containing the parameters to be written
         """
         self.read_params()  # make sure parameters are up to date
-        self.comm_write('DRVOUT %(no)d,%(current)g,%(powerlimit)g' % values)
+        self.comm_write(f"DRVOUT {values['no']},{values['current']:g},{values['powerlimit']:g}")
         self.read_params()  # read back
 
 
@@ -238,7 +238,7 @@ class BridgeChannel(Channel):
     @CommonReadHandler(param_names)
     def read_params(self):
         no, excitation, powerlimit, self.dcflag, self.readingmode, voltagelimit = literal_eval(
-            self.communicate('BRIDGE? %d' % self.no))
+            self.communicate(f'BRIDGE? {self.no}'))
         if self.no != no:
             raise HardwareError('DRVOUT command: channel number in reply does not match')
         self.enabled = excitation != 0 and powerlimit != 0 and voltagelimit != 0
@@ -260,8 +260,9 @@ class BridgeChannel(Channel):
             values['excitation'] = 0
             values['powerlimit'] = 0
             values['voltagelimit'] = 0
-        self.comm_write('BRIDGE %(no)d,%(enabled)g,%(powerlimit)g,%(dcflag)d,'
-                        '%(readingmode)d,%(voltagelimit)g' % values)
+        self.comm_write(f"BRIDGE {values['no']},{values['enabled']:g},' \
+            f'{values['powerlimit']:g},{int(values['dcflag'])},{int(values['readingmode'])},' \
+            f'{values['voltagelimit']:g}")
         self.read_params()  # read back
 
 
@@ -322,7 +323,7 @@ class Chamber(PpmsDrivable):
             self.status = self.status_map[status_code]
         else:
             self.value = self.value_map['unknown']
-            self.status = (StatusType.ERROR, 'unknown status code %d' % status_code)
+            self.status = (StatusType.ERROR, f'unknown status code {status_code}')
 
     def read_target(self):
         opcode = int(self.communicate('CHAMBER?'))
@@ -332,7 +333,7 @@ class Chamber(PpmsDrivable):
         if value == self.target.noop:
             return self.target.noop
         opcode = self.name2opcode[self.target.enum(value).name]
-        assert self.communicate('CHAMBER %d' % opcode) == 'OK'
+        assert self.communicate(f'CHAMBER {opcode}') == 'OK'
         return self.read_target()
 
 
@@ -408,7 +409,7 @@ class Temp(PpmsDrivable):
         self.calc_expected(setpoint, ramp)
         self.log.debug(
             'change_temp v %r s %r r %r w %r l %r', self.value, setpoint, ramp, wait_at10, ramp_at_limit)
-        self.comm_write('TEMP %g,%g,%d' % (setpoint, ramp, approachmode))
+        self.comm_write(f'TEMP {setpoint:g},{ramp:g},{int(approachmode)}')
         self.read_params()
 
     def update_value_status(self, value, packed_status):
@@ -417,7 +418,7 @@ class Temp(PpmsDrivable):
             return
         self.value = value
         status_code = packed_status & 0xf
-        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, 'unknown status code %d' % status_code))
+        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, f'unknown status code {status_code}'))
         now = time.time()
         if value > 11:
             # when starting from T > 50, this will be 15 min.
@@ -542,8 +543,7 @@ class Field(PpmsDrivable):
         self.ramp = ramp * 6e-3
 
     def _write_params(self, target, ramp, approachmode, persistentmode):
-        self.comm_write('FIELD %g,%g,%d,%d' % (
-            target * 1e+4, ramp / 6e-3, approachmode, persistentmode))
+        self.comm_write(f'FIELD {target * 10000.0:g},{ramp / 0.006:g},{int(approachmode)},{int(persistentmode)}')
         self.read_params()
 
     def update_value_status(self, value, packed_status):
@@ -552,7 +552,7 @@ class Field(PpmsDrivable):
             return
         self.value = round(value * 1e-4, 7)
         status_code = (packed_status >> 4) & 0xf
-        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, 'unknown status code %d' % status_code))
+        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, f'unknown status code {status_code}'))
         now = time.time()
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             if status_code == 1:  # persistent mode
@@ -661,7 +661,7 @@ class Position(PpmsDrivable):
 
     def _write_params(self, target, speed):
         speed = int(round(min(14, max(0, 15 - speed / 0.8)), 0))
-        self.comm_write('MOVE %g,%d,%d' % (target, 0, speed))
+        self.comm_write(f'MOVE {target:g},{0},{speed}')
         return self.read_params()
 
     def update_value_status(self, value, packed_status):
@@ -673,7 +673,7 @@ class Position(PpmsDrivable):
             return
         self.value = value
         status_code = (packed_status >> 12) & 0xf
-        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, 'unknown status code %d' % status_code))
+        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, f'unknown status code {status_code}'))
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             now = time.time()
             if now > self._last_change + 5:
