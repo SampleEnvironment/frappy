@@ -338,7 +338,7 @@ class AddDialog(QDialog):
                             the value from self.value"""
         super().__init__(parent)
         loadUi(self, 'add_dialog.ui')
-        self.setWindowTitle('Add %s' % kind)
+        self.setWindowTitle(f'Add {kind}')
         self.kind = kind
         self.invalid_names = invalid_names
         if self.invalid_names:
@@ -478,7 +478,7 @@ class TreeComboBox(QComboBox):
         act_item = act_index.model().itemFromIndex(act_index)
         value += act_item.text()
         while act_item.parent():
-            value = '%s.%s' % (act_item.parent().text(), value)
+            value = f'{act_item.parent().text()}.{value}'
             act_item = act_item.parent()
         return value
 

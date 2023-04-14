@@ -78,7 +78,7 @@ class SourceMeter(HasIO, Module):
     def write_ilimit(self, value):
         if self.mode == 'current':
             return self.ilimit
-        return float(self.communicate('smua.source.limiti = %g print(smua.source.limiti)' % value))
+        return float(self.communicate(f'smua.source.limiti = {value:g} print(smua.source.limiti)'))
 
     def read_vlimit(self):
         if self.mode == 'voltage':
@@ -88,7 +88,7 @@ class SourceMeter(HasIO, Module):
     def write_vlimit(self, value):
         if self.mode == 'voltage':
             return self.ilimit
-        return float(self.communicate('smua.source.limitv = %g print(smua.source.limitv)' % value))
+        return float(self.communicate(f'smua.source.limitv = {value:g} print(smua.source.limitv)'))
 
 
 class Power(HasIO, Readable):
@@ -130,7 +130,7 @@ class Current(HasIO, Writable):
             raise ValueError('current exceeds limit')
         if not self.active:
             self.sourcemeter.write_mode('current')   # triggers update_mode -> set active to True
-        value = float(self.communicate('smua.source.leveli = %g print(smua.source.leveli)' % value))
+        value = float(self.communicate(f'smua.source.leveli = {value:g} print(smua.source.leveli)'))
         return value
 
     def read_limit(self):
@@ -176,7 +176,7 @@ class Voltage(HasIO, Writable):
             raise ValueError('voltage exceeds limit')
         if not self.active:
             self.sourcemeter.write_mode('voltage')  # triggers update_mode -> set active to True
-        value = float(self.communicate('smua.source.levelv = %g print(smua.source.levelv)' % value))
+        value = float(self.communicate(f'smua.source.levelv = {value:g} print(smua.source.levelv)'))
         return value
 
     def read_limit(self):

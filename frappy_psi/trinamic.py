@@ -334,9 +334,9 @@ class Motor(PersistentMixin, HasIO, Drivable):
             return IDLE, ''
         if self.auto_reset:
             self._need_reset = True
-            return IDLE, 'stalled: %s' % reason
+            return IDLE, f'stalled: {reason}'
         self.log.error('out of tolerance by %.3g (%s)', diff, reason)
-        return ERROR, 'out of tolerance (%s)' % reason
+        return ERROR, f'out of tolerance ({reason})'
 
     def write_target(self, target):
         for _ in range(2):  # for auto reset
@@ -345,8 +345,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
                     abs(target - self.encoder) > self.move_limit + self.tolerance):
                 # pylint: disable=bad-string-format-type
                 # pylint wrongly does not recognise encoder as a descriptor
-                raise RangeError('can not move more than %g deg (%g -> %g)' %
-                                 (self.move_limit, self.encoder, target))
+                raise RangeError(f'can not move more than {self.move_limit:g} deg ({self.encoder:g} -> {target:g})')
             diff = self.encoder - self.steppos
             if self._need_reset:
                 if self.auto_reset:
@@ -359,7 +358,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
                     if self.status[0] == IDLE:
                         continue
                     raise HardwareError('auto reset failed')
-                raise HardwareError('need reset (%s)' % self.status[1])
+                raise HardwareError(f'need reset ({self.status[1]})')
             break
         if abs(diff) > self.tolerance:
             if abs(diff) > self.encoder_tolerance and self.has_encoder:

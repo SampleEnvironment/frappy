@@ -211,7 +211,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.log.error('error in addNode: %r', e)
             QMessageBox.critical(self.parent(),
-                                 'Connecting to %s failed!' % host, str(e))
+                                 f'Connecting to {host} failed!', str(e))
 
     def _addNode(self, host):
         prevWidget = self._nodeWidgets.get(host)

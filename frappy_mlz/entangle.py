@@ -123,13 +123,11 @@ def describe_dev_error(exc):
         m = re.search(r'Command (\w+) not allowed when the '
                       r'device is in (\w+) state', fulldesc)
         if m:
-            fulldesc = 'executing %r not allowed in state %s' \
-                % (m.group(1), m.group(2))
+            fulldesc = f'executing {m.group(1)!r} not allowed in state {m.group(2)}'
     elif reason == 'API_DeviceNotExported':
         m = re.search(r'Device ([\w/]+) is not', fulldesc)
         if m:
-            fulldesc = 'Tango device %s is not exported, is the server ' \
-                'running?' % m.group(1)
+            fulldesc = f'Tango device {m.group(1)} is not exported, is the server running?'
     elif reason == 'API_CorbaException':
         if 'TRANSIENT_CallTimedout' in fulldesc:
             fulldesc = 'Tango client-server call timed out'
@@ -139,15 +137,14 @@ def describe_dev_error(exc):
     elif reason == 'API_CantConnectToDevice':
         m = re.search(r'connect to device ([\w/]+)', fulldesc)
         if m:
-            fulldesc = 'connection to Tango device %s failed, is the server ' \
-                'running?' % m.group(1)
+            fulldesc = f'connection to Tango device {m.group(1)} failed, is the server running?'
     elif reason == 'API_CommandTimedOut':
         if 'acquire serialization' in fulldesc:
             fulldesc = 'Tango call timed out waiting for lock on server'
 
     # append origin if wanted
     if origin:
-        fulldesc += ' in %s' % origin
+        fulldesc += f' in {origin}'
     return fulldesc
 
 
@@ -568,8 +565,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         amin, amax = self.abslimits
         if umin > umax:
             raise ValueError(
-                self, 'user minimum (%s) above the user '
-                'maximum (%s)' % (umin, umax))
+                self, f'user minimum ({umin}) above the user maximum ({umax})')
         if umin < amin - abs(amin * 1e-12):
             umin = amin
         if umax > amax + abs(amax * 1e-12):
@@ -831,7 +827,7 @@ class NamedDigitalInput(DigitalInput):
                 mapping = eval(mapping)
             self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
         except Exception as e:
-            raise ValueError('Illegal Value for mapping: %r' % self.mapping) from e
+            raise ValueError(f'Illegal Value for mapping: {self.mapping!r}') from e
 
     def read_value(self):
         value = self._dev.value
@@ -909,7 +905,7 @@ class NamedDigitalOutput(DigitalOutput):
             self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
             self.accessibles['target'].setProperty('datatype', EnumType('target', **mapping))
         except Exception as e:
-            raise ValueError('Illegal Value for mapping: %r' % self.mapping) from e
+            raise ValueError(f'Illegal Value for mapping: {self.mapping!r}') from e
 
     def write_target(self, value):
         # map from enum-str to integer value

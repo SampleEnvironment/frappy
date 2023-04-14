@@ -92,8 +92,8 @@ class Accessible(HasProperties):
     def __repr__(self):
         props = []
         for k, v in sorted(self.propertyValues.items()):
-            props.append('%s=%r' % (k, v))
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(props))
+            props.append(f'{k}={v!r}')
+        return f"{self.__class__.__name__}({', '.join(props)})"
 
 
 class Parameter(Accessible):
@@ -227,7 +227,7 @@ class Parameter(Accessible):
             elif predefined_cls is None:
                 self.export = '_' + self.name
             else:
-                raise ProgrammingError('can not use %r as name of a Parameter' % self.name)
+                raise ProgrammingError(f'can not use {self.name!r} as name of a Parameter')
             if 'export' in self.ownProperties:
                 # avoid export=True overrides export=<name>
                 self.ownProperties['export'] = self.export
@@ -317,10 +317,9 @@ class Parameter(Accessible):
                 try:
                     self.datatype.setProperty(key, value)
                 except KeyError:
-                    raise ProgrammingError('cannot set %s on parameter with datatype %s'
-                                           % (key, type(self.datatype).__name__)) from None
+                    raise ProgrammingError(f'cannot set {key} on parameter with datatype {type(self.datatype).__name__}') from None
         except BadValueError as e:
-            raise ProgrammingError('property %s: %s' % (key, str(e))) from None
+            raise ProgrammingError(f'property {key}: {str(e)}') from None
 
     def checkProperties(self):
         super().checkProperties()
@@ -395,8 +394,7 @@ class Command(Accessible):
     def __set_name__(self, owner, name):
         self.name = name
         if self.func is None:
-            raise ProgrammingError('Command %s.%s must be used as a method decorator' %
-                                   (owner.__name__, name))
+            raise ProgrammingError(f'Command {owner.__name__}.{name} must be used as a method decorator')
 
         self.datatype = CommandType(self.argument, self.result)
         if self.export is True:
@@ -406,7 +404,7 @@ class Command(Accessible):
             elif predefined_cls is None:
                 self.export = '_' + name
             else:
-                raise ProgrammingError('can not use %r as name of a Command' % name) from None
+                raise ProgrammingError(f'can not use {name!r} as name of a Command') from None
             if 'export' in self.ownProperties:
                 # avoid export=True overrides export=<name>
                 self.ownProperties['export'] = self.export
@@ -419,7 +417,7 @@ class Command(Accessible):
         if obj is None:
             return self
         if not self.func:
-            raise ProgrammingError('Command %s not properly configured' % self.name) from None
+            raise ProgrammingError(f'Command {self.name} not properly configured') from None
         return self.func.__get__(obj, owner)
 
     def __call__(self, func):
@@ -452,7 +450,7 @@ class Command(Accessible):
 
         this is needed when the @Command is missing on a method overriding a command"""
         if not callable(value):
-            raise ProgrammingError('%s = %r is overriding a Command' % (self.name, value))
+            raise ProgrammingError(f'{self.name} = {value!r} is overriding a Command')
         self.func = value
         if value.__doc__:
             self.description = inspect.cleandoc(value.__doc__)
@@ -478,7 +476,7 @@ class Command(Accessible):
                 super().setProperty('result', command.result)
             super().setProperty(key, value)
         except ValueError as e:
-            raise ProgrammingError('property %s: %s' % (key, str(e))) from None
+            raise ProgrammingError(f'property {key}: {str(e)}') from None
 
     def do(self, module_obj, argument):
         """perform function call
@@ -504,7 +502,7 @@ class Command(Accessible):
                 res = func(argument)
         else:
             if argument is not None:
-                raise WrongTypeError('%s.%s takes no arguments' % (module_obj.__class__.__name__, self.name))
+                raise WrongTypeError(f'{module_obj.__class__.__name__}.{self.name} takes no arguments')
             res = func()
         if self.result:
             return self.result(res)
@@ -515,7 +513,7 @@ class Command(Accessible):
 
     def __repr__(self):
         result = super().__repr__()
-        return result[:-1] + ', %r)' % self.func if self.func else result
+        return result[:-1] + f', {self.func!r})' if self.func else result
 
 
 # list of predefined accessibles with their type

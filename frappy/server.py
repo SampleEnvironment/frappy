@@ -123,8 +123,7 @@ class Server:
             self.run()
 
     def unknown_options(self, cls, options):
-        return ("%s class don't know how to handle option(s): %s" %
-                (cls.__name__, ', '.join(options)))
+        return f"{cls.__name__} class don't know how to handle option(s): {', '.join(options)}"
 
     def run(self):
         while self._restart:
@@ -189,24 +188,24 @@ class Server:
                 cls = get_class(classname)
             except Exception as e:
                 if str(e) == 'no such class':
-                    errors.append('%s not found' % classname)
+                    errors.append(f'{classname} not found')
                 else:
                     failed.add(pymodule)
                     if failure_traceback is None:
                         failure_traceback = traceback.format_exc()
-                    errors.append('error importing %s' % classname)
+                    errors.append(f'error importing {classname}')
             else:
                 try:
                     modobj = cls(modname, self.log.getChild(modname), opts, self)
                     self.modules[modname] = modobj
                 except ConfigError as e:
-                    errors.append('error creating module %s:' % modname)
+                    errors.append(f'error creating module {modname}:')
                     for errtxt in e.args[0] if isinstance(e.args[0], list) else [e.args[0]]:
                         errors.append('  ' + errtxt)
                 except Exception:
                     if failure_traceback is None:
                         failure_traceback = traceback.format_exc()
-                    errors.append('error creating %s' % modname)
+                    errors.append(f'error creating {modname}')
 
         missing_super = set()
         # all objs created, now start them up and interconnect
@@ -216,8 +215,7 @@ class Server:
             # also call earlyInit on the modules
             modobj.earlyInit()
             if not modobj.earlyInitDone:
-                missing_super.add('%s was not called, probably missing super call'
-                                  % modobj.earlyInit.__qualname__)
+                missing_super.add(f'{modobj.earlyInit.__qualname__} was not called, probably missing super call')
 
         # handle attached modules
         for modname, modobj in self.modules.items():
@@ -231,10 +229,10 @@ class Server:
                             if isinstance(attobj, propobj.basecls):
                                 attached_modules[propname] = attobj
                             else:
-                                errors.append('attached module %s=%r must inherit from %r'
-                                              % (propname, attname, propobj.basecls.__qualname__))
+                                errors.append(f'attached module {propname}={attname!r} '\
+                                              f'must inherit from {propobj.basecls.__qualname__!r}')
                     except SECoPError as e:
-                        errors.append('module %s, attached %s: %s' % (modname, propname, str(e)))
+                        errors.append(f'module {modname}, attached {propname}: {str(e)}')
             modobj.attachedModules = attached_modules
 
         # call init on each module after registering all
@@ -242,22 +240,20 @@ class Server:
             try:
                 modobj.initModule()
                 if not modobj.initModuleDone:
-                    missing_super.add('%s was not called, probably missing super call'
-                                      % modobj.initModule.__qualname__)
+                    missing_super.add(f'{modobj.initModule.__qualname__} was not called, probably missing super call')
             except Exception as e:
                 if failure_traceback is None:
                     failure_traceback = traceback.format_exc()
-                errors.append('error initializing %s: %r' % (modname, e))
+                errors.append(f'error initializing {modname}: {e!r}')
 
         if not self._testonly:
             start_events = MultiEvent(default_timeout=30)
             for modname, modobj in self.modules.items():
                 # startModule must return either a timeout value or None (default 30 sec)
-                start_events.name = 'module %s' % modname
+                start_events.name = f'module {modname}'
                 modobj.startModule(start_events)
                 if not modobj.startModuleDone:
-                    missing_super.add('%s was not called, probably missing super call'
-                                      % modobj.startModule.__qualname__)
+                    missing_super.add(f'{modobj.startModule.__qualname__} was not called, probably missing super call')
             errors.extend(missing_super)
 
         if errors:

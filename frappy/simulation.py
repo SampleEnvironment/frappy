@@ -37,7 +37,7 @@ class SimBase:
         if extra_params:
             for k in extra_params['value'].split(','):
                 k = k.strip()
-                attrs[k] = Parameter('extra_param: %s' % k.strip(),
+                attrs[k] = Parameter(f'extra_param: {k.strip()}',
                                      datatype=FloatRange(),
                                      default=0.0)
 
@@ -54,7 +54,7 @@ class SimBase:
 
                 attrs['write_' + k] = writer
 
-        return object.__new__(type('SimBase_%s' % devname, (cls,), attrs))
+        return object.__new__(type(f'SimBase_{devname}', (cls,), attrs))
 
     def initModule(self):
         super().initModule()

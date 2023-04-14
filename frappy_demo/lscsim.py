@@ -66,7 +66,7 @@ class Ls370Sim(Communicator):
                 self._data['RDGST?%d' % channel] = '0'
 
     def communicate(self, command):
-        self.comLog('> %s' % command)
+        self.comLog(f'> {command}')
 
         chunks = command.split(';')
         reply = []
@@ -86,7 +86,7 @@ class Ls370Sim(Communicator):
                         self.data[qcmd] = arg
                         break
         reply = ';'.join(reply)
-        self.comLog('< %s' % reply)
+        self.comLog(f'< {reply}')
         return reply
 
 

@@ -55,7 +55,7 @@ class HasIO(Module):
         io = opts.get('io')
         super().__init__(name, logger, opts, srv)
         if self.uri:
-            opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
+            opts = {'uri': self.uri, 'description': f'communication device for {name}',
                     'export': False}
             ioname = self.ioDict.get(self.uri)
             if not ioname:
@@ -66,7 +66,7 @@ class HasIO(Module):
                 self.ioDict[self.uri] = ioname
             self.io = ioname
         elif not io:
-            raise ConfigError("Module %s needs a value for either 'uri' or 'io'" % name)
+            raise ConfigError(f"Module {name} needs a value for either 'uri' or 'io'")
 
     def communicate(self, *args):
         return self.io.communicate(*args)
@@ -228,14 +228,14 @@ class StringIO(IOBase):
             return bytes([value])
         if isinstance(value, bytes):
             return value
-        raise ValueError('invalid end_of_line: %s' % repr(value))
+        raise ValueError(f'invalid end_of_line: {repr(value)}')
 
     def earlyInit(self):
         super().earlyInit()
         eol = self.end_of_line
         if isinstance(eol, (tuple, list)):
             if len(eol) not in (1, 2):
-                raise ValueError('invalid end_of_line: %s' % eol)
+                raise ValueError(f'invalid end_of_line: {eol}')
         else:
             eol = [eol]
         # eol for read and write might be distinct
@@ -253,8 +253,7 @@ class StringIO(IOBase):
                 reply = self.communicate(command)
                 if not re.match(regexp, reply):
                     self.closeConnection()
-                    raise CommunicationFailedError('bad response: %s does not match %s' %
-                                                   (reply, regexp))
+                    raise CommunicationFailedError(f'bad response: {reply} does not match {regexp}')
 
     @Command(StringType(), result=StringType())
     def communicate(self, command):
@@ -340,7 +339,7 @@ def make_bytes(string):
 
 
 def hexify(bytes_):
-    return ' '.join('%02x' % r for r in bytes_)
+    return ' '.join(f'{r:02x}' for r in bytes_)
 
 
 class BytesIO(IOBase):
@@ -365,7 +364,7 @@ class BytesIO(IOBase):
                 reply = self.communicate(make_bytes(request), replylen)
                 if not replypat.match(reply):
                     self.closeConnection()
-                    raise CommunicationFailedError('bad response: %r does not match %r' % (reply, expected))
+                    raise CommunicationFailedError(f'bad response: {reply!r} does not match {expected!r}')
 
     @Command((BLOBType(), IntRange(0)), result=BLOBType())
     def communicate(self, request, replylen):  # pylint: disable=arguments-differ

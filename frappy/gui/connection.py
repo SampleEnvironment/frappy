@@ -42,7 +42,7 @@ class QSECNode(QObject):
         self.equipmentId = conn.properties['equipment_id']
         self.log.info('Switching to logger %s', self.equipmentId)
         self.log.name = '.'.join((parent_logger.name, self.equipmentId))
-        self.nodename = '%s (%s)' % (self.equipmentId, conn.uri)
+        self.nodename = f'{self.equipmentId} ({conn.uri})'
         self.modules = conn.modules
         self.properties = self.conn.properties
         self.protocolVersion = conn.secop_version
@@ -106,7 +106,7 @@ class QSECNode(QObject):
         self.stateChange.emit(self.nodename, online, state)
 
     def unhandledMessage(self, action, specifier, data):
-        self.unhandledMsg.emit('%s %s %r' % (action, specifier, data))
+        self.unhandledMsg.emit(f'{action} {specifier} {data!r}')
 
     def terminate_connection(self):
         self.conn.disconnect()

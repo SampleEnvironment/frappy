@@ -34,7 +34,7 @@ class CommandDialog(QDialog):
         super().__init__(parent)
         loadUi(self, 'cmddialog.ui')
 
-        self.setWindowTitle('Arguments for %s' % cmdname)
+        self.setWindowTitle(f'Arguments for {cmdname}')
         # row = 0
 
         self._labels = []
@@ -65,15 +65,14 @@ class CommandDialog(QDialog):
 def showCommandResultDialog(command, args, result, extras=''):
     m = QMessageBox()
     args = '' if args is None else repr(args)
-    m.setText('calling: %s(%s)\nyielded: %r\nqualifiers: %s' %
-              (command, args, result, extras))
+    m.setText(f'calling: {command}({args})\nyielded: {result!r}\nqualifiers: {extras}')
     m.exec()
 
 
 def showErrorDialog(command, args, error):
     m = QMessageBox()
     args = '' if args is None else repr(args)
-    m.setText('calling: %s(%s)\nraised %r' % (command, args, error))
+    m.setText(f'calling: {command}({args})\nraised {error!r}')
     m.exec()
 
 
@@ -271,7 +270,7 @@ class ModuleWidget(QWidget):
         for prop, value in props.items():
             l = QHBoxLayout()
             l.setContentsMargins(0,0,0,0)
-            name = QLabel('<b>%s:</b>' % prop.capitalize())
+            name = QLabel(f'<b>{prop.capitalize()}:</b>')
             val = QLabel(str(value))
             val.setWordWrap(True)
             l.addWidget(name)
@@ -353,7 +352,7 @@ class ModuleWidget(QWidget):
             return
         plotButton = QToolButton()
         plotButton.setIcon(QIcon(':/icons/plot'))
-        plotButton.setToolTip('Plot %s' % param)
+        plotButton.setToolTip(f'Plot {param}')
         plotAddButton = QToolButton()
         plotAddButton.setIcon(QIcon(':/icons/plot-add'))
         plotAddButton.setToolTip('Plot With...')

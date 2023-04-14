@@ -48,7 +48,7 @@ class NamedList:
         return setattr(self, self.__keys__[index], value)
 
     def __repr__(self):
-        return ",".join("%.7g" % val for val in self.aslist())
+        return ",".join(f"{val:.7g}" for val in self.aslist())
 
 
 class PpmsSim:
@@ -198,10 +198,10 @@ class PpmsSim:
 
     def getdat(self, mask):
         mask = int(mask) & 0x8000ff  # all channels up to i2 plus ts
-        output = ['%d' % mask, '%.2f' % (time.time() - self.start)]
+        output = ['%d' % mask, f'{time.time() - self.start:.2f}']
         for i, chan in self.CHANNELS.items():
             if (1 << i) & mask:
-                output.append("%.7g" % getattr(self, chan))
+                output.append(f"{getattr(self, chan):.7g}")
         return ",".join(output)
 
 
@@ -219,12 +219,12 @@ class QDevice:
                 name, args = command.split('?')
                 name += args.strip()
                 result = getattr(self.sim, name.lower()).aslist()
-                result =  ",".join("%.7g" % arg for arg in result)
+                result =  ",".join(f"{arg:.7g}" for arg in result)
                 # print(command, '/', result)
         else:
             # print(command)
             name, args = command.split()
-            args = json.loads("[%s]" % args)
+            args = json.loads(f"[{args}]")
             if name.startswith('BRIDGE') or name.startswith('DRVOUT'):
                 name = name + str(int(args[0]))
             getattr(self.sim, name.lower()).setvalues(args)

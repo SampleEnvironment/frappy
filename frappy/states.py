@@ -85,11 +85,11 @@ class HasStates:
         if sm.next_task:
             if isinstance(sm.next_task, Stop):
                 if newstate and status is not None:
-                    status = status[0], 'stopping (%s)' % status[1]
+                    status = status[0], f'stopping ({status[1]})'
             elif newstate:
                 # restart case
                 if status is not None:
-                    status = sm.status[0], 'restarting (%s)' % status[1]
+                    status = sm.status[0], f'restarting ({status[1]})'
             else:
                 # start case
                 status = self.get_status(sm.next_task.newstate, BUSY)

@@ -102,11 +102,11 @@ class GeneralConfig:
             if cfg.get('confdir') is None:
                 cfg['confdir'] = path.dirname(configfile)
         for key in mandatory:
-            cfg[key] = environ.get('FRAPPY_%s' % key.upper(), cfg.get(key))
+            cfg[key] = environ.get(f'FRAPPY_{key.upper()}', cfg.get(key))
         missing_keys = [key for key in mandatory if cfg[key] is None]
         if missing_keys:
             if configfile:
-                raise KeyError('missing value for %s in %s' % (' and '.join(missing_keys), configfile))
+                raise KeyError(f"missing value for {' and '.join(missing_keys)} in {configfile}")
             raise KeyError('missing %s' % ' and '.join('FRAPPY_%s' % k.upper() for k in missing_keys))
         # this is not customizable
         cfg['basedir'] = repodir
@@ -215,7 +215,7 @@ def get_class(spec):
 
 def mkthread(func, *args, **kwds):
     t = threading.Thread(
-        name='%s:%s' % (func.__module__, func.__name__),
+        name=f'{func.__module__}:{func.__name__}',
         target=func,
         args=args,
         kwargs=kwds)
@@ -250,7 +250,7 @@ def formatExtendedTraceback(exc_info=None):
         linecache.checkcache(filename)
         line = linecache.getline(filename, tb.tb_lineno, frame.f_globals)
         if line:
-            item = item + '    %s\n' % line.strip()
+            item = item + f'    {line.strip()}\n'
         ret.append(item)
         if filename not in ('<script>', '<string>'):
             ret += formatExtendedFrame(tb.tb_frame)
@@ -271,7 +271,7 @@ def formatExtendedStack(level=1):
         linecache.checkcache(filename)
         line = linecache.getline(filename, lineno, f.f_globals)
         if line:
-            item = item + '    %s\n' % line.strip()
+            item = item + f'    {line.strip()}\n'
         ret.insert(1, item)
         if filename != '<script>':
             ret[2:2] = formatExtendedFrame(f)
@@ -317,10 +317,10 @@ def parseHostPort(host, defaultport):
     else:
         host, port = host
     if not HOSTNAMEPAT.match(host):
-        raise ValueError('illegal host name %r' % host)
+        raise ValueError(f'illegal host name {host!r}')
     if 0 < port < 65536:
         return host, port
-    raise ValueError('illegal port number: %r' % port)
+    raise ValueError(f'illegal port number: {port!r}')
 
 
 def tcpSocket(host, defaultport, timeout=None):

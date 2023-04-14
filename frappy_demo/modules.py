@@ -74,7 +74,7 @@ class Switch(Drivable):
 
     def write_target(self, value):
         # could tell HW
-        self.status = (self.Status.BUSY, 'switching %s' % value.name.upper())
+        self.status = (self.Status.BUSY, f'switching {value.name.upper()}')
         # note: setting self.target to the new value is done after this....
 
     def read_status(self):
@@ -284,8 +284,7 @@ class Label(Readable):
 
         dev_ts = self.DISPATCHER.get_module(self.subdev_ts)
         if dev_ts:
-            strings.append('at %.3f %s' %
-                           (dev_ts.read_value(), dev_ts.parameters['value'].datatype.unit))
+            strings.append(f"at {dev_ts.read_value():.3f} {dev_ts.parameters['value'].datatype.unit}")
         else:
             strings.append('No connection to sample temp!')
 
@@ -299,7 +298,7 @@ class Label(Readable):
                 state = 'Persistent' if mf_mode else 'Non-persistent'
             else:
                 state = mf_stat[1] or 'ramping'
-            strings.append('%s at %.1f %s' % (state, mf_val, mf_unit))
+            strings.append(f'{state} at {mf_val:.1f} {mf_unit}')
         else:
             strings.append('No connection to magnetic field!')
 

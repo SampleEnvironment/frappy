@@ -74,7 +74,7 @@ class PersistentMixin(Module):
         super().__init__(name, logger, cfgdict, srv)
         persistentdir = os.path.join(generalConfig.logdir, 'persistent')
         os.makedirs(persistentdir, exist_ok=True)
-        self.persistentFile = os.path.join(persistentdir, '%s.%s.json' % (self.DISPATCHER.equipment_id, self.name))
+        self.persistentFile = os.path.join(persistentdir, f'{self.DISPATCHER.equipment_id}.{self.name}.json')
         self.initData = {}  # "factory" settings
         loaded = self.loadPersistentData()
         for pname in self.parameters:

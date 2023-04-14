@@ -166,13 +166,13 @@ class MainWindow(QMainWindow):
 
     def show_save_message(self, file_name=''):
         if file_name:
-            file_name = ' in "%s"' % file_name
-        return QMessageBox.question(self, 'Save file?', '''
-                                <h2>Do you want to save changes%s?</h2>
+            file_name = f' in "{file_name}"'
+        return QMessageBox.question(self, 'Save file?', f'''
+                                <h2>Do you want to save changes{file_name}?</h2>
                                 <p>
                                 Your changes will be lost if you don't save them!
                                 </p>
-                                ''' % file_name,
+                                ''',
                                     QMessageBox.StandardButton.Cancel |
                                     QMessageBox.StandardButton.Close |
                                     QMessageBox.StandardButton.Save,

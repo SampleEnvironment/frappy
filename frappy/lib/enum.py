@@ -315,16 +315,16 @@ class Enum(dict):
 
     def __setattr__(self, key, value):
         if self.name and key != 'name':
-            raise TypeError('Enum %r can not be changed!' % self.name)
+            raise TypeError(f'Enum {self.name!r} can not be changed!')
         super().__setattr__(key, value)
 
     def __setitem__(self, key, value):
         if self.name:
-            raise TypeError('Enum %r can not be changed!' % self.name)
+            raise TypeError(f'Enum {self.name!r} can not be changed!')
         super().__setitem__(key, value)
 
     def __delitem__(self, key):
-        raise TypeError('Enum %r can not be changed!' % self.name)
+        raise TypeError(f'Enum {self.name!r} can not be changed!')
 
     def __repr__(self):
         return 'Enum(%r, %s)' % (self.name, ', '.join('%s=%d' % (m.name, m.value) for m in self.members))

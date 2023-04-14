@@ -85,7 +85,7 @@ class HasLimits(Feature):
         min_, max_ = self.abslimits
         t_min, t_max = self.apply_offset(1, dt.min, dt.max)
         if t_min > max_ or t_max < min_:
-            raise ConfigError('abslimits not within %s range' % pname)
+            raise ConfigError(f'abslimits not within {pname} range')
         self.abslimits = clamp(t_min, min_, t_max), clamp(t_min, max_, t_max)
         super().checkProperties()
 
@@ -96,8 +96,8 @@ class HasLimits(Feature):
         min_, max_ = self.apply_offset(-1, *self.abslimits)
         if not min_ <= value[0] <= value[1] <= max_:
             if value[0] > value[1]:
-                raise RangeError('invalid interval: %r' % value)
-            raise RangeError('limits not within abs limits [%g, %g]' % (min_, max_))
+                raise RangeError(f'invalid interval: {value!r}')
+            raise RangeError(f'limits not within abs limits [{min_:g}, {max_:g}]')
         self.limits = value
         self.saveParameters()
         return self.limits
@@ -106,7 +106,7 @@ class HasLimits(Feature):
         """check if value is valid"""
         min_, max_ = self.limits
         if not min_ <= value <= max_:
-            raise RangeError('limits violation: %g outside [%g, %g]' % (value, min_, max_))
+            raise RangeError(f'limits violation: {value:g} outside [{min_:g}, {max_:g}]')
 
 
 # --- not used, not tested yet ---

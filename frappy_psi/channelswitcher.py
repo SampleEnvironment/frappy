@@ -145,7 +145,7 @@ class ChannelSwitcher(Drivable):
 
     def write_target(self, channel):
         if channel not in self._channels:
-            raise ValueError('%r is no valid channel' % channel)
+            raise ValueError(f'{channel!r} is no valid channel')
         if channel == self.target and self._channels[channel].enabled:
             return channel
         chan = self._channels[channel]

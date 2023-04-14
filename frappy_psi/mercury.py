@@ -40,7 +40,7 @@ SELF = 0
 def as_float(value):
     if isinstance(value, str):
         return float(VALUE_UNIT.match(value).group(1))
-    return '%g' % value
+    return f'{value:g}'
 
 
 def as_string(value):
@@ -78,9 +78,9 @@ class MercuryChannel(HasIO):
         head, sep, tail = adr.partition(':')
         for i, (channel_type, slot) in enumerate(zip(self.channel_type.split(','), self.slot.split(','))):
             if head == str(i):
-                return 'DEV:%s:%s%s%s' % (slot, channel_type, sep, tail)
+                return f'DEV:{slot}:{channel_type}{sep}{tail}'
             if head == channel_type:
-                return 'DEV:%s:%s%s%s' % (slot, head, sep, tail)
+                return f'DEV:{slot}:{head}{sep}{tail}'
         return adr
 
     def multiquery(self, adr, names=(), convert=as_float):
@@ -101,9 +101,9 @@ class MercuryChannel(HasIO):
         -> query command will be READ:DEV:DB3.G1:PRES:SIG:PERC
         """
         adr = self._complete_adr(adr)
-        cmd = 'READ:%s:%s' % (adr, ':'.join(names))
+        cmd = f"READ:{adr}:{':'.join(names)}"
         reply = self.communicate(cmd)
-        head = 'STAT:%s:' % adr
+        head = f'STAT:{adr}:'
         try:
             assert reply.startswith(head)
             replyiter = iter(reply[len(head):].split(':'))
@@ -111,7 +111,7 @@ class MercuryChannel(HasIO):
             assert keys == tuple(names)
             return tuple(convert(r) for r in result)
         except (AssertionError, AttributeError, ValueError):
-            raise HardwareError('invalid reply %r to cmd %r' % (reply, cmd)) from None
+            raise HardwareError(f'invalid reply {reply!r} to cmd {cmd!r}') from None
 
     def multichange(self, adr, values, convert=as_float):
         """set parameter(s) in mercury syntax
@@ -129,10 +129,10 @@ class MercuryChannel(HasIO):
         -> change command will be SET:DEV:DB6.T1:TEMP:LOOP:P:5:I:2:D:0
         """
         adr = self._complete_adr(adr)
-        params = ['%s:%s' % (k, convert(v)) for k, v in values]
-        cmd = 'SET:%s:%s' % (adr, ':'.join(params))
+        params = [f'{k}:{convert(v)}' for k, v in values]
+        cmd = f"SET:{adr}:{':'.join(params)}"
         reply = self.communicate(cmd)
-        head = 'STAT:SET:%s:' % adr
+        head = f'STAT:SET:{adr}:'
 
         try:
             assert reply.startswith(head)
@@ -142,7 +142,7 @@ class MercuryChannel(HasIO):
             assert any(v == 'VALID' for v in valid)
             return tuple(convert(r) for r in result)
         except (AssertionError, AttributeError, ValueError) as e:
-            raise HardwareError('invalid reply %r to cmd %r' % (reply, cmd)) from e
+            raise HardwareError(f'invalid reply {reply!r} to cmd {cmd!r}') from e
 
     def query(self, adr, convert=as_float):
         """query a single parameter

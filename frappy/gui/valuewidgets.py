@@ -260,5 +260,5 @@ class msg(QDialog):
         super().reject()
 
     def done(self, how):
-        print('done(%r)' % how)
+        print(f'done({how!r})')
         return super().done(how)

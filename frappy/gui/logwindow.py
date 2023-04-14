@@ -75,11 +75,10 @@ class LogWindow(QMainWindow):
         s = record.getMessage()
         time = record.created
         if record.levelno == self.levels['Error']:
-            s = '<b>%s</b>' %s
-        s='<span style="color:%s">[%s] </span><span style="color:%s">%s: %s</span>' \
-            % (self.timecolor.name(), time, \
-               self.messagecolors[record.levelno].name(), \
-               record.name, s)
+            s = f'<b>{s}</b>'
+        s = f'<span style="color:{self.timecolor.name()}">[{time}] </span>' \
+            f'<span style="color:{self.messagecolors[record.levelno].name()}">' \
+            f'{record.name}: {s}</span>'
         self.logBrowser.append(s)
 
     def on_logLevel_currentTextChanged(self, level):

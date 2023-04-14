@@ -37,8 +37,8 @@ def fmt_param(name, param):
     else:
         dtinfo = [short_doc(param.datatype), 'rd' if param.readonly else 'wr',
                   None if param.export else 'hidden']
-        dtinfo = '*(%s)* ' % ', '.join(filter(None, dtinfo))
-    return '- **%s** - %s%s\n' % (name, dtinfo, desc)
+        dtinfo = f"*({', '.join(filter(None, dtinfo))})* "
+    return f'- **{name}** - {dtinfo}{desc}\n'
 
 
 def fmt_command(name, command):
@@ -46,8 +46,8 @@ def fmt_command(name, command):
     if '(' in desc[0:2]:
         dtinfo = ''  # note: we expect that desc contains argument list
     else:
-        dtinfo = '*%s*' % short_doc(command.datatype) + ' -%s ' % ('' if command.export else ' *(hidden)*')
-    return '- **%s**\\ %s%s\n' % (name, dtinfo, desc)
+        dtinfo = f'*{short_doc(command.datatype)}*' + f" -{'' if command.export else ' *(hidden)*'} "
+    return f'- **{name}**\\ {dtinfo}{desc}\n'
 
 
 def fmt_property(name, prop):
@@ -58,8 +58,8 @@ def fmt_property(name, prop):
         dtinfo = [short_doc(prop.datatype), None if prop.export else 'hidden']
         dtinfo = ', '.join(filter(None, dtinfo))
         if dtinfo:
-            dtinfo = '*(%s)* ' % dtinfo
-    return '- **%s** - %s%s\n' % (name, dtinfo, desc)
+            dtinfo = f'*({dtinfo})* '
+    return f'- **{name}** - {dtinfo}{desc}\n'
 
 
 SIMPLETYPES = {
@@ -78,22 +78,22 @@ def short_doc(datatype, internal=False):
     # pylint: disable=possibly-unused-variable
 
     def doc_EnumType(dt):
-        return 'one of %s' % str(tuple(dt._enum.keys()))
+        return f'one of {str(tuple(dt._enum.keys()))}'
 
     def doc_ArrayOf(dt):
-        return 'array of %s' % short_doc(dt.members, True)
+        return f'array of {short_doc(dt.members, True)}'
 
     def doc_TupleOf(dt):
-        return 'tuple of (%s)' % ', '.join(short_doc(m, True) for m in dt.members)
+        return f"tuple of ({', '.join(short_doc(m, True) for m in dt.members)})"
 
     def doc_CommandType(dt):
         argument = short_doc(dt.argument, True) if dt.argument else ''
-        result = ' -> %s' % short_doc(dt.result, True) if dt.result else ''
-        return '(%s)%s' % (argument, result)  # return argument list only
+        result = f' -> {short_doc(dt.result, True)}' if dt.result else ''
+        return f'({argument}){result}'  # return argument list only
 
     def doc_NoneOr(dt):
         other = short_doc(dt.other, True)
-        return '%s or None' % other if other else None
+        return f'{other} or None' if other else None
 
     def doc_OrType(dt):
         types = [short_doc(t, True) for t in dt.types]
@@ -138,7 +138,7 @@ def append_to_doc(cls, lines, itemcls, name, attrname, fmtfunc):
     only the first appearance of a tag above is considered
     """
     doc = '\n'.join(lines)
-    title = 'SECoP %s' % name.title()
+    title = f'SECoP {name.title()}'
     allitems = getattr(cls, attrname, {})
     fmtdict = {n: fmtfunc(n, p) for n, p in allitems.items() if isinstance(p, itemcls)}
     head, _, tail = doc.partition('{all %s}' % name)
@@ -177,7 +177,7 @@ def append_to_doc(cls, lines, itemcls, name, attrname, fmtfunc):
             fmted.append('- see also %s\n' % (', '.join(':class:`%s.%s`' % (c.__module__, c.__name__)
                                                         for c in cls.__mro__ if c in clsset)))
 
-        doc = '%s\n\n:%s: %s\n\n%s' % (head, title, '  '.join(fmted), tail)
+        doc = f"{head}\n\n:{title}: {'  '.join(fmted)}\n\n{tail}"
         lines[:] = doc.split('\n')
 
 

@@ -153,24 +153,22 @@ class Console(QWidget):
             return
 
         self._addLogEntry(
-            '<span style="font-weight:bold">Request:</span> '
-            '<tt>%s</tt>' % toHtmlEscaped(msg),
+            f'<span style="font-weight:bold">Request:</span> <tt>{toHtmlEscaped(msg)}</tt>',
             raw=True)
         #        msg = msg.split(' ', 2)
         try:
             reply = self._node.syncCommunicate(*self._node.decode_message(msg))
             if msg == 'describe':
                 _, eid, stuff = self._node.decode_message(reply)
-                reply = '%s %s %s' % (_, eid, json.dumps(
-                    stuff, indent=2, separators=(',', ':'), sort_keys=True))
+                reply = f"{_} {eid} {json.dumps(stuff, indent=2, separators=(',', ':'), sort_keys=True)}"
                 self._addLogEntry(reply.rstrip('\n'))
             else:
                 self._addLogEntry(reply.rstrip('\n'))
         except SECoPError as e:
             einfo = e.args[0] if len(e.args) == 1 else json.dumps(e.args)
-            self._addLogEntry('%s: %s' % (e.name, einfo), error=True)
+            self._addLogEntry(f'{e.name}: {einfo}', error=True)
         except Exception as e:
-            self._addLogEntry('error when sending %r: %r' % (msg, e),
+            self._addLogEntry(f'error when sending {msg!r}: {e!r}',
                               error=True)
 
         self.msgLineEdit.clear()

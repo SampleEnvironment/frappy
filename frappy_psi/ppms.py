@@ -80,7 +80,7 @@ class Main(Communicator):
     def communicate(self, command):
         """GPIB command"""
         with self.lock:
-            self.comLog('> %s' % command)
+            self.comLog(f'> {command}')
             reply = self._ppms_device.send(command)
             self.comLog("< %s", reply)
             return reply
@@ -151,7 +151,7 @@ class PpmsBase(HasIO, Readable):
         """write command and check if result is OK"""
         reply = self.communicate(command)
         if reply != 'OK':
-            raise HardwareError('bad reply %r to command %r' % (reply, command))
+            raise HardwareError(f'bad reply {reply!r} to command {command!r}')
 
 
 class PpmsDrivable(Drivable, PpmsBase):
@@ -447,12 +447,12 @@ class Temp(PpmsDrivable):
             if status[0] == StatusType.IDLE:
                 status = (status[0], 'stopped')
             else:
-                status = (status[0], 'stopping (%s)' % status[1])
+                status = (status[0], f'stopping ({status[1]})')
         if self._expected_target_time:
             # handle timeout
             if self.isDriving(status):
                 if now > self._expected_target_time + self.timeout:
-                    status = (StatusType.WARN, 'timeout while %s' % status[1])
+                    status = (StatusType.WARN, f'timeout while {status[1]}')
             else:
                 self._expected_target_time = 0
         self.status = status
@@ -492,7 +492,7 @@ class Temp(PpmsDrivable):
             if newtarget != self.target:
                 self.log.debug('stop at %s K', newtarget)
                 self.write_target(newtarget)
-        self.status = self.status[0], 'stopping (%s)' % self.status[1]
+        self.status = self.status[0], f'stopping ({self.status[1]})'
         self._stopped = True
 
 
@@ -577,7 +577,7 @@ class Field(PpmsDrivable):
             if status[0] == StatusType.IDLE:
                 status = (status[0], 'stopped')
             else:
-                status = (status[0], 'stopping (%s)' % status[1])
+                status = (status[0], f'stopping ({status[1]})')
         self.status = status
 
     def write_target(self, target):
@@ -620,7 +620,7 @@ class Field(PpmsDrivable):
         if newtarget != self.target:
             self.log.debug('stop at %s T', newtarget)
             self.write_target(newtarget)
-        self.status = (self.status[0], 'stopping (%s)' % self.status[1])
+        self.status = (self.status[0], f'stopping ({self.status[1]})')
         self._stopped = True
 
 
@@ -698,7 +698,7 @@ class Position(PpmsDrivable):
             if status[0] == StatusType.IDLE:
                 status = (status[0], 'stopped')
             else:
-                status = (status[0], 'stopping (%s)' % status[1])
+                status = (status[0], f'stopping ({status[1]})')
         self.status = status
 
     def write_target(self, target):
@@ -722,5 +722,5 @@ class Position(PpmsDrivable):
         if newtarget != self.target:
             self.log.debug('stop at %s T', newtarget)
             self.write_target(newtarget)
-        self.status = (self.status[0], 'stopping (%s)' % self.status[1])
+        self.status = (self.status[0], f'stopping ({self.status[1]})')
         self._stopped = True

@@ -112,7 +112,7 @@ class CacheItem(tuple):
             try:
                 value = datatype.import_value(value)
             except (KeyError, ValueError, AttributeError):
-                readerror = ValueError('can not import %r as %r' % (value, datatype))
+                readerror = ValueError(f'can not import {value!r} as {datatype!r}')
                 value = None
         obj = tuple.__new__(cls, (value, timestamp, readerror))
         try:
@@ -151,7 +151,7 @@ class CacheItem(tuple):
             args += (self.timestamp,)
         if self.readerror:
             args += (self.readerror,)
-        return 'CacheItem%s' % repr(args)
+        return f'CacheItem{repr(args)}'
 
 
 class ProxyClient:
@@ -216,7 +216,7 @@ class ProxyClient:
             elif cbname == 'nodeStateChange':
                 cbfunc(self.online, self.state)
         if kwds:
-            raise TypeError('unknown callback: %s' % (', '.join(kwds)))
+            raise TypeError(f"unknown callback: {', '.join(kwds)}")
 
     def unregister_callback(self, key, *args, **kwds):
         """unregister a callback
@@ -310,11 +310,10 @@ class SecopClient(ProxyClient):
                     if reply:
                         self.secop_version = reply.decode('utf-8')
                     else:
-                        raise self.error_map('HardwareError')('no answer to %s' % IDENTREQUEST)
+                        raise self.error_map('HardwareError')(f'no answer to {IDENTREQUEST}')
 
                     if not VERSIONFMT.match(self.secop_version):
-                        raise self.error_map('HardwareError')('bad answer to %s: %r' %
-                                                              (IDENTREQUEST, self.secop_version))
+                        raise self.error_map('HardwareError')(f'bad answer to {IDENTREQUEST}: {self.secop_version!r}')
                     # inform that the other party still uses a legacy identifier
                     # see e.g. Frappy Bug #4659 (https://forge.frm2.tum.de/redmine/issues/4659)
                     if not self.secop_version.startswith(IDENTPREFIX):
@@ -387,9 +386,9 @@ class SecopClient(ProxyClient):
                     if module_param is None and ':' not in (ident or ''):
                         # allow missing ':value'/':target'
                         if action == WRITEREPLY:
-                            module_param = self.internal.get('%s:target' % ident, None)
+                            module_param = self.internal.get(f'{ident}:target', None)
                         else:
-                            module_param = self.internal.get('%s:value' % ident, None)
+                            module_param = self.internal.get(f'{ident}:value', None)
                     if module_param is not None:
                         if action.startswith(ERRORPREFIX):
                             timestamp = data[2].get('t', None)
@@ -546,7 +545,7 @@ class SecopClient(ProxyClient):
                 iname = self.internalize_name(aname)
                 datatype = get_datatype(aentry['datainfo'], iname)
                 aentry = dict(aentry, datatype=datatype)
-                ident = '%s:%s' % (modname, aname)
+                ident = f'{modname}:{aname}'
                 self.identifier[modname, iname] = ident
                 self.internal[ident] = modname, iname
                 if datatype.IS_COMMAND:

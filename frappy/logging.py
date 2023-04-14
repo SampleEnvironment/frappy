@@ -47,7 +47,7 @@ def check_level(level):
             return level
     except KeyError:
         pass
-    raise ValueError('%r is not a valid level' % level)
+    raise ValueError(f'{level!r} is not a valid level')
 
 
 class RemoteLogHandler(mlzlog.Handler):
@@ -113,7 +113,7 @@ class ComLogfileHandler(LogfileHandler):
     """handler for logging communication"""
 
     def format(self, record):
-        return '%s %s' % (self.formatter.formatTime(record), record.getMessage())
+        return f'{self.formatter.formatTime(record)} {record.getMessage()}'
 
 
 class HasComlog:
@@ -125,7 +125,7 @@ class HasComlog:
     def earlyInit(self):
         super().earlyInit()
         if self.comlog and generalConfig.initialized and generalConfig.comlog:
-            self._comLog = mlzlog.Logger('COMLOG.%s' % self.name)
+            self._comLog = mlzlog.Logger(f'COMLOG.{self.name}')
             self._comLog.handlers[:] = []
             directory = join(logger.logdir, logger.rootname, 'comlog', self.DISPATCHER.name)
             self._comLog.addHandler(ComLogfileHandler(

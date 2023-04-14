@@ -55,11 +55,11 @@ class SecopClient(frappy.client.SecopClient):
         return name
 
     def updateEvent(self, module, parameter, value, timestamp, readerror):
-        specifier = '%s:%s' % (module, parameter)
+        specifier = f'{module}:{parameter}'
         if readerror:
-            msg = ERRORPREFIX + EVENTREPLY, specifier, (readerror.name, str(readerror), dict(t=timestamp))
+            msg = ERRORPREFIX + EVENTREPLY, specifier, (readerror.name, str(readerror), {'t': timestamp})
         else:
-            msg = EVENTREPLY, specifier, (value, dict(t=timestamp))
+            msg = EVENTREPLY, specifier, (value, {'t': timestamp})
         self.dispatcher.broadcast_event(msg)
 
     def nodeStateChange(self, online, state):
@@ -74,7 +74,7 @@ class SecopClient(frappy.client.SecopClient):
         if module is None:
             self.dispatcher.restart()
             self._shutdown = True
-            raise frappy.errors.SECoPError('descriptive data for node %r has changed' % self.nodename)
+            raise frappy.errors.SECoPError(f'descriptive data for node {self.nodename!r} has changed')
 
 
 class Router(frappy.protocol.dispatcher.Dispatcher):
@@ -139,7 +139,7 @@ class Router(frappy.protocol.dispatcher.Dispatcher):
             data = node.descriptive_data.copy()
             modules = data.pop('modules')
             equipment_id = data.pop('equipment_id', 'unknown')
-            node_description.append('--- %s ---\n%s' % (equipment_id, data.pop('description', '')))
+            node_description.append(f"--- {equipment_id} ---\n{data.pop('description', '')}")
             node_description.append('\n'.join('%s: %r' % kv for kv in data.items()))
             for modname, moddesc in modules.items():
                 if modname in allmodules:
@@ -154,12 +154,12 @@ class Router(frappy.protocol.dispatcher.Dispatcher):
         super().handle_activate(conn, specifier, data)
         for node in self.nodes:
             for (module, parameter), (value, t, readerror) in node.cache.items():
-                spec = '%s:%s' % (module, parameter)
+                spec = f'{module}:{parameter}'
                 if readerror:
-                    reply = ERRORPREFIX + EVENTREPLY, spec, (readerror.name, str(readerror), dict(t=t))
+                    reply = ERRORPREFIX + EVENTREPLY, spec, (readerror.name, str(readerror), {'t': t})
                 else:
                     datatype = node.modules[module]['parameters'][parameter]['datatype']
-                    reply = EVENTREPLY, spec, [datatype.export_value(value), dict(t=t)]
+                    reply = EVENTREPLY, spec, [datatype.export_value(value), {'t': t}]
                 self.broadcast_event(reply)
         return ENABLEEVENTSREPLY, None, None
 
@@ -175,7 +175,7 @@ class Router(frappy.protocol.dispatcher.Dispatcher):
         node = self.node_by_module[module]
         if node.online:
             return node.request(READREQUEST, specifier, data)
-        return ERRORPREFIX + READREQUEST, specifier, SecopClient.disconnectedError + (dict(t=node.disconnect_time),)
+        return ERRORPREFIX + READREQUEST, specifier, SecopClient.disconnectedError + ({'t': node.disconnect_time},)
 
     def handle_change(self, conn, specifier, data):
         module = specifier.split(':')[0]

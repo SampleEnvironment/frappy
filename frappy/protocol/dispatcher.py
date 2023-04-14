@@ -53,10 +53,10 @@ from frappy.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
 
 def make_update(modulename, pobj):
     if pobj.readerror:
-        return (ERRORPREFIX + EVENTREPLY, '%s:%s' % (modulename, pobj.export),
+        return (ERRORPREFIX + EVENTREPLY, f'{modulename}:{pobj.export}',
                 # error-report !
                 [pobj.readerror.name, str(pobj.readerror), {'t': pobj.timestamp}])
-    return (EVENTREPLY, '%s:%s' % (modulename, pobj.export),
+    return (EVENTREPLY, f'{modulename}:{pobj.export}',
             [pobj.export_value(), {'t': pobj.timestamp}])
 
 
@@ -114,7 +114,7 @@ class Dispatcher:
         if ':' not in eventname:
             # also remove 'more specific' subscriptions
             for k, v in self._subscriptions.items():
-                if k.startswith('%s:' % eventname):
+                if k.startswith(f'{eventname}:'):
                     v.discard(conn)
         if eventname in self._subscriptions:
             self._subscriptions[eventname].discard(conn)
@@ -151,7 +151,7 @@ class Dispatcher:
             return self._modules[modulename]
         if modulename in list(self._modules.values()):
             return modulename
-        raise NoSuchModuleError('Module %r does not exist on this SEC-Node!' % modulename)
+        raise NoSuchModuleError(f'Module {modulename!r} does not exist on this SEC-Node!')
 
     def remove_module(self, modulename_or_obj):
         moduleobj = self.get_module(modulename_or_obj)
@@ -160,7 +160,7 @@ class Dispatcher:
             self._export.remove(modulename)
         self._modules.pop(modulename)
         self._subscriptions.pop(modulename, None)
-        for k in [kk for kk in self._subscriptions if kk.startswith('%s:' % modulename)]:
+        for k in [kk for kk in self._subscriptions if kk.startswith(f'{modulename}:')]:
             self._subscriptions.pop(k, None)
 
     def list_module_names(self):
@@ -201,25 +201,25 @@ class Dispatcher:
                 # command is also accepted
                 result = result['accessibles'][pname]
             elif pname:
-                raise NoSuchParameterError('Module %r has no parameter %r' % (modname, pname))
+                raise NoSuchParameterError(f'Module {modname!r} has no parameter {pname!r}')
         elif not modname or modname == '.':
             result['equipment_id'] = self.equipment_id
             result['firmware'] = 'FRAPPY - The Python Framework for SECoP'
             result['version'] = '2021.02'
             result.update(self.nodeprops)
         else:
-            raise NoSuchModuleError('Module %r does not exist' % modname)
+            raise NoSuchModuleError(f'Module {modname!r} does not exist')
         return result
 
     def _execute_command(self, modulename, exportedname, argument=None):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module %r does not exist' % modulename)
+            raise NoSuchModuleError(f'Module {modulename!r} does not exist')
 
         cname = moduleobj.accessiblename2attr.get(exportedname)
         cobj = moduleobj.commands.get(cname)
         if cobj is None:
-            raise NoSuchCommandError('Module %r has no command %r' % (modulename, cname or exportedname))
+            raise NoSuchCommandError(f'Module {modulename!r} has no command {cname or exportedname!r}')
 
         if cobj.argument:
             argument = cobj.argument.import_value(argument)
@@ -233,18 +233,16 @@ class Dispatcher:
     def _setParameterValue(self, modulename, exportedname, value):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module %r does not exist' % modulename)
+            raise NoSuchModuleError(f'Module {modulename!r} does not exist')
 
         pname = moduleobj.accessiblename2attr.get(exportedname)
         pobj = moduleobj.parameters.get(pname)
         if pobj is None:
-            raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, pname or exportedname))
+            raise NoSuchParameterError(f'Module {modulename!r} has no parameter {pname or exportedname!r}')
         if pobj.constant is not None:
-            raise ReadOnlyError("Parameter %s:%s is constant and can not be changed remotely"
-                                % (modulename, pname))
+            raise ReadOnlyError(f"Parameter {modulename}:{pname} is constant and can not be changed remotely")
         if pobj.readonly:
-            raise ReadOnlyError("Parameter %s:%s can not be changed remotely"
-                                % (modulename, pname))
+            raise ReadOnlyError(f"Parameter {modulename}:{pname} can not be changed remotely")
 
         # validate!
         value = pobj.datatype.validate(value, previous=pobj.value)
@@ -256,12 +254,12 @@ class Dispatcher:
     def _getParameterValue(self, modulename, exportedname):
         moduleobj = self.get_module(modulename)
         if moduleobj is None:
-            raise NoSuchModuleError('Module %r does not exist' % modulename)
+            raise NoSuchModuleError(f'Module {modulename!r} does not exist')
 
         pname = moduleobj.accessiblename2attr.get(exportedname)
         pobj = moduleobj.parameters.get(pname)
         if pobj is None:
-            raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, pname or exportedname))
+            raise NoSuchParameterError(f'Module {modulename!r} has no parameter {pname or exportedname!r}')
         if pobj.constant is not None:
             # really needed? we could just construct a readreply instead....
             # raise ReadOnlyError('This parameter is constant and can not be accessed remotely.')
@@ -293,11 +291,11 @@ class Dispatcher:
                 action, specifier, data = '_ident', None, None
 
             self.log.debug('Looking for handle_%s', action)
-            handler = getattr(self, 'handle_%s' % action, None)
+            handler = getattr(self, f'handle_{action}', None)
 
             if handler:
                 return handler(conn, specifier, data)
-            raise ProtocolError('unhandled message: %s' % repr(msg))
+            raise ProtocolError(f'unhandled message: {repr(msg)}')
 
     # now the (defined) handlers for the different requests
     def handle_help(self, conn, specifier, data):
@@ -351,13 +349,13 @@ class Dispatcher:
             if ':' in specifier:
                 modulename, exportedname = specifier.split(':', 1)
             if modulename not in self._export:
-                raise NoSuchModuleError('Module %r does not exist' % modulename)
+                raise NoSuchModuleError(f'Module {modulename!r} does not exist')
             moduleobj = self.get_module(modulename)
             if exportedname is not None:
                 pname = moduleobj.accessiblename2attr.get(exportedname, True)
                 if pname and pname not in moduleobj.accessibles:
                     # what if we try to subscribe a command here ???
-                    raise NoSuchParameterError('Module %r has no parameter %r' % (modulename, pname))
+                    raise NoSuchParameterError(f'Module {modulename!r} has no parameter {pname!r}')
                 modules = [(modulename, pname)]
             else:
                 modules = [(modulename, None)]
@@ -392,7 +390,7 @@ class Dispatcher:
 
     def send_log_msg(self, conn, modname, level, msg):
         """send log message """
-        conn.send_reply((LOG_EVENT, '%s:%s' % (modname, level), msg))
+        conn.send_reply((LOG_EVENT, f'{modname}:{level}', msg))
 
     def set_all_log_levels(self, conn, level):
         for modobj in self._modules.values():

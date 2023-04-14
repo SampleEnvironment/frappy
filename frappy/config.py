@@ -68,9 +68,7 @@ class Mod(dict):
 
         # matches name from spec
         if not re.match(r'^[a-zA-Z]\w{0,62}$', name, re.ASCII):
-            raise ConfigError('Not a valid SECoP Module name: "%s". '
-                              'Does it only contain letters, numbers and underscores?'
-                              % (name))
+            raise ConfigError(f'Not a valid SECoP Module name: "{name}". Does it only contain letters, numbers and underscores?')
         # Make parameters out of all keywords
         groups = {}
         for key, val in kwds.items():
@@ -152,8 +150,7 @@ def to_config_path(cfgfile, log):
             filename = None
 
     if filename is None:
-        raise ConfigError("Couldn't find cfg file %r in %s"
-                          % (cfgfile, generalConfig.confdir))
+        raise ConfigError(f"Couldn't find cfg file {cfgfile!r} in {generalConfig.confdir}")
     if not filename.endswith('_cfg.py'):
         log.warning("Config files should end in '_cfg.py': %s", os.path.basename(filename))
     log.debug('Using config file %s for %s', filename, cfgfile)

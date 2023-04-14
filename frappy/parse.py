@@ -111,7 +111,7 @@ class Parser:
                 return None, text
             res, rem = self.parse_sub(text)
             if res is None:
-                print('remtuple %r %r %r' % (rem, text, bra))
+                print(f'remtuple {rem!r} {text!r} {bra!r}')
                 if rem[0] == bra:
                     # allow trailing separator
                     return tuple(reslist), rem[1:].strip()
@@ -175,5 +175,5 @@ class Parser:
     def parse(self, orgtext):
         res, rem = self.parse_sub(orgtext)
         if rem and rem[0] in ',;':
-            return self.parse_sub('[%s]' % orgtext)
+            return self.parse_sub(f'[{orgtext}]')
         return res, rem

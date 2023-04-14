@@ -121,7 +121,7 @@ class StateMachine:
         cls = type(self)
         for key, value in kwds.items():
             if hasattr(cls, key):
-                raise AttributeError('can not set %s.%s' % (cls.__name__, key))
+                raise AttributeError(f'can not set {cls.__name__}.{key}')
             setattr(self, key, value)
 
     def _cleanup(self, reason):
@@ -181,8 +181,7 @@ class StateMachine:
                                 break
                             if not callable(ret):
                                 ret = self._cleanup(RuntimeError(
-                                    '%s: return value must be callable, Retry or Finish, not %r'
-                                    % (self.statefunc.__name__, ret)))
+                                    f'{self.statefunc.__name__}: return value must be callable, Retry or Finish, not {ret!r}'))
                         except Exception as e:
                             ret = self._cleanup(e)
                     if ret is None:
@@ -190,7 +189,7 @@ class StateMachine:
                     self._new_state(ret)
                 else:
                     ret = self._cleanup(RuntimeError(
-                        '%s: too many states chained - probably infinite loop' % self.statefunc.__name__))
+                        f'{self.statefunc.__name__}: too many states chained - probably infinite loop'))
                     if ret:
                         self._new_state(ret)
                         continue

@@ -135,7 +135,7 @@ class HasAccessibles(HasProperties):
                         except Exception as e:
                             self.log.debug("read_%s failed with %r", pname, e)
                             if isinstance(e, SECoPError):
-                                e.raising_methods.append('%s.read_%s' % (self.name, pname))
+                                e.raising_methods.append(f'{self.name}.read_{pname}')
                             self.announceUpdate(pname, err=e)
                             raise
                         self.announceUpdate(pname, value, validate=False)
@@ -190,7 +190,7 @@ class HasAccessibles(HasProperties):
                                 new_value = value if new_value is None else validate(new_value)
                         except Exception as e:
                             if isinstance(e, SECoPError):
-                                e.raising_methods.append('%s.write_%s' % (self.name, pname))
+                                e.raising_methods.append(f'{self.name}.write_{pname}')
                             self.announceUpdate(pname, err=e)
                             raise
                         self.announceUpdate(pname, new_value, validate=False)
@@ -209,11 +209,9 @@ class HasAccessibles(HasProperties):
             if not pname:
                 continue
             if prefix == 'do':
-                raise ProgrammingError('%r: old style command %r not supported anymore'
-                                       % (cls.__name__, attrname))
+                raise ProgrammingError(f'{cls.__name__!r}: old style command {attrname!r} not supported anymore')
             if prefix in ('read', 'write') and attrname not in cls.checkedMethods:
-                raise ProgrammingError('%s.%s defined, but %r is no parameter'
-                                       % (cls.__name__, attrname, pname))
+                raise ProgrammingError(f'{cls.__name__}.{attrname} defined, but {pname!r} is no parameter')
 
         try:
             # update Status type
@@ -367,12 +365,11 @@ class Module(HasAccessibles):
                     else:
                         self.setProperty(key, value)
                 except BadValueError:
-                    errors.append('%s: value %r does not match %r!' %
-                                  (key, value, self.propertyDict[key].datatype))
+                    errors.append(f'{key}: value {value!r} does not match {self.propertyDict[key].datatype!r}!')
 
         # 3) set automatic properties
         mycls, = self.__class__.__bases__  # skip the wrapper class
-        myclassname = '%s.%s' % (mycls.__module__, mycls.__name__)
+        myclassname = f'{mycls.__module__}.{mycls.__name__}'
         self.implementation = myclassname
         # list of all 'secop' modules
         # self.interface_classes = [
@@ -415,20 +412,16 @@ class Module(HasAccessibles):
                     for propname, propvalue in cfg.items():
                         aobj.setProperty(propname, propvalue)
                 except KeyError:
-                    errors.append("'%s' has no property '%s'" %
-                                  (aname, propname))
+                    errors.append(f"'{aname}' has no property '{propname}'")
                 except BadValueError as e:
-                    errors.append('%s.%s: %s' %
-                                  (aname, propname, str(e)))
+                    errors.append(f'{aname}.{propname}: {str(e)}')
             else:
                 bad.append(aname)
 
         # 3) complain about names not found as accessible or property names
         if bad:
             errors.append(
-                '%s does not exist (use one of %s)' %
-                (', '.join(bad), ', '.join(list(self.accessibles) +
-                                           list(self.propertyDict))))
+                f"{', '.join(bad)} does not exist (use one of {', '.join(list(self.accessibles) + list(self.propertyDict))})")
         # 4) register value for writing, if given
         #    apply default when no value is given (in cfg or as Parameter argument)
         #    or complain, when cfg is needed
@@ -440,13 +433,13 @@ class Module(HasAccessibles):
             if not pobj.hasDatatype():
                 head, _, postfix = pname.rpartition('_')
                 if postfix not in ('min', 'max', 'limits'):
-                    errors.append('%s needs a datatype' % pname)
+                    errors.append(f'{pname} needs a datatype')
                     continue
                 # when datatype is not given, properties are set automagically
                 pobj.setProperty('readonly', False)
                 baseparam = self.parameters.get(head)
                 if not baseparam:
-                    errors.append('parameter %r is given, but not %r' % (pname, head))
+                    errors.append(f'parameter {pname!r} is given, but not {head!r}')
                     continue
                 dt = baseparam.datatype
                 if dt is None:
@@ -458,16 +451,15 @@ class Module(HasAccessibles):
                     pobj.setProperty('datatype', dt)
                     pobj.setProperty('default', getattr(dt, postfix))
                 if not pobj.description:
-                    pobj.setProperty('description', 'limit for %s' % pname)
+                    pobj.setProperty('description', f'limit for {pname}')
 
             if pobj.value is None:
                 if pobj.needscfg:
-                    errors.append('%r has no default '
-                                  'value and was not given in config!' % pname)
+                    errors.append(f'{pname!r} has no default value and was not given in config!')
                 if pobj.default is None:
                     # we do not want to call the setter for this parameter for now,
                     # this should happen on the first read
-                    pobj.readerror = ConfigError('parameter %r not initialized' % pname)
+                    pobj.readerror = ConfigError(f'parameter {pname!r} not initialized')
                     # above error will be triggered on activate after startup,
                     # when not all hardware parameters are read because of startup timeout
                     pobj.default = pobj.datatype.default
@@ -503,7 +495,7 @@ class Module(HasAccessibles):
                 try:
                     aobj.checkProperties()
                 except (ConfigError, ProgrammingError) as e:
-                    errors.append('%s: %s' % (aname, e))
+                    errors.append(f'{aname}: {e}')
         if errors:
             raise ConfigError(errors)
 
@@ -831,8 +823,8 @@ class Module(HasAccessibles):
             max_ = getattr(self, parametername + '_max', float('inf'))
         if not min_ <= value <= max_:
             if min_ > max_:
-                raise RangeError('invalid limits: [%g, %g]' % (min_, max_))
-            raise RangeError('limits violation: %g outside [%g, %g]' % (value, min_, max_))
+                raise RangeError(f'invalid limits: [{min_:g}, {max_:g}]')
+            raise RangeError(f'limits violation: {value:g} outside [{min_:g}, {max_:g}]')
 
 
 class Readable(Module):

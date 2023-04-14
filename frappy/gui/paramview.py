@@ -38,7 +38,7 @@ class ParameterView(QWidget):
 
         self._propWidgets = {}  # widget cache do avoid garbage collection
 
-        self.paramNameLabel.setText("%s:%s" % (module, parameter))
+        self.paramNameLabel.setText(f"{module}:{parameter}")
         self._initParameterWidgets()
 
         # self._node.newData.connect(self._updateValue)

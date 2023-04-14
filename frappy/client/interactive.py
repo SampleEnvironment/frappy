@@ -80,7 +80,7 @@ class Logger:
             if tm.tm_min != self._minute:
                 self._minute = tm.tm_min
                 print(CLR + time.strftime('--- %H:%M:%S ---', tm))
-            sec = ('%6.3f' % (now % 60.0)).replace(' ', '0')
+            sec = f'{now % 60.0:6.3f}'.replace(' ', '0')
             print(CLR + sec, str(fmt) % args)
         else:
             print(CLR + (str(fmt) % args))
@@ -101,7 +101,7 @@ class PrettyFloat(float):
     - always display a decimal point
     """
     def __repr__(self):
-        result = '%.12g' % self
+        result = f'{self:.12g}'
         if '.' in result or 'e' in result:
             return result
         return result + '.'
@@ -124,7 +124,7 @@ class Module:
         self._running = None
         self._status = None
         props = secnode.modules[name]['properties']
-        self._title = '# %s (%s)' % (props.get('implementation', ''), props.get('interface_classes', [''])[0])
+        self._title = f"# {props.get('implementation', '')} ({props.get('interface_classes', [''])[0]})"
 
     def _one_line(self, pname, minwid=0):
         """return <module>.<param> = <value> truncated to one line"""
@@ -134,7 +134,7 @@ class Module:
         vallen = 113 - len(self._name) - len(pname)
         if len(result) > vallen:
             result = result[:vallen - 4] + ' ...'
-        return '%s.%s = %s' % (self._name, pname, result)
+        return f'{self._name}.{pname} = {result}'
 
     def _isBusy(self):
         return self.status[0] // 100 == StatusType.BUSY // 100
@@ -188,7 +188,7 @@ class Module:
                 else:
                     self._secnode.log.error('can not set %r on module %s', item, self._name)
             self._watched_params = params
-        print('--- %s:\nlog: %s, watch: %s' % (self._name, self._log_level, ' '.join(self._watched_params)))
+        print(f"--- {self._name}:\nlog: {self._log_level}, watch: {' '.join(self._watched_params)}")
 
     def _start_watching(self):
         for pname in self._watched_params:
@@ -318,11 +318,11 @@ def watch(*args, **kwds):
                 modules.append(mobj)
                 mobj._set_watching()
         else:
-            print('do not know %r' % mobj)
+            print(f'do not know {mobj!r}')
     for key, arg in kwds.items():
         mobj = getattr(main, key, None)
         if mobj is None:
-            print('do not know %r' % key)
+            print(f'do not know {key!r}')
         else:
             modules.append(mobj)
             mobj._set_watching(arg)
@@ -379,7 +379,7 @@ class Client(SecopClient):
                 attrs[pname] = Param(pname, pinfo['datainfo'])
             for cname in moddesc['commands']:
                 attrs[cname] = Command(cname, modname, self)
-            mobj = type('M_%s' % modname, (Module,), attrs)(modname, self)
+            mobj = type(f'M_{modname}', (Module,), attrs)(modname, self)
             if 'status' in mobj._parameters:
                 self.register_callback((modname, 'status'), updateEvent=mobj._status_value_update)
                 self.register_callback((modname, 'value'), updateEvent=mobj._status_value_update)
@@ -405,7 +405,7 @@ class Client(SecopClient):
         self.log.info('unhandled: %s %s %r', action, ident, data)
 
     def __repr__(self):
-        return 'Client(%r)' % self.uri
+        return f'Client({self.uri!r})'
 
 
 class Console(code.InteractiveConsole):

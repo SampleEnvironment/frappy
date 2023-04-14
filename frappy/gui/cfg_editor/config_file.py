@@ -57,13 +57,13 @@ def write_config(file_name, tree_widget):
                 blank_lines += 1
             value = value.replace('\n\n', '\n.\n')
             value = value.replace('\n', '\n    ')
-            itm_lines[id(itm)] = '[%s %s]\n' % (itm.kind, itm.name) +\
+            itm_lines[id(itm)] = f'[{itm.kind} {itm.name}]\n' +\
                                  value_str % (SECTIONS[itm.kind], value)
         # TODO params and props
         elif itm.kind == PARAMETER and value:
             itm_lines[id(itm)] = value_str % (itm.name, value)
         elif itm.kind == PROPERTY:
-            prop_name = '.%s' % itm.name
+            prop_name = f'.{itm.name}'
             if par.kind == PARAMETER:
                 prop_name = par.name + prop_name
             itm_lines[id(itm)] = value_str % (prop_name, value)
@@ -72,7 +72,7 @@ def write_config(file_name, tree_widget):
             for key, dict_value in itm_lines.items():
                 if key == id(par):
                     value = value.replace('\n', '\n# ')
-                    temp_itm_lines[id(itm)] = '# %s' % value
+                    temp_itm_lines[id(itm)] = f'# {value}'
                 temp_itm_lines[key] = dict_value
             itm_lines.clear()
             itm_lines.update(temp_itm_lines)
@@ -166,8 +166,7 @@ def get_comments(node, ifs, mods, file_path):
         if line.startswith('#'):
             line = line[1:].strip()
             if index and all_lines[index-1][0] == '#':
-                current_comment.set_value('%s\n%s' % (current_comment.
-                                                      get_value(), line))
+                current_comment.set_value(f'{current_comment.get_value()}\n{line}')
             else:
                 current_comment = TreeWidgetItem(COMMENT, '#', line)
                 next_line = get_next_line(index, all_lines)
@@ -196,12 +195,12 @@ def insert_comment(index, line, all_lines, current_comment, node, all_ifs, all_m
 # pylint: disable=inconsistent-return-statements
 def insert_section_comment(line, current_comment, node, all_ifs, all_mods):
     try:
-        if line.startswith('[%s' % NODE):
+        if line.startswith(f'[{NODE}'):
             node.insertChild(0, current_comment)
-        elif line.startswith('[%s' % INTERFACE):
+        elif line.startswith(f'[{INTERFACE}'):
             all_ifs[get_name_of_section(line)]. \
                 insertChild(0, current_comment)
-        elif line.startswith('[%s' % MODULE):
+        elif line.startswith(f'[{MODULE}'):
             all_mods[get_name_of_section(line)]. \
                 insertChild(0, current_comment)
         else:
@@ -219,9 +218,9 @@ def insert_param_prop_comment(index, line, all_lines, current_comment,
         if not parent:
             # TODO invalid file
             pass
-        if parent.startswith('[%s' % NODE):
+        if parent.startswith(f'[{NODE}'):
             parent_item = node
-        elif parent.startswith('[%s' % INTERFACE):
+        elif parent.startswith(f'[{INTERFACE}'):
             parent_item = all_ifs[get_name_of_section(parent)]
         else:
             parent_item = all_mods[get_name_of_section(parent)]

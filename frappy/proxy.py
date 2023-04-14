@@ -40,7 +40,7 @@ class ProxyModule(HasIO, Module):
     enablePoll = False
 
     def ioClass(self, name, logger, opts, srv):
-        opts['description'] = 'secnode %s on %s' % (opts.get('module', name), opts['uri'])
+        opts['description'] = f"secnode {opts.get('module', name)} on {opts['uri']}"
         return SecNode(name, logger, opts, srv)
 
     def updateEvent(self, module, parameter, value, timestamp, readerror):
@@ -179,7 +179,7 @@ def proxy_class(remote_class, name=None):
             proxycls.accessibles = {}
             break
     else:
-        raise ConfigError('%r is no SECoP module class' % remote_class)
+        raise ConfigError(f'{remote_class!r} is no SECoP module class')
 
     attrs = rcls.propertyDict.copy()
 
@@ -220,7 +220,7 @@ def proxy_class(remote_class, name=None):
             attrs[aname] = cobj(cfunc)
 
         else:
-            raise ConfigError('do not now about %r in %s.accessibles' % (aobj, remote_class))
+            raise ConfigError(f'do not now about {aobj!r} in {remote_class}.accessibles')
 
     return type(name+"_", (proxycls,), attrs)
 
@@ -235,8 +235,6 @@ def Proxy(name, logger, cfgdict, srv):
         remote_class = remote_class['value']
 
     if 'description' not in cfgdict:
-        cfgdict['description'] = 'remote module %s on %s' % (
-            cfgdict.get('module', name),
-            cfgdict.get('io', {'value:': '?'})['value'])
+        cfgdict['description'] = f"remote module {cfgdict.get('module', name)} on {cfgdict.get('io', {'value:': '?'})['value']}"
 
     return proxy_class(remote_class)(name, logger, cfgdict, srv)
