@@ -211,6 +211,11 @@ class EnumMember:
     def __index__(self):
         return self.value.__index__()
 
+    def __format__(self, format_spec):
+        if format_spec.endswith('d'):
+            return format(self.value, format_spec)
+        return super().__format__(format_spec)
+
     # note: we do not implement the __i*__ methods as they modify our value
     # inplace and we want to have a const
     def __forbidden__(self, *args):
