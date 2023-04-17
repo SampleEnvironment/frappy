@@ -29,8 +29,8 @@ from frappy.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
     FloatRange, IntRange, ScaledInteger, StringType, StructOf, TupleOf, StatusType
 from frappy.lib.enum import Enum
 from frappy.modulebase import Done, Module, Feature
-from frappy.modules import Attached, Communicator, \
-    Drivable, Readable, Writable
+from frappy.modules import Communicator, Drivable, Readable, Writable
+from frappy.attached import Attached, AttachedDict
 from frappy.params import Command, Parameter, Limit
 from frappy.properties import Property
 from frappy.proxy import Proxy, SecNode, proxy_class

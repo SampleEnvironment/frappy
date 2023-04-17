@@ -22,16 +22,19 @@
 # *****************************************************************************
 """Define base classes for real Modules implemented in the server"""
 
-
-from frappy.datatypes import FloatRange, \
-    StatusType, StringType
+from frappy.datatypes import BoolType, FloatRange, StatusType, StringType
 from frappy.errors import ConfigError, ProgrammingError
 from frappy.lib.enum import Enum
-from frappy.params import Command, Parameter
-from frappy.properties import Property
 from frappy.logging import HasComlog
+from frappy.params import Command, Parameter
 
 from .modulebase import Module
+from .attached import AttachedDict
+
+# import compatibility:
+# pylint: disable=unused-import
+from .properties import Property
+from .attached import Attached
 
 
 class Readable(Module):
@@ -98,6 +101,77 @@ class Drivable(Writable):
         """not implemented - this is a no-op"""
 
 
+class AcquisitionChannel(Readable):
+    """A Readable which is part of a data acquisition."""
+    interface_classes = ['AcquisitionChannel', 'Readable']
+    # copy Readable.status and extend it with BUSY
+    status = Parameter(datatype=StatusType(Readable, 'BUSY'))
+    goal = Parameter('stops the data acquisition when it is reached',
+                     FloatRange(), default=0, readonly=False, optional=True)
+    goal_enable = Parameter('enable goal', BoolType(), readonly=False,
+                            default=False, optional=True)
+
+    # clear is no longer part of the proposed spec, so it does not appear
+    # as optional command here. however, a subclass may still implement it
+
+
+class AcquisitionController(Module):
+    """Controls other modules.
+
+    Controls the data acquisition from AcquisitionChannels.
+    """
+    interface_classes = ['AcquisitionController']
+    # channels might be configured to an arbitrary number of channels with arbitrary roles
+    # - to forbid the use fo arbitrary roles, override base=None
+    # - to restrict roles and base classes override elements={<key>: <basecls>}
+    #   and/or optional={<key>: <basecls>}
+    channels = AttachedDict('mapping of role to module name for attached channels',
+                            elements=None, optional=None,
+                            basecls=AcquisitionChannel,
+                            extname='acquisition_channels')
+    status = Drivable.status
+    isBusy = Drivable.isBusy
+    # add pollinterval parameter to enable faster polling of the status
+    pollinterval = Readable.pollinterval
+
+    def doPoll(self):
+        self.read_status()
+
+    @Command()
+    def go(self):
+        """Start the acquisition. No-op if the controller is already Busy."""
+        raise NotImplementedError()
+
+    @Command(optional=True)
+    def prepare(self):
+        """Prepare the hardware so 'go' can trigger immediately."""
+
+    @Command(optional=True)
+    def hold(self):
+        """Pause the operation.
+
+        The next go will continue without clearing any channels or resetting hardware."""
+
+    @Command(optional=True)
+    def stop(self):
+        """Stop the data acquisition or operation."""
+
+
+class Acquisition(AcquisitionController, AcquisitionChannel):  # pylint: disable=abstract-method
+    """Combines AcquisitionController and AcquisitionChannel into one Module
+
+    for the special case where there is only one channel.
+    remark: when using multiple inheritance, Acquisition must appear
+    before any base class inheriting from AcquisitionController
+    """
+    interface_classes = ['Acquisition', 'Readable']
+    channels = None  # remove property
+    acquisition_key = Property('acquisition role (equivalent to NICOS preset name)',
+                               StringType(), export=True, default='')
+
+    doPoll = Readable.doPoll
+
+
 class Communicator(HasComlog, Module):
     """basic abstract communication module"""
     interface_classes = ['Communicator']
@@ -110,38 +184,3 @@ class Communicator(HasComlog, Module):
         :return: the reply
         """
         raise NotImplementedError()
-
-
-class Attached(Property):
-    """a special property, defining an attached module
-
-    assign a module name to this property in the cfg file,
-    and the server will create an attribute with this module
-
-    When mandatory is set to False, and there is no value or an empty string
-    given in the config file, the value of the attribute will be None.
-    """
-    def __init__(self, basecls=Module, description='attached module', mandatory=True):
-        self.basecls = basecls
-        super().__init__(description, StringType(), mandatory=mandatory)
-
-    def __get__(self, obj, owner):
-        if obj is None:
-            return self
-        modobj = obj.attachedModules.get(self.name)
-        if not modobj:
-            modulename = super().__get__(obj, owner)
-            if not modulename:
-                return None  # happens when mandatory=False and modulename is not given
-            modobj = obj.secNode.get_module(modulename)
-            if not modobj:
-                raise ConfigError(f'attached module {self.name}={modulename!r} '
-                                  f'does not exist')
-            if not isinstance(modobj, self.basecls):
-                raise ConfigError(f'attached module {self.name}={modobj.name!r} '
-                                  f'must inherit from {self.basecls.__qualname__!r}')
-            obj.attachedModules[self.name] = modobj
-        return modobj
-
-    def copy(self):
-        return Attached(self.basecls, self.description, self.mandatory)

@@ -1,0 +1,40 @@
+Node('measure.frappy.demo',
+     '''Measureable demo''',
+     'tcp://10770',
+)
+Mod('control',
+    'frappy_demo.acquisition.Controller',
+    'simple demo controller',
+    channels = {'first': 'chan1', 'second': 'chan2', 'third': 'chan3'},
+    pollinterval = 1,
+)
+Mod('chan1',
+    'frappy_demo.acquisition.Channel',
+    'simple channel demo',
+    goal = 50,
+    goal_enable = True,
+    pollinterval = 1,
+)
+Mod('chan2',
+    'frappy_demo.acquisition.Channel',
+    'simple channel demo',
+    pollinterval = 1,
+)
+Mod('chan3',
+    'frappy_demo.acquisition.Channel',
+    'simple channel demo',
+    pollinterval = 1,
+)
+Mod('single',
+    'frappy_demo.acquisition.SimpleAcquisition',
+    'Acquisition demo',
+    pollinterval = 1,
+    goal = 20,
+    goal_enable=True,
+    acquisition_key='single',
+)
+Mod('ng',
+    'frappy_demo.acquisition.NoGoalAcquisition',
+    'Acquisition demo',
+    pollinterval = 5,
+)

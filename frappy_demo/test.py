@@ -51,6 +51,7 @@ class WithAtt(Readable):
     def read_value(self):
         return self.att.read_value()
 
+
 class LN2(Readable):
     """Just a readable.
 
