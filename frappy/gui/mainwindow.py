@@ -229,6 +229,7 @@ class MainWindow(QMainWindow):
         self.tab.addTab(nodeWidget, node.equipmentId)
         self._nodeWidgets[host] = nodeWidget
         self.tab.setCurrentWidget(nodeWidget)
+        node.descriptionChanged.connect(self._descriptiveDataChange)
 
         # add to recent nodes
         settings = QSettings()
@@ -274,6 +275,16 @@ class MainWindow(QMainWindow):
             self._nodeWidgets.pop(node.contactPoint)
             self.log.debug("Closing tab with node %s", node.nodename)
         self.tab.removeTab(index)
+
+    def _descriptiveDataChange(self, host, node):
+        old_widget = self._nodeWidgets[host]
+        new_widget = NodeWidget(node)
+        curr_idx = self.tab.currentIndex()
+        index = self.tab.indexOf(old_widget)
+        self._nodeWidgets[host] = new_widget
+        self.tab.replace_widget(old_widget, new_widget, title=node.equipmentId)
+        if curr_idx == index:
+            self.tab.setCurrentIndex(curr_idx)
 
     def _rebuildAdvanced(self, advanced):
         if advanced:

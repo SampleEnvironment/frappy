@@ -170,7 +170,18 @@ class ModuleOverview(QTreeWidget):
             module.disconnected()
 
     def setToReconnected(self):
+        """set status after connection is reestablished.
+
+        If the node-description has changed during the reconnection, the nodewidget
+        this overview is a part of gets replaced. However, the reconnect-event
+        gets through before the descriptionChanged-event. So if a module is no
+        longer present we return early in order to avoid KeyErrors on node.modules
+        For the case of additional modules or changed module contents we do not care.
+        """
+        nodemods = self._node.modules.keys()
         for mname, module in self._modules.items():
+            if mname not in nodemods:
+                return # description changed and we will be replaced, return early
             cache = self._node.queryCache(mname)
             if not 'status' in cache:
                 module.setClearIcon()
