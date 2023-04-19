@@ -1,3 +1,15 @@
+frappy-core (0.17.10) focal; urgency=medium
+
+  * Change leftover %-logging calls to lazy
+  * Convert formatting automatically to f-strings
+  * move unit into display label
+  * [WIP] gui: add specific input widgets
+  * Rebuild NodeWidget when the description changes
+  * Manually convert most remaining format statements
+  * make entangle mapping a dict
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 19 Apr 2023 14:32:52 +0200
+
 frappy-core (0.17.9) focal; urgency=medium
 
   * interactive client: avoid messing up the input line
