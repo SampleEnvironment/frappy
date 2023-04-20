@@ -215,7 +215,7 @@ class DriverChannel(Channel):
         :param values: a dict like object containing the parameters to be written
         """
         self.read_params()  # make sure parameters are up to date
-        self.comm_write(f"DRVOUT {values['no']},{values['current']:g},{values['powerlimit']:g}")
+        self.comm_write('DRVOUT {no:d},{current:g},{powerlimit:g}'.format_map(values))
         self.read_params()  # read back
 
 
@@ -260,9 +260,8 @@ class BridgeChannel(Channel):
             values['excitation'] = 0
             values['powerlimit'] = 0
             values['voltagelimit'] = 0
-        self.comm_write(f"BRIDGE {values['no']},{values['enabled']:g},' \
-            f'{values['powerlimit']:g},{int(values['dcflag'])},{int(values['readingmode'])},' \
-            f'{values['voltagelimit']:g}")
+        self.comm_write('BRIDGE {no:d},{enabled:d},{powerlimit:g},{dcflag:d},'
+                        '{readingmode:d},{voltagelimit:g}'.format_map(values))
         self.read_params()  # read back
 
 

@@ -267,8 +267,7 @@ class ResChannel(Channel):
         if self.autorange:
             if rng < self.minrange:
                 rng = self.minrange
-        self.communicate('RDGRNG %d,%d,%d,%d,%d,%d;*OPC?' % (
-            self.channel, iscur, exc, rng, 0, excoff))
+        self.communicate(f'RDGRNG {self.channel},{iscur},{exc},{rng},0,{excoff};*OPC?')
         self.read_range()
 
     def fix_autorange(self):
@@ -290,12 +289,11 @@ class ResChannel(Channel):
 
     @CommonWriteHandler(inset_params)
     def write_inset(self, change):
-        _, _, _, curve, tempco = literal_eval(
+        _, _, _, change['curve'], change['tempco'] = literal_eval(
             self.communicate(f'INSET?{self.channel}'))
         self.enabled, self.dwell, self.pause, _, _ = literal_eval(
-            self.communicate('INSET %d,%d,%d,%d,%d,%d;INSET?%d' % (
-                self.channel, change['enabled'], change['dwell'], change['pause'], curve, tempco,
-                self.channel)))
+            self.communicate('INSET {channel},{enabled:d},{dwell:d},'
+                             '{pause:d},{curve},{tempco};INSET?{channel}'.format_map(change)))
         if 'enabled' in change and change['enabled']:
             # switch to enabled channel
             self.switcher.write_target(self.channel)
