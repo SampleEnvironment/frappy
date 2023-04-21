@@ -26,10 +26,12 @@ from frappy.gui.cfg_editor.utils import loadUi
 
 
 class NodeDisplay(QWidget):
-    def __init__(self, file_path=None, parent=None):
+    def __init__(self, file_path=None, log=None, parent=None):
         super().__init__(parent)
         loadUi(self, 'node_display.ui')
+        self.log = log
         self.saved = bool(file_path)
+        self.tree_widget.log = log
         self.created = self.tree_widget.set_file(file_path)
         self.tree_widget.save_status_changed.connect(self.change_save_status)
         self.tree_widget.currentItemChanged.connect(self.set_scroll_area)

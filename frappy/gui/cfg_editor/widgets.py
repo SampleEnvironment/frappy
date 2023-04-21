@@ -102,7 +102,7 @@ class TreeWidget(QTreeWidget):
         self.file_path = file_path
         if self.file_path:
             if os.path.isfile(file_path):
-                self.set_tree(read_config(self.file_path))
+                self.set_tree(read_config(self.file_path, self.log))
                 self.emit_save_status_changed(True)
                 return True
             self.file_path = None
@@ -277,7 +277,7 @@ class TreeWidget(QTreeWidget):
         file_name = self.file_path
         if not self.file_path or save_as:
             file_name = get_file_paths(self, False)[-1]
-        if file_name[-4:] == '.cfg':
+        if file_name[-3:] == '.py':
             self.file_path = file_name
             write_config(self.file_path, self)
             self.emit_save_status_changed(True)

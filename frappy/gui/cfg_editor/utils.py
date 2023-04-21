@@ -99,8 +99,8 @@ def get_file_paths(widget, open_file=True):
         dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
     dialog.setWindowTitle(title)
-    dialog.setNameFilter('*.cfg')
-    dialog.setDefaultSuffix('.cfg')
+    dialog.setNameFilter('*.py')
+    dialog.setDefaultSuffix('.py')
     dialog.exec()
     return dialog.selectedFiles()
 

@@ -39,9 +39,10 @@ COMMENT = 'comment'
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, file_path=None, parent=None):
+    def __init__(self, file_path=None, log=None, parent=None):
         super().__init__(parent)
         loadUi(self, 'mainwindow.ui')
+        self.log = log
         self.tabWidget.currentChanged.connect(self.tab_relevant_btns_disable)
         if file_path is None:
             self.tab_relevant_btns_disable(-1)
@@ -179,7 +180,7 @@ class MainWindow(QMainWindow):
                                     QMessageBox.StandardButton.Save)
 
     def new_node(self, name, file_path=None):
-        node = NodeDisplay(file_path)
+        node = NodeDisplay(file_path, self.log)
         if node.created:
             node.tree_widget.currentItemChanged.connect(self.disable_btns)
             self.tabWidget.setCurrentIndex(self.tabWidget.addTab(node, name))
