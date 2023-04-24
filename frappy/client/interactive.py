@@ -409,12 +409,12 @@ class Client(SecopClient):
 
 
 class Console(code.InteractiveConsole):
-    def __init__(self, local):
+    def __init__(self, local, name='cli'):
         super().__init__(local)
         history = None
         if readline:
             try:
-                history = expanduser('~/.frappy-cli-history')
+                history = expanduser(f'~/.frappy-{name}-history')
                 readline.read_history_file(history)
             except FileNotFoundError:
                 pass
