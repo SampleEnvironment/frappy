@@ -212,7 +212,7 @@ class EnumMember:
         return self.value.__index__()
 
     def __format__(self, format_spec):
-        if format_spec.endswith('d'):
+        if format_spec.endswith(('d', 'g')):
             return format(self.value, format_spec)
         return super().__format__(format_spec)
 

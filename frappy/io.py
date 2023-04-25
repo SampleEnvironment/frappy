@@ -52,21 +52,25 @@ class HasIO(Module):
     ioClass = None
 
     def __init__(self, name, logger, opts, srv):
-        io = opts.get('io')
         super().__init__(name, logger, opts, srv)
         if self.uri:
+            # automatic creation of io device
             opts = {'uri': self.uri, 'description': f'communication device for {name}',
                     'visibility': 'expert'}
             ioname = self.ioDict.get(self.uri)
             if not ioname:
-                ioname = io or name + '_io'
+                ioname = opts.get('io') or f'{name}_io'
                 io = self.ioClass(ioname, srv.log.getChild(ioname), opts, srv)  # pylint: disable=not-callable
                 io.callingModule = []
                 srv.modules[ioname] = io
                 self.ioDict[self.uri] = ioname
             self.io = ioname
-        elif not io:
-            raise ConfigError(f"Module {name} needs a value for either 'uri' or 'io'")
+
+    def initModule(self):
+        if not self.io:
+            # self.io was not assigned
+            raise ConfigError(f"Module {self.name} needs a value for either 'uri' or 'io'")
+        super().initModule()
 
     def communicate(self, *args):
         return self.io.communicate(*args)
@@ -149,7 +153,7 @@ class IOBase(Communicator):
         self.is_connected is changed only by self.connectStart or self.closeConnection
         """
         if self.is_connected:
-            return True
+            return True  # no need for intermediate updates
         try:
             self.connectStart()
             if self._last_error:

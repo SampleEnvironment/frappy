@@ -29,7 +29,7 @@ from frappy.modules import Communicator
 
 class Ls370Sim(Communicator):
     CHANNEL_COMMANDS = [
-        ('RDGR?%d', '1.0'),
+        ('RDGR?%d', '200.0'),
         ('RDGST?%d', '0'),
         ('RDGRNG?%d', '0,5,5,0,0'),
         ('INSET?%d', '1,5,5,0,0'),
@@ -59,11 +59,16 @@ class Ls370Sim(Communicator):
     def simulate(self):
         # not really a simulation. just for testing RDGST
         for channel in self.CHANNELS:
-            _, _, _, _, excoff = self._data[f'RDGRNG?{channel}'].split(',')
+            _, _, _, _, excoff = self.data[f'RDGRNG?{channel}'].split(',')
             if excoff == '1':
-                self._data[f'RDGST?{channel}'] = '6'
+                self.data[f'RDGST?{channel}'] = '6'
             else:
-                self._data[f'RDGST?{channel}'] = '0'
+                self.data[f'RDGST?{channel}'] = '0'
+        for chan in self.CHANNELS:
+            prev = float(self.data['RDGR?%d' % chan])
+            # simple simulation: exponential convergence to 100 * channel number
+            # using a weighted average
+            self.data['RDGR?%d' % chan] = '%g' % (0.99 * prev + 0.01 * 100 * chan)
 
     def communicate(self, command):
         self.comLog(f'> {command}')

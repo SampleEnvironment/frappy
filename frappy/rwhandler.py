@@ -217,6 +217,7 @@ class CommonWriteHandler(WriteHandler):
                     raise ProgrammingError('a method wrapped with CommonWriteHandler must not return any value')
                 # remove pname from writeDict. this was not removed in WriteParameters, as it was not missing
                 module.writeDict.pop(pname, None)
+            return getattr(module, pname)
         return method
 
 
