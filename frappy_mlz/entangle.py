@@ -813,7 +813,7 @@ class NamedDigitalInput(DigitalInput):
 
     # parameters
     mapping = Property('A dictionary mapping state names to integers',
-                        datatype=ValueType(dict))
+                       datatype=ValueType(dict))
 
     def initModule(self):
         super().initModule()
@@ -884,7 +884,7 @@ class NamedDigitalOutput(DigitalOutput):
 
     # parameters
     mapping = Property('A dictionary mapping state names to integers',
-                        datatype=ValueType(dict))
+                       datatype=ValueType(dict))
 
     def initModule(self):
         super().initModule()
