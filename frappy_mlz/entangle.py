@@ -555,7 +555,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         return self.abslimits[1]
 
     def __getusermin(self):
-        return self.userlimits[0]
+        return max(self.userlimits[0], self.abslimits[0])
 
     def __setusermin(self, value):
         self.userlimits = (value, self.userlimits[1])
@@ -563,7 +563,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
     usermin = property(__getusermin, __setusermin)
 
     def __getusermax(self):
-        return self.userlimits[1]
+        return min(self.userlimits[1], self.abslimits[1])
 
     def __setusermax(self, value):
         self.userlimits = (self.userlimits[0], value)
