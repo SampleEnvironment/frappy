@@ -460,6 +460,12 @@ class AnalogOutput(PyTangoDevice, Drivable):
     _history = ()
     _timeout = None
     _moving = False
+    __main_unit = None
+
+    def applyMainUnit(self, mainunit):
+        # called from __init__ method
+        # replacement of '$' by main unit must be done later
+        self.__main_unit = mainunit
 
     def initModule(self):
         super().initModule()
@@ -469,12 +475,18 @@ class AnalogOutput(PyTangoDevice, Drivable):
 
     def startModule(self, start_events):
         super().startModule(start_events)
-        # query unit from tango and update value property
-        attrInfo = self._dev.attribute_query('value')
-        # prefer configured unit if nothing is set on the Tango device, else
-        # update
-        if attrInfo.unit != 'No unit':
-            self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
+        try:
+            # query unit from tango and update value property
+            attrInfo = self._dev.attribute_query('value')
+            # prefer configured unit if nothing is set on the Tango device, else
+            # update
+            if attrInfo.unit != 'No unit':
+                self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
+                self.__main_unit = attrInfo.unit
+        except Exception as e:
+            self.log.error(e)
+        if self.__main_unit:
+            super().applyMainUnit(self.__main_unit)
 
     def doPoll(self):
         super().doPoll()
