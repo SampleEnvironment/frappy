@@ -56,7 +56,7 @@ class HasIO(Module):
         super().__init__(name, logger, opts, srv)
         if self.uri:
             opts = {'uri': self.uri, 'description': f'communication device for {name}',
-                    'export': False}
+                    'visibility': 'expert'}
             ioname = self.ioDict.get(self.uri)
             if not ioname:
                 ioname = io or name + '_io'
