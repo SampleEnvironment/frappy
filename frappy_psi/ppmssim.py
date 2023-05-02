@@ -188,7 +188,7 @@ class PpmsSim:
         else:
             self.status.pos = 5
 
-        self.st = sum(self.status[i] << (i * 4) for i in range(4))
+        self.st = sum((self.status[i] << (i * 4) for i in range(4)))
         self.r1 = self.t * 0.1
         self.i1 = self.t % 10.0
         self.r2 = 1000 / self.t

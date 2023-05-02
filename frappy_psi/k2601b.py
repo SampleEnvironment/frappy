@@ -60,7 +60,7 @@ class SourceMeter(HasIO, Module):
     ioClass = K2601bIO
 
     def read_mode(self):
-        return float(self.communicate('print((smua.source.func+1)*smua.source.output)'))
+        return int(float(self.communicate('print((smua.source.func+1)*smua.source.output)')))
 
     def write_mode(self, value):
         assert self.communicate(SOURCECMDS[value]) == 'ok'
