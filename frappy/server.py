@@ -125,6 +125,9 @@ class Server:
     def unknown_options(self, cls, options):
         return f"{cls.__name__} class don't know how to handle option(s): {', '.join(options)}"
 
+    def restart_hook(self):
+        pass
+
     def run(self):
         while self._restart:
             self._restart = False
