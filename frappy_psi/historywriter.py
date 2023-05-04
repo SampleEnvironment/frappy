@@ -31,7 +31,7 @@ def make_cvt_list(dt, tail=''):
     tail is a postfix to be appended in case of tuples and structs
     """
     if isinstance(dt, (EnumType, IntRange, BoolType)):
-        return[(int, tail, {type: 'NUM'})]
+        return[(int, tail, {'type': 'NUM'})]
     if isinstance(dt, (FloatRange, ScaledInteger)):
         return [(dt.import_value, tail,
                  {'type': 'NUM', 'unit': dt.unit, 'period': 5} if dt.unit else {})]
