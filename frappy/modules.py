@@ -34,7 +34,7 @@ from frappy.errors import BadValueError, CommunicationFailedError, ConfigError, 
     ProgrammingError, SECoPError, secop_error, RangeError
 from frappy.lib import formatException, mkthread, UniqueObject
 from frappy.lib.enum import Enum
-from frappy.params import Accessible, Command, Parameter
+from frappy.params import Accessible, Command, Parameter, Limit
 from frappy.properties import HasProperties, Property
 from frappy.logging import RemoteLogHandler, HasComlog
 
@@ -161,7 +161,7 @@ class HasAccessibles(HasProperties):
                     # find the base class, where the parameter <limname> is defined first.
                     # we have to check all bases, as they may not be treated yet when
                     # not inheriting from HasAccessibles
-                    base = next(b for b in reversed(base.__mro__) if limname in b.__dict__)
+                    base = next(b for b in reversed(cls.__mro__) if limname in b.__dict__)
                     if cname not in base.__dict__:
                         # there is no check method yet at this class
                         # add check function to the class where the limit was defined
@@ -430,28 +430,19 @@ class Module(HasAccessibles):
             self.valueCallbacks[pname] = []
             self.errorCallbacks[pname] = []
 
-            if not pobj.hasDatatype():
-                head, _, postfix = pname.rpartition('_')
-                if postfix not in ('min', 'max', 'limits'):
-                    errors.append(f'{pname} needs a datatype')
-                    continue
-                # when datatype is not given, properties are set automagically
-                pobj.setProperty('readonly', False)
-                baseparam = self.parameters.get(head)
+            if isinstance(pobj, Limit):
+                basepname = pname.rpartition('_')[0]
+                baseparam = self.parameters.get(basepname)
                 if not baseparam:
-                    errors.append(f'parameter {pname!r} is given, but not {head!r}')
+                    errors.append(f'limit {pname!r} is given, but not {basepname!r}')
                     continue
-                dt = baseparam.datatype
-                if dt is None:
+                if baseparam.datatype is None:
                     continue  # an error will be reported on baseparam
-                if postfix == 'limits':
-                    pobj.setProperty('datatype', TupleOf(dt, dt))
-                    pobj.setProperty('default', (dt.min, dt.max))
-                else:
-                    pobj.setProperty('datatype', dt)
-                    pobj.setProperty('default', getattr(dt, postfix))
-                if not pobj.description:
-                    pobj.setProperty('description', f'limit for {pname}')
+                pobj.set_datatype(baseparam.datatype)
+
+            if not pobj.hasDatatype():
+                errors.append(f'{pname} needs a datatype')
+                continue
 
             if pobj.value is None:
                 if pobj.needscfg:
@@ -804,11 +795,11 @@ class Module(HasAccessibles):
                 raise ValueError('remote handler not found')
         self.remoteLogHandler.set_conn_level(self, conn, level)
 
-    def checkLimits(self, value, parametername='target'):
+    def checkLimits(self, value, pname='target'):
         """check for limits
 
-        :param value: the value to be checked for <parametername>_min <= value <= <parametername>_max
-        :param parametername: parameter name, default is 'target'
+        :param value: the value to be checked for <pname>_min <= value <= <pname>_max
+        :param pname: parameter name, default is 'target'
 
         raises RangeError in case the value is not valid
 
@@ -817,14 +808,20 @@ class Module(HasAccessibles):
         when no automatic super call is desired.
         """
         try:
-            min_, max_ = getattr(self, parametername + '_limits')
+            min_, max_ = getattr(self, pname + '_limits')
+            if not min_ <= value <= max_:
+                raise RangeError(f'{pname} outside {pname}_limits')
+            return
         except AttributeError:
-            min_ = getattr(self, parametername + '_min', float('-inf'))
-            max_ = getattr(self, parametername + '_max', float('inf'))
-        if not min_ <= value <= max_:
-            if min_ > max_:
-                raise RangeError(f'invalid limits: [{min_:g}, {max_:g}]')
-            raise RangeError(f'limits violation: {value:g} outside [{min_:g}, {max_:g}]')
+            pass
+        min_ = getattr(self, pname + '_min', float('-inf'))
+        max_ = getattr(self, pname + '_max', float('inf'))
+        if min_ > max_:
+            raise RangeError(f'invalid limits: {pname}_min > {pname}_max')
+        if value < min_:
+            raise RangeError(f'{pname} below {pname}_min')
+        if value > max_:
+            raise RangeError(f'{pname} above {pname}_max')
 
 
 class Readable(Module):

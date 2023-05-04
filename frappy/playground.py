@@ -81,6 +81,7 @@ class Dispatcher:
     def __init__(self, name, log, opts, srv):
         self.log = log
         self._modules = {}
+        self.equipment_id = opts.pop('equipment_id', name)
 
     def announce_update(self, modulename, pname, pobj):
         if pobj.readerror:

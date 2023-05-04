@@ -514,6 +514,35 @@ class Command(Accessible):
         return result[:-1] + f', {self.func!r})' if self.func else result
 
 
+class Limit(Parameter):
+    """a special limit parameter"""
+    POSTFIXES = {'min', 'max', 'limits'}  # allowed postfixes
+
+    def __set_name__(self, owner, name):
+        super().__set_name__(owner, name)
+        head, _, postfix = name.rpartition('_')
+        if postfix not in self.POSTFIXES:
+            raise ProgrammingError(f'Limit name must end with one of {self.POSTFIXES}')
+        if 'readonly' not in self.propertyValues:
+            self.readonly = False
+        if not self.description:
+            self.description = f'limit for {head}'
+        if self.export.startswith('_') and PREDEFINED_ACCESSIBLES.get(head):
+            self.export = self.export[1:]
+
+    def set_datatype(self, datatype):
+        if self.hasDatatype():
+            return  # the programmer is responsible that a given datatype is correct
+        postfix = self.name.rpartition('_')[-1]
+        postfix = self.name.rpartition('_')[-1]
+        if postfix == 'limits':
+            self.datatype = TupleOf(datatype, datatype)
+            self.default = (datatype.min, datatype.max)
+        else:  # min, max
+            self.datatype = datatype
+            self.default = getattr(datatype, postfix)
+
+
 # list of predefined accessibles with their type
 PREDEFINED_ACCESSIBLES = {
     'value': Parameter,

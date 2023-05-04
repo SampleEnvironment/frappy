@@ -29,7 +29,7 @@ import pytest
 from frappy.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
 from frappy.errors import ProgrammingError, ConfigError, RangeError
 from frappy.modules import Communicator, Drivable, Readable, Module
-from frappy.params import Command, Parameter
+from frappy.params import Command, Parameter, Limit
 from frappy.rwhandler import ReadHandler, WriteHandler, nopoll
 from frappy.lib import generalConfig
 
@@ -795,17 +795,17 @@ stdlim = {
 
 class Lim(Module):
     a = Parameter('', FloatRange(-10, 10), readonly=False, default=0)
-    a_min = Parameter()
-    a_max = Parameter()
+    a_min = Limit()
+    a_max = Limit()
 
     b = Parameter('', FloatRange(0, None), readonly=False, default=0)
-    b_min = Parameter()
+    b_min = Limit()
 
     c = Parameter('', IntRange(None, 100), readonly=False, default=0)
-    c_max = Parameter()
+    c_max = Limit()
 
     d = Parameter('', FloatRange(-5, 5), readonly=False, default=0)
-    d_limits = Parameter()
+    d_limits = Limit()
 
     e = Parameter('', IntRange(0, 8), readonly=False, default=0)
 
@@ -872,8 +872,8 @@ def test_limit_inheritance():
                 raise ValueError('value is not a multiple of 0.25')
 
     class Mixin:
-        a_min = Parameter()
-        a_max = Parameter()
+        a_min = Limit()
+        a_max = Limit()
 
     class Mod(Mixin, Base):
         def check_a(self, value):

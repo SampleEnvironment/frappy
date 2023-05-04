@@ -57,7 +57,7 @@ import json
 
 from frappy.lib import generalConfig
 from frappy.datatypes import EnumType
-from frappy.params import Parameter, Property, Command
+from frappy.params import Parameter, Property, Command, Limit
 from frappy.modules import Module
 
 
@@ -65,6 +65,10 @@ class PersistentParam(Parameter):
     persistent = Property('persistence flag (auto means: save automatically on any change)',
                           EnumType(off=0, on=1, auto=2), default=1)
     given = False
+
+
+class PersistentLimit(Limit, Parameter):
+    pass
 
 
 class PersistentMixin(Module):
