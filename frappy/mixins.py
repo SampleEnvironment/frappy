@@ -65,7 +65,7 @@ class HasOutputModule(Writable):
     """
     # mandatory=False: it should be possible to configure a module with fixed control
     output_module = Attached(HasControlledBy, mandatory=False)
-    control_active = Parameter('control mode', BoolType())
+    control_active = Parameter('control mode', BoolType(), default=False)
 
     def initModule(self):
         super().initModule()

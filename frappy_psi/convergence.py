@@ -21,10 +21,11 @@
 # *****************************************************************************
 
 from frappy.core import Parameter, FloatRange, BUSY, IDLE, WARN
+from frappy.states import HasStates
 from frappy.lib.statemachine import StateMachine, Retry, Stop
 
 
-class HasConvergence:
+class HasConvergence(HasStates):
     """mixin for convergence checks
 
     Implementation based on tolerance, settling time and timeout.
