@@ -376,7 +376,7 @@ class Module(HasAccessibles):
         #    b.__name__ for b in mycls.__mro__ if b.__module__.startswith('frappy.modules')]
         # list of only the 'highest' secop module class
         self.interface_classes = [
-            b.__name__ for b in mycls.__mro__ if issubclass(Drivable, b)][0:1]
+            b.__name__ for b in mycls.__mro__ if b in SECoP_BASE_CLASSES][:1]
 
         # handle Features
         self.features = [b.__name__ for b in mycls.__mro__ if Feature in b.__bases__]
@@ -897,6 +897,7 @@ class Communicator(HasComlog, Module):
         """
         raise NotImplementedError()
 
+SECoP_BASE_CLASSES = {Readable, Writable, Drivable, Communicator}
 
 class Attached(Property):
     """a special property, defining an attached module

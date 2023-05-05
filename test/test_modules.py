@@ -28,7 +28,7 @@ import pytest
 
 from frappy.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
 from frappy.errors import ProgrammingError, ConfigError, RangeError
-from frappy.modules import Communicator, Drivable, Readable, Module
+from frappy.modules import Communicator, Drivable, Readable, Module, Writable
 from frappy.params import Command, Parameter, Limit
 from frappy.rwhandler import ReadHandler, WriteHandler, nopoll
 from frappy.lib import generalConfig
@@ -902,3 +902,17 @@ def test_limit_inheritance():
 
     with pytest.raises(ValueError):
         mod2.write_a(0)
+
+@pytest.mark.parametrize('bases, iface_classes', [
+    ([Module], ()),
+    ([Communicator], ('Communicator',)),
+    ([Readable], ('Readable',)),
+    ([Writable], ('Writable',)),
+    ([Drivable], ('Drivable',)),
+])
+def test_interface_classes(bases, iface_classes):
+    srv = ServerStub({})
+    class Mod(*bases):
+        pass
+    m = Mod('mod', LoggerStub(), {'description': 'test'}, srv)
+    assert m.interface_classes == iface_classes
