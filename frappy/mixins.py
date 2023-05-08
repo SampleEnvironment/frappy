@@ -21,16 +21,17 @@
 # *****************************************************************************
 
 from frappy.datatypes import BoolType, EnumType, Enum
-from frappy.core import Parameter, Writable, Attached
+from frappy.core import Parameter, Attached
 
 
-class HasControlledBy(Writable):
+class HasControlledBy:
     """mixin for modules with controlled_by
 
     in the :meth:`write_target` the hardware action to switch to own control should be done
     and in addition self.self_controlled() should be called
     """
     controlled_by = Parameter('source of target value', EnumType(members={'self': 0}), default=0)
+    target = Parameter()  # make sure target is a parameter
     inputCallbacks = ()
 
     def register_input(self, name, deactivate_control):
@@ -57,7 +58,7 @@ class HasControlledBy(Writable):
                 deactivate_control(self.name)
 
 
-class HasOutputModule(Writable):
+class HasOutputModule:
     """mixin for modules having an output module
 
     in the :meth:`write_target` the hardware action to switch to own control should be done
@@ -66,6 +67,7 @@ class HasOutputModule(Writable):
     # mandatory=False: it should be possible to configure a module with fixed control
     output_module = Attached(HasControlledBy, mandatory=False)
     control_active = Parameter('control mode', BoolType(), default=False)
+    target = Parameter()  # make sure target is a parameter
 
     def initModule(self):
         super().initModule()
@@ -85,8 +87,8 @@ class HasOutputModule(Writable):
             out.controlled_by = self.name
         self.control_active = True
 
-    def deactivate_control(self, switched_by):
+    def deactivate_control(self, source):
         """called when an other module takes over control"""
         if self.control_active:
             self.control_active = False
-            self.log.warning(f'switched to manual mode by {switched_by}')
+            self.log.warning(f'switched to manual mode by {source}')
