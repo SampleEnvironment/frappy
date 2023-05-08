@@ -396,3 +396,13 @@ class UniqueObject:
 
     def __repr__(self):
         return self.name
+
+
+def merge_status(*args):
+    """merge status
+
+    the status with biggest code wins
+    texts matching maximal code are joined with ', '
+    """
+    maxcode = max(a[0] for a in args)
+    return maxcode, ', '.join([a[1] for a in args if a[0] == maxcode and a[1]])
