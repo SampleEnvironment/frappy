@@ -250,16 +250,9 @@ class ProxyClient:
         return bool(cblist)
 
     def updateValue(self, module, param, value, timestamp, readerror):
-        entry = CacheItem(value, timestamp, readerror,
-                          self.modules[module]['parameters'][param]['datatype'])
-        self.cache[(module, param)] = entry
-        self.callback(None, 'updateItem', module, param, entry)
-        self.callback(module, 'updateItem', module, param, entry)
-        self.callback((module, param), 'updateItem', module, param, entry)
-        # TODO: change clients to use updateItem instead of updateEvent
-        self.callback(None, 'updateEvent', module, param, *entry)
-        self.callback(module, 'updateEvent', module, param, *entry)
-        self.callback((module, param), 'updateEvent', module, param, *entry)
+        self.callback(None, 'updateEvent', module, param, value, timestamp, readerror)
+        self.callback(module, 'updateEvent', module, param, value, timestamp, readerror)
+        self.callback((module, param), 'updateEvent', module, param,value, timestamp, readerror)
 
 
 class SecopClient(ProxyClient):
@@ -650,6 +643,16 @@ class SecopClient(ProxyClient):
         if datatype:
             data = datatype.import_value(data)
         return data, qualifiers
+
+    def updateValue(self, module, param, value, timestamp, readerror):
+        entry = CacheItem(value, timestamp, readerror,
+                          self.modules[module]['parameters'][param]['datatype'])
+        self.cache[(module, param)] = entry
+        self.callback(None, 'updateItem', module, param, entry)
+        self.callback(module, 'updateItem', module, param, entry)
+        self.callback((module, param), 'updateItem', module, param, entry)
+        # TODO: change clients to use updateItem instead of updateEvent
+        super().updateValue(module, param, value, timestamp, readerror)
 
     # the following attributes may be/are intended to be overwritten by a subclass
 
