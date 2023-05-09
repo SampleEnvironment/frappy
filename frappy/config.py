@@ -126,13 +126,15 @@ class Config(dict):
                 self.modules.append(mod)
 
 
-def process_file(config_text):
+def process_file(filename):
+    with open(filename, 'rb') as f:
+        config_text = f.read()
     node = NodeCollector()
     mods = Collector(Mod)
     ns = {'Node': node.add, 'Mod': mods.add, 'Param': Param, 'Command': Param, 'Group': Group}
 
     # pylint: disable=exec-used
-    exec(config_text, ns)
+    exec(compile(config_text, filename, 'exec'), ns)
     return Config(node, mods)
 
 
@@ -175,9 +177,7 @@ def load_config(cfgfiles, log):
     for cfgfile in cfgfiles.split(','):
         filename = to_config_path(cfgfile, log)
         log.debug('Parsing config file %s...', filename)
-        with open(filename, 'rb') as f:
-            config_text = f.read()
-        cfg = process_file(config_text)
+        cfg = process_file(filename)
         if config:
             config.merge_modules(cfg)
         else:
