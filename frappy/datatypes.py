@@ -274,9 +274,8 @@ class FloatRange(HasUnit, DataType):
     def compatible(self, other):
         if not isinstance(other, (FloatRange, ScaledInteger)):
             raise WrongTypeError('incompatible datatypes')
-        # avoid infinity
-        other.validate(max(sys.float_info.min, self.min))
-        other.validate(min(sys.float_info.max, self.max))
+        other.validate(self.min)
+        other.validate(self.max)
 
 
 class IntRange(DataType):
