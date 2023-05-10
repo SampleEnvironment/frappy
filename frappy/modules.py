@@ -834,7 +834,7 @@ class Readable(Module):
     value = Parameter('current value of the module', FloatRange())
     status = Parameter('current status of the module', StatusType(Status),
                        default=(StatusType.IDLE, ''))
-    pollinterval = Parameter('default poll interval', FloatRange(0.1, 120),
+    pollinterval = Parameter('default poll interval', FloatRange(0.1, 120, unit='s'),
                              default=5, readonly=False, export=True)
 
     def doPoll(self):
