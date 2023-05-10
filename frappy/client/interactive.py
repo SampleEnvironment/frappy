@@ -123,7 +123,7 @@ class Module:
         self._running = None
         self._status = None
         props = secnode.modules[name]['properties']
-        self._title = f"# {props.get('implementation', '')} ({props.get('interface_classes', [''])[0]})"
+        self._title = f"# {props.get('implementation', '')} ({(props.get('interface_classes') or ['Module'])[0]})"
 
     def _one_line(self, pname, minwid=0):
         """return <module>.<param> = <value> truncated to one line"""
