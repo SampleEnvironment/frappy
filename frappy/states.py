@@ -183,12 +183,13 @@ class HasStates:
         override for code to be executed after stopping
         """
 
-    def start_machine(self, statefunc, fast_poll=True, **kwds):
+    def start_machine(self, statefunc, fast_poll=True, status=None, **kwds):
         """start or restart the state machine
 
         :param statefunc: the initial state to be called
         :param fast_poll: flag to indicate that polling has to switched to fast
         :param cleanup: a cleanup function
+        :param status: override automatic immediate status before first state
         :param kwds: attributes to be added to the state machine on start
 
         If the state machine is already running, the following happens:
@@ -202,9 +203,12 @@ class HasStates:
         4) the state machine continues at the given statefunc
         """
         sm = self._state_machine
-        sm.status = self.get_status(statefunc, BUSY)
-        if sm.statefunc:
-            sm.status = sm.status[0], 'restarting'
+        if status is None:
+            sm.status = self.get_status(statefunc, BUSY)
+            if sm.statefunc:
+                sm.status = sm.status[0], 'restarting'
+        else:
+            sm.status = status
         sm.start(statefunc, cleanup=kwds.pop('cleanup', self.on_cleanup), **kwds)
         self.read_status()
         if fast_poll:
