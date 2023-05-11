@@ -30,7 +30,7 @@ from os import path
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-from frappy.client.interactive import Client, Console, clientenv, run
+from frappy.client.interactive import init, run, clientenv, interact
 
 
 def parseArgv(argv):
@@ -47,43 +47,9 @@ def parseArgv(argv):
     return parser.parse_args(argv)
 
 
-USAGE = """
-Usage:
-{client_assign}
-# for all SECoP modules objects are created in the main namespace
-
-<module>                     # list all parameters
-<module>.<param> = <value>   # change parameter
-<module>(<target>)           # set target and wait until not busy
-                             # 'status' and 'value' changes are shown every 1 sec
-{client_name}.mininterval = 0.2        # change minimal update interval to 0.2 s (default is 1 s)
-
-watch(T)                     # watch changes of T.status and T.value (stop with ctrl-C)
-watch(T='status target')     # watch status and target parameters
-watch(io, T=True)            # watch io and all parameters of T
-{tail}"""
-
 args = parseArgv(sys.argv[1:])
-if not args.node:
-    usage_args = {
-        'client_assign': "\ncli = Client('localhost:5000')\n",
-        'client_name': 'cli'}
-    success = True
-else:
-    usage_args = {
-        'client_assign': '',
-        'client_name': '_c0'}
-    success = False
 
-clientenv.init()
-
-for idx, node in enumerate(args.node):
-    client_name = '_c%d' % idx
-    try:
-        clientenv.namespace[client_name] = Client(node, name=client_name)
-        success = True
-    except Exception as e:
-        print(repr(e))
+success = init(*args.node)
 
 run_error = ''
 file_success = False
@@ -98,5 +64,4 @@ if success:
     if args.include and file_success and args.only_execute:
         print('skipping interactive mode')
         exit()
-    print(USAGE.format(tail=run_error, **usage_args))
-    Console()
+    interact(run_error)

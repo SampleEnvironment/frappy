@@ -19,28 +19,7 @@
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
-"""simple interactive python client
-
-Usage:
-
-from frappy.client.interactive import Client
-
-client = Client('localhost:5000')  # start client.
-# this connects and creates objects for all SECoP modules in the main namespace
-
-<module>                      # list all parameters
-<module>.<param> = <value>    # change parameter
-<module>(<target>)            # set target and wait until not busy
-                              # 'status' and 'value' changes are shown every 1 sec
-client.mininterval = 0.2      # change minimal update interval to 0.2 s (default is 1 s)
-
-watch(T)                      # watch changes of T.status and T.value (stop with ctrl-C)
-watch(T='status target')      # watch status and target parameters
-watch(io, T=True)             # watch io and all parameters of T
-
-run('filename')               # execute a script
-/filename                     # execute a script
-"""
+"""simple interactive python client"""
 
 import sys
 import time
@@ -58,6 +37,24 @@ try:
     import readline
 except ImportError:
     readline = None
+
+
+USAGE = """
+Usage:
+{client_assign}
+# for all SECoP modules objects are created in the main namespace
+
+<module>                     # list all parameters
+<module>.<param> = <value>   # change parameter
+<module>(<target>)           # set target and wait until not busy
+                             # 'status' and 'value' changes are shown every 1 sec
+{client_name}.mininterval = 0.2        # change minimal update interval to 0.2 s (default is 1 s)
+
+watch(T)                     # watch changes of T.status and T.value (stop with ctrl-C)
+watch(T='status target')     # watch status and target parameters
+watch(io, T=True)            # watch io and all parameters of T
+{tail}"""
+
 
 LOG_LEVELS = {'debug', 'comlog', 'info', 'warning', 'error', 'off'}
 CLR = '\r\x1b[K'  # code to move to the left and clear current line
@@ -486,3 +483,25 @@ class Console(code.InteractiveConsole):
 
     def showtraceback(self):
         self.write(clientenv.short_traceback())
+
+
+def init(*nodes):
+    clientenv.init()
+    success = not nodes
+    for idx, node in enumerate(nodes):
+        client_name = '_c%d' % idx
+        try:
+            clientenv.namespace[client_name] = Client(node, name=client_name)
+            success = True
+        except Exception as e:
+            print(repr(e))
+    return success
+
+
+def interact(usage_tail=''):
+    empty = '_c0' not in clientenv.namespace
+    print(USAGE.format(
+        client_name='cli' if empty else '_c0',
+        client_assign="\ncli = Client('localhost:5000')\n" if empty else '',
+        tail=usage_tail))
+    Console()
