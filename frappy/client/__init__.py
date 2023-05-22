@@ -245,8 +245,10 @@ class ProxyClient:
             except UnregisterCallback:
                 cblist.remove(cbfunc)
             except Exception as e:
+                # the programmer should catch all errors in callbacks
+                # if not, the log will be flooded with errors
                 if self.log:
-                    self.log.error('error %r calling %s%r', e, cbfunc.__name__, args)
+                    self.log.exception('error %r calling %s%r', e, cbfunc.__name__, args)
         return bool(cblist)
 
     def updateValue(self, module, param, value, timestamp, readerror):
@@ -398,6 +400,7 @@ class SecopClient(ProxyClient):
                             value = data[0]
                             readerror = None
                         module, param = module_param
+                        timestamp = min(time.time(), timestamp)  # no timestamps in the future!
                         try:
                             self.updateValue(module, param, value, timestamp, readerror)
                         except KeyError:
