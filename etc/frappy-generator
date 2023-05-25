@@ -39,7 +39,7 @@ def main():
     frappy_unit = '/lib/systemd/system/frappy@.service'
     wants_dir = normal_dir + '/frappy.target.wants'
 
-    all_servers = [base.rstrip('_cfg') for (base, ext) in
+    all_servers = [base[:-4] if base.endswith('_cfg') else base for (base, ext) in
                    map(path.splitext, os.listdir(config_dir)) if ext == '.py']
     all_servers.sort()
 
