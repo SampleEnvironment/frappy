@@ -1,3 +1,76 @@
+frappy-core (0.17.11) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * Add __format__ to EnumMember
+
+  [ Markus Zolliker ]
+  * fix error from manual %-format conversion
+
+  [ Alexander Zaft ]
+  * specify minimum pyqt5 version
+
+  [ Markus Zolliker ]
+  * make io device visible as expert by default
+
+  [ Jens Krüger ]
+  * MLZ/Entangle: Fix formatting issues
+
+  [ Markus Zolliker ]
+  * improve error handling on callbacks
+  * fix issues with lakeshore 370
+  * frappy_psi: two small fixes in k2601b/ppmssim
+  * a playground for debugging drivers
+  * issues with StructOf
+  * improve mercury temperature loop
+  * improve interactive client
+
+  [ Jens Krüger ]
+  * Server: add missing 'restart_hook' missing
+  * MLZ/Entangle: Add unit init in AnalogOutput
+  * MLZ/Entangle: Fix user limits handling
+
+  [ Alexander Zaft ]
+  * Improve address and connection handling
+  * Add Stopgap handling of cfg files in cfg-editor
+
+  [ Markus Zolliker ]
+  * fix in frappy_psi.historywriter
+  * improve mercury driver
+  * driver for the triton dilution refrigerator
+  * fixes on HasConvergence and HasOutputModule
+  * improve and fix errors with parameter limits
+  * add HasOffset feature
+
+  [ Alexander Zaft ]
+  * Fix interface class list
+
+  [ Markus Zolliker ]
+  * mixins should not inherit Module
+  * fix interplay mercury.TemperatureLoop and HasConvergence
+
+  [ Alexander Zaft ]
+  * Fix lower limit checking of FloatRange
+
+  [ Markus Zolliker ]
+  * improve traceback while processing config file
+  * driver for mercury IPS
+  * add sea driver
+
+  [ Georg Brandl ]
+  * debian: add new executable
+
+  [ Markus Zolliker ]
+  * move more code from bin/frappy-cli to frappy/client/interactive.py
+  * add unit=s to pollinterval
+  * client.interactive: fix error when interface_classes empty
+  * phytron motor driver
+  * client: timestamps must never lie in the future
+
+  [ Alexander Zaft ]
+  * Fix rstrip misuse in frappy-generator
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Thu, 25 May 2023 09:38:24 +0200
+
 frappy-core (0.17.10) focal; urgency=medium
 
   * Change leftover %-logging calls to lazy
