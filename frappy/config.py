@@ -22,9 +22,11 @@
 
 import os
 import re
+from collections import Counter
 
 from frappy.errors import ConfigError
 from frappy.lib import generalConfig
+
 
 class Undef:
     pass
@@ -126,7 +128,7 @@ class Config(dict):
                 self.modules.append(mod)
 
 
-def process_file(filename):
+def process_file(filename, log):
     with open(filename, 'rb') as f:
         config_text = f.read()
     node = NodeCollector()
@@ -135,6 +137,13 @@ def process_file(filename):
 
     # pylint: disable=exec-used
     exec(compile(config_text, filename, 'exec'), ns)
+
+    # check for duplicates in the file itself. Between files comes later
+    duplicates = [name for name, count in Counter([mod['name']
+                    for mod in mods.list]).items() if count > 1]
+    if duplicates:
+        log.warning('Duplicate module name in file \'%s\': %s',
+                    filename, ','.join(duplicates))
     return Config(node, mods)
 
 
@@ -177,7 +186,7 @@ def load_config(cfgfiles, log):
     for cfgfile in cfgfiles.split(','):
         filename = to_config_path(cfgfile, log)
         log.debug('Parsing config file %s...', filename)
-        cfg = process_file(filename)
+        cfg = process_file(filename, log)
         if config:
             config.merge_modules(cfg)
         else:
