@@ -66,7 +66,7 @@ class Logger:
         pass
 
     debug = noop
-    error = warning = critical = info
+    error = exception = warning = critical = info
 
 
 class CallbackObject:
