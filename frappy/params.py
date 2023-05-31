@@ -27,7 +27,7 @@ import inspect
 
 from frappy.datatypes import BoolType, CommandType, DataType, \
     DataTypeType, EnumType, NoneOr, OrType, FloatRange, \
-    StringType, StructOf, TextType, TupleOf, ValueType
+    StringType, StructOf, TextType, TupleOf, ValueType, ArrayOf
 from frappy.errors import BadValueError, WrongTypeError, ProgrammingError
 from frappy.properties import HasProperties, Property
 from frappy.lib import generalConfig
@@ -168,6 +168,9 @@ class Parameter(Accessible):
           or the minimum time between updates of equal values [sec]''',
         OrType(FloatRange(0), EnumType(always=0, never=999999999, default=-1)),
         export=False, default=-1)
+    influences = Property(
+        'optional hint about effected parameters', ArrayOf(StringType()),
+        extname='influences', export=True, mandatory=False, default=[])
 
     # used on the instance copy only
     # value = None
@@ -363,6 +366,9 @@ class Command(Accessible):
     result = Property(
         'datatype of the result from the command, or None', NoneOr(DataTypeType()),
         export=False, mandatory=True)
+    influences = Property(
+        'optional hint about effected parameters', ArrayOf(StringType()),
+        extname='influences', export=True, mandatory=False, default=[])
 
     func = None
 
