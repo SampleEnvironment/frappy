@@ -169,7 +169,7 @@ class Parameter(Accessible):
         OrType(FloatRange(0), EnumType(always=0, never=999999999, default=-1)),
         export=False, default=-1)
     influences = Property(
-        'optional hint about effected parameters', ArrayOf(StringType()),
+        'optional hint about affected parameters', ArrayOf(StringType()),
         extname='influences', export=True, mandatory=False, default=[])
 
     # used on the instance copy only
@@ -367,7 +367,7 @@ class Command(Accessible):
         'datatype of the result from the command, or None', NoneOr(DataTypeType()),
         export=False, mandatory=True)
     influences = Property(
-        'optional hint about effected parameters', ArrayOf(StringType()),
+        'optional hint about affected parameters', ArrayOf(StringType()),
         extname='influences', export=True, mandatory=False, default=[])
 
     func = None
