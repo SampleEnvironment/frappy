@@ -45,6 +45,7 @@ except ImportError:
     DaemonContext = None
 
 try:
+    # pylint: disable=unused-import
     import systemd.daemon
 except ImportError:
     systemd = None
@@ -132,8 +133,12 @@ class Server:
         while self._restart:
             self._restart = False
             try:
-                if systemd:
+                # TODO: make systemd notifications configurable
+                if systemd:  # pylint: disable=used-before-assignment
                     systemd.daemon.notify("STATUS=initializing")
+            except Exception:
+                systemd = None  # pylint: disable=redefined-outer-name
+            try:
                 self._processCfg()
                 if self._testonly:
                     return
