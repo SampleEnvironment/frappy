@@ -30,7 +30,7 @@ from he3d import he3cell  # pylint: disable=import-error
 
 from frappy.core import Attached
 from frappy.datatypes import ArrayOf, FloatRange, IntRange, StatusType, \
-    StringType, StructOf, TupleOf
+    StringType, TupleOf
 from frappy.errors import CommandRunningError
 from frappy.modules import Command, Drivable, Module, Parameter, Property, \
     Readable
@@ -226,8 +226,9 @@ class FitParam(Readable):
         self.sigma = ret['sigma']
 
     # Commands
-    @Command(integral, result=StructOf(xval=ArrayOf(string),
-                                       yval=ArrayOf(string)))
+    @Command(integral, result=TupleOf(ArrayOf(string),
+                                      ArrayOf(floating)))
     def nmr_paramlog_get(self, n):
         """returns the log of the last 'n' values for this parameter"""
-        return self.cell.cell.nmr_paramlog_get(self.param, n)
+        val = self.cell.cell.nmr_paramlog_get(self.param, n)
+        return ([str(timestamp) for timestamp in val['xval']], val['yval'])
