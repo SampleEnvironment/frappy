@@ -133,6 +133,14 @@ class IOBase(Communicator):
         self._lock = threading.RLock()
 
     def connectStart(self):
+        if not self.is_connected:
+            uri = self.uri
+            self._conn = AsynConn(uri, self._eol_read,
+                                  default_settings=self.default_settings)
+            self.is_connected = True
+            self.checkHWIdent()
+
+    def checkHWIdent(self):
         raise NotImplementedError
 
     def closeConnection(self):
@@ -218,12 +226,19 @@ class StringIO(IOBase):
                            default='\n', settable=True)
     encoding = Property('used encoding', datatype=StringType(),
                         default='ascii', settable=True)
-    identification = Property('''
-                              identification
+    identification = Property(
+        '''identification
 
-                              a list of tuples with commands and expected responses as regexp,
-                              to be sent on connect''',
-                              datatype=ArrayOf(TupleOf(StringType(), StringType())), default=[], export=False)
+        a list of tuples with commands and expected responses as regexp,
+        to be sent on connect''',
+        datatype=ArrayOf(TupleOf(StringType(), StringType())),
+        default=[], export=False)
+    retry_first_idn = Property(
+        '''retry first identification message
+
+        a flag to indicate whether the first message should be resent once to
+        avoid data that may still be in the buffer to garble the message''',
+        datatype=BoolType(), default=False)
 
     def _convert_eol(self, value):
         if isinstance(value, str):
@@ -248,16 +263,22 @@ class StringIO(IOBase):
             raise ValueError('end_of_line for read must not be empty')
         self._eol_write = self._convert_eol(eol[-1])
 
-    def connectStart(self):
-        if not self.is_connected:
-            uri = self.uri
-            self._conn = AsynConn(uri, self._eol_read, default_settings=self.default_settings)
-            self.is_connected = True
-            for command, regexp in self.identification:
-                reply = self.communicate(command)
-                if not re.match(regexp, reply):
-                    self.closeConnection()
-                    raise CommunicationFailedError(f'bad response: {reply} does not match {regexp}')
+    def checkHWIdent(self):
+        if not self.identification:
+            return
+        idents = iter(self.identification)
+        command, regexp = next(idents)
+        reply = self.communicate(command)
+        if self.retry_first_idn and not re.match(regexp, reply):
+            self.log.debug('first ident command not successful.'
+                           ' retrying in case of garbage data.')
+            idents = iter(self.identification)
+        for command, regexp in idents:
+            reply = self.communicate(command)
+            if not re.match(regexp, reply):
+                self.closeConnection()
+                raise CommunicationFailedError(f'bad response: {reply}'
+                                               ' does not match {regexp}')
 
     @Command(StringType(), result=StringType())
     def communicate(self, command):
@@ -356,19 +377,19 @@ class BytesIO(IOBase):
         - a two digit hexadecimal number (byte value)
         - a character
         - ?? indicating ignored bytes in responses
-        """, datatype=ArrayOf(TupleOf(StringType(), StringType())), default=[], export=False)
+        """, datatype=ArrayOf(TupleOf(StringType(), StringType())),
+        default=[], export=False)
 
-    def connectStart(self):
-        if not self.is_connected:
-            uri = self.uri
-            self._conn = AsynConn(uri, b'', default_settings=self.default_settings)
-            self.is_connected = True
-            for request, expected in self.identification:
-                replylen, replypat = make_regexp(expected)
-                reply = self.communicate(make_bytes(request), replylen)
-                if not replypat.match(reply):
-                    self.closeConnection()
-                    raise CommunicationFailedError(f'bad response: {reply!r} does not match {expected!r}')
+    _eol_read = b''
+
+    def checkHWIdent(self):
+        for request, expected in self.identification:
+            replylen, replypat = make_regexp(expected)
+            reply = self.communicate(make_bytes(request), replylen)
+            if not replypat.match(reply):
+                self.closeConnection()
+                raise CommunicationFailedError(f'bad response: {reply!r}'
+                                               ' does not match {expected!r}')
 
     @Command((BLOBType(), IntRange(0)), result=BLOBType())
     def communicate(self, request, replylen):  # pylint: disable=arguments-differ
