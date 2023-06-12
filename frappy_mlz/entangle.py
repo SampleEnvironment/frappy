@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -257,12 +256,12 @@ class BasePyTangoDevice:
         Wraps command execution and attribute operations of the given
         device with logging and exception mapping.
         """
-        dev.command_inout = self._applyGuardToFunc(dev.command_inout)
-        dev.write_attribute = self._applyGuardToFunc(dev.write_attribute,
+        dev.__dict__['command_inout'] = self._applyGuardToFunc(dev.command_inout)
+        dev.__dict__['write_attribute'] = self._applyGuardToFunc(dev.write_attribute,
                                                      'attr_write')
-        dev.read_attribute = self._applyGuardToFunc(dev.read_attribute,
+        dev.__dict__['read_attribute'] = self._applyGuardToFunc(dev.read_attribute,
                                                     'attr_read')
-        dev.attribute_query = self._applyGuardToFunc(dev.attribute_query,
+        dev.__dict__['attribute_query'] = self._applyGuardToFunc(dev.attribute_query,
                                                      'attr_query')
         return dev
 
