@@ -269,16 +269,21 @@ class StringIO(IOBase):
         idents = iter(self.identification)
         command, regexp = next(idents)
         reply = self.communicate(command)
-        if self.retry_first_idn and not re.match(regexp, reply):
-            self.log.debug('first ident command not successful.'
-                           ' retrying in case of garbage data.')
-            idents = iter(self.identification)
+        if not re.match(regexp, reply):
+            if self.retry_first_idn:
+                self.log.debug('first ident command not successful.'
+                               ' retrying in case of garbage data.')
+                idents = iter(self.identification)
+            else:
+                self.closeConnection()
+                raise CommunicationFailedError(f'bad response: {reply!r}'
+                                               f' does not match {regexp!r}')
         for command, regexp in idents:
             reply = self.communicate(command)
             if not re.match(regexp, reply):
                 self.closeConnection()
-                raise CommunicationFailedError(f'bad response: {reply}'
-                                               ' does not match {regexp}')
+                raise CommunicationFailedError(f'bad response: {reply!r}'
+                                               f' does not match {regexp!r}')
 
     @Command(StringType(), result=StringType())
     def communicate(self, command):
