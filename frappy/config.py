@@ -125,7 +125,7 @@ class Config(dict):
                 continue
             if name not in self.module_names:
                 self.module_names.add(name)
-                self.modules.append(mod)
+                self[name] = mod
 
 
 def process_file(filename, log):
