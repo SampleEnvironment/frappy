@@ -1,3 +1,28 @@
+frappy-core (0.17.12) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * Warn about duplicate module definitions in a file
+  * Add influences property to parameters/commands
+
+  [ Markus Zolliker ]
+  * frappy.client: dummy logger is missing 'exception' method
+
+  [ Alexander Zaft ]
+  * Add SEOP He3-polarization device
+  * Typo in influences description
+  * seop: fix fitparam command
+
+  [ Markus Zolliker ]
+  * silently catches error in systemd.daemon.notify
+
+  [ Alexander Zaft ]
+  * io: add option to retry first ident request
+  * config: fix merge_modules
+  * io: followup fix for retry-first-ident
+  * entangle: fix tango guards for pytango 9.3
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 13 Jun 2023 06:51:27 +0200
+
 frappy-core (0.17.11) focal; urgency=medium
 
   [ Alexander Zaft ]
