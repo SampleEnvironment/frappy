@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -24,16 +23,17 @@
 """Define helpers"""
 
 import os
+import signal
 import sys
 import traceback
 from collections import OrderedDict
 
-from frappy.errors import ConfigError, SECoPError
-from frappy.lib import formatException, get_class, generalConfig
-from frappy.lib.multievent import MultiEvent
-from frappy.params import PREDEFINED_ACCESSIBLES
-from frappy.modules import Attached
 from frappy.config import load_config
+from frappy.errors import ConfigError, SECoPError
+from frappy.lib import formatException, generalConfig, get_class, mkthread
+from frappy.lib.multievent import MultiEvent
+from frappy.modules import Attached
+from frappy.params import PREDEFINED_ACCESSIBLES
 
 try:
     from daemon import DaemonContext
@@ -106,6 +106,12 @@ class Server:
 
         self._cfgfiles = cfgfiles
         self._pidfile = os.path.join(generalConfig.piddir, name + '.pid')
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+
+    def signal_handler(self, _num, _frame):
+        if hasattr(self, 'interface') and self.interface:
+            self.shutdown()
 
     def start(self):
         if not DaemonContext:
@@ -127,7 +133,7 @@ class Server:
         return f"{cls.__name__} class don't know how to handle option(s): {', '.join(options)}"
 
     def restart_hook(self):
-        pass
+        """Actions to be done on restart. May be overridden by a subclass."""
 
     def run(self):
         global systemd  # pylint: disable=global-statement
@@ -157,15 +163,27 @@ class Server:
                 self.log.info('startup done, handling transport messages')
                 if systemd:
                     systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
-                self.interface.serve_forever()
-                self.interface.server_close()
+                t = mkthread(self.interface.serve_forever)
+                # we wait here on the thread finishing, which means we got a
+                # signal to shut down or an exception was raised
+                # TODO: get the exception (and re-raise?)
+                t.join()
+                self.interface = None  # fine due to the semantics of 'with'
+                # server_close() called by 'with'
+
+            self.log.info(f'stopped listenning, cleaning up'
+                          f' {len(self.modules)} modules')
+            # if systemd:
+            #     if self._restart:
+            #         systemd.daemon.notify('RELOADING=1')
+            #     else:
+            #         systemd.daemon.notify('STOPPING=1')
             for name in self._getSortedModules():
                 self.modules[name].shutdownModule()
             if self._restart:
                 self.restart_hook()
-                self.log.info('restart')
-            else:
-                self.log.info('shut down')
+                self.log.info('restarting')
+        self.log.info('shut down')
 
     def restart(self):
         if not self._restart:
