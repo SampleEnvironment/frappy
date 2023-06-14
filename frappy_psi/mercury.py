@@ -25,7 +25,7 @@ import math
 import re
 import time
 
-from frappy.core import Drivable, HasIO, Writable, StatusType, \
+from frappy.core import Command, Drivable, HasIO, Writable, StatusType, \
     Parameter, Property, Readable, StringIO, Attached, IDLE, RAMPING, nopoll
 from frappy.datatypes import EnumType, FloatRange, StringType, StructOf, BoolType, TupleOf
 from frappy.errors import HardwareError, ProgrammingError, ConfigError, RangeError
@@ -218,7 +218,6 @@ class HasInput(HasControlledBy, MercuryChannel):
 class Loop(HasOutputModule, MercuryChannel, Drivable):
     """common base class for loops"""
     output_module = Attached(HasInput, mandatory=False)
-    control_active = Parameter(readonly=False)
     ctrlpars = Parameter(
         'pid (proportional band, integral time, differential time',
         StructOf(p=FloatRange(0, unit='$'), i=FloatRange(0, unit='min'), d=FloatRange(0, unit='min')),
@@ -253,6 +252,13 @@ class Loop(HasOutputModule, MercuryChannel, Drivable):
 
     def read_status(self):
         return IDLE, ''
+
+    @Command()
+    def control_off(self):
+        """switch control off"""
+        # remark: this is needed in frappy_psi.trition.TemperatureLoop, as the heater
+        # output is not available there. We define it here as a convenience for the user.
+        self.write_control_active(False)
 
 
 class ConvLoop(HasConvergence, Loop):
