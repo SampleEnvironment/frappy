@@ -159,6 +159,8 @@ class Server:
                     systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
                 self.interface.serve_forever()
                 self.interface.server_close()
+            for name in self._getSortedModules():
+                self.modules[name].shutdownModule()
             if self._restart:
                 self.restart_hook()
                 self.log.info('restart')
@@ -300,3 +302,41 @@ class Server:
         #   history_path = os.environ.get('ALTERNATIVE_HISTORY')
         #   if history_path:
         #       from frappy_<xx>.historywriter import ... etc.
+
+    def _getSortedModules(self):
+        """Sort modules topologically by inverse dependency.
+
+        Example: if there is an IO device A and module B depends on it, then
+        the result will be [B, A].
+        Right now, if the dependency graph is not a DAG, we give up and return
+        the unvisited nodes to be dismantled at the end.
+        Taken from Introduction to Algorithms [CLRS].
+        """
+        def go(name):
+            if name in done:  # visiting a node
+                return True
+            if name in visited:
+                visited.add(name)
+                return False  # cycle in dependencies -> fail
+            visited.add(name)
+            if name in unmarked:
+                unmarked.remove(name)
+            for module in self.modules[name].attachedModules.values():
+                res = go(module.name)
+                if not res:
+                    return False
+            visited.remove(name)
+            done.add(name)
+            l.append(name)
+            return True
+
+        unmarked = set(self.modules.keys())  # unvisited nodes
+        visited = set()  # visited in DFS, but not completed
+        done = set()
+        l = []  # list of sorted modules
+
+        while unmarked:
+            if not go(unmarked.pop()):
+                self.log.error('cyclical dependency between modules!')
+                return l[::-1] + list(visited) + list(unmarked)
+        return l[::-1]

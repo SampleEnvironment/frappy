@@ -354,7 +354,7 @@ class Cryostat(CryoBase):
             timestamp = t
             self.read_value()
 
-    def shutdown(self):
+    def shutdownModule(self):
         # should be called from server when the server is stopped
         self._stopflag = True
         if self._thread and self._thread.is_alive():

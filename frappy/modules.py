@@ -639,6 +639,13 @@ class Module(HasAccessibles):
         all parameters are polled once
         """
 
+    def shutdownModule(self):
+        """called when the sever shuts down
+
+        any cleanup-work should be performed here, like closing threads and
+        saving data.
+        """
+
     def doPoll(self):
         """polls important parameters like value and status
 
