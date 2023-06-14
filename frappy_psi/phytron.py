@@ -83,7 +83,7 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
 
     ioClass = PhytronIO
     _step_size = None  # degree / step
-    _blocking_error = None  # None or a string indicating the reason of an error needing reset
+    _blocking_error = None  # None or a string indicating the reason of an error needing clear_errors
     _running = False  # status indicates motor is running
 
     STATUS_MAP = {
@@ -121,10 +121,10 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
         if not axisbit & active_axes:  # power cycle detected and this axis not yet active
             self.set('P37S', axisbit | active_axes)  # activate axis
             if now < self.alive_time + 7 * 24 * 3600:  # the device was running within last week
-                # inform the user about the loss of position by the need of doing reset_error
+                # inform the user about the loss of position by the need of doing clear_errors
                 self._blocking_error = 'lost position'
-            else:  # do reset silently
-                self.reset_error()
+            else:  # do silently
+                self.clear_errors()
         self.alive_time = now
         self.saveParameters()
         return now
@@ -171,7 +171,7 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
     def write_target(self, value):
         self.read_alive_time()
         if self._blocking_error:
-            self.status = ERROR, 'reset needed after ' + self._blocking_error
+            self.status = ERROR, 'clear_errors needed after ' + self._blocking_error
             raise HardwareError(self.status[1])
         self.saveParameters()
         if self.backlash:
@@ -261,7 +261,7 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
         self.start_machine(self.stopping, status=(BUSY, 'stopping'))
 
     @Command
-    def reset_error(self):
+    def clear_errors(self):
         """Reset error, set position to encoder"""
         self.read_value()
         if self._blocking_error:
@@ -286,3 +286,4 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
             self.read_value()
             self.status = 'IDLE', 'after error reset'
             self._blocking_error = None
+            self.target = self.value  # clear error in target
