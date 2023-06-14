@@ -4,11 +4,12 @@ html/*
 *.pyc
 pid/*
 
-# ide 
+# ide
 .idea
 
 RELEASE-VERSION
 build
+*.egg-info
 
 # Sphinx
 doc/_build
