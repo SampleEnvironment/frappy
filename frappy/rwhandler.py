@@ -87,7 +87,7 @@ class Handler:
         if (func.__module__, func.__qualname__) in self.method_names:
             # make sure method name is not used twice
             # (else __set_name__ will not be called)
-            raise ProgrammingError('duplicate method %r' % func.__qualname__)
+            raise ProgrammingError(f'duplicate method {func.__qualname__!r}')
         self.func = func
         func.wrapped = False
         self.method_names.add((func.__module__, func.__qualname__))
@@ -113,8 +113,8 @@ class Handler:
                 wrapped.poll = getattr(wrapped, 'poll', self.poll)
             func = getattr(owner, method_name, None)
             if func and method_name in owner.__dict__:
-                raise ProgrammingError('superfluous method %s.%s (overwritten by %s)'
-                                       % (owner.__name__, method_name, self.__class__.__name__))
+                raise ProgrammingError(f'superfluous method {owner.__name__}.' \
+                                       f'{method_name} (overwritten by {self.__class__.__name__})')
             setattr(owner, method_name, wrapped)
 
     def wrap(self, key):
@@ -217,6 +217,7 @@ class CommonWriteHandler(WriteHandler):
                     raise ProgrammingError('a method wrapped with CommonWriteHandler must not return any value')
                 # remove pname from writeDict. this was not removed in WriteParameters, as it was not missing
                 module.writeDict.pop(pname, None)
+            return getattr(module, pname)
         return method
 
 

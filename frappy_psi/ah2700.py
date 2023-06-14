@@ -84,9 +84,9 @@ class Capacitance(HasIO, Readable):
         return self.voltage
 
     def write_freq(self, value):
-        self.value = self.parse_reply(self.communicate('FR %g;SI' % value))
+        self.value = self.parse_reply(self.communicate(f'FR {value:g};SI'))
         return self.freq
 
     def write_voltage(self, value):
-        self.value = self.parse_reply(self.communicate('V %g;SI' % value))
+        self.value = self.parse_reply(self.communicate(f'V {value:g};SI'))
         return self.voltage

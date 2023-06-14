@@ -104,7 +104,7 @@ class EnumMember:
 
     # be human readable (for debugging)
     def __repr__(self):
-        return '<%s%s (%d)>' % (self.enum.name + '.' if self.enum.name else '', self.name, self.value)
+        return f"<{self.enum.name + '.' if self.enum.name else ''}{self.name} ({self.value})>"
 
     def __bool__(self):
         return bool(self.value)
@@ -211,6 +211,11 @@ class EnumMember:
     def __index__(self):
         return self.value.__index__()
 
+    def __format__(self, format_spec):
+        if format_spec.endswith(('d', 'g')):
+            return format(self.value, format_spec)
+        return super().__format__(format_spec)
+
     # note: we do not implement the __i*__ methods as they modify our value
     # inplace and we want to have a const
     def __forbidden__(self, *args):
@@ -285,9 +290,9 @@ class Enum(dict):
 
             # check for duplicates
             if self.get(k, v) != v:
-                raise TypeError('%s=%d conflicts with %s=%d' % (k, v, k, self[k]))
+                raise TypeError(f'{k}={v} conflicts with {k}={self[k]}')
             if self.get(v, k) != k:
-                raise TypeError('%s=%d conflicts with %s=%d' % (k, v, self[v].name, v))
+                raise TypeError(f'{k}={v} conflicts with {self[v].name}={v}')
 
             # remember it
             self[v] = self[k] = EnumMember(self, k, v)
@@ -315,16 +320,16 @@ class Enum(dict):
 
     def __setattr__(self, key, value):
         if self.name and key != 'name':
-            raise TypeError('Enum %r can not be changed!' % self.name)
+            raise TypeError(f'Enum {self.name!r} can not be changed!')
         super().__setattr__(key, value)
 
     def __setitem__(self, key, value):
         if self.name:
-            raise TypeError('Enum %r can not be changed!' % self.name)
+            raise TypeError(f'Enum {self.name!r} can not be changed!')
         super().__setitem__(key, value)
 
     def __delitem__(self, key):
-        raise TypeError('Enum %r can not be changed!' % self.name)
+        raise TypeError(f'Enum {self.name!r} can not be changed!')
 
     def __repr__(self):
         return 'Enum(%r, %s)' % (self.name, ', '.join('%s=%d' % (m.name, m.value) for m in self.members))

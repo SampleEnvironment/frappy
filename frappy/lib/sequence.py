@@ -170,9 +170,9 @@ class SequencerMixin:
                     result = step.func(store, *step.args)
                     if self._seq_stopflag:
                         if result:
-                            self._seq_stopped = 'stopped while %s' % step.desc
+                            self._seq_stopped = f'stopped while {step.desc}'
                         else:
-                            self._seq_stopped = 'stopped after %s' % step.desc
+                            self._seq_stopped = f'stopped after {step.desc}'
                         cleanup_func = step.kwds.get('cleanup', None)
                         if callable(cleanup_func):
                             try:
@@ -188,5 +188,5 @@ class SequencerMixin:
             except Exception as e:
                 self.log.exception(
                     'error in sequence step %r: %s', step.desc, e)
-                self._seq_error = 'during %s: %s' % (step.desc, e)
+                self._seq_error = f'during {step.desc}: {e}'
                 break

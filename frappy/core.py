@@ -31,11 +31,11 @@ from frappy.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
 from frappy.lib.enum import Enum
 from frappy.modules import Attached, Communicator, \
     Done, Drivable, Feature, Module, Readable, Writable, HasAccessibles
-from frappy.params import Command, Parameter
+from frappy.params import Command, Parameter, Limit
 from frappy.properties import Property
 from frappy.proxy import Proxy, SecNode, proxy_class
 from frappy.io import HasIO, StringIO, BytesIO, HasIodev  # TODO: remove HasIodev (legacy stuff)
-from frappy.persistent import PersistentMixin, PersistentParam
+from frappy.persistent import PersistentMixin, PersistentParam, PersistentLimit
 from frappy.rwhandler import ReadHandler, WriteHandler, CommonReadHandler, \
     CommonWriteHandler, nopoll
 

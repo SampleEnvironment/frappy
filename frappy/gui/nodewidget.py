@@ -81,7 +81,7 @@ class NodeWidget(QWidget):
             self._detailedParams[module] = {}
             for param in node.getParameters(module):
                 view = ParameterView(node, module, param)
-                view.setWindowTitle('%s:%s:%s - Properties' % (self._node.equipmentId, module, param))
+                view.setWindowTitle(f'{self._node.equipmentId}:{module}:{param} - Properties')
                 self._detailedParams[module][param] = view
             viewLayout.addWidget(widget)
 
@@ -154,7 +154,7 @@ class NodeWidget(QWidget):
             menu_plot_ext.setEnabled(False)
         else:
             for (m, p), plot in self._activePlots.items():
-                opt_ext = menu_plot_ext.addAction("%s:%s" % (m, p))
+                opt_ext = menu_plot_ext.addAction(f"{m}:{p}")
                 opt_ext.triggered.connect(
                         lambda plot=plot: self._requestPlot(item, plot))
 
@@ -178,7 +178,7 @@ class NodeWidget(QWidget):
             QInputDialog.InputDialogOption.UseListViewForComboBoxItems)
         dialog.setComboBoxItems(plots.keys())
         dialog.setTextValue(list(plots)[0])
-        dialog.setWindowTitle('Plot %s with...' % param)
+        dialog.setWindowTitle(f'Plot {param} with...')
         dialog.setLabelText('')
 
         if dialog.exec() == QInputDialog.DialogCode.Accepted:

@@ -658,6 +658,7 @@ def test_get_datatype():
     (FloatRange(-10, 10), FloatRange()),
     (IntRange(-10, 10), FloatRange()),
     (IntRange(-10, 10), IntRange(-20, 10)),
+    (FloatRange(-10, 10), FloatRange(-15, 10)),
     (StringType(), StringType(isUTF8=True)),
     (StringType(10, 10), StringType()),
     (ArrayOf(StringType(), 3, 5), ArrayOf(StringType(), 3, 6)),

@@ -18,11 +18,10 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
+#   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
-
-from __future__ import print_function
 
 import sys
 import argparse
@@ -31,7 +30,7 @@ from os import path
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
-from frappy.client.interactive import Client, watch, Console
+from frappy.client.interactive import init, run, clientenv, interact
 
 
 def parseArgv(argv):
@@ -48,58 +47,21 @@ def parseArgv(argv):
     return parser.parse_args(argv)
 
 
-_USAGE = """
-Usage:
-%s
-# for all SECoP modules objects are created in the main namespace
-
-<module>                            # list all parameters
-<module>.<param> = <value>          # change parameter
-<module>(<target>)                  # set target and wait until not busy
-                                    # 'status' and 'value' changes are shown every 1 sec
-%s.mininterval = 0.2               # change minimal update interval to 0.2 sec (default is 1 second)
-
-watch(T)                            # watch changes of T.status and T.value (stop with ctrl-C)
-watch(T='status target')            # watch status and target parameters
-watch(io, T=True)                   # watch io and all parameters of T
-"""
-
-_CLIENT_USAGE = """
-c = Client('localhost:5000')
-"""
-
-Client.show_usage = False
-
-
 args = parseArgv(sys.argv[1:])
-if not args.node:
-    _usage_args = ("\ncli = Client('localhost:5000')\n", 'cli')
-    success = True
-else:
-    _usage_args = ('', '_c0')
-    success = False
 
-for _idx, _node in enumerate(args.node):
-    _client_name = '_c%d' % _idx
-    try:
-        setattr(sys.modules['__main__'], _client_name, Client(_node, name=_client_name))
-        success = True
-    except Exception as e:
-        print(repr(e))
+success = init(*args.node)
 
-
+run_error = ''
 file_success = False
 try:
     for file in args.include:
-        with open(file, 'r') as f:
-            exec(f.read())
+        run(file)
     file_success = True
 except Exception as e:
-    print('Error while executing %s: %s' % (file, e))
+    run_error = f'\n{clientenv.short_traceback()}'
 
 if success:
     if args.include and file_success and args.only_execute:
         print('skipping interactive mode')
         exit()
-    print(_USAGE % _usage_args)
-    Console(sys.modules['__main__'].__dict__)
+    interact(run_error)

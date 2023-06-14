@@ -40,7 +40,7 @@ def loadUi(widget, uiname, subdir='ui'):
 
 
 def setIcon(widget, icon_name):
-    widget.setIcon(QIcon(':/cfg_editor/%s' % icon_name))
+    widget.setIcon(QIcon(f':/cfg_editor/{icon_name}'))
     widget.setIconSize(QSize(60, 60))
 
 
@@ -58,11 +58,11 @@ def set_name_edit_style(invalid, name_edit, button_box=None):
 
 
 def setTreeIcon(widget, icon_name):
-    widget.setIcon(0, QIcon(':/cfg_editor/%s' % icon_name))
+    widget.setIcon(0, QIcon(f':/cfg_editor/{icon_name}'))
 
 
 def setActionIcon(widget, icon_name):
-    widget.setIcon(QIcon(':/cfg_editor/%s' % icon_name))
+    widget.setIcon(QIcon(f':/cfg_editor/{icon_name}'))
 
 
 def get_subtree_nodes(tree_widget_item):
@@ -99,8 +99,8 @@ def get_file_paths(widget, open_file=True):
         dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
     dialog.setWindowTitle(title)
-    dialog.setNameFilter('*.cfg')
-    dialog.setDefaultSuffix('.cfg')
+    dialog.setNameFilter('*.py')
+    dialog.setDefaultSuffix('.py')
     dialog.exec()
     return dialog.selectedFiles()
 
@@ -117,7 +117,7 @@ def get_modules():
                 if not path.isfile(path.join(base_path, dirname, filename)) or \
                         filename == '__init__.py' or filename[-3:] != '.py':
                     continue
-                module = '%s.%s' % (dirname, filename[:-3])
+                module = f'{dirname}.{filename[:-3]}'
                 module_in_file = False
                 try:
                     __import__(module)

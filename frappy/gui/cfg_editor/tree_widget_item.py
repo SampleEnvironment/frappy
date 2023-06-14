@@ -52,7 +52,7 @@ class TreeWidgetItem(QTreeWidgetItem):
         self.parameters = parameters or {}
         self.properties = properties or {}
         if self.kind and self.kind != 'node':
-            setTreeIcon(self, '%s.png' % self.kind)
+            setTreeIcon(self, f'{self.kind}.png')
         else:
             setTreeIcon(self, 'empty.png')
             font = QFont()
@@ -72,8 +72,7 @@ class TreeWidgetItem(QTreeWidgetItem):
 
     def duplicate(self):
         self.duplicates += 1
-        duplicate = TreeWidgetItem(self.kind, '%s_%i' % (self.name,
-                                   self.duplicates), self.get_value(),
+        duplicate = TreeWidgetItem(self.kind, f'{self.name}_{self.duplicates}', self.get_value(),
                                    self.class_object)
         self.parent().addChild(duplicate)
         for i in range(self.childCount()):

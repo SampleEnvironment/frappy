@@ -39,7 +39,7 @@ class HasDescriptors(Object):
         bad = [k for k, v in cls.__dict__.items()
                if isinstance(v, tuple) and len(v) == 1 and hasattr(v[0], '__set_name__')]
         if bad:
-            raise ProgrammingError('misplaced trailing comma after %s.%s' % (cls.__name__, '/'.join(bad)))
+            raise ProgrammingError(f"misplaced trailing comma after {cls.__name__}.{'/'.join(bad)}")
 
 
 # storage for 'properties of a property'
@@ -94,19 +94,19 @@ class Property:
         return type(self)(**self.__dict__)
 
     def __repr__(self):
-        extras = ['default=%s' % repr(self.default)]
+        extras = [f'default={repr(self.default)}']
         if self.export:
-            extras.append('extname=%r' % self.extname)
-            extras.append('export=%r' % self.export)
+            extras.append(f'extname={self.extname!r}')
+            extras.append(f'export={self.export!r}')
         if self.mandatory:
             extras.append('mandatory=True')
         if not self.settable:
             extras.append('settable=False')
         if self.value is not UNSET:
-            extras.append('value=%s' % repr(self.value))
+            extras.append(f'value={repr(self.value)}')
         if not self.name:
-            extras.append('name=%r' % self.name)
-        return 'Property(%r, %s, %s)' % (self.description, self.datatype, ', '.join(extras))
+            extras.append(f'name={self.name!r}')
+        return f"Property({self.description!r}, {self.datatype}, {', '.join(extras)})"
 
 
 class HasProperties(HasDescriptors):
@@ -147,10 +147,8 @@ class HasProperties(HasDescriptors):
                     po.value = po.datatype.validate(value)
                 except BadValueError:
                     if callable(value):
-                        raise ProgrammingError('method %s.%s collides with property of %s' %
-                                               (cls.__name__, pn, base.__name__)) from None
-                    raise ProgrammingError('can not set property %s.%s to %r' %
-                                           (cls.__name__, pn, value)) from None
+                        raise ProgrammingError(f'method {cls.__name__}.{pn} collides with property of {base.__name__}') from None
+                    raise ProgrammingError(f'can not set property {cls.__name__}.{pn} to {value!r}') from None
                 cls.propertyDict[pn] = po
 
     def checkProperties(self):
@@ -160,14 +158,14 @@ class HasProperties(HasDescriptors):
                 try:
                     self.propertyValues[pn] = po.datatype.validate(self.propertyValues[pn])
                 except (KeyError, BadValueError):
-                    raise ConfigError('%s needs a value of type %r!' % (pn, po.datatype)) from None
+                    raise ConfigError(f'{pn} needs a value of type {po.datatype!r}!') from None
         for pn, po in self.propertyDict.items():
             if pn.startswith('min'):
                 maxname = 'max' + pn[3:]
                 minval = self.propertyValues.get(pn, po.default)
                 maxval = self.propertyValues.get(maxname, minval)
                 if minval > maxval:
-                    raise ConfigError('%s=%r must be <= %s=%r for %r' % (pn, minval, maxname, maxval, self))
+                    raise ConfigError(f'{pn}={minval!r} must be <= {maxname}={maxval!r} for {self!r}')
 
     def getProperties(self):
         return self.propertyDict

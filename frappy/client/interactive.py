@@ -19,25 +19,7 @@
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
-"""simple interactive python client
-
-Usage:
-
-from frappy.client.interactive import Client
-
-client = Client('localhost:5000')  # start client.
-# this connects and creates objects for all SECoP modules in the main namespace
-
-<module>                            # list all parameters
-<module>.<param> = <value>          # change parameter
-<module>(<target>)                  # set target and wait until not busy
-                                    # 'status' and 'value' changes are shown every 1 sec
-client.mininterval = 0.2            # change minimal update interval to 0.2 sec (default is 1 second)
-
-watch(T)                            # watch changes of T.status and T.value (stop with ctrl-C)
-watch(T='status target')            # watch status and target parameters
-watch(io, T=True)                   # watch io and all parameters of T
-"""
+"""simple interactive python client"""
 
 import sys
 import time
@@ -45,6 +27,7 @@ import re
 import code
 import signal
 import os
+import traceback
 from os.path import expanduser
 from queue import Queue
 from frappy.client import SecopClient
@@ -55,7 +38,23 @@ try:
 except ImportError:
     readline = None
 
-main = sys.modules['__main__']
+
+USAGE = """
+Usage:
+{client_assign}
+# for all SECoP modules objects are created in the main namespace
+
+<module>                     # list all parameters
+<module>.<param> = <value>   # change parameter
+<module>(<target>)           # set target and wait until not busy
+                             # 'status' and 'value' changes are shown every 1 sec
+{client_name}.mininterval = 0.2        # change minimal update interval to 0.2 s (default is 1 s)
+
+watch(T)                     # watch changes of T.status and T.value (stop with ctrl-C)
+watch(T='status target')     # watch status and target parameters
+watch(io, T=True)            # watch io and all parameters of T
+{tail}"""
+
 
 LOG_LEVELS = {'debug', 'comlog', 'info', 'warning', 'error', 'off'}
 CLR = '\r\x1b[K'  # code to move to the left and clear current line
@@ -80,7 +79,7 @@ class Logger:
             if tm.tm_min != self._minute:
                 self._minute = tm.tm_min
                 print(CLR + time.strftime('--- %H:%M:%S ---', tm))
-            sec = ('%6.3f' % (now % 60.0)).replace(' ', '0')
+            sec = f'{now % 60.0:6.3f}'.replace(' ', '0')
             print(CLR + sec, str(fmt) % args)
         else:
             print(CLR + (str(fmt) % args))
@@ -101,7 +100,7 @@ class PrettyFloat(float):
     - always display a decimal point
     """
     def __repr__(self):
-        result = '%.12g' % self
+        result = f'{self:.12g}'
         if '.' in result or 'e' in result:
             return result
         return result + '.'
@@ -124,7 +123,7 @@ class Module:
         self._running = None
         self._status = None
         props = secnode.modules[name]['properties']
-        self._title = '# %s (%s)' % (props.get('implementation', ''), props.get('interface_classes', [''])[0])
+        self._title = f"# {props.get('implementation', '')} ({(props.get('interface_classes') or ['Module'])[0]})"
 
     def _one_line(self, pname, minwid=0):
         """return <module>.<param> = <value> truncated to one line"""
@@ -134,7 +133,7 @@ class Module:
         vallen = 113 - len(self._name) - len(pname)
         if len(result) > vallen:
             result = result[:vallen - 4] + ' ...'
-        return '%s.%s = %s' % (self._name, pname, result)
+        return f'{self._name}.{pname} = {result}'
 
     def _isBusy(self):
         return self.status[0] // 100 == StatusType.BUSY // 100
@@ -186,9 +185,9 @@ class Module:
                 elif item in LOG_LEVELS:
                     self._log_level = item
                 else:
-                    self._secnode.log.error('can not set %r on module %s' % (item, self._name))
+                    self._secnode.log.error('can not set %r on module %s', item, self._name)
             self._watched_params = params
-        print('--- %s:\nlog: %s, watch: %s' % (self._name, self._log_level, ' '.join(self._watched_params)))
+        print(f"--- {self._name}:\nlog: {self._log_level}, watch: {' '.join(self._watched_params)}")
 
     def _start_watching(self):
         for pname in self._watched_params:
@@ -210,7 +209,7 @@ class Module:
     def read(self, pname='value'):
         value, _, error = self._secnode.readParameter(self._name, pname)
         if error:
-            Console.raise_without_traceback(error)
+            clientenv.raise_with_short_traceback(error)
         return value
 
     def __call__(self, target=None):
@@ -231,7 +230,7 @@ class Module:
         return self.value
 
     def __repr__(self):
-        wid = max(len(k) for k in self._parameters)
+        wid = max((len(k) for k in self._parameters), default=0)
         return '%s\n%s%s' % (
             self._title,
             '\n'.join(self._one_line(k, wid) for k in self._parameters),
@@ -260,8 +259,7 @@ class Param:
             return self
         value, _, error = obj._secnode.cache[obj._name, self.name]
         if error:
-            Console.raise_without_traceback(error)
-            raise error
+            clientenv.raise_with_short_traceback(error)
         return value
 
     def formatted(self, obj):
@@ -275,9 +273,10 @@ class Param:
             obj._running = Queue()
         try:
             obj._secnode.setParameter(obj._name, self.name, value)
+            return
         except SECoPError as e:
-            Console.raise_without_traceback(e)
-            # obj._secnode.log.error(repr(e))
+            clientenv.raise_with_short_traceback(e)
+            obj._secnode.log.error(repr(e))
 
     def format(self, value):
         return self.datatype.format_value(value)
@@ -294,6 +293,8 @@ class Command:
             if args:
                 raise TypeError('mixed arguments forbidden')
             result, _ = self.exec(self.modname, self.name, kwds)
+        elif len(args) == 1:
+            result, _ = self.exec(self.modname, self.name, *args)
         else:
             result, _ = self.exec(self.modname, self.name, args or None)
         return result
@@ -306,7 +307,7 @@ class Command:
 
 def show_parameter(modname, pname, *args, forced=False, mininterval=0):
     """show parameter update"""
-    mobj = getattr(main, modname)
+    mobj = clientenv.namespace[modname]
     mobj._watch_parameter(modname, pname, *args)
 
 
@@ -318,11 +319,11 @@ def watch(*args, **kwds):
                 modules.append(mobj)
                 mobj._set_watching()
         else:
-            print('do not know %r' % mobj)
+            print(f'do not know {mobj!r}')
     for key, arg in kwds.items():
-        mobj = getattr(main, key, None)
+        mobj = clientenv.namespace.get(key)
         if mobj is None:
-            print('do not know %r' % key)
+            print(f'do not know {key!r}')
         else:
             modules.append(mobj)
             mobj._set_watching(arg)
@@ -345,6 +346,9 @@ class Client(SecopClient):
     mininterval = 1
 
     def __init__(self, uri, loglevel='info', name=''):
+        if clientenv.namespace is None:
+            #  called from a simple python interpeter
+            clientenv.init(sys.modules['__main__'].__dict__)
         # remove previous client:
         prev = self.secnodes.pop(uri, None)
         log = Logger(loglevel)
@@ -352,10 +356,10 @@ class Client(SecopClient):
         if prev:
             log.info('remove previous client to %s', uri)
             for modname in prev.modules:
-                prevnode = getattr(getattr(main, modname, None), '_secnode', None)
+                prevnode = getattr(clientenv.namespace.get(modname), '_secnode', None)
                 if prevnode == prev:
                     removed_modules.append(modname)
-                    delattr(main, modname)
+                    clientenv.namespace.pop(modname)
             prev.disconnect()
         self.secnodes[uri] = self
         if name:
@@ -365,7 +369,7 @@ class Client(SecopClient):
         created_modules = []
         skipped_modules = []
         for modname, moddesc in self.modules.items():
-            prev = getattr(main, modname, None)
+            prev = clientenv.namespace.get(modname)
             if prev is None:
                 created_modules.append(modname)
             else:
@@ -379,11 +383,11 @@ class Client(SecopClient):
                 attrs[pname] = Param(pname, pinfo['datainfo'])
             for cname in moddesc['commands']:
                 attrs[cname] = Command(cname, modname, self)
-            mobj = type('M_%s' % modname, (Module,), attrs)(modname, self)
+            mobj = type(f'M_{modname}', (Module,), attrs)(modname, self)
             if 'status' in mobj._parameters:
                 self.register_callback((modname, 'status'), updateEvent=mobj._status_value_update)
                 self.register_callback((modname, 'value'), updateEvent=mobj._status_value_update)
-            setattr(main, modname, mobj)
+            clientenv.namespace[modname] = mobj
         if removed_modules:
             self.log.info('removed modules: %s', ' '.join(removed_modules))
         if skipped_modules:
@@ -397,7 +401,7 @@ class Client(SecopClient):
         """handle logging messages"""
         if action == 'log':
             modname, loglevel = ident.split(':')
-            modobj = getattr(main, modname, None)
+            modobj = clientenv.namespace.get(modname)
             if modobj:
                 modobj.handle_log_message_(loglevel, data)
                 return
@@ -405,16 +409,61 @@ class Client(SecopClient):
         self.log.info('unhandled: %s %s %r', action, ident, data)
 
     def __repr__(self):
-        return 'Client(%r)' % self.uri
+        return f'Client({self.uri!r})'
+
+
+def run(filepath):
+    clientenv.namespace.update({
+        "__file__": filepath,
+        "__name__": "__main__",
+    })
+    with open(filepath, 'rb') as file:
+        # pylint: disable=exec-used
+        exec(compile(file.read(), filepath, 'exec'), clientenv.namespace, None)
+
+
+class ClientEnvironment:
+    namespace = None
+    last_frames = 0
+
+    def init(self, namespace=None):
+        self.namespace = namespace or {}
+        self.namespace.update(run=run, watch=watch, Client=Client)
+
+    def raise_with_short_traceback(self, exc):
+        # count number of lines of internal irrelevant stack (for remote errors)
+        self.last_frames = len(traceback.format_exception(*sys.exc_info()))
+        raise exc
+
+    def short_traceback(self):
+        """cleanup tracback from irrelevant lines"""
+        lines = traceback.format_exception(*sys.exc_info())
+        # line 0: Traceback header
+        # skip line 1+2 (contains unspecific console line and exec code)
+        lines[1:3] = []
+        if '  exec(' in lines[1]:
+            # replace additional irrelevant exec line if needed with run command
+            lines[1:2] = []
+        # skip lines of client code not relevant for remote errors
+        lines[-self.last_frames-1:-1] = []
+        self.last_frames = 0
+        if len(lines) <= 2:  # traceback contains only console line
+            lines = lines[-1:]
+        return ''.join(lines)
+
+
+clientenv = ClientEnvironment()
 
 
 class Console(code.InteractiveConsole):
-    def __init__(self, local):
-        super().__init__(local)
+    def __init__(self, name='cli', namespace=None):
+        if namespace:
+            clientenv.namespace = namespace
+        super().__init__(clientenv.namespace)
         history = None
         if readline:
             try:
-                history = expanduser('~/.frappy-cli-history')
+                history = expanduser(f'~/.frappy-{name}-history')
                 readline.read_history_file(history)
             except FileNotFoundError:
                 pass
@@ -428,12 +477,31 @@ class Console(code.InteractiveConsole):
         Logger.sigwinch = bool(readline)  # activate refresh signal
         line = input(prompt)
         Logger.sigwinch = False
+        if line.startswith('/'):
+            line = f"run('{line[1:].strip()}')"
         return line
 
-    @classmethod
-    def raise_without_traceback(cls, exc):
-        def omit_traceback_once(cls):
-            del Console.showtraceback
-        cls.showtraceback = omit_traceback_once
-        print('ERROR:', repr(exc))
-        raise exc
+    def showtraceback(self):
+        self.write(clientenv.short_traceback())
+
+
+def init(*nodes):
+    clientenv.init()
+    success = not nodes
+    for idx, node in enumerate(nodes):
+        client_name = '_c%d' % idx
+        try:
+            clientenv.namespace[client_name] = Client(node, name=client_name)
+            success = True
+        except Exception as e:
+            print(repr(e))
+    return success
+
+
+def interact(usage_tail=''):
+    empty = '_c0' not in clientenv.namespace
+    print(USAGE.format(
+        client_name='cli' if empty else '_c0',
+        client_assign="\ncli = Client('localhost:5000')\n" if empty else '',
+        tail=usage_tail))
+    Console()

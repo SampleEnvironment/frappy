@@ -31,11 +31,12 @@ def make_cvt_list(dt, tail=''):
     tail is a postfix to be appended in case of tuples and structs
     """
     if isinstance(dt, (EnumType, IntRange, BoolType)):
-        return[(int, tail, dict(type='NUM'))]
+        return[(int, tail, {'type': 'NUM'})]
     if isinstance(dt, (FloatRange, ScaledInteger)):
-        return [(dt.import_value, tail, dict(type='NUM', unit=dt.unit, period=5) if dt.unit else {})]
+        return [(dt.import_value, tail,
+                 {'type': 'NUM', 'unit': dt.unit, 'period': 5} if dt.unit else {})]
     if isinstance(dt, StringType):
-        return [(lambda x: x, tail, dict(type='STR'))]
+        return [(lambda x: x, tail, {'type': 'STR'})]
     if isinstance(dt, TupleOf):
         items = enumerate(dt.members)
     elif isinstance(dt, StructOf):
@@ -44,7 +45,7 @@ def make_cvt_list(dt, tail=''):
         return []   # ArrayType, BlobType and TextType are ignored: too much data, probably not used
     result = []
     for subkey, elmtype in items:
-        for fun,  tail_, opts in make_cvt_list(elmtype, '%s.%s' % (tail, subkey)):
+        for fun,  tail_, opts in make_cvt_list(elmtype, f'{tail}.{subkey}'):
             result.append((lambda v, k=subkey, f=fun: f(v[k]), tail_, opts))
     return result
 
@@ -122,7 +123,7 @@ class FrappyHistoryWriter(frappyhistory.FrappyWriter):
     def send_reply(self, msg):
         action, ident, value = msg
         if not action.endswith('update'):
-            print('unknown async message %r' % msg)
+            print(f'unknown async message {msg!r}')
             return
         now = self._init_time or time.time()  # on initialisation, use the same timestamp for all
         if action == 'update':

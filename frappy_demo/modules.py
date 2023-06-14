@@ -74,7 +74,7 @@ class Switch(Drivable):
 
     def write_target(self, value):
         # could tell HW
-        self.status = (self.Status.BUSY, 'switching %s' % value.name.upper())
+        self.status = (self.Status.BUSY, f'switching {value.name.upper()}')
         # note: setting self.target to the new value is done after this....
 
     def read_status(self):
@@ -169,12 +169,12 @@ class MagneticField(Drivable):
             if self._state == self._state.enum.switch_on:
                 # wait until switch is on
                 if self._heatswitch.read_value() == 'on':
-                    self.log.debug('heatswitch is on -> ramp to %.3f' %
+                    self.log.debug('heatswitch is on -> ramp to %.3f',
                                    self.target)
                     self._state = self._state.enum.ramp
             if self._state == self._state.enum.ramp:
                 if self.target == self.value:
-                    self.log.debug('at field! mode is %r' % self.mode)
+                    self.log.debug('at field! mode is %r', self.mode)
                     if self.mode:
                         self.log.debug('at field -> switching heater off')
                         self._state = self._state.enum.switch_off
@@ -190,7 +190,7 @@ class MagneticField(Drivable):
             if self._state == self._state.enum.switch_off:
                 # wait until switch is off
                 if self._heatswitch.read_value() == 'off':
-                    self.log.debug('heatswitch is off at %.3f' % self.value)
+                    self.log.debug('heatswitch is off at %.3f', self.value)
                     self._state = self._state.enum.idle
             self.read_status()  # update async
             time.sleep(max(0.01, ts + loopdelay - time.time()))
@@ -284,8 +284,7 @@ class Label(Readable):
 
         dev_ts = self.DISPATCHER.get_module(self.subdev_ts)
         if dev_ts:
-            strings.append('at %.3f %s' %
-                           (dev_ts.read_value(), dev_ts.parameters['value'].datatype.unit))
+            strings.append(f"at {dev_ts.read_value():.3f} {dev_ts.parameters['value'].datatype.unit}")
         else:
             strings.append('No connection to sample temp!')
 
@@ -299,7 +298,7 @@ class Label(Readable):
                 state = 'Persistent' if mf_mode else 'Non-persistent'
             else:
                 state = mf_stat[1] or 'ramping'
-            strings.append('%s at %.1f %s' % (state, mf_val, mf_unit))
+            strings.append(f'{state} at {mf_val:.1f} {mf_unit}')
         else:
             strings.append('No connection to magnetic field!')
 

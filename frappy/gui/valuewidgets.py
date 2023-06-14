@@ -228,7 +228,7 @@ def get_widget(datatype, readonly=False, parent=None):
         TupleOf: TupleWidget,
         StructOf: StructWidget,
         ArrayOf: ArrayWidget,
-    }.get(datatype.__class__)(datatype, readonly, parent)
+    }.get(datatype.__class__, TextWidget)(datatype, readonly, parent)
 # TODO: handle NoneOr
 
 
@@ -260,5 +260,5 @@ class msg(QDialog):
         super().reject()
 
     def done(self, how):
-        print('done(%r)' % how)
+        print(f'done({how!r})')
         return super().done(how)

@@ -13,14 +13,14 @@ Mod('automatik',
     '\n'
     'selects between off, regulate on p1 or regulate on p2 sensor',
     tangodevice = 'tango://localhost:10000/box/plc/_automatik',
-    mapping="{'Off':0,'p1':1,'p2':2}",
+    mapping={'Off':0,'p1':1,'p2':2},
 )
 
 Mod('compressor',
     'frappy_mlz.entangle.NamedDigitalOutput',
     'control the compressor (on/off)',
     tangodevice = 'tango://localhost:10000/box/plc/_cooler_onoff',
-    mapping="{'Off':0,'On':1}",
+    mapping={'Off':0,'On':1},
 )
 
 Mod('gas',
@@ -31,7 +31,7 @@ Mod('gas',
     'note: activation de-activates the vacuum inlet\n'
     'note: if the pressure regulation is active, it enslave this device',
     tangodevice = 'tango://localhost:10000/box/plc/_gas_onoff',
-    mapping="{'Off':0,'On':1}",
+    mapping={'Off':0,'On':1},
 )
 
 Mod('vacuum',
@@ -41,7 +41,7 @@ Mod('vacuum',
     'note: activation de-activates the gas inlet\n'
     'note: if the pressure regulation is active, it enslave this device',
     tangodevice = 'tango://localhost:10000/box/plc/_vacuum_onoff',
-    mapping="{'Off':0,'On':1}",
+    mapping={'Off':0,'On':1},
 )
 
 Mod('p1',
@@ -63,14 +63,14 @@ Mod('curve_p2',
     'calibration curve for pressure sensor 2',
     tangodevice = 'tango://localhost:10000/box/plc/_curve',
     value = 0,
-    mapping = "{'0-10V':0, '0-1000mbar':1, '1-9V to 0-1 mbar':2, \
-        'DI200':3, 'DI2000':4, 'TTR100':7, 'PTR90':8, \
-        'PTR225/237':9, 'ITR90':10, 'ITR100-D':11, \
-        'ITR100-2':12, 'ITR100-3':13, 'ITR100-4':14, \
-        'ITR100-5':15, 'ITR100-6':16, 'ITR100-7':17, \
-        'ITR100-8':18, 'ITR100-9':19, 'ITR100-A':20, \
-        'CMR361':21, 'CMR362':22, 'CMR363':23, \
-        'CMR364':24, 'CMR365':25}",
+    mapping = {'0-10V':0, '0-1000mbar':1, '1-9V to 0-1 mbar':2,
+        'DI200':3, 'DI2000':4, 'TTR100':7, 'PTR90':8,
+        'PTR225/237':9, 'ITR90':10, 'ITR100-D':11,
+        'ITR100-2':12, 'ITR100-3':13, 'ITR100-4':14,
+        'ITR100-5':15, 'ITR100-6':16, 'ITR100-7':17,
+        'ITR100-8':18, 'ITR100-9':19, 'ITR100-A':20,
+        'CMR361':21, 'CMR362':22, 'CMR363':23,
+        'CMR364':24, 'CMR365':25},
 )
 
 Mod('T_tube_regulation',
@@ -137,12 +137,12 @@ Mod('T_tube_regulation_heaterrange',
     'frappy_mlz.entangle.NamedDigitalOutput',
     'heaterrange for tube regulation',
     tangodevice = 'tango://localhost:10000/box/tube/range1',
-    mapping="{'Off':0,'Low':1,'Medium':2, 'High':3}",
+    mapping={'Off':0,'Low':1,'Medium':2, 'High':3},
 )
 
 Mod('T_stick_regulation_heaterrange',
     'frappy_mlz.entangle.NamedDigitalOutput',
     'heaterrange for stick regulation',
     tangodevice = 'tango://localhost:10000/box/stick/range2',
-    mapping="{'Off':0,'Low':1,'Medium':2, 'High':3}",
+    mapping={'Off':0,'Low':1,'Medium':2, 'High':3},
 )

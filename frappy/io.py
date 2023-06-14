@@ -52,21 +52,25 @@ class HasIO(Module):
     ioClass = None
 
     def __init__(self, name, logger, opts, srv):
-        io = opts.get('io')
         super().__init__(name, logger, opts, srv)
         if self.uri:
-            opts = {'uri': self.uri, 'description': 'communication device for %s' % name,
-                    'export': False}
+            # automatic creation of io device
+            opts = {'uri': self.uri, 'description': f'communication device for {name}',
+                    'visibility': 'expert'}
             ioname = self.ioDict.get(self.uri)
             if not ioname:
-                ioname = io or name + '_io'
+                ioname = opts.get('io') or f'{name}_io'
                 io = self.ioClass(ioname, srv.log.getChild(ioname), opts, srv)  # pylint: disable=not-callable
                 io.callingModule = []
                 srv.modules[ioname] = io
                 self.ioDict[self.uri] = ioname
             self.io = ioname
-        elif not io:
-            raise ConfigError("Module %s needs a value for either 'uri' or 'io'" % name)
+
+    def initModule(self):
+        if not self.io:
+            # self.io was not assigned
+            raise ConfigError(f"Module {self.name} needs a value for either 'uri' or 'io'")
+        super().initModule()
 
     def communicate(self, *args):
         return self.io.communicate(*args)
@@ -98,11 +102,11 @@ class HasIodev(HasIO):
 class IOBase(Communicator):
     """base of StringIO and BytesIO"""
     uri = Property("""uri for serial connection
-    
+
                    one of the following:
-                   
+
                    - ``tcp://<host address>:<portnumber>`` (see :class:`frappy.lib.asynconn.AsynTcp`)
-                   
+
                    - ``serial://<serial device>?baudrate=<value>...`` (see :class:`frappy.lib.asynconn.AsynSerial`)
                    """, datatype=StringType())
     timeout = Parameter('timeout', datatype=FloatRange(0), default=2)
@@ -129,6 +133,14 @@ class IOBase(Communicator):
         self._lock = threading.RLock()
 
     def connectStart(self):
+        if not self.is_connected:
+            uri = self.uri
+            self._conn = AsynConn(uri, self._eol_read,
+                                  default_settings=self.default_settings)
+            self.is_connected = True
+            self.checkHWIdent()
+
+    def checkHWIdent(self):
         raise NotImplementedError
 
     def closeConnection(self):
@@ -149,7 +161,7 @@ class IOBase(Communicator):
         self.is_connected is changed only by self.connectStart or self.closeConnection
         """
         if self.is_connected:
-            return True
+            return True  # no need for intermediate updates
         try:
             self.connectStart()
             if self._last_error:
@@ -196,7 +208,7 @@ class IOBase(Communicator):
             try:
                 removeme = not cb()
             except Exception as e:
-                self.log.error('callback: %s' % e)
+                self.log.error('callback: %s', e)
                 removeme = True
             if removeme:
                 self._reconnectCallbacks.pop(key)
@@ -214,12 +226,19 @@ class StringIO(IOBase):
                            default='\n', settable=True)
     encoding = Property('used encoding', datatype=StringType(),
                         default='ascii', settable=True)
-    identification = Property('''
-                              identification
+    identification = Property(
+        '''identification
 
-                              a list of tuples with commands and expected responses as regexp,
-                              to be sent on connect''',
-                              datatype=ArrayOf(TupleOf(StringType(), StringType())), default=[], export=False)
+        a list of tuples with commands and expected responses as regexp,
+        to be sent on connect''',
+        datatype=ArrayOf(TupleOf(StringType(), StringType())),
+        default=[], export=False)
+    retry_first_idn = Property(
+        '''retry first identification message
+
+        a flag to indicate whether the first message should be resent once to
+        avoid data that may still be in the buffer to garble the message''',
+        datatype=BoolType(), default=False)
 
     def _convert_eol(self, value):
         if isinstance(value, str):
@@ -228,14 +247,14 @@ class StringIO(IOBase):
             return bytes([value])
         if isinstance(value, bytes):
             return value
-        raise ValueError('invalid end_of_line: %s' % repr(value))
+        raise ValueError(f'invalid end_of_line: {repr(value)}')
 
     def earlyInit(self):
         super().earlyInit()
         eol = self.end_of_line
         if isinstance(eol, (tuple, list)):
             if len(eol) not in (1, 2):
-                raise ValueError('invalid end_of_line: %s' % eol)
+                raise ValueError(f'invalid end_of_line: {eol}')
         else:
             eol = [eol]
         # eol for read and write might be distinct
@@ -244,17 +263,27 @@ class StringIO(IOBase):
             raise ValueError('end_of_line for read must not be empty')
         self._eol_write = self._convert_eol(eol[-1])
 
-    def connectStart(self):
-        if not self.is_connected:
-            uri = self.uri
-            self._conn = AsynConn(uri, self._eol_read, default_settings=self.default_settings)
-            self.is_connected = True
-            for command, regexp in self.identification:
-                reply = self.communicate(command)
-                if not re.match(regexp, reply):
-                    self.closeConnection()
-                    raise CommunicationFailedError('bad response: %s does not match %s' %
-                                                   (reply, regexp))
+    def checkHWIdent(self):
+        if not self.identification:
+            return
+        idents = iter(self.identification)
+        command, regexp = next(idents)
+        reply = self.communicate(command)
+        if not re.match(regexp, reply):
+            if self.retry_first_idn:
+                self.log.debug('first ident command not successful.'
+                               ' retrying in case of garbage data.')
+                idents = iter(self.identification)
+            else:
+                self.closeConnection()
+                raise CommunicationFailedError(f'bad response: {reply!r}'
+                                               f' does not match {regexp!r}')
+        for command, regexp in idents:
+            reply = self.communicate(command)
+            if not re.match(regexp, reply):
+                self.closeConnection()
+                raise CommunicationFailedError(f'bad response: {reply!r}'
+                                               f' does not match {regexp!r}')
 
     @Command(StringType(), result=StringType())
     def communicate(self, command):
@@ -340,7 +369,7 @@ def make_bytes(string):
 
 
 def hexify(bytes_):
-    return ' '.join('%02x' % r for r in bytes_)
+    return ' '.join(f'{r:02x}' for r in bytes_)
 
 
 class BytesIO(IOBase):
@@ -353,19 +382,19 @@ class BytesIO(IOBase):
         - a two digit hexadecimal number (byte value)
         - a character
         - ?? indicating ignored bytes in responses
-        """, datatype=ArrayOf(TupleOf(StringType(), StringType())), default=[], export=False)
+        """, datatype=ArrayOf(TupleOf(StringType(), StringType())),
+        default=[], export=False)
 
-    def connectStart(self):
-        if not self.is_connected:
-            uri = self.uri
-            self._conn = AsynConn(uri, b'', default_settings=self.default_settings)
-            self.is_connected = True
-            for request, expected in self.identification:
-                replylen, replypat = make_regexp(expected)
-                reply = self.communicate(make_bytes(request), replylen)
-                if not replypat.match(reply):
-                    self.closeConnection()
-                    raise CommunicationFailedError('bad response: %r does not match %r' % (reply, expected))
+    _eol_read = b''
+
+    def checkHWIdent(self):
+        for request, expected in self.identification:
+            replylen, replypat = make_regexp(expected)
+            reply = self.communicate(make_bytes(request), replylen)
+            if not replypat.match(reply):
+                self.closeConnection()
+                raise CommunicationFailedError(f'bad response: {reply!r}'
+                                               ' does not match {expected!r}')
 
     @Command((BLOBType(), IntRange(0)), result=BLOBType())
     def communicate(self, request, replylen):  # pylint: disable=arguments-differ

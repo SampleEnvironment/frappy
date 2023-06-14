@@ -57,7 +57,7 @@ import json
 
 from frappy.lib import generalConfig
 from frappy.datatypes import EnumType
-from frappy.params import Parameter, Property, Command
+from frappy.params import Parameter, Property, Command, Limit
 from frappy.modules import Module
 
 
@@ -67,6 +67,10 @@ class PersistentParam(Parameter):
     given = False
 
 
+class PersistentLimit(Limit, Parameter):
+    pass
+
+
 class PersistentMixin(Module):
     persistentData = None  # dict containing persistent data after startup
 
@@ -74,7 +78,7 @@ class PersistentMixin(Module):
         super().__init__(name, logger, cfgdict, srv)
         persistentdir = os.path.join(generalConfig.logdir, 'persistent')
         os.makedirs(persistentdir, exist_ok=True)
-        self.persistentFile = os.path.join(persistentdir, '%s.%s.json' % (self.DISPATCHER.equipment_id, self.name))
+        self.persistentFile = os.path.join(persistentdir, f'{self.DISPATCHER.equipment_id}.{self.name}.json')
         self.initData = {}  # "factory" settings
         loaded = self.loadPersistentData()
         for pname in self.parameters:
@@ -108,7 +112,7 @@ class PersistentMixin(Module):
                     result[pname] = self.parameters[pname].datatype.import_value(value)
             except Exception as e:
                 # ignore invalid persistent data (in case parameters have changed)
-                self.log.warning('can not restore %r to %r (%r)' % (pname, value, e))
+                self.log.warning('can not restore %r to %r (%r)', pname, value, e)
         return result
 
     def loadParameters(self):

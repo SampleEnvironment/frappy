@@ -37,24 +37,24 @@ class SimBase:
         if extra_params:
             for k in extra_params['value'].split(','):
                 k = k.strip()
-                attrs[k] = Parameter('extra_param: %s' % k.strip(),
+                attrs[k] = Parameter(f'extra_param: {k.strip()}',
                                      datatype=FloatRange(),
                                      default=0.0)
 
                 def reader(self, pname=k):
-                    self.log.debug('simulated reading %s' % pname)
+                    self.log.debug('simulated reading %s', pname)
                     return self.parameters[pname].value
 
                 attrs['read_' + k] = reader
 
                 def writer(self, newval, pname=k):
-                    self.log.debug('simulated writing %r to %s' % (newval, pname))
+                    self.log.debug('simulated writing %r to %s', newval, pname)
                     self.parameters[pname].value = newval
                     return newval
 
                 attrs['write_' + k] = writer
 
-        return object.__new__(type('SimBase_%s' % devname, (cls,), attrs))
+        return object.__new__(type(f'SimBase_{devname}', (cls,), attrs))
 
     def initModule(self):
         super().initModule()

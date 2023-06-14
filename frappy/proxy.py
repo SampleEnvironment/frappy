@@ -40,7 +40,7 @@ class ProxyModule(HasIO, Module):
     enablePoll = False
 
     def ioClass(self, name, logger, opts, srv):
-        opts['description'] = 'secnode %s on %s' % (opts.get('module', name), opts['uri'])
+        opts['description'] = f"secnode {opts.get('module', name)} on {opts['uri']}"
         return SecNode(name, logger, opts, srv)
 
     def updateEvent(self, module, parameter, value, timestamp, readerror):
@@ -73,7 +73,7 @@ class ProxyModule(HasIO, Module):
             props = remoteparams.get(pname, None)
             if props is None:
                 if pobj.export:
-                    self.log.warning('remote parameter %s:%s does not exist' % (self.module, pname))
+                    self.log.warning('remote parameter %s:%s does not exist', self.module, pname)
                 continue
             dt = props['datatype']
             try:
@@ -81,28 +81,28 @@ class ProxyModule(HasIO, Module):
                     dt.compatible(pobj.datatype)
                 else:
                     if props['readonly']:
-                        self.log.warning('remote parameter %s:%s is read only' % (self.module, pname))
+                        self.log.warning('remote parameter %s:%s is read only', self.module, pname)
                     pobj.datatype.compatible(dt)
                     try:
                         dt.compatible(pobj.datatype)
                     except Exception:
-                        self.log.warning('remote parameter %s:%s is not fully compatible: %r != %r'
-                                         % (self.module, pname, pobj.datatype, dt))
+                        self.log.warning('remote parameter %s:%s is not fully compatible: %r != %r',
+                                         self.module, pname, pobj.datatype, dt)
             except Exception:
-                self.log.warning('remote parameter %s:%s has an incompatible datatype: %r != %r'
-                                 % (self.module, pname, pobj.datatype, dt))
+                self.log.warning('remote parameter %s:%s has an incompatible datatype: %r != %r',
+                                 self.module, pname, pobj.datatype, dt)
         while cmds:
             cname, cobj = cmds.popitem()
             props = remotecmds.get(cname)
             if props is None:
-                self.log.warning('remote command %s:%s does not exist' % (self.module, cname))
+                self.log.warning('remote command %s:%s does not exist', self.module, cname)
                 continue
             dt = props['datatype']
             try:
                 cobj.datatype.compatible(dt)
             except BadValueError:
-                self.log.warning('remote command %s:%s is not compatible: %r != %r'
-                                 % (self.module, cname, cobj.datatype, dt))
+                self.log.warning('remote command %s:%s is not compatible: %r != %r',
+                                 self.module, cname, cobj.datatype, dt)
         # what to do if descriptive data does not match?
         # we might raise an exception, but this would lead to a reconnection,
         # which might not help.
@@ -179,7 +179,7 @@ def proxy_class(remote_class, name=None):
             proxycls.accessibles = {}
             break
     else:
-        raise ConfigError('%r is no SECoP module class' % remote_class)
+        raise ConfigError(f'{remote_class!r} is no SECoP module class')
 
     attrs = rcls.propertyDict.copy()
 
@@ -220,7 +220,7 @@ def proxy_class(remote_class, name=None):
             attrs[aname] = cobj(cfunc)
 
         else:
-            raise ConfigError('do not now about %r in %s.accessibles' % (aobj, remote_class))
+            raise ConfigError(f'do not now about {aobj!r} in {remote_class}.accessibles')
 
     return type(name+"_", (proxycls,), attrs)
 
@@ -235,8 +235,6 @@ def Proxy(name, logger, cfgdict, srv):
         remote_class = remote_class['value']
 
     if 'description' not in cfgdict:
-        cfgdict['description'] = 'remote module %s on %s' % (
-            cfgdict.get('module', name),
-            cfgdict.get('io', {'value:': '?'})['value'])
+        cfgdict['description'] = f"remote module {cfgdict.get('module', name)} on {cfgdict.get('io', {'value:': '?'})['value']}"
 
     return proxy_class(remote_class)(name, logger, cfgdict, srv)

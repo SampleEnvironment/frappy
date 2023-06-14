@@ -88,17 +88,14 @@ REQUEST2REPLY = {
 }
 
 
-HelpMessage = """Try one of the following:
-            '%s' to query protocol version
-            '%s' to read the description
-            '%s <module>[:<parameter>]' to request reading a value
-            '%s <module>[:<parameter>] value' to request changing a value
-            '%s <module>[:<command>]' to execute a command
-            '%s <nonce>' to request a heartbeat response
-            '%s' to activate async updates
-            '%s' to deactivate updates
-            '%s [<module>] <loglevel>' to activate logging events
-            """ % (IDENTREQUEST, DESCRIPTIONREQUEST, READREQUEST,
-                   WRITEREQUEST, COMMANDREQUEST, HEARTBEATREQUEST,
-                   ENABLEEVENTSREQUEST, DISABLEEVENTSREQUEST,
-                   LOGGING_REQUEST)
+HelpMessage = f"""Try one of the following:
+            '{IDENTREQUEST}' to query protocol version
+            '{DESCRIPTIONREQUEST}' to read the description
+            '{READREQUEST} <module>[:<parameter>]' to request reading a value
+            '{WRITEREQUEST} <module>[:<parameter>] value' to request changing a value
+            '{COMMANDREQUEST} <module>[:<command>]' to execute a command
+            '{HEARTBEATREQUEST} <nonce>' to request a heartbeat response
+            '{ENABLEEVENTSREQUEST}' to activate async updates
+            '{DISABLEEVENTSREQUEST}' to deactivate updates
+            '{LOGGING_REQUEST} [<module>] <loglevel>' to activate logging events
+            """

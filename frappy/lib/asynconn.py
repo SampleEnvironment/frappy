@@ -35,7 +35,7 @@ import time
 import re
 
 from frappy.errors import CommunicationFailedError, ConfigError
-from frappy.lib import closeSocket, parseHostPort, tcpSocket
+from frappy.lib import closeSocket, parse_host_port
 
 try:
     from serial import Serial
@@ -60,7 +60,7 @@ class AsynConn:
         if not iocls:
             # try tcp, if scheme not given
             try:
-                parseHostPort(uri, 1)  # check hostname only
+                parse_host_port(uri, 1)  # check hostname only
             except ValueError:
                 if 'COM' in uri:
                     raise ValueError("the correct uri for a COM port is: "
@@ -68,7 +68,7 @@ class AsynConn:
                 if '/dev' in uri:
                     raise ValueError("the correct uri for a serial port is: "
                                      "'serial:///dev/<tty>[?<option>=<value>[&<option>=value ...]]'") from None
-                raise ValueError('invalid hostname %r' % uri) from None
+                raise ValueError(f'invalid hostname {uri!r}') from None
             iocls = cls.SCHEME_MAP['tcp']
         return object.__new__(iocls)
 
@@ -130,7 +130,7 @@ class AsynConn:
                 if timeout:
                     if time.time() < end:
                         continue
-                    raise TimeoutError('timeout in readline (%g sec)' % timeout)
+                    raise TimeoutError(f'timeout in readline ({timeout:g} sec)')
                 return None
             self._rxbuffer += data
 
@@ -149,7 +149,7 @@ class AsynConn:
                 if timeout:
                     if time.time() < end:
                         continue
-                    raise TimeoutError('timeout in readbytes (%g sec)' % timeout)
+                    raise TimeoutError(f'timeout in readbytes ({timeout:g} sec)')
                 return None
             self._rxbuffer += data
         line = self._rxbuffer[:nbytes]
@@ -175,7 +175,9 @@ class AsynTcp(AsynConn):
         if uri.startswith('tcp://'):
             uri = uri[6:]
         try:
-            self.connection = tcpSocket(uri, self.default_settings.get('port'), self.timeout)
+
+            host, port = parse_host_port(uri, self.default_settings.get('port'))
+            self.connection = socket.create_connection((host, port), timeout=self.timeout)
         except (ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
             # indicate that retrying might make sense
             raise CommunicationFailedError(str(e)) from None
@@ -261,7 +263,7 @@ class AsynSerial(AsynConn):
                 try:
                     key, value = kv.split('=')
                 except TypeError:
-                    raise ConfigError('%r must be <key>=<value>' % kv) from None
+                    raise ConfigError(f'{kv!r} must be <key>=<value>') from None
                 if key == 'parity':
                     options[key] = value
                 else:
@@ -271,7 +273,7 @@ class AsynSerial(AsynConn):
             name = parity.upper()
             fullname = self.PARITY_NAMES[name[0]]
             if not fullname.startswith(name):
-                raise ConfigError('illegal parity: %s' % parity)
+                raise ConfigError(f'illegal parity: {parity}')
             options['parity'] = name[0]
         if 'timeout' not in options:
             options['timeout'] = self.timeout

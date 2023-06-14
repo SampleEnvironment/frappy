@@ -21,22 +21,22 @@
 # *****************************************************************************
 """provides tcp interface to the SECoP Server"""
 
+import errno
+import os
 import socket
 import socketserver
 import sys
 import threading
 import time
-import errno
-import os
 
 from frappy.datatypes import BoolType, StringType
 from frappy.errors import SECoPError
-from frappy.lib import formatException, \
-    formatExtendedStack, formatExtendedTraceback
+from frappy.lib import formatException, formatExtendedStack, \
+    formatExtendedTraceback
 from frappy.properties import Property
 from frappy.protocol.interface import decode_msg, encode_msg_frame, get_msg
-from frappy.protocol.messages import ERRORPREFIX, \
-    HELPREPLY, HELPREQUEST, HelpMessage
+from frappy.protocol.messages import ERRORPREFIX, HELPREPLY, HELPREQUEST, \
+    HelpMessage
 
 DEF_PORT = 10767
 MESSAGE_READ_SIZE = 1024
@@ -57,7 +57,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
         clientaddr = self.client_address
         serverobj = self.server
 
-        self.log.info("handling new connection from %s:%d" % clientaddr)
+        self.log.info("handling new connection from %s",  format_address(clientaddr))
         data = b''
 
         # notify dispatcher of us
@@ -94,7 +94,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                 if origin in (HELP, b''):  # empty string -> send help message
                     for idx, line in enumerate(HelpMessage.splitlines()):
                         # not sending HELPREPLY here, as there should be only one reply for every request
-                        self.send_reply(('_', '%d' % (idx+1), line))
+                        self.send_reply(('_', f'{idx + 1}', line))
                     # ident matches request
                     self.send_reply((HELPREPLY, None, None))
                     continue
@@ -131,7 +131,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
                         print('====================')
 
                 if not result:
-                    self.log.error('empty result upon msg %s' % repr(msg))
+                    self.log.error('empty result upon msg %s', repr(msg))
                 if result[0].startswith(ERRORPREFIX) and not detailed_errors:
                     # strip extra information
                     result[2][2].clear()
@@ -160,7 +160,7 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
 
     def finish(self):
         """called when handle() terminates, i.e. the socket closed"""
-        self.log.info('closing connection from %s:%d' % self.client_address)
+        self.log.info('closing connection from %s', format_address(self.client_address))
         # notify dispatcher
         self.server.dispatcher.remove_connection(self)
         # close socket
@@ -171,8 +171,28 @@ class TCPRequestHandler(socketserver.BaseRequestHandler):
         finally:
             self.request.close()
 
+class DualStackTCPServer(socketserver.ThreadingTCPServer):
+    """Subclassed to provide IPv6 capabilities as socketserver only uses IPv4"""
+    def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True, enable_ipv6=False):
+        super().__init__(
+                    server_address, RequestHandlerClass, bind_and_activate=False)
 
-class TCPServer(socketserver.ThreadingTCPServer):
+        # override default socket
+        if enable_ipv6:
+            self.address_family = socket.AF_INET6
+            self.socket = socket.socket(self.address_family,
+                                        self.socket_type)
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        if bind_and_activate:
+            try:
+                self.server_bind()
+                self.server_activate()
+            except:
+                self.server_close()
+                raise
+
+
+class TCPServer(DualStackTCPServer):
     daemon_threads = True
     # on windows, 'reuse_address' means that several servers might listen on
     # the same port, on the other hand, a port is not blocked after closing
@@ -181,7 +201,7 @@ class TCPServer(socketserver.ThreadingTCPServer):
     # for cfg-editor
     configurables = {
         'uri': Property('hostname or ip address for binding', StringType(),
-                        default='tcp://%d' % DEF_PORT, export=False),
+                        default=f'tcp://{DEF_PORT}', export=False),
         'detailed_errors': Property('Flag to enable detailed Errorreporting.', BoolType(),
                                     default=False, export=False),
     }
@@ -191,23 +211,26 @@ class TCPServer(socketserver.ThreadingTCPServer):
         self.name = name
         self.log = logger
         port = int(options.pop('uri').split('://', 1)[-1])
+        enable_ipv6 = options.pop('ipv6', False)
         self.detailed_errors = options.pop('detailed_errors', False)
 
-        self.log.info("TCPServer %s binding to port %d" % (name, port))
+        self.log.info("TCPServer %s binding to port %d", name, port)
         for ntry in range(5):
             try:
-                socketserver.ThreadingTCPServer.__init__(
-                    self, ('0.0.0.0', port), TCPRequestHandler, bind_and_activate=True)
+                DualStackTCPServer.__init__(
+                    self, ('', port), TCPRequestHandler,
+                    bind_and_activate=True, enable_ipv6=enable_ipv6
+                )
                 break
             except OSError as e:
                 if e.args[0] == errno.EADDRINUSE:  # address already in use
                     # this may happen despite of allow_reuse_address
                     time.sleep(0.3 * (1 << ntry))  # max accumulated sleep time: 0.3 * 31 = 9.3 sec
                 else:
-                    self.log.error('could not initialize TCP Server: %r' % e)
+                    self.log.error('could not initialize TCP Server: %r', e)
                     raise
         if ntry:
-            self.log.warning('tried again %d times after "Address already in use"' % ntry)
+            self.log.warning('tried again %d times after "Address already in use"', ntry)
         self.log.info("TCPServer initiated")
 
     # py35 compatibility
@@ -217,3 +240,11 @@ class TCPServer(socketserver.ThreadingTCPServer):
 
         def __exit__(self, *args):
             self.server_close()
+
+def format_address(addr):
+    if len(addr) == 2:
+        return '%s:%d' % addr
+    address, port = addr[0:2]
+    if address.startswith('::ffff'):
+        return '%s:%d' % (address[7:], port)
+    return '[%s]:%d' % (address, port)

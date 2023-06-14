@@ -62,6 +62,7 @@ class DataType(HasProperties):
     IS_COMMAND = False
     unit = ''
     default = None
+    client = False  # used on the client side
 
     def __call__(self, value):
         """convert given value to our datatype and validate
@@ -227,7 +228,7 @@ class FloatRange(HasUnit, DataType):
                     raise
                 value = float(value)
             except Exception:
-                raise WrongTypeError('can not convert %s to a float' % shortrepr(value)) from None
+                raise WrongTypeError(f'can not convert {shortrepr(value)} to a float') from None
 
         # map +/-infty to +/-max possible number
         return clamp(-sys.float_info.max, value, sys.float_info.max)
@@ -241,8 +242,7 @@ class FloatRange(HasUnit, DataType):
             # silently clamp when outside by not more than prec
             return clamp(self.min, value, self.max)
         info = self.exportProperties()
-        raise RangeError('%.14g must be between %g and %g' %
-                         (value, info.get('min', float('-inf')), info.get('max', float('inf'))))
+        raise RangeError(f"{value:.14g} must be between {info.get('min', float('-inf')):g} and {info.get('max', float('inf')):g}")
 
     def __repr__(self):
         hints = self.get_info()
@@ -274,9 +274,8 @@ class FloatRange(HasUnit, DataType):
     def compatible(self, other):
         if not isinstance(other, (FloatRange, ScaledInteger)):
             raise WrongTypeError('incompatible datatypes')
-        # avoid infinity
-        other.validate(max(sys.float_info.min, self.min))
-        other.validate(min(sys.float_info.max, self.max))
+        other.validate(self.min)
+        other.validate(self.max)
 
 
 class IntRange(DataType):
@@ -314,7 +313,7 @@ class IntRange(DataType):
                 fvalue = float(value)
                 value = int(value)
             except Exception:
-                raise WrongTypeError('can not convert %s to an int' % shortrepr(value)) from None
+                raise WrongTypeError(f'can not convert {shortrepr(value)} to an int') from None
         if round(fvalue) != fvalue:
             raise WrongTypeError('%r should be an int')
         return value
@@ -325,8 +324,7 @@ class IntRange(DataType):
         # check the limits
         if self.min <= value <= self.max:
             return value
-        raise RangeError('%r must be between %d and %d' %
-                         (value, self.min, self.max))
+        raise RangeError(f'{value!r} must be between {self.min} and {self.max}')
 
     def __repr__(self):
         args = (self.min, self.max)
@@ -334,7 +332,7 @@ class IntRange(DataType):
             args = args[:1]
             if args[0] == DEFAULT_MIN_INT:
                 args = ()
-        return 'IntRange%s' % repr(args)
+        return f'IntRange{repr(args)}'
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -349,7 +347,7 @@ class IntRange(DataType):
         return self(value)
 
     def format_value(self, value, unit=None):
-        return '%d' % value
+        return f'{value}'
 
     def compatible(self, other):
         if isinstance(other, (IntRange, FloatRange, ScaledInteger)):
@@ -435,7 +433,7 @@ class ScaledInteger(HasUnit, DataType):
                     raise
                 value = float(value)
             except Exception:
-                raise WrongTypeError('can not convert %s to float' % shortrepr(value)) from None
+                raise WrongTypeError(f'can not convert {shortrepr(value)} to float') from None
         intval = int(round(value / self.scale))
         return float(intval * self.scale)   # return 'actual' value (which is more discrete than a float)
 
@@ -445,11 +443,10 @@ class ScaledInteger(HasUnit, DataType):
         if self.min - self.scale < value < self.max + self.scale:
             # silently clamp when outside by not more than self.scale
             return clamp(self(self.min), result, self(self.max))
-        raise RangeError('%.14g must be between between %g and %g' %
-                         (value, self.min, self.max))
+        raise RangeError(f'{value:.14g} must be between between {self.min:g} and {self.max:g}')
 
     def __repr__(self):
-        hints = self.get_info(scale=float('%g' % self.scale),
+        hints = self.get_info(scale=float(f'{self.scale:g}'),
                               min=int(round(self.min / self.scale)),
                               max=int(round(self.max / self.scale)))
         return 'ScaledInteger(%s)' % (', '.join('%s=%r' % kv for kv in hints.items()))
@@ -522,14 +519,14 @@ class EnumType(DataType):
             return self._enum[value]
         except (KeyError, TypeError):  # TypeError will be raised when value is not hashable
             if isinstance(value, (int, str)):
-                raise RangeError('%s is not a member of enum %r' % (shortrepr(value), self._enum)) from None
-            raise WrongTypeError('%s must be either int or str for an enum value' % (shortrepr(value))) from None
+                raise RangeError(f'{shortrepr(value)} is not a member of enum {self._enum!r}') from None
+            raise WrongTypeError(f'{shortrepr(value)} must be either int or str for an enum value') from None
 
     def from_string(self, text):
         return self(text)
 
     def format_value(self, value, unit=None):
-        return '%s<%s>' % (self._enum[value].name, self._enum[value].value)
+        return f'{self._enum[value].name}<{self._enum[value].value}>'
 
     def set_name(self, name):
         self._enum.name = name
@@ -566,19 +563,19 @@ class BLOBType(DataType):
         return self.get_info(type='blob')
 
     def __repr__(self):
-        return 'BLOBType(%d, %d)' % (self.minbytes, self.maxbytes)
+        return f'BLOBType({self.minbytes}, {self.maxbytes})'
 
     def __call__(self, value):
         """accepts bytes only"""
         if not isinstance(value, bytes):
-            raise WrongTypeError('%s must be of type bytes' % shortrepr(value))
+            raise WrongTypeError(f'{shortrepr(value)} must be of type bytes')
         size = len(value)
         if size < self.minbytes:
             raise RangeError(
-                '%r must be at least %d bytes long!' % (value, self.minbytes))
+                f'{value!r} must be at least {self.minbytes} bytes long!')
         if size > self.maxbytes:
             raise RangeError(
-                '%r must be at most %d bytes long!' % (value, self.maxbytes))
+                f'{value!r} must be at most {self.maxbytes} bytes long!')
         return value
 
     def export_value(self, value):
@@ -636,19 +633,19 @@ class StringType(DataType):
     def __call__(self, value):
         """accepts strings only"""
         if not isinstance(value, str):
-            raise WrongTypeError('%s has the wrong type!' % shortrepr(value))
+            raise WrongTypeError(f'{shortrepr(value)} has the wrong type!')
         if not self.isUTF8:
             try:
                 value.encode('ascii')
             except UnicodeEncodeError:
-                raise RangeError('%s contains non-ascii character!' % shortrepr(value)) from None
+                raise RangeError(f'{shortrepr(value)} contains non-ascii character!') from None
         size = len(value)
         if size < self.minchars:
             raise RangeError(
-                '%s must be at least %d chars long!' % (shortrepr(value), self.minchars))
+                f'{shortrepr(value)} must be at least {self.minchars} chars long!')
         if size > self.maxchars:
             raise RangeError(
-                '%s must be at most %d chars long!' % (shortrepr(value), self.maxchars))
+                f'{shortrepr(value)} must be at most {self.maxchars} chars long!')
         if '\0' in value:
             raise RangeError(
                 'Strings are not allowed to embed a \\0! Use a Blob instead!')
@@ -656,7 +653,7 @@ class StringType(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return '%s' % value
+        return f'{value}'
 
     def import_value(self, value):
         """returns a python object from serialisation"""
@@ -692,7 +689,7 @@ class TextType(StringType):
     def __repr__(self):
         if self.maxchars == UNLIMITED:
             return 'TextType()'
-        return 'TextType(%d)' % self.maxchars
+        return f'TextType({self.maxchars})'
 
     def copy(self):
         # DataType.copy will not work, because it is exported as 'string'
@@ -716,7 +713,7 @@ class BoolType(DataType):
             return False
         if value in [1, '1', 'True', 'true', 'yes', 'on', True]:
             return True
-        raise WrongTypeError('%s is not a boolean value!' % shortrepr(value))
+        raise WrongTypeError(f'{shortrepr(value)} is not a boolean value!')
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -794,22 +791,19 @@ class ArrayOf(DataType):
                 'members': self.members.export_datatype()}
 
     def __repr__(self):
-        return 'ArrayOf(%s, %s, %s)' % (
-            repr(self.members), self.minlen, self.maxlen)
+        return f'ArrayOf({repr(self.members)}, {self.minlen}, {self.maxlen})'
 
     def check_type(self, value):
         try:
             # check number of elements
             if self.minlen is not None and len(value) < self.minlen:
                 raise RangeError(
-                    'array too small, needs at least %d elements!' %
-                    self.minlen)
+                    f'array too small, needs at least {self.minlen} elements!')
             if self.maxlen is not None and len(value) > self.maxlen:
                 raise RangeError(
-                    'array too big, holds at most %d elements!' % self.maxlen)
+                    f'array too big, holds at most {self.maxlen} elements!')
         except TypeError:
-            raise WrongTypeError('%s can not be converted to ArrayOf DataType!'
-                                 % type(value).__name__) from None
+            raise WrongTypeError(f'{type(value).__name__} can not be converted to ArrayOf DataType!') from None
 
     def __call__(self, value):
         """accepts any sequence, converts to tuple (immutable!)"""
@@ -832,6 +826,7 @@ class ArrayOf(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
+        self.check_type(value)
         return [self.members.export_value(elem) for elem in value]
 
     def import_value(self, value):
@@ -841,7 +836,7 @@ class ArrayOf(DataType):
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ProtocolError('trailing garbage: %r' % rem)
+            raise ProtocolError(f'trailing garbage: {rem!r}')
         return self(value)
 
     def format_value(self, value, unit=None):
@@ -854,7 +849,7 @@ class ArrayOf(DataType):
                 unit = members.unit
             else:
                 innerunit = None
-        res = '[%s]' % (', '.join([self.members.format_value(elem, innerunit) for elem in value]))
+        res = f"[{', '.join([self.members.format_value(elem, innerunit) for elem in value])}]"
         if unit:
             return ' '.join([res, unit])
         return res
@@ -895,16 +890,15 @@ class TupleOf(DataType):
         return {'type': 'tuple', 'members': [subtype.export_datatype() for subtype in self.members]}
 
     def __repr__(self):
-        return 'TupleOf(%s)' % ', '.join([repr(st) for st in self.members])
+        return f"TupleOf({', '.join([repr(st) for st in self.members])})"
 
     def check_type(self, value):
         try:
-            if len(value) != len(self.members):
-                raise WrongTypeError(
-                    'tuple needs %d elements' % len(self.members))
+            if len(value) == len(self.members):
+                return
         except TypeError:
-            raise WrongTypeError('%s can not be converted to TupleOf DataType!'
-                                 % type(value).__name__) from None
+            raise WrongTypeError(f'{type(value).__name__} can not be converted to TupleOf DataType!') from None
+        raise WrongTypeError(f'tuple needs {len(self.members)} elements')
 
     def __call__(self, value):
         """accepts any sequence, converts to tuple"""
@@ -927,6 +921,7 @@ class TupleOf(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
+        self.check_type(value)
         return [sub.export_value(elem) for sub, elem in zip(self.members, value)]
 
     def import_value(self, value):
@@ -936,12 +931,11 @@ class TupleOf(DataType):
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ProtocolError('trailing garbage: %r' % rem)
+            raise ProtocolError(f'trailing garbage: {rem!r}')
         return self(value)
 
     def format_value(self, value, unit=None):
-        return '(%s)' % (', '.join([sub.format_value(elem)
-                         for sub, elem in zip(self.members, value)]))
+        return f"({', '.join([sub.format_value(elem) for sub, elem in zip(self.members, value)])})"
 
     def compatible(self, other):
         if not isinstance(other, TupleOf):
@@ -998,61 +992,64 @@ class StructOf(DataType):
         return res
 
     def __repr__(self):
-        opt = ', optional=%r' % self.optional if self.optional else ''
+        opt = f', optional={self.optional!r}' if set(self.optional) == set(self.members) else ''
         return 'StructOf(%s%s)' % (', '.join(
             ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
     def __call__(self, value):
         """accepts any mapping, returns an immutable dict"""
+        self.check_type(value)
         try:
-            if set(dict(value)) != set(self.members):
-                raise WrongTypeError('member names do not match') from None
-        except TypeError:
-            raise WrongTypeError('%s can not be converted a StructOf'
-                                 % type(value).__name__) from None
-        try:
-            return ImmutableDict((str(k), self.members[k](v))
-                                 for k, v in list(value.items()))
-        except Exception as e:
-            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
-            raise errcls('can not convert some struct element') from e
-
-    def validate(self, value, previous=None):
-        try:
-            superfluous = set(dict(value)) - set(self.members)
-        except TypeError:
-            raise WrongTypeError('%s can not be converted a StructOf'
-                                 % type(value).__name__) from None
-        if superfluous - set(self.optional):
-            raise WrongTypeError('struct contains superfluous members: %s' % ', '.join(superfluous))
-        missing = set(self.members) - set(value) - set(self.optional)
-        if missing:
-            raise WrongTypeError('missing struct elements: %s' % ', '.join(missing))
-        try:
-            if previous is None:
-                return ImmutableDict((str(k), self.members[k].validate(v))
-                                     for k, v in list(value.items()))
-            result = dict(previous)
-            result.update(((k, self.members[k].validate(v, previous[k])) for k, v in value.items()))
+            result = {}
+            for key, val in value.items():
+                if val is not None:  # goodie: allow None instead of missing key
+                    result[key] = self.members[key](val)
             return ImmutableDict(result)
         except Exception as e:
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
-            raise errcls('some struct elements are invalid') from e
+            raise errcls('can not convert struct element %s' % key) from e
+
+    def validate(self, value, previous=None):
+        self.check_type(value, True)
+        try:
+            result = dict(previous or {})
+            for key, val in value.items():
+                if val is not None:  # goodie: allow None instead of missing key
+                    result[key] = self.members[key].validate(val)
+            return ImmutableDict(result)
+        except Exception as e:
+            errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
+            raise errcls('struct element %s is invalid' % key) from e
+
+    def check_type(self, value, allow_optional=False):
+        try:
+            superfluous = set(dict(value)) - set(self.members)
+        except TypeError:
+            raise WrongTypeError(f'{type(value).__name__} can not be converted a StructOf') from None
+        if superfluous - set(self.optional):
+            raise WrongTypeError(f"struct contains superfluous members: {', '.join(superfluous)}")
+        missing = set(self.members) - set(value)
+        if self.client or allow_optional:  # on the client side, allow optional elements always
+            missing -= set(self.optional)
+        if missing:
+            raise WrongTypeError(f"missing struct elements: {', '.join(missing)}")
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        self(value)  # check validity
+        self.check_type(value)
         return dict((str(k), self.members[k].export_value(v))
                     for k, v in list(value.items()))
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        return self({str(k): self.members[k].import_value(v) for k, v in value.items()})
+        self.check_type(value, True)
+        return {str(k): self.members[k].import_value(v)
+                for k, v in value.items()}
 
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ProtocolError('trailing garbage: %r' % rem)
+            raise ProtocolError(f'trailing garbage: {rem!r}')
         return self(dict(value))
 
     def format_value(self, value, unit=None):
@@ -1103,8 +1100,8 @@ class CommandType(DataType):
 
     def __repr__(self):
         if self.result is None:
-            return 'CommandType(%s)' % (repr(self.argument) if self.argument else '')
-        return 'CommandType(%s, %s)' % (repr(self.argument), repr(self.result))
+            return f"CommandType({repr(self.argument) if self.argument else ''})"
+        return f'CommandType({repr(self.argument)}, {repr(self.result)})'
 
     def __call__(self, value):
         raise ProgrammingError('commands can not be converted to a value')
@@ -1118,7 +1115,7 @@ class CommandType(DataType):
     def from_string(self, text):
         value, rem = Parser.parse(text)
         if rem:
-            raise ProtocolError('trailing garbage: %r' % rem)
+            raise ProtocolError(f'trailing garbage: {rem!r}')
         return self(value)
 
     def format_value(self, value, unit=None):
@@ -1184,8 +1181,7 @@ class ValueType(DataType):
             try:
                 return self.validator(value)
             except Exception as e:
-                raise ConfigError('Validator %s raised %r for value %s' \
-                                           % (self.validator, e, value)) from e
+                raise ConfigError(f'Validator {self.validator} raised {e!r} for value {value}') from e
         return value
 
     def copy(self):
@@ -1242,7 +1238,7 @@ class OrType(DataType):
                 return t.validate(value)  # use always strict validation
             except Exception:
                 pass
-        raise WrongTypeError("Invalid Value, must conform to one of %s" % (', '.join((str(t) for t in self.types))))
+        raise WrongTypeError(f"Invalid Value, must conform to one of {', '.join(str(t) for t in self.types)}")
 
 
 Int8   = IntRange(-(1 << 7),  (1 << 7) - 1)
@@ -1264,7 +1260,7 @@ class LimitsType(TupleOf):
         """accepts an ordered tuple of numeric member types"""
         limits = TupleOf.validate(self, value)
         if limits[1] < limits[0]:
-            raise RangeError('Maximum Value %s must be greater than minimum value %s!' % (limits[1], limits[0]))
+            raise RangeError(f'Maximum Value {limits[1]} must be greater than minimum value {limits[0]}!')
         return limits
 
 
@@ -1312,7 +1308,7 @@ class StatusType(TupleOf):
             first = 'Status'  # enum name
         bad = {n for n in args if n not in StatusType.__dict__ or n.startswith('_')}  # avoid built-in attributes
         if bad:
-            raise ProgrammingError('positional arguments %r must be standard status code names' % bad)
+            raise ProgrammingError(f'positional arguments {bad!r} must be standard status code names')
         self.enum = Enum(Enum(first, **{n: StatusType.__dict__[n] for n in args}), **kwds)
         super().__init__(EnumType(self.enum), StringType())
 
@@ -1355,7 +1351,7 @@ DATATYPES = {
 }
 
 
-# important for getting the right datatype from formerly jsonified descr.
+# used on the client side for getting the right datatype from formerly jsonified descr.
 def get_datatype(json, pname=''):
     """returns a DataType object from description
 
@@ -1374,9 +1370,11 @@ def get_datatype(json, pname=''):
             kwargs = json.copy()
             base = kwargs.pop('type')
         except (TypeError, KeyError, AttributeError):
-            raise WrongTypeError('a data descriptor must be a dict containing a "type" key, not %r' % json) from None
+            raise WrongTypeError(f'a data descriptor must be a dict containing a "type" key, not {json!r}') from None
 
     try:
-        return DATATYPES[base](pname=pname, **kwargs)
+        datatype = DATATYPES[base](pname=pname, **kwargs)
+        datatype.client = True
+        return datatype
     except Exception as e:
-        raise WrongTypeError('invalid data descriptor: %r (%s)' % (json, str(e))) from None
+        raise WrongTypeError(f'invalid data descriptor: {json!r} ({str(e)})') from None

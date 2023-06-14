@@ -29,6 +29,9 @@ from os import path
 # Add import path for inplace usage
 sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
 
+import logging
+from mlzlog import ColoredConsoleHandler
+
 from frappy.gui.qt import QApplication
 from frappy.gui.cfg_editor.mainwindow import MainWindow
 
@@ -38,7 +41,11 @@ def main(argv=None):
     parser.add_argument('-f', '--file', help='Configuration file to open.')
     args = parser.parse_args()
     app = QApplication(argv)
-    window = MainWindow(args.file)
+    logger = logging.getLogger('gui')
+    console = ColoredConsoleHandler()
+    console.setLevel(logging.INFO)
+    logger.addHandler(console)
+    window = MainWindow(args.file, log=logger)
     window.show()
     return app.exec()
 

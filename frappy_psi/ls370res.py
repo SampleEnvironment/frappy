@@ -28,7 +28,6 @@ the hardware state.
 """
 
 import time
-from ast import literal_eval
 
 import frappy.io
 from frappy.datatypes import BoolType, EnumType, FloatRange, IntRange, StatusType
@@ -48,7 +47,34 @@ class StringIO(frappy.io.StringIO):
     wait_before = 0.05
 
 
-class Switcher(HasIO, ChannelSwitcher):
+def parse_result(reply):
+    result = []
+    for strval in reply.split(','):
+        try:
+            result.append(int(strval))
+        except ValueError:
+            try:
+                result.append(float(strval))
+            except ValueError:
+                result.append(strval)
+    if len(result) == 1:
+        return result[0]
+    return result
+
+
+class LakeShoreIO(HasIO):
+    def set_param(self, cmd, *args):
+        head = ','.join([cmd] + [f'{a:g}' for a in args])
+        tail = cmd.replace(' ', '?')
+        reply = self.io.communicate(f'{head};{tail}')
+        return parse_result(reply)
+
+    def get_param(self, cmd):
+        reply = self.io.communicate(cmd)
+        return parse_result(reply)
+
+
+class Switcher(LakeShoreIO, ChannelSwitcher):
     value = Parameter(datatype=IntRange(1, 16))
     target = Parameter(datatype=IntRange(1, 16))
     use_common_delays = Parameter('use switch_delay and measure_delay instead of the channels pause and dwell',
@@ -63,10 +89,10 @@ class Switcher(HasIO, ChannelSwitcher):
         super().startModule(start_events)
         # disable unused channels
         for ch in range(1, 16):
-            if ch not in self._channels:
-                self.communicate('INSET %d,0,0,0,0,0;INSET?%d' % (ch, ch))
-        channelno, autoscan = literal_eval(self.communicate('SCAN?'))
-        if channelno in self._channels and self._channels[channelno].enabled:
+            if ch not in self.channels:
+                self.communicate(f'INSET {ch},0,0,0,0,0;INSET?{ch}')
+        channelno, autoscan = self.get_param('SCAN?')
+        if channelno in self.channels and self.channels[channelno].enabled:
             if not autoscan:
                 return  # nothing to do
         else:
@@ -74,7 +100,7 @@ class Switcher(HasIO, ChannelSwitcher):
             if channelno is None:
                 self.status = 'ERROR', 'no enabled channel'
                 return
-        self.communicate('SCAN %d,0;SCAN?' % channelno)
+        self.set_param(f'SCAN {channelno},0')
 
     def doPoll(self):
         """poll buttons
@@ -82,22 +108,22 @@ class Switcher(HasIO, ChannelSwitcher):
         and check autorange during filter time
         """
         super().doPoll()
-        self._channels[self.target]._read_value()  # check range or read
-        channelno, autoscan = literal_eval(self.communicate('SCAN?'))
+        self.channels[self.target].get_value()  # check range or read
+        channelno, autoscan = self.get_param('SCAN?')
         if autoscan:
             # pressed autoscan button: switch off HW autoscan and toggle soft autoscan
             self.autoscan = not self.autoscan
-            self.communicate('SCAN %d,0;SCAN?' % self.value)
+            self.communicate(f'SCAN {self.value},0;SCAN?')
         if channelno != self.value:
-            # channel changed by keyboard, do not yet return new channel
+            # channel changed by keyboard
             self.write_target(channelno)
-        chan = self._channels.get(channelno)
+        chan = self.channels.get(channelno)
         if chan is None:
             channelno = self.next_channel(channelno)
             if channelno is None:
                 raise ValueError('no channels enabled')
             self.write_target(channelno)
-            chan = self._channels.get(self.value)
+            chan = self.channels.get(self.value)
         chan.read_autorange()
         chan.fix_autorange()  # check for toggled autorange button
         return Done
@@ -135,12 +161,12 @@ class Switcher(HasIO, ChannelSwitcher):
             self.measure_delay = chan.dwell
 
     def set_active_channel(self, chan):
-        self.communicate('SCAN %d,0;SCAN?' % chan.channel)
+        self.set_param(f'SCAN {chan.channel},0')
         chan._last_range_change = time.monotonic()
         self.set_delays(chan)
 
 
-class ResChannel(Channel):
+class ResChannel(LakeShoreIO, Channel):
     """temperature channel on Lakeshore 370"""
 
     RES_RANGE = {key: i+1 for i, key in list(
@@ -179,28 +205,30 @@ class ResChannel(Channel):
     rdgrng_params = 'range', 'iexc', 'vexc'
     inset_params = 'enabled', 'pause', 'dwell'
 
-    def communicate(self, command):
-        return self.switcher.communicate(command)
+    def initModule(self):
+        # take io from switcher
+        # pylint: disable=unsupported-assignment-operation
+        self.attachedModules['io'] = self.switcher.io  # pylint believes this is None
+        super().initModule()
 
     def read_status(self):
         if not self.enabled:
             return [self.Status.DISABLED, 'disabled']
         if not self.channel == self.switcher.value == self.switcher.target:
             return Done
-        result = int(self.communicate('RDGST?%d' % self.channel))
-        result &= 0x37  # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistivities)
+        result = self.get_param(f'RDGST?{self.channel}')
+        result &= 0x37  # mask T_OVER and T_UNDER (change this when implementing temperatures instead of resistances)
         statustext = ' '.join(formatStatusBits(result, STATUS_BIT_LABELS))
         if statustext:
             return [self.Status.ERROR, statustext]
         return [self.Status.IDLE, '']
 
-    def _read_value(self):
+    def get_value(self):
         """read value, without update"""
         now = time.monotonic()
         if now + 0.5 < max(self._last_range_change, self.switcher._start_switch) + self.pause:
             return None
-        result = self.communicate('RDGR?%d' % self.channel)
-        result = float(result)
+        result = self.get_param(f'RDGR{self.channel}')
         if self.autorange:
             self.fix_autorange()
             if now + 0.5 > self._last_range_change + self.pause:
@@ -224,19 +252,20 @@ class ResChannel(Channel):
 
     def read_value(self):
         if self.channel == self.switcher.value == self.switcher.target:
-            return self._read_value()
-        return Done  # return previous value
+            value = self._read_value()
+            if value is not None:
+                return value
+        return self.value  # return previous value
 
     def is_switching(self, now, last_switch, switch_delay):
         last_switch = max(last_switch, self._last_range_change)
         if now + 0.5 > last_switch + self.pause:
-            self._read_value()  # adjust range only
+            self.get_value()  # adjust range only
         return super().is_switching(now, last_switch, switch_delay)
 
     @CommonReadHandler(rdgrng_params)
     def read_rdgrng(self):
-        iscur, exc, rng, autorange, excoff = literal_eval(
-            self.communicate('RDGRNG?%d' % self.channel))
+        iscur, exc, rng, autorange, excoff = self.get_param(f'RDGRNG{self.channel}')
         self._prev_rdgrng = iscur, exc
         if autorange:  # pressed autorange button
             if not self._toggle_autorange:
@@ -252,11 +281,11 @@ class ResChannel(Channel):
         self.read_range()  # make sure autorange is handled
         if 'vexc' in change:  # in case vext is changed, do not consider iexc
             change['iexc'] = 0
-        if change['iexc'] != 0:  # we need '!= 0' here, as bool(enum) is always True!
+        if change['iexc']:
             iscur = 1
             exc = change['iexc']
             excoff = 0
-        elif change['vexc'] != 0:  # we need '!= 0' here, as bool(enum) is always True!
+        elif change['vexc']:
             iscur = 0
             exc = change['vexc']
             excoff = 0
@@ -267,8 +296,7 @@ class ResChannel(Channel):
         if self.autorange:
             if rng < self.minrange:
                 rng = self.minrange
-        self.communicate('RDGRNG %d,%d,%d,%d,%d,%d;*OPC?' % (
-            self.channel, iscur, exc, rng, 0, excoff))
+        self.set_param(f'RDGRNG {self.channel}', iscur, exc, rng, 0, excoff)
         self.read_range()
 
     def fix_autorange(self):
@@ -282,20 +310,14 @@ class ResChannel(Channel):
     @CommonReadHandler(inset_params)
     def read_inset(self):
         # ignore curve no and temperature coefficient
-        enabled, dwell, pause, _, _ = literal_eval(
-            self.communicate('INSET?%d' % self.channel))
-        self.enabled = enabled
-        self.dwell = dwell
-        self.pause = pause
+        self.enabled, self.dwell, self.pause, _, _ = self.get_param(f'INSET?{self.channel}')
 
     @CommonWriteHandler(inset_params)
     def write_inset(self, change):
-        _, _, _, curve, tempco = literal_eval(
-            self.communicate('INSET?%d' % self.channel))
-        self.enabled, self.dwell, self.pause, _, _ = literal_eval(
-            self.communicate('INSET %d,%d,%d,%d,%d,%d;INSET?%d' % (
-                self.channel, change['enabled'], change['dwell'], change['pause'], curve, tempco,
-                self.channel)))
+        _, _, _, curve, tempco = self.get_param(f'INSET?{self.channel}')
+        self.enabled, self.dwell, self.pause, _, _ = self.set_param(
+            f'INSET {self.channel}', change['enabled'], change['dwell'], change['pause'],
+            curve, tempco)
         if 'enabled' in change and change['enabled']:
             # switch to enabled channel
             self.switcher.write_target(self.channel)
@@ -303,14 +325,13 @@ class ResChannel(Channel):
             self.switcher.set_delays(self)
 
     def read_filter(self):
-        on, settle, _ = literal_eval(self.communicate('FILTER?%d' % self.channel))
+        on, settle, _ = on, settle, _ = self.get_param(f'FILTER?{self.channel}')
         return settle if on else 0
 
     def write_filter(self, value):
         on = 1 if value else 0
         value = max(1, value)
-        on, settle, _ = literal_eval(self.communicate(
-            'FILTER %d,%d,%g,80;FILTER?%d' % (self.channel, on, value, self.channel)))
+        on, settle, _ = self.set_param(f'FILTER?{self.channel}', on, value, self.channel)
         if not on:
             settle = 0
         return settle

@@ -121,7 +121,7 @@ class CalCurve:
             # then try adding all kinds as extension
             for nam in calibname, calibname.upper(), calibname.lower():
                 for kind in KINDS:
-                    filename = join(path.strip(), '%s.%s' % (nam, kind))
+                    filename = join(path.strip(), f'{nam}.{kind}')
                     if exists(filename):
                         break
                 else:
@@ -148,7 +148,7 @@ class CalCurve:
                 for line in f:
                     parser.parse(line)
         except Exception as e:
-            raise ValueError('calib curve %s: %s' % (calibspec, e)) from e
+            raise ValueError(f'calib curve {calibspec}: {e}') from e
         self.convert_x = nplog if parser.logx else linear
         self.convert_y = npexp if parser.logy else linear
         x = np.asarray(parser.xdata)
@@ -157,11 +157,11 @@ class CalCurve:
             x = np.flip(x)
             y = np.flip(y)
         elif np.any(x[:-1] >= x[1:]):  # some not increasing
-            raise ValueError('calib curve %s is not monotonic' % calibspec)
+            raise ValueError(f'calib curve {calibspec} is not monotonic')
         try:
             self.spline = splrep(x, y, s=0, k=min(3, len(x) - 1))
         except (ValueError, TypeError) as e:
-            raise ValueError('invalid calib curve %s' % calibspec) from e
+            raise ValueError(f'invalid calib curve {calibspec}') from e
 
     def __call__(self, value):
         """convert value
@@ -194,7 +194,7 @@ class Sensor(Readable):
         self.rawsensor.registerCallbacks(self, ['status'])  # auto update status
         self._calib = CalCurve(self.calib)
         if self.description == '_':
-            self.description = '%r calibrated with curve %r' % (self.rawsensor, self.calib)
+            self.description = f'{self.rawsensor!r} calibrated with curve {self.calib!r}'
 
     def doPoll(self):
         self.read_status()

@@ -1,5 +1,6 @@
 usr/bin/frappy-cli
 usr/bin/frappy-server
+usr/bin/frappy-play
 usr/lib/python3.*/dist-packages/frappy/*.py
 usr/lib/python3.*/dist-packages/frappy/lib
 usr/lib/python3.*/dist-packages/frappy/client

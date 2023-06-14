@@ -104,11 +104,11 @@ class PlotWidget(QWidget):
 
     def addCurve(self, node, module, param):
         paramData = node._getDescribingParameterData(module, param)
-        name = '%s:%s' % (module, param)
+        name = f'{module}:{param}'
         unit = paramData.get('unit', '')
         if unit:
             unit = '/' + unit
-        curve = self.plot.plot(name='%s%s' % (name, unit))
+        curve = self.plot.plot(name=f'{name}{unit}')
         if 'min' in paramData and 'max' in paramData:
             curve.setXRange(paramData['min'], paramData['max'])
 
@@ -118,7 +118,7 @@ class PlotWidget(QWidget):
         node.newData.connect(self.update)
 
     def setCurveColor(self, module, param, color):
-        curve = self.curves['%s:%s' % (module, param)]
+        curve = self.curves[f'{module}:{param}']
         curve.setPen(color)
 
     def scrollUpdate(self):
@@ -129,7 +129,7 @@ class PlotWidget(QWidget):
             curve.setData(x,y)
 
     def update(self, module, param, value):
-        name = '%s:%s' % (module, param)
+        name = f'{module}:{param}'
         if name not in self.curves:
             return
         curve = self.curves[name]

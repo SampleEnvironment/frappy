@@ -27,7 +27,7 @@ import inspect
 
 from frappy.datatypes import BoolType, CommandType, DataType, \
     DataTypeType, EnumType, NoneOr, OrType, FloatRange, \
-    StringType, StructOf, TextType, TupleOf, ValueType
+    StringType, StructOf, TextType, TupleOf, ValueType, ArrayOf
 from frappy.errors import BadValueError, WrongTypeError, ProgrammingError
 from frappy.properties import HasProperties, Property
 from frappy.lib import generalConfig
@@ -92,8 +92,8 @@ class Accessible(HasProperties):
     def __repr__(self):
         props = []
         for k, v in sorted(self.propertyValues.items()):
-            props.append('%s=%r' % (k, v))
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(props))
+            props.append(f'{k}={v!r}')
+        return f"{self.__class__.__name__}({', '.join(props)})"
 
 
 class Parameter(Accessible):
@@ -168,6 +168,9 @@ class Parameter(Accessible):
           or the minimum time between updates of equal values [sec]''',
         OrType(FloatRange(0), EnumType(always=0, never=999999999, default=-1)),
         export=False, default=-1)
+    influences = Property(
+        'optional hint about affected parameters', ArrayOf(StringType()),
+        extname='influences', export=True, mandatory=False, default=[])
 
     # used on the instance copy only
     # value = None
@@ -227,7 +230,7 @@ class Parameter(Accessible):
             elif predefined_cls is None:
                 self.export = '_' + self.name
             else:
-                raise ProgrammingError('can not use %r as name of a Parameter' % self.name)
+                raise ProgrammingError(f'can not use {self.name!r} as name of a Parameter')
             if 'export' in self.ownProperties:
                 # avoid export=True overrides export=<name>
                 self.ownProperties['export'] = self.export
@@ -317,10 +320,9 @@ class Parameter(Accessible):
                 try:
                     self.datatype.setProperty(key, value)
                 except KeyError:
-                    raise ProgrammingError('cannot set %s on parameter with datatype %s'
-                                           % (key, type(self.datatype).__name__)) from None
+                    raise ProgrammingError(f'cannot set {key} on parameter with datatype {type(self.datatype).__name__}') from None
         except BadValueError as e:
-            raise ProgrammingError('property %s: %s' % (key, str(e))) from None
+            raise ProgrammingError(f'property {key}: {str(e)}') from None
 
     def checkProperties(self):
         super().checkProperties()
@@ -364,6 +366,9 @@ class Command(Accessible):
     result = Property(
         'datatype of the result from the command, or None', NoneOr(DataTypeType()),
         export=False, mandatory=True)
+    influences = Property(
+        'optional hint about affected parameters', ArrayOf(StringType()),
+        extname='influences', export=True, mandatory=False, default=[])
 
     func = None
 
@@ -395,8 +400,7 @@ class Command(Accessible):
     def __set_name__(self, owner, name):
         self.name = name
         if self.func is None:
-            raise ProgrammingError('Command %s.%s must be used as a method decorator' %
-                                   (owner.__name__, name))
+            raise ProgrammingError(f'Command {owner.__name__}.{name} must be used as a method decorator')
 
         self.datatype = CommandType(self.argument, self.result)
         if self.export is True:
@@ -406,7 +410,7 @@ class Command(Accessible):
             elif predefined_cls is None:
                 self.export = '_' + name
             else:
-                raise ProgrammingError('can not use %r as name of a Command' % name) from None
+                raise ProgrammingError(f'can not use {name!r} as name of a Command') from None
             if 'export' in self.ownProperties:
                 # avoid export=True overrides export=<name>
                 self.ownProperties['export'] = self.export
@@ -419,7 +423,7 @@ class Command(Accessible):
         if obj is None:
             return self
         if not self.func:
-            raise ProgrammingError('Command %s not properly configured' % self.name) from None
+            raise ProgrammingError(f'Command {self.name} not properly configured') from None
         return self.func.__get__(obj, owner)
 
     def __call__(self, func):
@@ -452,7 +456,7 @@ class Command(Accessible):
 
         this is needed when the @Command is missing on a method overriding a command"""
         if not callable(value):
-            raise ProgrammingError('%s = %r is overriding a Command' % (self.name, value))
+            raise ProgrammingError(f'{self.name} = {value!r} is overriding a Command')
         self.func = value
         if value.__doc__:
             self.description = inspect.cleandoc(value.__doc__)
@@ -478,7 +482,7 @@ class Command(Accessible):
                 super().setProperty('result', command.result)
             super().setProperty(key, value)
         except ValueError as e:
-            raise ProgrammingError('property %s: %s' % (key, str(e))) from None
+            raise ProgrammingError(f'property {key}: {str(e)}') from None
 
     def do(self, module_obj, argument):
         """perform function call
@@ -494,8 +498,6 @@ class Command(Accessible):
         # pylint: disable=unnecessary-dunder-call
         func = self.__get__(module_obj)
         if self.argument:
-            # validate
-            argument = self.argument(argument)
             if isinstance(self.argument, TupleOf):
                 res = func(*argument)
             elif isinstance(self.argument, StructOf):
@@ -504,7 +506,7 @@ class Command(Accessible):
                 res = func(argument)
         else:
             if argument is not None:
-                raise WrongTypeError('%s.%s takes no arguments' % (module_obj.__class__.__name__, self.name))
+                raise WrongTypeError(f'{module_obj.__class__.__name__}.{self.name} takes no arguments')
             res = func()
         if self.result:
             return self.result(res)
@@ -515,7 +517,36 @@ class Command(Accessible):
 
     def __repr__(self):
         result = super().__repr__()
-        return result[:-1] + ', %r)' % self.func if self.func else result
+        return result[:-1] + f', {self.func!r})' if self.func else result
+
+
+class Limit(Parameter):
+    """a special limit parameter"""
+    POSTFIXES = {'min', 'max', 'limits'}  # allowed postfixes
+
+    def __set_name__(self, owner, name):
+        super().__set_name__(owner, name)
+        head, _, postfix = name.rpartition('_')
+        if postfix not in self.POSTFIXES:
+            raise ProgrammingError(f'Limit name must end with one of {self.POSTFIXES}')
+        if 'readonly' not in self.propertyValues:
+            self.readonly = False
+        if not self.description:
+            self.description = f'limit for {head}'
+        if self.export.startswith('_') and PREDEFINED_ACCESSIBLES.get(head):
+            self.export = self.export[1:]
+
+    def set_datatype(self, datatype):
+        if self.hasDatatype():
+            return  # the programmer is responsible that a given datatype is correct
+        postfix = self.name.rpartition('_')[-1]
+        postfix = self.name.rpartition('_')[-1]
+        if postfix == 'limits':
+            self.datatype = TupleOf(datatype, datatype)
+            self.default = (datatype.min, datatype.max)
+        else:  # min, max
+            self.datatype = datatype
+            self.default = getattr(datatype, postfix)
 
 
 # list of predefined accessibles with their type

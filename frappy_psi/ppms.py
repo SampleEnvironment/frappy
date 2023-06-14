@@ -80,7 +80,7 @@ class Main(Communicator):
     def communicate(self, command):
         """GPIB command"""
         with self.lock:
-            self.comLog('> %s' % command)
+            self.comLog(f'> {command}')
             reply = self._ppms_device.send(command)
             self.comLog("< %s", reply)
             return reply
@@ -94,7 +94,7 @@ class Main(Communicator):
             if channel.enabled:
                 mask |= 1 << self._channel_to_index.get(channelname, 0)
         # send, read and convert to floats and ints
-        data = self.communicate('GETDAT? %d' % mask)
+        data = self.communicate(f'GETDAT? {mask}')
         reply = data.split(',')
         mask = int(reply.pop(0))
         reply.pop(0)  # pop timestamp
@@ -151,7 +151,7 @@ class PpmsBase(HasIO, Readable):
         """write command and check if result is OK"""
         reply = self.communicate(command)
         if reply != 'OK':
-            raise HardwareError('bad reply %r to command %r' % (reply, command))
+            raise HardwareError(f'bad reply {reply!r} to command {command!r}')
 
 
 class PpmsDrivable(Drivable, PpmsBase):
@@ -204,7 +204,7 @@ class DriverChannel(Channel):
     @CommonReadHandler(param_names)
     def read_params(self):
         no, self.current, self.powerlimit = literal_eval(
-            self.communicate('DRVOUT? %d' % self.no))
+            self.communicate(f'DRVOUT? {self.no}'))
         if self.no != no:
             raise HardwareError('DRVOUT command: channel number in reply does not match')
 
@@ -215,7 +215,7 @@ class DriverChannel(Channel):
         :param values: a dict like object containing the parameters to be written
         """
         self.read_params()  # make sure parameters are up to date
-        self.comm_write('DRVOUT %(no)d,%(current)g,%(powerlimit)g' % values)
+        self.comm_write('DRVOUT {no:d},{current:g},{powerlimit:g}'.format_map(values))
         self.read_params()  # read back
 
 
@@ -238,7 +238,7 @@ class BridgeChannel(Channel):
     @CommonReadHandler(param_names)
     def read_params(self):
         no, excitation, powerlimit, self.dcflag, self.readingmode, voltagelimit = literal_eval(
-            self.communicate('BRIDGE? %d' % self.no))
+            self.communicate(f'BRIDGE? {self.no}'))
         if self.no != no:
             raise HardwareError('DRVOUT command: channel number in reply does not match')
         self.enabled = excitation != 0 and powerlimit != 0 and voltagelimit != 0
@@ -260,8 +260,8 @@ class BridgeChannel(Channel):
             values['excitation'] = 0
             values['powerlimit'] = 0
             values['voltagelimit'] = 0
-        self.comm_write('BRIDGE %(no)d,%(enabled)g,%(powerlimit)g,%(dcflag)d,'
-                        '%(readingmode)d,%(voltagelimit)g' % values)
+        self.comm_write('BRIDGE {no:d},{enabled:d},{powerlimit:g},{dcflag:d},'
+                        '{readingmode:d},{voltagelimit:g}'.format_map(values))
         self.read_params()  # read back
 
 
@@ -322,7 +322,7 @@ class Chamber(PpmsDrivable):
             self.status = self.status_map[status_code]
         else:
             self.value = self.value_map['unknown']
-            self.status = (StatusType.ERROR, 'unknown status code %d' % status_code)
+            self.status = (StatusType.ERROR, f'unknown status code {status_code}')
 
     def read_target(self):
         opcode = int(self.communicate('CHAMBER?'))
@@ -332,7 +332,7 @@ class Chamber(PpmsDrivable):
         if value == self.target.noop:
             return self.target.noop
         opcode = self.name2opcode[self.target.enum(value).name]
-        assert self.communicate('CHAMBER %d' % opcode) == 'OK'
+        assert self.communicate(f'CHAMBER {opcode}') == 'OK'
         return self.read_target()
 
 
@@ -386,10 +386,10 @@ class Temp(PpmsDrivable):
             return
         self.setpoint, self.workingramp, self.approachmode = self._last_settings = settings
         if self.setpoint != 10 or not self._wait_at10:
-            self.log.debug('read back target %g %r' % (self.setpoint, self._wait_at10))
+            self.log.debug('read back target %g %r', self.setpoint, self._wait_at10)
             self.target = self.setpoint
         if self.workingramp != 2 or not self._ramp_at_limit:
-            self.log.debug('read back ramp %g %r' % (self.workingramp, self._ramp_at_limit))
+            self.log.debug('read back ramp %g %r', self.workingramp, self._ramp_at_limit)
             self.ramp = self.workingramp
 
     def _write_params(self, setpoint, ramp, approachmode):
@@ -407,8 +407,8 @@ class Temp(PpmsDrivable):
         self._ramp_at_limit = ramp_at_limit
         self.calc_expected(setpoint, ramp)
         self.log.debug(
-            'change_temp v %r s %r r %r w %r l %r' % (self.value, setpoint, ramp, wait_at10, ramp_at_limit))
-        self.comm_write('TEMP %g,%g,%d' % (setpoint, ramp, approachmode))
+            'change_temp v %r s %r r %r w %r l %r', self.value, setpoint, ramp, wait_at10, ramp_at_limit)
+        self.comm_write(f'TEMP {setpoint:g},{ramp:g},{int(approachmode)}')
         self.read_params()
 
     def update_value_status(self, value, packed_status):
@@ -417,7 +417,7 @@ class Temp(PpmsDrivable):
             return
         self.value = value
         status_code = packed_status & 0xf
-        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, 'unknown status code %d' % status_code))
+        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, f'unknown status code {status_code}'))
         now = time.time()
         if value > 11:
             # when starting from T > 50, this will be 15 min.
@@ -447,12 +447,12 @@ class Temp(PpmsDrivable):
             if status[0] == StatusType.IDLE:
                 status = (status[0], 'stopped')
             else:
-                status = (status[0], 'stopping (%s)' % status[1])
+                status = (status[0], f'stopping ({status[1]})')
         if self._expected_target_time:
             # handle timeout
             if self.isDriving(status):
                 if now > self._expected_target_time + self.timeout:
-                    status = (StatusType.WARN, 'timeout while %s' % status[1])
+                    status = (StatusType.WARN, f'timeout while {status[1]}')
             else:
                 self._expected_target_time = 0
         self.status = status
@@ -465,7 +465,7 @@ class Temp(PpmsDrivable):
         self.status = (StatusType.BUSY, 'changed target')
         self._last_change = time.time()
         self._write_params(target, self.ramp, self.approachmode)
-        self.log.debug('write_target %s' % repr((self.setpoint, target, self._wait_at10)))
+        self.log.debug('write_target %s', repr((self.setpoint, target, self._wait_at10)))
         return target
 
     def write_approachmode(self, value):
@@ -492,7 +492,7 @@ class Temp(PpmsDrivable):
             if newtarget != self.target:
                 self.log.debug('stop at %s K', newtarget)
                 self.write_target(newtarget)
-        self.status = self.status[0], 'stopping (%s)' % self.status[1]
+        self.status = self.status[0], f'stopping ({self.status[1]})'
         self._stopped = True
 
 
@@ -542,8 +542,7 @@ class Field(PpmsDrivable):
         self.ramp = ramp * 6e-3
 
     def _write_params(self, target, ramp, approachmode, persistentmode):
-        self.comm_write('FIELD %g,%g,%d,%d' % (
-            target * 1e+4, ramp / 6e-3, approachmode, persistentmode))
+        self.comm_write(f'FIELD {target * 10000.0:g},{ramp / 0.006:g},{int(approachmode)},{int(persistentmode)}')
         self.read_params()
 
     def update_value_status(self, value, packed_status):
@@ -552,7 +551,7 @@ class Field(PpmsDrivable):
             return
         self.value = round(value * 1e-4, 7)
         status_code = (packed_status >> 4) & 0xf
-        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, 'unknown status code %d' % status_code))
+        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, f'unknown status code {status_code}'))
         now = time.time()
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             if status_code == 1:  # persistent mode
@@ -577,7 +576,7 @@ class Field(PpmsDrivable):
             if status[0] == StatusType.IDLE:
                 status = (status[0], 'stopped')
             else:
-                status = (status[0], 'stopping (%s)' % status[1])
+                status = (status[0], f'stopping ({status[1]})')
         self.status = status
 
     def write_target(self, target):
@@ -620,7 +619,7 @@ class Field(PpmsDrivable):
         if newtarget != self.target:
             self.log.debug('stop at %s T', newtarget)
             self.write_target(newtarget)
-        self.status = (self.status[0], 'stopping (%s)' % self.status[1])
+        self.status = (self.status[0], f'stopping ({self.status[1]})')
         self._stopped = True
 
 
@@ -661,7 +660,7 @@ class Position(PpmsDrivable):
 
     def _write_params(self, target, speed):
         speed = int(round(min(14, max(0, 15 - speed / 0.8)), 0))
-        self.comm_write('MOVE %g,%d,%d' % (target, 0, speed))
+        self.comm_write(f'MOVE {target:g},{0},{speed}')
         return self.read_params()
 
     def update_value_status(self, value, packed_status):
@@ -673,7 +672,7 @@ class Position(PpmsDrivable):
             return
         self.value = value
         status_code = (packed_status >> 12) & 0xf
-        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, 'unknown status code %d' % status_code))
+        status = self.STATUS_MAP.get(status_code, (StatusType.ERROR, f'unknown status code {status_code}'))
         if self._last_change:  # there was a change, which is not yet confirmed by hw
             now = time.time()
             if now > self._last_change + 5:
@@ -698,7 +697,7 @@ class Position(PpmsDrivable):
             if status[0] == StatusType.IDLE:
                 status = (status[0], 'stopped')
             else:
-                status = (status[0], 'stopping (%s)' % status[1])
+                status = (status[0], f'stopping ({status[1]})')
         self.status = status
 
     def write_target(self, target):
@@ -722,5 +721,5 @@ class Position(PpmsDrivable):
         if newtarget != self.target:
             self.log.debug('stop at %s T', newtarget)
             self.write_target(newtarget)
-        self.status = (self.status[0], 'stopping (%s)' % self.status[1])
+        self.status = (self.status[0], f'stopping ({self.status[1]})')
         self._stopped = True

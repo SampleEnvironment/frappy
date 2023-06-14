@@ -65,19 +65,22 @@ class ChannelSwitcher(Drivable):
                               FloatRange(0, None), readonly=False,  default=2)
 
     fast_poll = 0.1
-    _channels = None  # dict <channel no> of <module object>
+    channels = None  # dict <channel no> of <module object>
     _start_measure = 0
     _last_measure = 0
     _start_switch = 0
     _time_tol = 0.5
+    _first_channel = None
 
     def earlyInit(self):
         super().earlyInit()
-        self._channels = {}
+        self.channels = {}
 
     def register_channel(self, mod):
         """register module"""
-        self._channels[mod.channel] = mod
+        if not self.channels:
+            self._first_channel = mod
+        self.channels[mod.channel] = mod
 
     def set_active_channel(self, chan):
         """tell the HW the active channel
@@ -91,7 +94,7 @@ class ChannelSwitcher(Drivable):
     def next_channel(self, channelno):
         next_channel = channelno
         first_channel = None
-        for ch, mod in self._channels.items():
+        for ch, mod in self.channels.items():
             if mod.enabled:
                 if first_channel is None:
                     first_channel = ch
@@ -107,7 +110,7 @@ class ChannelSwitcher(Drivable):
     def read_status(self):
         now = time.monotonic()
         if self.status[0] == 'BUSY':
-            chan = self._channels[self.target]
+            chan = self.channels[self.target]
             if chan.is_switching(now, self._start_switch, self.switch_delay):
                 return self.status
             self.setFastPoll(False)
@@ -119,7 +122,7 @@ class ChannelSwitcher(Drivable):
             if self.measure_delay > self._time_tol:
                 return self.status
         else:
-            chan = self._channels[self.value]
+            chan = self.channels.get(self.value, self._first_channel)
             self.read_value()  # this might modify autoscan or deadline!
             if chan.enabled:
                 if self.target != self.value:  # may happen after startup
@@ -144,11 +147,11 @@ class ChannelSwitcher(Drivable):
         return value
 
     def write_target(self, channel):
-        if channel not in self._channels:
-            raise ValueError('%r is no valid channel' % channel)
-        if channel == self.target and self._channels[channel].enabled:
+        if channel not in self.channels:
+            raise ValueError(f'{channel!r} is no valid channel')
+        if channel == self.target and self.channels[channel].enabled:
             return channel
-        chan = self._channels[channel]
+        chan = self.channels[channel]
         chan.enabled = True
         self.set_active_channel(chan)
         self._start_switch = time.monotonic()

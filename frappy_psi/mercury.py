@@ -25,12 +25,13 @@ import math
 import re
 import time
 
-from frappy.core import Drivable, HasIO, Writable, \
-    Parameter, Property, Readable, StringIO, Attached, IDLE, nopoll
-from frappy.datatypes import EnumType, FloatRange, StringType, StructOf, BoolType
-from frappy.errors import HardwareError
+from frappy.core import Drivable, HasIO, Writable, StatusType, \
+    Parameter, Property, Readable, StringIO, Attached, IDLE, RAMPING, nopoll
+from frappy.datatypes import EnumType, FloatRange, StringType, StructOf, BoolType, TupleOf
+from frappy.errors import HardwareError, ProgrammingError, ConfigError, RangeError
 from frappy_psi.convergence import HasConvergence
-from frappy.lib.enum import Enum
+from frappy.states import Retry, Finish
+from frappy.mixins import HasOutputModule, HasControlledBy
 
 
 VALUE_UNIT = re.compile(r'(.*\d|inf)([A-Za-z/%]*)$')
@@ -38,9 +39,10 @@ SELF = 0
 
 
 def as_float(value):
+    """converts string (with unit) to float and float to string"""
     if isinstance(value, str):
         return float(VALUE_UNIT.match(value).group(1))
-    return '%g' % value
+    return f'{value:g}'
 
 
 def as_string(value):
@@ -61,148 +63,162 @@ fast_slow = Mapped(ON=0, OFF=1)  # maps OIs slow=ON/fast=OFF to sample_rate.slow
 
 
 class IO(StringIO):
-    identification = [('*IDN?', r'IDN:OXFORD INSTRUMENTS:MERCURY*')]
+    identification = [('*IDN?', r'IDN:OXFORD INSTRUMENTS:*')]
 
 
 class MercuryChannel(HasIO):
-    slot = Property('''slot uids
-    
-                    example: DB6.T1,DB1.H1
-                    slot ids for sensor (and control output)''',
-                    StringType())
-    channel_name = Parameter('mercury nick name', StringType(), default='', update_unchanged='never')
-    channel_type = ''  #: channel type(s) for sensor (and control) e.g. TEMP,HTR or PRES,AUX
+    slot = Property('comma separated slot id(s), e.g. DB6.T1', StringType())
+    kind = ''  #: used slot kind(s)
+    slots = ()  #: dict[<kind>] of <slot>
+
+    def earlyInit(self):
+        super().earlyInit()
+        self.kinds = self.kind.split(',')
+        slots = self.slot.split(',')
+        if len(slots) != len(self.kinds):
+            raise ConfigError(f'slot needs {len(self.kinds)} comma separated names')
+        self.slots = dict(zip(self.kinds, slots))
+        self.setProperty('slot', slots[0])
 
     def _complete_adr(self, adr):
-        """complete address from channel_type and slot"""
-        head, sep, tail = adr.partition(':')
-        for i, (channel_type, slot) in enumerate(zip(self.channel_type.split(','), self.slot.split(','))):
-            if head == str(i):
-                return 'DEV:%s:%s%s%s' % (slot, channel_type, sep, tail)
-            if head == channel_type:
-                return 'DEV:%s:%s%s%s' % (slot, head, sep, tail)
+        """insert slot to adr"""
+        spl = adr.split(':')
+        if spl[0] == 'DEV':
+            if spl[1] == '':
+                spl[1] = self.slots[spl[2]]
+                return ':'.join(spl)
+        elif spl[0] != 'SYS':
+            raise ProgrammingError('using old style adr?')
         return adr
 
-    def multiquery(self, adr, names=(), convert=as_float):
+    def multiquery(self, adr, names=(), convert=as_float, debug=None):
         """get parameter(s) in mercury syntax
 
         :param adr: the 'address part' of the SCPI command
-                    the DEV:<slot> is added automatically, when adr starts with the channel type
-                    in addition, when adr starts with '0:' or '1:', channel type and slot are added
+                    READ: is added automatically, slot is inserted when adr starts with DEV::
         :param names: the SCPI names of the parameter(s), for example ['TEMP']
         :param convert: a converter function (converts replied string to value)
         :return:  the values as tuple
 
-        Example:
-            adr='AUX:SIG'
+        Example (kind=PRES,AUX slot=DB5.P1,DB3.G1):
+            adr='DEV::AUX:SIG'
             names = ('PERC',)
-            self.channel_type='PRES,AUX'    # adr starts with 'AUX'
-            self.slot='DB5.P1,DB3.G1'       # -> take second slot
-        -> query command will be READ:DEV:DB3.G1:PRES:SIG:PERC
+        -> query command will be READ:DEV:DB3.G1:AUX:SIG:PERC
         """
+        # TODO: if the need arises: allow convert to be a list
         adr = self._complete_adr(adr)
-        cmd = 'READ:%s:%s' % (adr, ':'.join(names))
-        reply = self.communicate(cmd)
-        head = 'STAT:%s:' % adr
-        try:
-            assert reply.startswith(head)
-            replyiter = iter(reply[len(head):].split(':'))
-            keys, result = zip(*zip(replyiter, replyiter))
-            assert keys == tuple(names)
-            return tuple(convert(r) for r in result)
-        except (AssertionError, AttributeError, ValueError):
-            raise HardwareError('invalid reply %r to cmd %r' % (reply, cmd)) from None
+        cmd = f"READ:{adr}:{':'.join(names)}"
+        msg = ''
+        for _ in range(3):
+            if msg:
+                self.log.warning('%s', msg)
+            reply = self.communicate(cmd)
+            if debug is not None:
+                debug.append(reply)
+            head = f'STAT:{adr}:'
+            try:
+                assert reply.startswith(head)
+                replyiter = iter(reply[len(head):].split(':'))
+                keys, result = zip(*zip(replyiter, replyiter))
+                assert keys == tuple(names)
+                return tuple(convert(r) for r in result)
+            except (AssertionError, AttributeError, ValueError):
+                time.sleep(0.1)  # in case this was the answer of a previous command
+                msg = f'invalid reply {reply!r} to cmd {cmd!r}'
+        raise HardwareError(msg) from None
 
-    def multichange(self, adr, values, convert=as_float):
+    def multichange(self, adr, values, convert=as_float, tolerance=0, n_retry=3, lazy=False):
         """set parameter(s) in mercury syntax
 
-        :param adr: as in see multiquery method
+        :param adr: as in multiquery method. SET: is added automatically
         :param values: [(name1, value1), (name2, value2) ...]
         :param convert: a converter function (converts given value to string and replied string to value)
+        :param tolerance: tolerance for readback check
+        :param n_retry: number of retries or 0 for no readback check
+        :param lazy: check direct reply only (no additional query)
         :return:  the values as tuple
 
-        Example:
-            adr='0:LOOP'
+        Example (kind=TEMP, slot=DB6.T1:
+            adr='DEV::TEMP:LOOP'
             values = [('P', 5), ('I', 2), ('D', 0)]
-            self.channel_type='TEMP,HTR'   # adr starts with 0: take TEMP
-            self.slot='DB6.T1,DB1.H1'      # and take first slot
         -> change command will be SET:DEV:DB6.T1:TEMP:LOOP:P:5:I:2:D:0
         """
+        # TODO: if the need arises: allow convert and or tolerance to be a list
         adr = self._complete_adr(adr)
-        params = ['%s:%s' % (k, convert(v)) for k, v in values]
-        cmd = 'SET:%s:%s' % (adr, ':'.join(params))
-        reply = self.communicate(cmd)
-        head = 'STAT:SET:%s:' % adr
-
-        try:
-            assert reply.startswith(head)
-            replyiter = iter(reply[len(head):].split(':'))
-            keys, result, valid = zip(*zip(replyiter, replyiter, replyiter))
-            assert keys == tuple(k for k, _ in values)
-            assert any(v == 'VALID' for v in valid)
-            return tuple(convert(r) for r in result)
-        except (AssertionError, AttributeError, ValueError) as e:
-            raise HardwareError('invalid reply %r to cmd %r' % (reply, cmd)) from e
+        params = [f'{k}:{convert(v)}' for k, v in values]
+        cmd = f"SET:{adr}:{':'.join(params)}"
+        givenkeys = tuple(v[0] for v in values)
+        for _ in range(max(1, n_retry)):  # try n_retry times or until readback result matches
+            reply = self.communicate(cmd)
+            head = f'STAT:SET:{adr}:'
+            try:
+                assert reply.startswith(head)
+                replyiter = iter(reply[len(head):].split(':'))
+                # reshuffle reply=(k1, r1, v1, k2, r2, v1) --> keys = (k1, k2), result = (r1, r2), valid = (v1, v2)
+                keys, result, valid = zip(*zip(replyiter, replyiter, replyiter))
+                assert keys == givenkeys
+                assert any(v == 'VALID' for v in valid)
+                result = tuple(convert(r) for r in result)
+            except (AssertionError, AttributeError, ValueError) as e:
+                time.sleep(0.1)  # in case of missed replies this might help to skip garbage
+                raise HardwareError(f'invalid reply {reply!r} to cmd {cmd!r}') from e
+            if n_retry == 0:
+                return [v for _, v in values]
+            if lazy:
+                debug = [reply]
+                readback = [v for _, v in values]
+            else:
+                debug = []
+                readback = list(self.multiquery(adr, givenkeys, convert, debug))
+            failed = False
+            for i, ((k, v), r, b) in enumerate(zip(values, result, readback)):
+                if convert is as_float:
+                    tol = max(abs(r) * 1e-3, abs(b) * 1e-3, tolerance)
+                    if abs(b - v) > tol or abs(r - v) > tol:
+                        readback[i] = None
+                        failed = True
+                elif b != v or r != v:
+                    readback[i] = None
+                    failed = True
+            if not failed:
+                return readback
+        self.log.warning('sent: %s', cmd)
+        self.log.warning('got: %s', debug[0])
+        return tuple(v[1] if b is None else b for b, v in zip(readback, values))
 
     def query(self, adr, convert=as_float):
         """query a single parameter
 
-        'adr' and 'convert' areg
+        'adr' and 'convert' as in multiquery
         """
         adr, _, name = adr.rpartition(':')
         return self.multiquery(adr, [name], convert)[0]
 
-    def change(self, adr, value, convert=as_float):
+    def change(self, adr, value, convert=as_float, tolerance=0, n_retry=3, lazy=False):
         adr, _, name = adr.rpartition(':')
-        return self.multichange(adr, [(name, value)], convert)[0]
-
-    def read_channel_name(self):
-        if self.channel_name:
-            return self.channel_name  # channel name will not change
-        return self.query('0:NICK', as_string)
+        return self.multichange(adr, [(name, value)], convert, tolerance, n_retry, lazy)[0]
 
 
 class TemperatureSensor(MercuryChannel, Readable):
-    channel_type = 'TEMP'
+    kind = 'TEMP'
     value = Parameter(unit='K')
     raw = Parameter('raw value', FloatRange(unit='Ohm'))
 
     def read_value(self):
-        return self.query('TEMP:SIG:TEMP')
+        return self.query('DEV::TEMP:SIG:TEMP')
 
     def read_raw(self):
-        return self.query('TEMP:SIG:RES')
+        return self.query('DEV::TEMP:SIG:RES')
 
 
-class HasInput(MercuryChannel):
-    controlled_by = Parameter('source of target value', EnumType(members={'self': SELF}), default=0)
-    target = Parameter(readonly=False)
-    input_modules = ()
-
-    def add_input(self, modobj):
-        if not self.input_modules:
-            self.input_modules = []
-        self.input_modules.append(modobj)
-        prev_enum = self.parameters['controlled_by'].datatype._enum
-        # add enum member, using autoincrement feature of Enum
-        self.parameters['controlled_by'].datatype = EnumType(Enum(prev_enum, **{modobj.name: None}))
-
-    def write_controlled_by(self, value):
-        if self.controlled_by == value:
-            return value
-        self.controlled_by = value
-        if value == SELF:
-            self.log.warning('switch to manual mode')
-            for input_module in self.input_modules:
-                if input_module.control_active:
-                    input_module.write_control_active(False)
-        return value
+class HasInput(HasControlledBy, MercuryChannel):
+    pass
 
 
-class Loop(HasConvergence, MercuryChannel, Drivable):
+class Loop(HasOutputModule, MercuryChannel, Drivable):
     """common base class for loops"""
-    control_active = Parameter('control mode', BoolType())
     output_module = Attached(HasInput, mandatory=False)
+    control_active = Parameter(readonly=False)
     ctrlpars = Parameter(
         'pid (proportional band, integral time, differential time',
         StructOf(p=FloatRange(0, unit='$'), i=FloatRange(0, unit='min'), d=FloatRange(0, unit='min')),
@@ -210,48 +226,49 @@ class Loop(HasConvergence, MercuryChannel, Drivable):
     )
     enable_pid_table = Parameter('', BoolType(), readonly=False)
 
-    def initModule(self):
-        super().initModule()
-        if self.output_module:
-            self.output_module.add_input(self)
-
-    def set_output(self, active):
+    def set_output(self, active, source='HW'):
         if active:
-            if self.output_module and self.output_module.controlled_by != self.name:
-                self.output_module.controlled_by = self.name
+            self.activate_control()
         else:
-            if self.output_module and self.output_module.controlled_by != SELF:
-                self.output_module.write_controlled_by(SELF)
-            status = IDLE, 'control inactive'
-            if self.status != status:
-                self.status = status
+            self.deactivate_control(source)
 
     def set_target(self, target):
-        if self.control_active:
-            self.set_output(True)
-        else:
-            self.log.warning('switch loop control on')
-            self.write_control_active(True)
+        self.set_output(True)
         self.target = target
-        self.start_state()
 
     def read_enable_pid_table(self):
-        return self.query('0:LOOP:PIDT', off_on)
+        return self.query(f'DEV::{self.kinds[0]}:LOOP:PIDT', off_on)
 
     def write_enable_pid_table(self, value):
-        return self.change('0:LOOP:PIDT', value, off_on)
+        return self.change(f'DEV::{self.kinds[0]}:LOOP:PIDT', value, off_on)
 
     def read_ctrlpars(self):
         # read all in one go, in order to reduce comm. traffic
-        pid = self.multiquery('0:LOOP', ('P', 'I', 'D'))
+        pid = self.multiquery(f'DEV::{self.kinds[0]}:LOOP', ('P', 'I', 'D'))
         return {k: float(v) for k, v in zip('pid', pid)}
 
     def write_ctrlpars(self, value):
-        pid = self.multichange('0:LOOP', [(k, value[k.lower()]) for k in 'PID'])
+        pid = self.multichange(f'DEV::{self.kinds[0]}:LOOP', [(k, value[k.lower()]) for k in 'PID'])
         return {k.lower(): v for k, v in zip('PID', pid)}
 
+    def read_status(self):
+        return IDLE, ''
 
-class HeaterOutput(HasInput, MercuryChannel, Writable):
+
+class ConvLoop(HasConvergence, Loop):
+    def deactivate_control(self, source):
+        if self.control_active:
+            super().deactivate_control(source)
+            self.convergence_state.start(self.inactive_state)
+            if self.pollInfo:
+                self.pollInfo.trigger(True)
+
+    def inactive_state(self, state):
+        self.convergence_state.status = IDLE, 'control inactive'
+        return Finish
+
+
+class HeaterOutput(HasInput, Writable):
     """heater output
 
     Remark:
@@ -259,7 +276,7 @@ class HeaterOutput(HasInput, MercuryChannel, Writable):
     resistivity. As the measured heater current is available, the resistivity
     will be adjusted automatically, when true_power is True.
     """
-    channel_type = 'HTR'
+    kind = 'HTR'
     value = Parameter('heater output', FloatRange(unit='W'), readonly=False)
     status = Parameter(update_unchanged='never')
     target = Parameter('heater output', FloatRange(0, 100, unit='$'), readonly=False, update_unchanged='never')
@@ -272,23 +289,23 @@ class HeaterOutput(HasInput, MercuryChannel, Writable):
     _volt_target = None
 
     def read_limit(self):
-        return self.query('HTR:VLIM') ** 2 / self.resistivity
+        return self.query('DEV::HTR:VLIM') ** 2 / self.resistivity
 
     def write_limit(self, value):
-        result = self.change('HTR:VLIM', math.sqrt(value * self.resistivity))
+        result = self.change('DEV::HTR:VLIM', math.sqrt(value * self.resistivity))
         return result ** 2 / self.resistivity
 
     def read_resistivity(self):
         if self.true_power:
             return self.resistivity
-        return max(10, self.query('HTR:RES'))
+        return max(10.0, self.query('DEV::HTR:RES'))
 
     def write_resistivity(self, value):
-        self.resistivity = self.change('HTR:RES', max(10, value))
+        self.resistivity = self.change('DEV::HTR:RES', max(10.0, value))
         if self._last_target is not None:
             if not self.true_power:
                 self._volt_target = math.sqrt(self._last_target * self.resistivity)
-            self.change('HTR:SIG:VOLT', self._volt_target)
+            self.change('DEV::HTR:SIG:VOLT', self._volt_target, tolerance=2e-4)
         return self.resistivity
 
     def read_status(self):
@@ -298,9 +315,9 @@ class HeaterOutput(HasInput, MercuryChannel, Writable):
         if self._last_target is None:  # on init
             self.read_target()
         if not self.true_power:
-            volt = self.query('HTR:SIG:VOLT')
-            return volt ** 2 / max(10, self.resistivity)
-        volt, current = self.multiquery('HTR:SIG', ('VOLT', 'CURR'))
+            volt = self.query('DEV::HTR:SIG:VOLT')
+            return volt ** 2 / max(10.0, self.resistivity)
+        volt, current = self.multiquery('DEV::HTR:SIG', ('VOLT', 'CURR'))
         if volt > 0 and current > 0.0001 and self._last_target:
             res = volt / current
             tol = res * max(max(0.0003, abs(volt - self._volt_target)) / volt, 0.0001 / current, 0.0001)
@@ -308,101 +325,135 @@ class HeaterOutput(HasInput, MercuryChannel, Writable):
                 self.write_resistivity(round(res, 1))
                 if self.controlled_by == 0:
                     self._volt_target = math.sqrt(self._last_target * self.resistivity)
-                    self.change('HTR:SIG:VOLT', self._volt_target)
+                    self.change('DEV::HTR:SIG:VOLT', self._volt_target, tolerance=2e-4)
         return volt * current
 
     def read_target(self):
-        if self.controlled_by != 0 and self.target:
-            return 0
-        if self._last_target is not None:
+        if self.controlled_by != 0 or self._last_target is not None:
+            # read back only when not yet initialized
             return self.target
-        self._volt_target = self.query('HTR:SIG:VOLT')
-        self.resistivity = max(10, self.query('HTR:RES'))
-        self._last_target = self._volt_target ** 2 / max(10, self.resistivity)
+        self._volt_target = self.query('DEV::HTR:SIG:VOLT')
+        self.resistivity = max(10.0, self.query('DEV::HTR:RES'))
+        self._last_target = self._volt_target ** 2 / max(10.0, self.resistivity)
         return self._last_target
 
-    def set_target(self, value):
+    def set_target(self, target):
         """set the target without switching to manual
 
         might be used by a software loop
         """
-        self._volt_target = math.sqrt(value * self.resistivity)
-        self.change('HTR:SIG:VOLT', self._volt_target)
-        self._last_target = value
-        return value
+        self._volt_target = math.sqrt(target * self.resistivity)
+        self.change('DEV::HTR:SIG:VOLT', self._volt_target, tolerance=2e-4)
+        self._last_target = target
+        return target
 
     def write_target(self, value):
-        self.write_controlled_by(SELF)
+        self.self_controlled()
         return self.set_target(value)
 
 
-class TemperatureLoop(TemperatureSensor, Loop, Drivable):
-    channel_type = 'TEMP,HTR'
-    output_module = Attached(HeaterOutput, mandatory=False)
-    ramp = Parameter('ramp rate', FloatRange(0, unit='K/min'), readonly=False)
+class TemperatureLoop(TemperatureSensor, ConvLoop):
+    kind = 'TEMP'
+    output_module = Attached(HasInput, mandatory=False)
+    ramp = Parameter('ramp rate', FloatRange(0, unit='$/min'), readonly=False)
     enable_ramp = Parameter('enable ramp rate', BoolType(), readonly=False)
     setpoint = Parameter('working setpoint (differs from target when ramping)', FloatRange(0, unit='$'))
-    auto_flow = Parameter('enable auto flow', BoolType(), readonly=False)
+    status = Parameter(datatype=StatusType(Drivable, 'RAMPING'))  # add ramping status
+    tolerance = Parameter(default=0.1)
     _last_setpoint_change = None
+    __status = IDLE, ''
+    # overridden in subclass frappy_psi.triton.TemperatureLoop
+    ENABLE = 'TEMP:LOOP:ENAB'
+    ENABLE_RAMP = 'TEMP:LOOP:RENA'
+    RAMP_RATE = 'TEMP:LOOP:RSET'
 
     def doPoll(self):
         super().doPoll()
         self.read_setpoint()
 
     def read_control_active(self):
-        active = self.query('TEMP:LOOP:ENAB', off_on)
+        active = self.query(f'DEV::{self.ENABLE}', off_on)
         self.set_output(active)
         return active
 
     def write_control_active(self, value):
-        self.set_output(value)
-        return self.change('TEMP:LOOP:ENAB', value, off_on)
+        if value:
+            raise RangeError('write to target to switch control on')
+        self.set_output(value, 'user')
+        return self.change(f'DEV::{self.ENABLE}', value, off_on)
 
     @nopoll  # polled by read_setpoint
     def read_target(self):
         if self.read_enable_ramp():
             return self.target
-        self.setpoint = self.query('TEMP:LOOP:TSET')
+        self.setpoint = self.query('DEV::TEMP:LOOP:TSET')
         return self.setpoint
 
     def read_setpoint(self):
-        setpoint = self.query('TEMP:LOOP:TSET')
+        setpoint = self.query('DEV::TEMP:LOOP:TSET')
         if self.enable_ramp:
-            if setpoint == self.setpoint:
+            if setpoint == self.target:
+                self.__ramping = False
+            elif setpoint == self.setpoint:
                 # update target when working setpoint does no longer change
-                if setpoint != self.target and self._last_setpoint_change is not None:
+                if self._last_setpoint_change is not None:
                     unchanged_since = time.time() - self._last_setpoint_change
                     if unchanged_since > max(12.0, 0.06 / max(1e-4, self.ramp)):
+                        self.__ramping = False
                         self.target = self.setpoint
                 return setpoint
             self._last_setpoint_change = time.time()
         else:
+            self.__ramping = False
             self.target = setpoint
         return setpoint
 
+    def set_target(self, target):
+        self.change(f'DEV::{self.ENABLE}', True, off_on)
+        super().set_target(target)
+
+    def deactivate_control(self, source):
+        if self.__ramping:
+            self.__ramping = False
+            # stop ramping setpoint
+            self.change('DEV::TEMP:LOOP:TSET', self.read_setpoint(), lazy=True)
+        super().deactivate_control(source)
+
+    def ramping_state(self, state):
+        self.read_setpoint()
+        if self.__ramping:
+            return Retry
+        return self.convergence_approach
+
     def write_target(self, value):
-        target = self.change('TEMP:LOOP:TSET', value)
+        target = self.change('DEV::TEMP:LOOP:TSET', value, lazy=True)
         if self.enable_ramp:
             self._last_setpoint_change = None
+            self.__ramping = True
             self.set_target(value)
+            self.convergence_state.status = RAMPING, 'ramping'
+            self.read_status()
+            self.convergence_state.start(self.ramping_state)
         else:
             self.set_target(target)
+            self.convergence_start()
+        self.read_status()
         return self.target
 
     def read_enable_ramp(self):
-        return self.query('TEMP:LOOP:RENA', off_on)
+        return self.query(f'DEV::{self.ENABLE_RAMP}', off_on)
 
     def write_enable_ramp(self, value):
-        return self.change('TEMP:LOOP:RENA', value, off_on)
-
-    def read_auto_flow(self):
-        return self.query('TEMP:LOOP:FAUT', off_on)
-
-    def write_auto_flow(self, value):
-        return self.change('TEMP:LOOP:FAUT', value, off_on)
+        if self.enable_ramp < value:  # ramp_enable was off: start from current value
+            self.change('DEV::TEMP:LOOP:TSET', self.value, lazy=True)
+        result = self.change(f'DEV::{self.ENABLE_RAMP}', value, off_on)
+        if self.isDriving() and value != self.enable_ramp:
+            self.enable_ramp = value
+            self.write_target(self.target)
+        return result
 
     def read_ramp(self):
-        result = self.query('TEMP:LOOP:RSET')
+        result = self.query(f'DEV::{self.RAMP_RATE}')
         return min(9e99, result)
 
     def write_ramp(self, value):
@@ -411,23 +462,23 @@ class TemperatureLoop(TemperatureSensor, Loop, Drivable):
             self.write_enable_ramp(0)
             return 0
         if value >= 9e99:
-            self.change('TEMP:LOOP:RSET', 'inf', as_string)
+            self.change(f'DEV::{self.RAMP_RATE}', 'inf', as_string)
             self.write_enable_ramp(0)
             return 9e99
         self.write_enable_ramp(1)
-        return self.change('TEMP:LOOP:RSET', max(1e-4, value))
+        return self.change(f'DEV::{self.RAMP_RATE}', max(1e-4, value))
 
 
 class PressureSensor(MercuryChannel, Readable):
-    channel_type = 'PRES'
+    kind = 'PRES'
     value = Parameter(unit='mbar')
 
     def read_value(self):
-        return self.query('PRES:SIG:PRES')
+        return self.query('DEV::PRES:SIG:PRES')
 
 
-class ValvePos(HasInput, MercuryChannel, Drivable):
-    channel_type = 'PRES,AUX'
+class ValvePos(HasInput, Drivable):
+    kind = 'PRES,AUX'
     value = Parameter('value pos', FloatRange(unit='%'), readonly=False)
     target = Parameter('valve pos target', FloatRange(0, 100, unit='$'), readonly=False)
 
@@ -435,7 +486,7 @@ class ValvePos(HasInput, MercuryChannel, Drivable):
         self.read_status()
 
     def read_value(self):
-        return self.query('AUX:SIG:PERC')
+        return self.query(f'DEV:{self.slots["AUX"]}:AUX:SIG:PERC')
 
     def read_status(self):
         self.read_value()
@@ -444,33 +495,83 @@ class ValvePos(HasInput, MercuryChannel, Drivable):
         return 'BUSY', 'moving'
 
     def read_target(self):
-        return self.query('PRES:LOOP:FSET')
+        return self.query('DEV::PRES:LOOP:FSET')
 
     def write_target(self, value):
-        self.write_controlled_by(SELF)
-        return self.change('PRES:LOOP:FSET', value)
+        self.self_controlled()
+        return self.change('DEV::PRES:LOOP:FSET', value)
 
 
-class PressureLoop(PressureSensor, Loop, Drivable):
-    channel_type = 'PRES,AUX'
+class PressureLoop(PressureSensor, HasControlledBy, ConvLoop):
+    kind = 'PRES'
     output_module = Attached(ValvePos, mandatory=False)
+    tolerance = Parameter(default=0.1)
 
     def read_control_active(self):
-        active = self.query('PRES:LOOP:FAUT', off_on)
+        active = self.query('DEV::PRES:LOOP:FAUT', off_on)
         self.set_output(active)
         return active
 
     def write_control_active(self, value):
-        self.set_output(value)
-        return self.change('PRES:LOOP:FAUT', value, off_on)
+        self.set_output(value, 'user')
+        return self.change('DEV::PRES:LOOP:FAUT', value, off_on)
 
     def read_target(self):
-        return self.query('PRES:LOOP:PRST')
+        return self.query('DEV::PRES:LOOP:PRST')
+
+    def set_target(self, target):
+        """set the target without switching to manual
+
+        might be used by a software loop
+        """
+        self.change('DEV::PRES:LOOP:PRST', target)
+        super().set_target(target)
 
     def write_target(self, value):
-        target = self.change('PRES:LOOP:PRST', value)
-        self.set_target(target)
-        return self.target
+        self.self_controlled()
+        self.set_target(value)
+        return value
+
+
+class HasAutoFlow:
+    needle_valve = Attached(PressureLoop, mandatory=False)
+    auto_flow = Parameter('enable auto flow', BoolType(), readonly=False, default=0)
+    flowpars = Parameter('Tdif(min, max), FlowSet(min, max)',
+                         TupleOf(TupleOf(FloatRange(unit='K'), FloatRange(unit='K')),
+                                 TupleOf(FloatRange(unit='mbar'), FloatRange(unit='mbar'))),
+                         readonly=False, default=((1, 5), (4, 20)))
+
+    def read_value(self):
+        value = super().read_value()
+        if self.auto_flow:
+            (dmin, dmax), (fmin, fmax) = self.flowpars
+            flowset = min(dmax - dmin, max(0, value - self.target - dmin)) / (dmax - dmin) * (fmax - fmin) + fmin
+            self.needle_valve.set_target(flowset)
+        return value
+
+    def initModule(self):
+        super().initModule()
+        if self.needle_valve:
+            self.needle_valve.register_input(self.name, self.auto_flow_off)
+
+    def write_auto_flow(self, value):
+        if self.needle_valve:
+            if value:
+                self.needle_valve.controlled_by = self.name
+            else:
+                if self.needle_valve.controlled_by != SELF:
+                    self.needle_valve.controlled_by = SELF
+                self.needle_valve.write_target(self.flowpars[1][0])  # flow min
+        return value
+
+    def auto_flow_off(self):
+        if self.auto_flow:
+            self.log.warning('switch auto flow off')
+            self.write_auto_flow(False)
+
+
+class TemperatureAutoFlow(HasAutoFlow, TemperatureLoop):
+    pass
 
 
 class HeLevel(MercuryChannel, Readable):
@@ -479,7 +580,8 @@ class HeLevel(MercuryChannel, Readable):
     The Mercury system does not support automatic switching between fast
     (when filling) and slow (when consuming). We have to handle this by software.
     """
-    channel_type = 'LVL'
+    kind = 'LVL'
+    value = Parameter(unit='%')
     sample_rate = Parameter('_', EnumType(slow=0, fast=1), readonly=False)
     hysteresis = Parameter('hysteresis for detection of increase', FloatRange(0, 100, unit='%'),
                            default=5, readonly=False)
@@ -505,14 +607,14 @@ class HeLevel(MercuryChannel, Readable):
         return sample_rate
 
     def read_sample_rate(self):
-        return self.check_rate(self.query('LVL:HEL:PULS:SLOW', fast_slow))
+        return self.check_rate(self.query('DEV::LVL:HEL:PULS:SLOW', fast_slow))
 
     def write_sample_rate(self, value):
         self.check_rate(value)
-        return self.change('LVL:HEL:PULS:SLOW', value, fast_slow)
+        return self.change('DEV::LVL:HEL:PULS:SLOW', value, fast_slow)
 
     def read_value(self):
-        level = self.query('LVL:SIG:HEL:LEV')
+        level = self.query('DEV::LVL:SIG:HEL:LEV')
         # handle automatic switching depending on increase
         now = time.time()
         if self._last_increase:  # fast mode
@@ -532,10 +634,8 @@ class HeLevel(MercuryChannel, Readable):
 
 
 class N2Level(MercuryChannel, Readable):
-    channel_type = 'LVL'
+    kind = 'LVL'
+    value = Parameter(unit='%')
 
     def read_value(self):
-        return self.query('LVL:SIG:NIT:LEV')
-
-
-# TODO: magnet power supply
+        return self.query('DEV::LVL:SIG:NIT:LEV')

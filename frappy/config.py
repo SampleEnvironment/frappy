@@ -22,9 +22,11 @@
 
 import os
 import re
+from collections import Counter
 
 from frappy.errors import ConfigError
 from frappy.lib import generalConfig
+
 
 class Undef:
     pass
@@ -68,9 +70,7 @@ class Mod(dict):
 
         # matches name from spec
         if not re.match(r'^[a-zA-Z]\w{0,62}$', name, re.ASCII):
-            raise ConfigError('Not a valid SECoP Module name: "%s". '
-                              'Does it only contain letters, numbers and underscores?'
-                              % (name))
+            raise ConfigError(f'Not a valid SECoP Module name: "{name}". Does it only contain letters, numbers and underscores?')
         # Make parameters out of all keywords
         groups = {}
         for key, val in kwds.items():
@@ -125,16 +125,25 @@ class Config(dict):
                 continue
             if name not in self.module_names:
                 self.module_names.add(name)
-                self.modules.append(mod)
+                self[name] = mod
 
 
-def process_file(config_text):
+def process_file(filename, log):
+    with open(filename, 'rb') as f:
+        config_text = f.read()
     node = NodeCollector()
     mods = Collector(Mod)
     ns = {'Node': node.add, 'Mod': mods.add, 'Param': Param, 'Command': Param, 'Group': Group}
 
     # pylint: disable=exec-used
-    exec(config_text, ns)
+    exec(compile(config_text, filename, 'exec'), ns)
+
+    # check for duplicates in the file itself. Between files comes later
+    duplicates = [name for name, count in Counter([mod['name']
+                    for mod in mods.list]).items() if count > 1]
+    if duplicates:
+        log.warning('Duplicate module name in file \'%s\': %s',
+                    filename, ','.join(duplicates))
     return Config(node, mods)
 
 
@@ -152,8 +161,7 @@ def to_config_path(cfgfile, log):
             filename = None
 
     if filename is None:
-        raise ConfigError("Couldn't find cfg file %r in %s"
-                          % (cfgfile, generalConfig.confdir))
+        raise ConfigError(f"Couldn't find cfg file {cfgfile!r} in {generalConfig.confdir}")
     if not filename.endswith('_cfg.py'):
         log.warning("Config files should end in '_cfg.py': %s", os.path.basename(filename))
     log.debug('Using config file %s for %s', filename, cfgfile)
@@ -178,9 +186,7 @@ def load_config(cfgfiles, log):
     for cfgfile in cfgfiles.split(','):
         filename = to_config_path(cfgfile, log)
         log.debug('Parsing config file %s...', filename)
-        with open(filename, 'rb') as f:
-            config_text = f.read()
-        cfg = process_file(config_text)
+        cfg = process_file(filename, log)
         if config:
             config.merge_modules(cfg)
         else:

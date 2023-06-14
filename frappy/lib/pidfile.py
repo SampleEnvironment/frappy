@@ -46,7 +46,7 @@ def remove_pidfile(pidfile):
 def write_pidfile(pidfile, pid):
     """write the given pid to the given pidfile"""
     with open(pidfile, 'w', encoding='utf-8') as f:
-        f.write('%d\n' % pid)
+        f.write(f'{pid}\n')
     atexit.register(remove_pidfile, pidfile)
 
 

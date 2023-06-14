@@ -1,3 +1,119 @@
+frappy-core (0.17.12) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * Warn about duplicate module definitions in a file
+  * Add influences property to parameters/commands
+
+  [ Markus Zolliker ]
+  * frappy.client: dummy logger is missing 'exception' method
+
+  [ Alexander Zaft ]
+  * Add SEOP He3-polarization device
+  * Typo in influences description
+  * seop: fix fitparam command
+
+  [ Markus Zolliker ]
+  * silently catches error in systemd.daemon.notify
+
+  [ Alexander Zaft ]
+  * io: add option to retry first ident request
+  * config: fix merge_modules
+  * io: followup fix for retry-first-ident
+  * entangle: fix tango guards for pytango 9.3
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 13 Jun 2023 06:51:27 +0200
+
+frappy-core (0.17.11) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * Add __format__ to EnumMember
+
+  [ Markus Zolliker ]
+  * fix error from manual %-format conversion
+
+  [ Alexander Zaft ]
+  * specify minimum pyqt5 version
+
+  [ Markus Zolliker ]
+  * make io device visible as expert by default
+
+  [ Jens Krüger ]
+  * MLZ/Entangle: Fix formatting issues
+
+  [ Markus Zolliker ]
+  * improve error handling on callbacks
+  * fix issues with lakeshore 370
+  * frappy_psi: two small fixes in k2601b/ppmssim
+  * a playground for debugging drivers
+  * issues with StructOf
+  * improve mercury temperature loop
+  * improve interactive client
+
+  [ Jens Krüger ]
+  * Server: add missing 'restart_hook' missing
+  * MLZ/Entangle: Add unit init in AnalogOutput
+  * MLZ/Entangle: Fix user limits handling
+
+  [ Alexander Zaft ]
+  * Improve address and connection handling
+  * Add Stopgap handling of cfg files in cfg-editor
+
+  [ Markus Zolliker ]
+  * fix in frappy_psi.historywriter
+  * improve mercury driver
+  * driver for the triton dilution refrigerator
+  * fixes on HasConvergence and HasOutputModule
+  * improve and fix errors with parameter limits
+  * add HasOffset feature
+
+  [ Alexander Zaft ]
+  * Fix interface class list
+
+  [ Markus Zolliker ]
+  * mixins should not inherit Module
+  * fix interplay mercury.TemperatureLoop and HasConvergence
+
+  [ Alexander Zaft ]
+  * Fix lower limit checking of FloatRange
+
+  [ Markus Zolliker ]
+  * improve traceback while processing config file
+  * driver for mercury IPS
+  * add sea driver
+
+  [ Georg Brandl ]
+  * debian: add new executable
+
+  [ Markus Zolliker ]
+  * move more code from bin/frappy-cli to frappy/client/interactive.py
+  * add unit=s to pollinterval
+  * client.interactive: fix error when interface_classes empty
+  * phytron motor driver
+  * client: timestamps must never lie in the future
+
+  [ Alexander Zaft ]
+  * Fix rstrip misuse in frappy-generator
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Thu, 25 May 2023 09:38:24 +0200
+
+frappy-core (0.17.10) focal; urgency=medium
+
+  * Change leftover %-logging calls to lazy
+  * Convert formatting automatically to f-strings
+  * move unit into display label
+  * [WIP] gui: add specific input widgets
+  * Rebuild NodeWidget when the description changes
+  * Manually convert most remaining format statements
+  * make entangle mapping a dict
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 19 Apr 2023 14:32:52 +0200
+
+frappy-core (0.17.9) focal; urgency=medium
+
+  * interactive client: avoid messing up the input line
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Tue, 11 Apr 2023 16:09:03 +0200
+
 frappy-core (0.17.8) focal; urgency=medium
 
   * Debian: Fix typo

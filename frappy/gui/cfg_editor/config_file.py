@@ -24,6 +24,8 @@ import configparser
 from collections import OrderedDict
 from configparser import NoOptionError
 
+from frappy.config import load_config
+from frappy.datatypes import StringType, EnumType
 from frappy.gui.cfg_editor.tree_widget_item import TreeWidgetItem
 from frappy.gui.cfg_editor.utils import get_all_children_with_names, \
     get_all_items, get_interface_class_from_name, get_module_class_from_name, \
@@ -41,7 +43,7 @@ SECTIONS = {NODE: 'description',
             MODULE: 'class'}
 
 
-def write_config(file_name, tree_widget):
+def write_legacy_config(file_name, tree_widget):
     itms = get_all_items(tree_widget)
     itm_lines = OrderedDict()
     value_str = '%s = %s'
@@ -57,13 +59,13 @@ def write_config(file_name, tree_widget):
                 blank_lines += 1
             value = value.replace('\n\n', '\n.\n')
             value = value.replace('\n', '\n    ')
-            itm_lines[id(itm)] = '[%s %s]\n' % (itm.kind, itm.name) +\
+            itm_lines[id(itm)] = f'[{itm.kind} {itm.name}]\n' +\
                                  value_str % (SECTIONS[itm.kind], value)
         # TODO params and props
         elif itm.kind == PARAMETER and value:
             itm_lines[id(itm)] = value_str % (itm.name, value)
         elif itm.kind == PROPERTY:
-            prop_name = '.%s' % itm.name
+            prop_name = f'.{itm.name}'
             if par.kind == PARAMETER:
                 prop_name = par.name + prop_name
             itm_lines[id(itm)] = value_str % (prop_name, value)
@@ -72,15 +74,14 @@ def write_config(file_name, tree_widget):
             for key, dict_value in itm_lines.items():
                 if key == id(par):
                     value = value.replace('\n', '\n# ')
-                    temp_itm_lines[id(itm)] = '# %s' % value
+                    temp_itm_lines[id(itm)] = f'# {value}'
                 temp_itm_lines[key] = dict_value
             itm_lines.clear()
             itm_lines.update(temp_itm_lines)
     with open(file_name, 'w', encoding='utf-8') as configfile:
         configfile.write('\n'.join(itm_lines.values()))
 
-
-def read_config(file_path):
+def read_legacy_config(file_path):
     # TODO datatype of params and properties
     node = TreeWidgetItem(NODE)
     ifs = TreeWidgetItem(name='Interfaces')
@@ -147,6 +148,119 @@ def read_config(file_path):
     node = get_comments(node, ifs, mods, file_path)
     return node, ifs, mods
 
+def fmt_value(param, dt):
+    if isinstance(dt, StringType):
+        return repr(param)
+    if isinstance(dt, EnumType):
+        try:
+            return int(param)
+        except ValueError:
+            return repr(param)
+    return param
+
+def fmt_param(param, pnp):
+    props = pnp[param.name]
+    if isinstance(props, list):
+        dt = props[0].datatype
+    else:
+        dt = props.datatype
+
+    if param.childCount() > 1 or (param.childCount() == 1 and param.child(0).name != 'value'):
+        values = []
+        main_value = param.get_value()
+        if main_value:
+            values.append(fmt_value(main_value, dt))
+        for i in range(param.childCount()):
+            prop = param.child(i)
+            propdt = props[1][prop.name].datatype
+            propv = fmt_value(prop.get_value(), propdt)
+            values.append(f'{prop.name} = {propv}')
+        values = f'Param({", ".join(values)})'
+    else:
+        values = fmt_value(param.get_value(), dt)
+    return f'    {param.name} = {values},'
+
+def write_config(file_name, tree_widget):
+    """stopgap python config writing. assumes no comments are in the cfg."""
+    itms = get_all_items(tree_widget)
+    for itm in itms:
+        if itm.kind == 'comment':
+            print('comments are broken right now. not writing a file. exiting...')
+            return
+    lines = []
+    root = tree_widget.topLevelItem(0)
+    eq_id = root.name
+    description = root.get_value()
+    iface = root.child(0).child(0).name
+
+    lines.append(f'Node(\'{eq_id}\',\n    {repr(description)},\n    \'{iface}\',')
+    for i in range(2, root.childCount()):
+        lines.append(fmt_param(root.child(i), {}))
+    lines.append(')')
+    mods = root.child(1)
+    for i in range(mods.childCount()):
+        lines.append('\n')
+        mod = mods.child(i)
+        params_and_props = {}
+        params_and_props.update(mod.properties)
+        params_and_props.update(mod.parameters)
+        descr = None
+        for i in range(mod.childCount()):
+            if mod.child(i).name == 'description':
+                descr = mod.child(i)
+                break
+        lines.append(f'Mod(\'{mod.name}\',\n    \'{mod.get_value()}\',\n    \'{descr.get_value()}\',')
+        for j in range(mod.childCount()):
+            if j == i:
+                continue
+            lines.append(fmt_param(mod.child(j), params_and_props))
+        lines.append(')')
+
+    with open(file_name, 'w', encoding='utf-8') as configfile:
+        configfile.write('\n'.join(lines))
+
+def read_config(file_path, log):
+    config = load_config(file_path, log)
+    node = TreeWidgetItem(NODE)
+    ifs = TreeWidgetItem(name='Interfaces')
+    mods = TreeWidgetItem(name='Modules')
+    node.addChild(ifs)
+    node.addChild(mods)
+    nodecfg = config.pop('node', {})
+    node.set_name(nodecfg['equipment_id'])
+    node.set_value(nodecfg['description'])
+    node.parameters = get_params(NODE)
+    node.properties = get_props(NODE)
+
+    iface = TreeWidgetItem(INTERFACE, nodecfg['interface'])
+    #act_class = get_interface_class_from_name(section_value)
+    #act_item.set_class_object(act_class)
+    ifs.addChild(iface)
+    for name, modcfg in config.items():
+        act_item = TreeWidgetItem(MODULE, name)
+        mods.addChild(act_item)
+        cls = modcfg.pop('cls')
+        act_item.set_value(cls)
+        act_class = get_module_class_from_name(cls)
+        act_item.set_class_object(act_class)
+        act_item.parameters = get_params(act_class)
+        act_item.properties = get_props(act_class)
+        for param, options in modcfg.items():
+            if not isinstance(options, dict):
+                prop = TreeWidgetItem(PROPERTY, param, str(options))
+                act_item.addChild(prop)
+            else:
+                param = TreeWidgetItem(PARAMETER, param)
+                param.set_value('')
+                act_item.addChild(param)
+                for k, v in options.items():
+                    if k == 'value':
+                        param.set_value(str(v))
+                    else:
+                        param.addChild(TreeWidgetItem(PROPERTY, k, str(v)))
+    #node = get_comments(node, ifs, mods, file_path)
+    return node, ifs, mods
+
 
 def get_value(config, section, option):
     value = config.get(section, option)
@@ -166,8 +280,7 @@ def get_comments(node, ifs, mods, file_path):
         if line.startswith('#'):
             line = line[1:].strip()
             if index and all_lines[index-1][0] == '#':
-                current_comment.set_value('%s\n%s' % (current_comment.
-                                                      get_value(), line))
+                current_comment.set_value(f'{current_comment.get_value()}\n{line}')
             else:
                 current_comment = TreeWidgetItem(COMMENT, '#', line)
                 next_line = get_next_line(index, all_lines)
@@ -196,12 +309,12 @@ def insert_comment(index, line, all_lines, current_comment, node, all_ifs, all_m
 # pylint: disable=inconsistent-return-statements
 def insert_section_comment(line, current_comment, node, all_ifs, all_mods):
     try:
-        if line.startswith('[%s' % NODE):
+        if line.startswith(f'[{NODE}'):
             node.insertChild(0, current_comment)
-        elif line.startswith('[%s' % INTERFACE):
+        elif line.startswith(f'[{INTERFACE}'):
             all_ifs[get_name_of_section(line)]. \
                 insertChild(0, current_comment)
-        elif line.startswith('[%s' % MODULE):
+        elif line.startswith(f'[{MODULE}'):
             all_mods[get_name_of_section(line)]. \
                 insertChild(0, current_comment)
         else:
@@ -219,9 +332,9 @@ def insert_param_prop_comment(index, line, all_lines, current_comment,
         if not parent:
             # TODO invalid file
             pass
-        if parent.startswith('[%s' % NODE):
+        if parent.startswith(f'[{NODE}'):
             parent_item = node
-        elif parent.startswith('[%s' % INTERFACE):
+        elif parent.startswith(f'[{INTERFACE}'):
             parent_item = all_ifs[get_name_of_section(parent)]
         else:
             parent_item = all_mods[get_name_of_section(parent)]

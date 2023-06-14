@@ -30,6 +30,7 @@ class QSECNode(QObject):
     newData = pyqtSignal(str, str, object)  # module, parameter, data
     stateChange = pyqtSignal(str, bool, str)  # node name, online, connection state
     unhandledMsg = pyqtSignal(str)  # message
+    descriptionChanged = pyqtSignal(str, object) # contactpoint, self
     logEntry = pyqtSignal(str)
 
     def __init__(self, uri, parent_logger, parent=None):
@@ -42,13 +43,13 @@ class QSECNode(QObject):
         self.equipmentId = conn.properties['equipment_id']
         self.log.info('Switching to logger %s', self.equipmentId)
         self.log.name = '.'.join((parent_logger.name, self.equipmentId))
-        self.nodename = '%s (%s)' % (self.equipmentId, conn.uri)
+        self.nodename = f'{self.equipmentId} ({conn.uri})'
         self.modules = conn.modules
         self.properties = self.conn.properties
         self.protocolVersion = conn.secop_version
         self.log.debug('SECoP Version: %s', conn.secop_version)
         conn.register_callback(None, self.updateItem, self.nodeStateChange,
-                               self.unhandledMessage)
+                               self.unhandledMessage, self.descriptiveDataChange)
 
     # provide methods from old baseclient for making other gui code work
     def reconnect(self):
@@ -72,9 +73,7 @@ class QSECNode(QObject):
         return self.modules[module]['parameters'][parameter]
 
     def setParameter(self, module, parameter, value):
-        # TODO: change the widgets for complex types to no longer use strings
-        datatype = self.conn.modules[module]['parameters'][parameter]['datatype']
-        self.conn.setParameter(module, parameter, datatype.from_string(value))
+        self.conn.setParameter(module, parameter, value)
 
     def getParameter(self, module, parameter):
         return self.conn.getParameter(module, parameter, True)
@@ -106,7 +105,12 @@ class QSECNode(QObject):
         self.stateChange.emit(self.nodename, online, state)
 
     def unhandledMessage(self, action, specifier, data):
-        self.unhandledMsg.emit('%s %s %r' % (action, specifier, data))
+        self.unhandledMsg.emit(f'{action} {specifier} {data!r}')
+
+    def descriptiveDataChange(self, _module, conn):
+        self.modules = conn.modules
+        self.properties = conn.properties
+        self.descriptionChanged.emit(self.contactPoint, self)
 
     def terminate_connection(self):
         self.conn.disconnect()

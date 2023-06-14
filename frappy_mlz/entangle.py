@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -37,12 +36,12 @@ from time import sleep, time as currenttime
 import PyTango
 
 from frappy.datatypes import ArrayOf, EnumType, FloatRange, IntRange, \
-    LimitsType, StringType, TupleOf
+    LimitsType, StringType, TupleOf, ValueType
 from frappy.errors import CommunicationFailedError, ConfigError, \
     HardwareError, ProgrammingError
 from frappy.lib import lazy_property
 from frappy.modules import Command, Drivable, Module, Parameter, Readable, \
-    StatusType, Writable
+    StatusType, Writable, Property
 
 #####
 
@@ -123,13 +122,11 @@ def describe_dev_error(exc):
         m = re.search(r'Command (\w+) not allowed when the '
                       r'device is in (\w+) state', fulldesc)
         if m:
-            fulldesc = 'executing %r not allowed in state %s' \
-                % (m.group(1), m.group(2))
+            fulldesc = f'executing {m.group(1)!r} not allowed in state {m.group(2)}'
     elif reason == 'API_DeviceNotExported':
         m = re.search(r'Device ([\w/]+) is not', fulldesc)
         if m:
-            fulldesc = 'Tango device %s is not exported, is the server ' \
-                'running?' % m.group(1)
+            fulldesc = f'Tango device {m.group(1)} is not exported, is the server running?'
     elif reason == 'API_CorbaException':
         if 'TRANSIENT_CallTimedout' in fulldesc:
             fulldesc = 'Tango client-server call timed out'
@@ -139,15 +136,14 @@ def describe_dev_error(exc):
     elif reason == 'API_CantConnectToDevice':
         m = re.search(r'connect to device ([\w/]+)', fulldesc)
         if m:
-            fulldesc = 'connection to Tango device %s failed, is the server ' \
-                'running?' % m.group(1)
+            fulldesc = f'connection to Tango device {m.group(1)} failed, is the server running?'
     elif reason == 'API_CommandTimedOut':
         if 'acquire serialization' in fulldesc:
             fulldesc = 'Tango call timed out waiting for lock on server'
 
     # append origin if wanted
     if origin:
-        fulldesc += ' in %s' % origin
+        fulldesc += f' in {origin}'
     return fulldesc
 
 
@@ -260,12 +256,12 @@ class BasePyTangoDevice:
         Wraps command execution and attribute operations of the given
         device with logging and exception mapping.
         """
-        dev.command_inout = self._applyGuardToFunc(dev.command_inout)
-        dev.write_attribute = self._applyGuardToFunc(dev.write_attribute,
+        dev.__dict__['command_inout'] = self._applyGuardToFunc(dev.command_inout)
+        dev.__dict__['write_attribute'] = self._applyGuardToFunc(dev.write_attribute,
                                                      'attr_write')
-        dev.read_attribute = self._applyGuardToFunc(dev.read_attribute,
+        dev.__dict__['read_attribute'] = self._applyGuardToFunc(dev.read_attribute,
                                                     'attr_read')
-        dev.attribute_query = self._applyGuardToFunc(dev.attribute_query,
+        dev.__dict__['attribute_query'] = self._applyGuardToFunc(dev.attribute_query,
                                                      'attr_query')
         return dev
 
@@ -463,6 +459,12 @@ class AnalogOutput(PyTangoDevice, Drivable):
     _history = ()
     _timeout = None
     _moving = False
+    __main_unit = None
+
+    def applyMainUnit(self, mainunit):
+        # called from __init__ method
+        # replacement of '$' by main unit must be done later
+        self.__main_unit = mainunit
 
     def initModule(self):
         super().initModule()
@@ -472,12 +474,18 @@ class AnalogOutput(PyTangoDevice, Drivable):
 
     def startModule(self, start_events):
         super().startModule(start_events)
-        # query unit from tango and update value property
-        attrInfo = self._dev.attribute_query('value')
-        # prefer configured unit if nothing is set on the Tango device, else
-        # update
-        if attrInfo.unit != 'No unit':
-            self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
+        try:
+            # query unit from tango and update value property
+            attrInfo = self._dev.attribute_query('value')
+            # prefer configured unit if nothing is set on the Tango device, else
+            # update
+            if attrInfo.unit != 'No unit':
+                self.accessibles['value'].datatype.setProperty('unit', attrInfo.unit)
+                self.__main_unit = attrInfo.unit
+        except Exception as e:
+            self.log.error(e)
+        if self.__main_unit:
+            super().applyMainUnit(self.__main_unit)
 
     def doPoll(self):
         super().doPoll()
@@ -546,7 +554,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         return self.abslimits[1]
 
     def __getusermin(self):
-        return self.userlimits[0]
+        return max(self.userlimits[0], self.abslimits[0])
 
     def __setusermin(self, value):
         self.userlimits = (value, self.userlimits[1])
@@ -554,7 +562,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
     usermin = property(__getusermin, __setusermin)
 
     def __getusermax(self):
-        return self.userlimits[1]
+        return min(self.userlimits[1], self.abslimits[1])
 
     def __setusermax(self, value):
         self.userlimits = (self.userlimits[0], value)
@@ -568,8 +576,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
         amin, amax = self.abslimits
         if umin > umax:
             raise ValueError(
-                self, 'user minimum (%s) above the user '
-                'maximum (%s)' % (umin, umax))
+                self, f'user minimum ({umin}) above the user maximum ({umax})')
         if umin < amin - abs(amin * 1e-12):
             umin = amin
         if umax > amax + abs(amax * 1e-12):
@@ -816,22 +823,16 @@ class NamedDigitalInput(DigitalInput):
     """
 
     # parameters
-    mapping = Parameter('A dictionary mapping state names to integers',
-                        datatype=StringType(), export=False)  # XXX:!!!
+    mapping = Property('A dictionary mapping state names to integers',
+                       datatype=ValueType(dict))
 
     def initModule(self):
         super().initModule()
         try:
             mapping = self.mapping
-            if isinstance(mapping, str):
-                # pylint: disable=eval-used
-                mapping = eval(self.mapping.replace('\n', ' '))
-            if isinstance(mapping, str):
-                # pylint: disable=eval-used
-                mapping = eval(mapping)
             self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
         except Exception as e:
-            raise ValueError('Illegal Value for mapping: %r' % self.mapping) from e
+            raise ValueError(f'Illegal Value for mapping: {self.mapping!r}') from e
 
     def read_value(self):
         value = self._dev.value
@@ -893,23 +894,17 @@ class NamedDigitalOutput(DigitalOutput):
     """
 
     # parameters
-    mapping = Parameter('A dictionary mapping state names to integers',
-                        datatype=StringType(), export=False)
+    mapping = Property('A dictionary mapping state names to integers',
+                       datatype=ValueType(dict))
 
     def initModule(self):
         super().initModule()
         try:
             mapping = self.mapping
-            if isinstance(mapping, str):
-                # pylint: disable=eval-used
-                mapping = eval(self.mapping.replace('\n', ' '))
-            if isinstance(mapping, str):
-                # pylint: disable=eval-used
-                mapping = eval(mapping)
             self.accessibles['value'].setProperty('datatype', EnumType('value', **mapping))
             self.accessibles['target'].setProperty('datatype', EnumType('target', **mapping))
         except Exception as e:
-            raise ValueError('Illegal Value for mapping: %r' % self.mapping) from e
+            raise ValueError(f'Illegal Value for mapping: {self.mapping!r}') from e
 
     def write_target(self, value):
         # map from enum-str to integer value

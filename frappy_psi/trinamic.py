@@ -128,7 +128,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
 
     power_down_delay = writable('', FloatRange(0, 60., unit='sec', fmtstr='%.2f'),
                                 default=0.1, group='motorparam')
-    baudrate = Parameter('', EnumType({'%d' % v: i for i, v in enumerate(BAUDRATES)}),
+    baudrate = Parameter('', EnumType({f'{v}': i for i, v in enumerate(BAUDRATES)}),
                          readonly=False, default=0, visibility=3, group='more')
     pollinterval = Parameter(group='more')
 
@@ -154,7 +154,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
             baudrate = getattr(self.io._conn.connection, 'baudrate', None)
             if baudrate:
                 if baudrate not in BAUDRATES:
-                    raise CommunicationFailedError('unsupported baud rate: %d' % baudrate)
+                    raise CommunicationFailedError(f'unsupported baud rate: {int(baudrate)}')
                 self.io.timeout = 0.03 + 200 / baudrate
 
         exc = None
@@ -178,7 +178,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
         if status != 100:
             self.log.warning('bad status from cmd %r %s: %d', cmd, adr, status)
         if radr != 2 or modadr != self.address or cmd != rcmd:
-            raise CommunicationFailedError('bad reply %r to command %s %d' % (reply, cmd, adr))
+            raise CommunicationFailedError(f'bad reply {reply!r} to command {cmd} {adr}')
         return result
 
     def startModule(self, start_events):
@@ -213,7 +213,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
             self.log.error('saved encoder value (%.2f) does not match reading (%.2f %.2f)',
                            self.encoder, encoder_from_hw, adjusted_encoder)
             if adjusted_encoder != encoder_from_hw:
-                self.log.info('take next closest encoder value (%.2f)' % adjusted_encoder)
+                self.log.info('take next closest encoder value (%.2f)', adjusted_encoder)
             self._need_reset = True
             self.status = ERROR, 'saved encoder value does not match reading'
         self._write_axispar(adjusted_encoder - self.zero, ENCODER_ADR, ANGLE_SCALE, readback=False)
@@ -229,8 +229,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
         if readback:
             result = self.comm(GET_AXIS_PAR, adr)
             if result != rawvalue:
-                raise HardwareError('result for adr=%d scale=%g does not match %g != %g'
-                                    % (adr, scale, result * scale, value))
+                raise HardwareError(f'result for adr={adr} scale={scale:g} does not match {result * scale:g} != {value:g}')
             return result * scale
         return rawvalue * scale
 
@@ -334,9 +333,9 @@ class Motor(PersistentMixin, HasIO, Drivable):
             return IDLE, ''
         if self.auto_reset:
             self._need_reset = True
-            return IDLE, 'stalled: %s' % reason
+            return IDLE, f'stalled: {reason}'
         self.log.error('out of tolerance by %.3g (%s)', diff, reason)
-        return ERROR, 'out of tolerance (%s)' % reason
+        return ERROR, f'out of tolerance ({reason})'
 
     def write_target(self, target):
         for _ in range(2):  # for auto reset
@@ -345,8 +344,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
                     abs(target - self.encoder) > self.move_limit + self.tolerance):
                 # pylint: disable=bad-string-format-type
                 # pylint wrongly does not recognise encoder as a descriptor
-                raise RangeError('can not move more than %g deg (%g -> %g)' %
-                                 (self.move_limit, self.encoder, target))
+                raise RangeError(f'can not move more than {self.move_limit:g} deg ({self.encoder:g} -> {target:g})')
             diff = self.encoder - self.steppos
             if self._need_reset:
                 if self.auto_reset:
@@ -359,7 +357,7 @@ class Motor(PersistentMixin, HasIO, Drivable):
                     if self.status[0] == IDLE:
                         continue
                     raise HardwareError('auto reset failed')
-                raise HardwareError('need reset (%s)' % self.status[1])
+                raise HardwareError(f'need reset ({self.status[1]})')
             break
         if abs(diff) > self.tolerance:
             if abs(diff) > self.encoder_tolerance and self.has_encoder:

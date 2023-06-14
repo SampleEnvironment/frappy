@@ -84,16 +84,16 @@ class HeLevel(HasIO, Readable):
         return self.query('hem')
 
     def write_empty_length(self, value):
-        return self.query('hem=%g' % value)
+        return self.query(f'hem={value:g}')
 
     def read_full_length(self):
         return self.query('hfu')
 
     def write_full_length(self, value):
-        return self.query('hfu=%g' % value)
+        return self.query(f'hfu={value:g}')
 
     def read_sample_rate(self):
         return self.query('hf')
 
     def write_sample_rate(self, value):
-        return self.query('hf=%d' % value)
+        return self.query(f'hf={int(value)}')

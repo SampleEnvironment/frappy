@@ -117,8 +117,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         minfield = -maxfield
         if not minfield <= field <= maxfield:
             raise ValueError(self,
-                             'requested field %g T out of range %g..%g T' %
-                             (field, minfield, maxfield))
+                             f'requested field {field:g} T out of range {minfield:g}..{maxfield:g} T')
         while minfield <= field <= maxfield:
             # binary search
             trycurr = 0.5 * (mincurr + maxcurr)
@@ -162,7 +161,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
             minslope = min(entry[0]
                            for entry in self.calibrationtable.values())
             self.log.error(
-                'unconfigured calibration for symmetry %r' %
+                'unconfigured calibration for symmetry %r',
                 self._symmetry.value)
             return [minslope, 0, 0, 0, 0]
 
@@ -171,8 +170,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         amin, amax = self.abslimits
         if umin > umax:
             raise ValueError(
-                self, 'user minimum (%s) above the user '
-                'maximum (%s)' % (umin, umax))
+                self, f'user minimum ({umin}) above the user maximum ({umax})')
         if umin < amin - abs(amin * 1e-12):
             umin = amin
         if umax > amax + abs(amax * 1e-12):
@@ -265,16 +263,13 @@ class GarfieldMagnet(SequencerMixin, Drivable):
                         cleanup=self._ramp_current_cleanup))
             seq.append(
                 Step(
-                    'set polarity %s' %
-                    wanted_polarity,
+                    f'set polarity {wanted_polarity}',
                     0.3,
                     self._set_polarity,
                     wanted_polarity))  # no cleanup
         seq.append(
             Step(
-                'ramping to %.3fT (%.2fA)' %
-                (target,
-                 wanted_current),
+                f'ramping to {target:.3f}T ({wanted_current:.2f}A)',
                 0.3,
                 self._ramp_current,
                 wanted_current,

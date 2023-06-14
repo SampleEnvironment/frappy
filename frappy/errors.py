@@ -54,7 +54,7 @@ class SECoPError(RuntimeError):
         res = []
         res.extend((repr(a) for a in self.args))
         #res.extend(('%s=%r' % i for i in self.kwds.items()))
-        return '%s(%s)' % (self.name or type(self).__name__, ', '.join(res))
+        return f"{self.name or type(self).__name__}({', '.join(res)})"
 
     def __str__(self):
         return self.format(True)
@@ -76,7 +76,7 @@ class SECoPError(RuntimeError):
         prefix = '' if self.name2class.get(self.name) == type(self) else type(self).__name__
         prefix += ''.join(' in ' + m for m in mlist).strip()
         if prefix:
-            return '%s: %s' % (prefix, super().__str__())
+            return f'{prefix}: {super().__str__()}'
         return super().__str__()
 
     def __eq__(self, other):
@@ -268,7 +268,7 @@ def secop_error(exc):
     """turn into InternalError, if not already a SECoPError"""
     if isinstance(exc, SECoPError):
         return exc
-    return InternalError('%s: %s' % (type(exc).__name__, exc))
+    return InternalError(f'{type(exc).__name__}: {exc}')
 
 
 # TODO: check if these are really needed:

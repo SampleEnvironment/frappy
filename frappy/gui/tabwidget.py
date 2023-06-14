@@ -180,9 +180,8 @@ class TearOffTabWidget(QTabWidget):
             self.detached = detached
 
         def __repr__(self):
-            return 'index %d, widget %r, title %s, visible %r, detached %r' % (
-                self.index, self.widget, self.title, self.visible,
-                self.detached)
+            return f'index {self.index}, widget {self.widget!r}, title {self.title},' \
+                f' visible {self.visible!r}, detached {self.detached!r}'
 
     def __init__(self, item, window, menuwindow, parent=None):
         QTabWidget.__init__(self, parent)
@@ -296,6 +295,7 @@ class TearOffTabWidget(QTabWidget):
         for i in self.tabIdx.values():
             if i.widget == w:
                 detachWindow.tabIdx = self.tabIdx[i.index].index
+                self.tabIdx[i.index].detached = detachWindow
                 break
 
         detachWindow.closed.connect(self.attachTab)
@@ -383,6 +383,9 @@ class TearOffTabWidget(QTabWidget):
         if newIndex != -1:
             self.setCurrentIndex(newIndex)
 
+        idx = self.find_widget(tearOffWidget)
+        self.tabIdx[idx].detached = None
+
     def tabChangedTab(self, index):
         # for i in range(self.count()):
         #     for p in self.widget(i).panels:
@@ -462,6 +465,29 @@ class TearOffTabWidget(QTabWidget):
         #    #     detachWindow.restoreGeometry(settings.value('geometry', '',
         #    #                                                 QByteArray))
         #    detachWindow.show()
+
+    def find_widget(self, widget):
+        for idx, tab in self.tabIdx.items():
+            if tab.widget == widget:
+                return idx
+        return None
+
+    def replace_widget(self, old_widget, new_widget, title=None):
+        """If old_widget is a child of either a tab or a detached window, it will
+        be replaced by new_widget"""
+        idx = self.find_widget(old_widget)
+        if not idx:
+            return
+        wstore = self.tabIdx[idx]
+        if title:
+            wstore.title = title
+        if wstore.detached:
+            wstore.detached.setWidget(new_widget)
+        else:
+            tabi = self._tabWidgetIndex(old_widget)
+            self.removeTab(tabi)
+            self.insertTab(tabi, new_widget, wstore.title)
+        wstore.widget = new_widget
 
     def topLevelWidget(self, w):
         widget = w

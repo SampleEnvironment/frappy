@@ -21,9 +21,9 @@
 # *****************************************************************************
 """Define helpers"""
 
-import re
 import importlib
 import linecache
+import re
 import socket
 import sys
 import threading
@@ -102,11 +102,11 @@ class GeneralConfig:
             if cfg.get('confdir') is None:
                 cfg['confdir'] = path.dirname(configfile)
         for key in mandatory:
-            cfg[key] = environ.get('FRAPPY_%s' % key.upper(), cfg.get(key))
+            cfg[key] = environ.get(f'FRAPPY_{key.upper()}', cfg.get(key))
         missing_keys = [key for key in mandatory if cfg[key] is None]
         if missing_keys:
             if configfile:
-                raise KeyError('missing value for %s in %s' % (' and '.join(missing_keys), configfile))
+                raise KeyError(f"missing value for {' and '.join(missing_keys)} in {configfile}")
             raise KeyError('missing %s' % ' and '.join('FRAPPY_%s' % k.upper() for k in missing_keys))
         # this is not customizable
         cfg['basedir'] = repodir
@@ -215,7 +215,7 @@ def get_class(spec):
 
 def mkthread(func, *args, **kwds):
     t = threading.Thread(
-        name='%s:%s' % (func.__module__, func.__name__),
+        name=f'{func.__module__}:{func.__name__}',
         target=func,
         args=args,
         kwargs=kwds)
@@ -245,12 +245,11 @@ def formatExtendedTraceback(exc_info=None):
     while tb is not None:
         frame = tb.tb_frame
         filename = frame.f_code.co_filename
-        item = '  File "%s", line %d, in %s\n' % (filename, tb.tb_lineno,
-                                                  frame.f_code.co_name)
+        item = f'  File "{filename}", line {tb.tb_lineno}, in {frame.f_code.co_name}\n'
         linecache.checkcache(filename)
         line = linecache.getline(filename, tb.tb_lineno, frame.f_globals)
         if line:
-            item = item + '    %s\n' % line.strip()
+            item = item + f'    {line.strip()}\n'
         ret.append(item)
         if filename not in ('<script>', '<string>'):
             ret += formatExtendedFrame(tb.tb_frame)
@@ -267,11 +266,11 @@ def formatExtendedStack(level=1):
         co = f.f_code
         filename = co.co_filename
         name = co.co_name
-        item = '  File "%s", line %d, in %s\n' % (filename, lineno, name)
+        item = f'  File "{filename}", line {lineno}, in {name}\n'
         linecache.checkcache(filename)
         line = linecache.getline(filename, lineno, f.f_globals)
         if line:
-            item = item + '    %s\n' % line.strip()
+            item = item + f'    {line.strip()}\n'
         ret.insert(1, item)
         if filename != '<script>':
             ret[2:2] = formatExtendedFrame(f)
@@ -296,50 +295,68 @@ def formatException(cut=0, exc_info=None, verbose=False):
     return ''.join(res)
 
 
-HOSTNAMEPAT = re.compile(r'[a-z0-9_.-]+$', re.IGNORECASE)  # roughly checking for a valid hostname or ip address
+HOSTNAMEPART = re.compile(r'^(?!-)[a-z0-9-]{1,63}(?<!-)$', re.IGNORECASE)
+
+def validate_hostname(host):
+    """checks if the rules for valid hostnames are adhered to"""
+    if len(host) > 255:
+        return False
+    for part in host.split('.'):
+        if not HOSTNAMEPART.match(part):
+            return False
+    return True
 
 
-def parseHostPort(host, defaultport):
-    """Parse host[:port] string and tuples
+def validate_ipv4(addr):
+    """check if v4 address is valid."""
+    try:
+        socket.inet_aton(addr)
+    except OSError:
+        return False
+    return True
 
-    Specify 'host[:port]' or a (host, port) tuple for the mandatory argument.
-    If the port specification is missing, the value of the defaultport is used.
 
-    raises TypeError in case host is neither a string nor an iterable
-    raises ValueError in other cases of invalid arguments
+def validate_ipv6(addr):
+    """check if v6 address is valid."""
+    try:
+        socket.inet_pton(socket.AF_INET6, addr)
+    except OSError:
+        return False
+    return True
+
+
+def parse_ipv6_host_and_port(addr, defaultport=10767):
+    """ Parses IPv6 addresses with optional port. See parse_host_port for valid formats"""
+    if ']' in addr:
+        host, port = addr.rsplit(':', 1)
+        return host[1:-1], int(port)
+    if '.' in addr:
+        host, port = addr.rsplit('.', 1)
+        return host, int(port)
+    return (host, defaultport)
+
+def parse_host_port(host, defaultport=10767):
+    """Parses hostnames and IP (4/6) addressses.
+
+    The accepted formats are:
+    - a standard hostname
+    - base IPv6 or 4 addresses
+    - 'hostname:port'
+    - IPv4 addresses in the form of 'IPv4:port'
+    - IPv6 addresses in the forms '[IPv6]:port' or 'IPv6.port'
     """
-    if isinstance(host, str):
-        host, sep, port = host.partition(':')
-        if sep:
-            port = int(port)
-        else:
-            port = defaultport
-    else:
-        host, port = host
-    if not HOSTNAMEPAT.match(host):
-        raise ValueError('illegal host name %r' % host)
-    if 0 < port < 65536:
-        return host, port
-    raise ValueError('illegal port number: %r' % port)
-
-
-def tcpSocket(host, defaultport, timeout=None):
-    """Helper for opening a TCP client socket to a remote server.
-
-    Specify 'host[:port]' or a (host, port) tuple for the mandatory argument.
-    If the port specification is missing, the value of the defaultport is used.
-    If timeout is set to a number, the timout of the connection is set to this
-    number, else the socket stays in blocking mode.
-    """
-    host, port = parseHostPort(host, defaultport)
-
-    # open socket and set options
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    if timeout:
-        s.settimeout(timeout)
-    # connect
-    s.connect((host, int(port)))
-    return s
+    colons = host.count(':')
+    if colons == 0: # hostname/ipv4 wihtout port
+        port = defaultport
+    elif colons == 1: # hostname or ipv4 with port
+        host, port = host.split(':')
+        port = int(port)
+    else: # ipv6
+        host, port = parse_ipv6_host_and_port(host, defaultport)
+    if (validate_ipv4(host) or validate_hostname(host) or validate_ipv6(host)) \
+        and 0 < port < 65536:
+        return (host, port)
+    raise ValueError(f'invalid host {host!r} or port {port}')
 
 
 # keep a reference to socket to avoid (interpreter) shut-down problems
@@ -379,3 +396,13 @@ class UniqueObject:
 
     def __repr__(self):
         return self.name
+
+
+def merge_status(*args):
+    """merge status
+
+    the status with biggest code wins
+    texts matching maximal code are joined with ', '
+    """
+    maxcode = max(a[0] for a in args)
+    return maxcode, ', '.join([a[1] for a in args if a[0] == maxcode and a[1]])

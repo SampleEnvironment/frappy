@@ -72,7 +72,7 @@ class MotorValve(PersistentMixin, Drivable):
 
     def write_target(self, target):
         if self.status[0] == ERROR:
-            raise HardwareError('%s: need refrun' % self.status[1])
+            raise HardwareError(f'{self.status[1]}: need refrun')
         self.target = target
         self._state.start(self.goto_target, count=3)
         return self.target
