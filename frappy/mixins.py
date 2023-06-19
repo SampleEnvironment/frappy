@@ -53,7 +53,7 @@ class HasControlledBy:
         to be called from the write_target method
         """
         if self.controlled_by:
-            self.controlled_by = 0
+            self.controlled_by = 0  # self
             for deactivate_control in self.inputCallbacks.values():
                 deactivate_control(self.name)
 
@@ -74,6 +74,10 @@ class HasOutputModule:
         if self.output_module:
             self.output_module.register_input(self.name, self.deactivate_control)
 
+    def set_control_active(self, active):
+        """to be overridden for switching hw control"""
+        self.control_active = active
+
     def activate_control(self):
         """method to switch control_active on
 
@@ -85,10 +89,10 @@ class HasOutputModule:
                 if name != self.name:
                     deactivate_control(self.name)
             out.controlled_by = self.name
-        self.control_active = True
+        self.set_control_active(True)
 
-    def deactivate_control(self, source):
+    def deactivate_control(self, source=None):
         """called when an other module takes over control"""
         if self.control_active:
-            self.control_active = False
-            self.log.warning(f'switched to manual mode by {source}')
+            self.set_control_active(False)
+            self.log.warning(f'switched to manual mode by {source or self.name}')
