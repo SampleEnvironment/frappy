@@ -1163,9 +1163,9 @@ class ValueType(DataType):
 
     The optional (callable) validator can be used to restrict values to a
     certain type.
-    For example using `ValueType(dict)` would ensure only values that can be
+    For example using ``ValueType(dict)`` would ensure only values that can be
     turned into a dictionary can be used in this instance, as the conversion
-    `dict(value)` is called for validation.
+    ``dict(value)`` is called for validation.
 
     Notes:
     The validator must either accept a value by returning it or the converted value,

@@ -63,12 +63,15 @@ class SECoPError(RuntimeError):
         """format with info about raising methods
 
         :param stripped: strip last method.
-           Use stripped=True (or str()) for the following cases, as the last method can be derived from the context:
-              - stored in pobj.readerror: read_<pobj.name>
-              - error message from a change command: write_<pname>
-              - error message from a read command: read_<pname>
-            Use stripped=False for the log file, as the related parameter is not known
         :return: the formatted error message
+
+        Use stripped=True (or str()) for the following cases, as the last method can be derived from the context:
+
+          - stored in pobj.readerror: read_<pobj.name>
+          - error message from a change command: write_<pname>
+          - error message from a read command: read_<pname>
+
+        Use stripped=False for the log file, as the related parameter is not known
         """
         mlist = self.raising_methods
         if mlist and stripped:

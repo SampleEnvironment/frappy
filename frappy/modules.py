@@ -629,6 +629,16 @@ class Module(HasAccessibles):
             mkthread(self.__pollThread, self.polledModules, start_events.get_trigger())
         self.startModuleDone = True
 
+    def initialReads(self):
+        """initial reads to be done
+
+        override to read initial values from HW, when it is not desired
+        to poll them afterwards
+
+        called from the poll thread, after writeInitParams but before
+        all parameters are polled once
+        """
+
     def doPoll(self):
         """polls important parameters like value and status
 
@@ -678,15 +688,10 @@ class Module(HasAccessibles):
 
         before polling, parameters which need hardware initialisation are written
         """
-        for mobj in modules:
-            mobj.writeInitParams()
-        modules = [m for m in modules if m.enablePoll]
-        if not modules:  # no polls needed - exit thread
-            started_callback()
-            return
+        polled_modules = [m for m in modules if m.enablePoll]
         if hasattr(self, 'registerReconnectCallback'):
             # self is a communicator supporting reconnections
-            def trigger_all(trg=self.triggerPoll, polled_modules=modules):
+            def trigger_all(trg=self.triggerPoll, polled_modules=polled_modules):
                 for m in polled_modules:
                     m.pollInfo.last_main = 0
                     m.pollInfo.last_slow = 0
@@ -694,7 +699,7 @@ class Module(HasAccessibles):
             self.registerReconnectCallback('trigger_polls', trigger_all)
 
         # collect all read functions
-        for mobj in modules:
+        for mobj in polled_modules:
             pinfo = mobj.pollInfo = PollInfo(mobj.pollinterval, self.triggerPoll)
             # trigger a poll interval change when self.pollinterval changes.
             if 'pollinterval' in mobj.valueCallbacks:
@@ -704,17 +709,32 @@ class Module(HasAccessibles):
                 rfunc = getattr(mobj, 'read_' + pname)
                 if rfunc.poll:
                     pinfo.polled_parameters.append((mobj, rfunc, pobj))
-        # call all read functions a first time
-        try:
-            for m in modules:
-                for mobj, rfunc, _ in m.pollInfo.polled_parameters:
-                    mobj.callPollFunc(rfunc, raise_com_failed=True)
-        except CommunicationFailedError as e:
-            # when communication failed, probably all parameters and may be more modules are affected.
-            # as this would take a lot of time (summed up timeouts), we do not continue
-            # trying and let the server accept connections, further polls might success later
-            self.log.error('communication failure on startup: %s', e)
-        started_callback()
+        while True:
+            try:
+                for mobj in modules:
+                    # TODO when needed: here we might add a call to a method :meth:`beforeWriteInit`
+                    mobj.writeInitParams()
+                    mobj.initialReads()
+                # call all read functions a first time
+                for m in polled_modules:
+                    for mobj, rfunc, _ in m.pollInfo.polled_parameters:
+                        mobj.callPollFunc(rfunc, raise_com_failed=True)
+                # TODO when needed: here we might add calls to a method :meth:`afterInitPolls`
+                break
+            except CommunicationFailedError as e:
+                # when communication failed, probably all parameters and may be more modules are affected.
+                # as this would take a lot of time (summed up timeouts), we do not continue
+                # trying and let the server accept connections, further polls might success later
+                if started_callback:
+                    self.log.error('communication failure on startup: %s', e)
+                    started_callback()
+                    started_callback = None
+            self.triggerPoll.wait(0.1)  # wait for reconnection or max 10 sec.
+            break
+        if started_callback:
+            started_callback()
+        if not polled_modules:  # no polls needed - exit thread
+            return
         to_poll = ()
         while True:
             now = time.time()

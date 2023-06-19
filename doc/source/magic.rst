@@ -8,7 +8,24 @@ what the framwork does for you.
 Startup
 .......
 
-TODO: describe startup: init methods, first polls
+On startup several methods are called. First :meth:`earlyInit` is called on all modules.
+Use this to initialize attributes independent of other modules, if you can not initialize
+as a class attribute, for example for mutable attributes.
+
+Then :meth:`initModule` is called for all modules.
+Use it to initialize things related to other modules, for example registering callbacks.
+
+After this, :meth:`startModule` is called with a callback function argument.
+:func:`frappy.modules.Module.startModule` starts the poller thread, calling
+:meth:`writeInitParams` for writing initial parameters to hardware, followed
+by :meth:`initialReads`. The latter is meant for reading values from hardware,
+which are not polled continuously. Then all parameters configured for poll are polled
+by calling the corresponding read_*() method. The end of this last initialisation
+step is indicated to the server by the callback function.
+After this, the poller thread starts regular polling, see next section.
+
+When overriding one of above methods, do not forget to super call.
+
 
 .. _polling:
 
