@@ -130,14 +130,15 @@ class Server:
         pass
 
     def run(self):
+        global systemd  # pylint: disable=global-statement
         while self._restart:
             self._restart = False
             try:
                 # TODO: make systemd notifications configurable
-                if systemd:  # pylint: disable=used-before-assignment
+                if systemd:
                     systemd.daemon.notify("STATUS=initializing")
             except Exception:
-                systemd = None  # pylint: disable=redefined-outer-name
+                systemd = None
             try:
                 self._processCfg()
                 if self._testonly:
