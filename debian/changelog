@@ -1,3 +1,24 @@
+frappy-core (0.17.13) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * add egg-info to gitignore
+
+  [ Markus Zolliker ]
+  * GUI bugfix: use isChecked instead of checkState in BoolInput
+  * frappy_psi.mercury/triton: add control_off command
+  * frappy_psi.phytron: rename reset_error to clear_errors
+  * frappy.mixins.HasOutputModule
+  * frappy_psi.mercury: proper handling of control_active
+  * add a hook for reads to be done initially
+  * frappy_psi.triton: fix HeaterOutput.limit
+  * frappy_psi.magfield: bug fix
+  * frappy_psi.sea: bug fixes
+
+  [ Alexander Zaft ]
+  * server: fix systemd variable scope
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 20 Jun 2023 14:38:00 +0200
+
 frappy-core (0.17.12) focal; urgency=medium
 
   [ Alexander Zaft ]
