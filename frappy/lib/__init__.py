@@ -401,8 +401,15 @@ class UniqueObject:
 def merge_status(*args):
     """merge status
 
-    the status with biggest code wins
-    texts matching maximal code are joined with ', '
+    for combining stati of different mixins
+    - the status with biggest code wins
+    - texts matching maximal code are joined with ', '
+    - if texts already contain ', ', it is considered as composed by
+      individual texts and duplication is avoided. when commas are used
+      for other purposes, the behaviour might be surprising
     """
     maxcode = max(a[0] for a in args)
-    return maxcode, ', '.join([a[1] for a in args if a[0] == maxcode and a[1]])
+    merged = [a[1] for a in args if a[0] == maxcode and a[1]]
+    # use dict instead of set for preserving order
+    merged = {m: True for mm in merged for m in mm.split(', ')}
+    return maxcode, ', '.join(merged)

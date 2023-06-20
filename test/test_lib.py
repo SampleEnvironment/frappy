@@ -22,7 +22,7 @@
 
 import pytest
 
-from frappy.lib import parse_host_port
+from frappy.lib import parse_host_port, merge_status
 
 
 @pytest.mark.parametrize('hostport, defaultport, result', [
@@ -46,3 +46,19 @@ def test_parse_host(hostport, defaultport, result):
             parse_host_port(hostport, defaultport)
     else:
         assert result == parse_host_port(hostport, defaultport)
+
+
+@pytest.mark.parametrize('args, result', [
+    ([(100, 'idle'), (200, 'warning')],
+     (200, 'warning')),
+    ([(300, 'ramping'), (300, 'within tolerance')],
+     (300, 'ramping, within tolerance')),
+    ([(300, 'ramping, within tolerance'), (300, 'within tolerance, slow'), (200, 'warning')],
+     (300, 'ramping, within tolerance, slow')),
+    # when a comma is used for other purposes than separating individual status texts,
+    # the behaviour might not be as desired. However, this case is somewhat constructed.
+    ([(100, 'blue, yellow is my favorite'), (100, 'white, blue, red is a bad color mix')],
+     (100, 'blue, yellow is my favorite, white, red is a bad color mix')),
+])
+def test_merge_status(args, result):
+    assert merge_status(*args) == result
