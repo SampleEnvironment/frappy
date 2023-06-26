@@ -25,10 +25,10 @@ import math
 import re
 import time
 
-from frappy.core import Drivable, HasIO, Writable, StatusType, \
+from frappy.core import Command, Drivable, HasIO, Writable, StatusType, \
     Parameter, Property, Readable, StringIO, Attached, IDLE, RAMPING, nopoll
 from frappy.datatypes import EnumType, FloatRange, StringType, StructOf, BoolType, TupleOf
-from frappy.errors import HardwareError, ProgrammingError, ConfigError, RangeError
+from frappy.errors import HardwareError, ProgrammingError, ConfigError
 from frappy_psi.convergence import HasConvergence
 from frappy.states import Retry, Finish
 from frappy.mixins import HasOutputModule, HasControlledBy
@@ -218,7 +218,6 @@ class HasInput(HasControlledBy, MercuryChannel):
 class Loop(HasOutputModule, MercuryChannel, Drivable):
     """common base class for loops"""
     output_module = Attached(HasInput, mandatory=False)
-    control_active = Parameter(readonly=False)
     ctrlpars = Parameter(
         'pid (proportional band, integral time, differential time',
         StructOf(p=FloatRange(0, unit='$'), i=FloatRange(0, unit='min'), d=FloatRange(0, unit='min')),
@@ -226,14 +225,15 @@ class Loop(HasOutputModule, MercuryChannel, Drivable):
     )
     enable_pid_table = Parameter('', BoolType(), readonly=False)
 
-    def set_output(self, active, source='HW'):
+    def set_output(self, active, source=None):
         if active:
             self.activate_control()
         else:
             self.deactivate_control(source)
 
     def set_target(self, target):
-        self.set_output(True)
+        if not self.control_active:
+            self.activate_control()
         self.target = target
 
     def read_enable_pid_table(self):
@@ -254,9 +254,16 @@ class Loop(HasOutputModule, MercuryChannel, Drivable):
     def read_status(self):
         return IDLE, ''
 
+    @Command()
+    def control_off(self):
+        """switch control off"""
+        # remark: this is needed in frappy_psi.trition.TemperatureLoop, as the heater
+        # output is not available there. We define it here as a convenience for the user.
+        self.write_control_active(False)
+
 
 class ConvLoop(HasConvergence, Loop):
-    def deactivate_control(self, source):
+    def deactivate_control(self, source=None):
         if self.control_active:
             super().deactivate_control(source)
             self.convergence_state.start(self.inactive_state)
@@ -362,6 +369,7 @@ class TemperatureLoop(TemperatureSensor, ConvLoop):
     tolerance = Parameter(default=0.1)
     _last_setpoint_change = None
     __status = IDLE, ''
+    __ramping = False
     # overridden in subclass frappy_psi.triton.TemperatureLoop
     ENABLE = 'TEMP:LOOP:ENAB'
     ENABLE_RAMP = 'TEMP:LOOP:RENA'
@@ -371,16 +379,14 @@ class TemperatureLoop(TemperatureSensor, ConvLoop):
         super().doPoll()
         self.read_setpoint()
 
-    def read_control_active(self):
-        active = self.query(f'DEV::{self.ENABLE}', off_on)
-        self.set_output(active)
-        return active
+    def set_control_active(self, active):
+        super().set_control_active(active)
+        self.change(f'DEV::{self.ENABLE}', active, off_on)
 
-    def write_control_active(self, value):
-        if value:
-            raise RangeError('write to target to switch control on')
-        self.set_output(value, 'user')
-        return self.change(f'DEV::{self.ENABLE}', value, off_on)
+    def initialReads(self):
+        # initialize control active from HW
+        active = self.query(f'DEV::{self.ENABLE}', off_on)
+        super().set_output(active, 'HW')
 
     @nopoll  # polled by read_setpoint
     def read_target(self):
@@ -412,7 +418,7 @@ class TemperatureLoop(TemperatureSensor, ConvLoop):
         self.change(f'DEV::{self.ENABLE}', True, off_on)
         super().set_target(target)
 
-    def deactivate_control(self, source):
+    def deactivate_control(self, source=None):
         if self.__ramping:
             self.__ramping = False
             # stop ramping setpoint
@@ -507,14 +513,16 @@ class PressureLoop(PressureSensor, HasControlledBy, ConvLoop):
     output_module = Attached(ValvePos, mandatory=False)
     tolerance = Parameter(default=0.1)
 
-    def read_control_active(self):
-        active = self.query('DEV::PRES:LOOP:FAUT', off_on)
-        self.set_output(active)
-        return active
+    def set_control_active(self, active):
+        super().set_control_active(active)
+        if not active:
+            self.self_controlled()  # switches off auto flow
+        return self.change('DEV::PRES:LOOP:FAUT', active, off_on)
 
-    def write_control_active(self, value):
-        self.set_output(value, 'user')
-        return self.change('DEV::PRES:LOOP:FAUT', value, off_on)
+    def initialReads(self):
+        # initialize control active from HW
+        active = self.query('DEV::PRES:LOOP:FAUT', off_on)
+        super().set_output(active, 'HW')
 
     def read_target(self):
         return self.query('DEV::PRES:LOOP:PRST')
@@ -559,14 +567,15 @@ class HasAutoFlow:
             if value:
                 self.needle_valve.controlled_by = self.name
             else:
+                if self.needle_valve.control_active:
+                    self.needle_valve.set_target(self.flowpars[1][0])  # flow min
                 if self.needle_valve.controlled_by != SELF:
                     self.needle_valve.controlled_by = SELF
-                self.needle_valve.write_target(self.flowpars[1][0])  # flow min
         return value
 
-    def auto_flow_off(self):
+    def auto_flow_off(self, source=None):
         if self.auto_flow:
-            self.log.warning('switch auto flow off')
+            self.log.warning(f'switched auto flow off by {source or self.name}')
             self.write_auto_flow(False)
 
 

@@ -12,7 +12,7 @@ Module Base Classes
 ...................
 
 .. autoclass:: frappy.modules.Module
-    :members: earlyInit, initModule, startModule
+    :members: earlyInit, initModule, startModule, initialReads
 
 .. autoclass:: frappy.modules.Readable
     :members: Status

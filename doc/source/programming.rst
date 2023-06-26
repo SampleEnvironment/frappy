@@ -95,5 +95,23 @@ Example code:
             return self.read_target()  # return the read back value
 
 
+Parameter Initialisation
+------------------------
+
+Initial values of parameters might be given by several different sources:
+
+1) value argument of a Parameter declaration
+2) read from HW
+3) read from persistent data file
+4) value given in config file
+
+For (2) the programmer might decide for any parameter to poll it regularely from the
+hardware. In this case changes from an other input, for example a keyboard or other
+interface of the connected devices would be updated continuously in Frappy.
+If there is no such other input, or if the programmer decides that such other
+data sources are not to be considered, the hardware parameter might be read in just
+once on startup, :func:`frappy.modules.Module.initialReads` may be overriden.
+This method is called once on startup, before the regular polls start.
+
 
 .. TODO: io, state machine, persistent parameters, rwhandler, datatypes, features, commands, proxies

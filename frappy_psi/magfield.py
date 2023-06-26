@@ -392,7 +392,7 @@ class Magfield(SimpleMagfield):
         if sm.init:
             self.init_progress(sm, self.current)
         if abs(self.current) > self.tolerance:
-            if self.get_progress(sm, self.value) > self.leads_ramp_tmo:
+            if self.get_progress(sm, self.current) > self.leads_ramp_tmo:
                 raise HardwareError('no progress')
             return Retry
         if sm.mode == Mode.DISABLED and abs(self.value) < self.tolerance:

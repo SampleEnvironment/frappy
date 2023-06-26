@@ -48,9 +48,8 @@ from frappy.modules import Attached, Command, Done, Drivable, \
 from frappy.protocol.dispatcher import make_update
 
 
-CFG_HEADER = """Node(
-    description = '''%(nodedescr)s''',
-    id = %(config)s.sea.psi.ch,
+CFG_HEADER = """Node('%(config)s.sea.psi.ch',
+    '''%(nodedescr)s''',
 )
 Mod(%(seaconn)r,
     'frappy_psi.sea.SeaClient',
@@ -384,6 +383,19 @@ SEA_TO_SECOPTYPE = {
 }
 
 
+class SeaEnum(EnumType):
+    """some sea enum nodes have text type -> accept '<integer>' also"""
+    def copy(self):
+        return SeaEnum(self._enum)
+
+    def __call__(self, value):
+        try:
+            value = int(value)
+        except TypeError:
+            pass
+        return super().__call__(value)
+
+
 def get_datatype(paramdesc):
     typ = paramdesc['type']
     result = SEA_TO_SECOPTYPE.get(typ, False)
@@ -391,7 +403,7 @@ def get_datatype(paramdesc):
         return result
     # special cases
     if typ == 'enum':
-        return EnumType(paramdesc['enum'])
+        return SeaEnum(paramdesc['enum'])
     raise ValueError('unknown SEA type %r' % typ)
 
 
@@ -451,7 +463,6 @@ class SeaModule(Module):
                     descr['params'].pop(0)
             else:
                 # filter by relative paths
-                rel_paths = rel_paths.split()
                 result = []
                 is_running = None
                 for rpath in rel_paths:
@@ -493,9 +504,7 @@ class SeaModule(Module):
                     raise ConfigError(f"{sea_object}/{paramdesc['path']} is not writable")
                 paramdesc['key'] = 'target'
                 paramdesc['readonly'] = False
-            extra_module_set = cfgdict.pop('extra_modules', ())
-            if extra_module_set:
-                extra_module_set = set(extra_module_set.replace(',', ' ').split())
+            extra_module_set = set(cfgdict.pop('extra_modules', ()))
         path2param = {}
         attributes = {'sea_object': sea_object, 'path2param': path2param}
 

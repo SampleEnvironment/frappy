@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -24,16 +23,17 @@
 """Define helpers"""
 
 import os
+import signal
 import sys
 import traceback
 from collections import OrderedDict
 
-from frappy.errors import ConfigError, SECoPError
-from frappy.lib import formatException, get_class, generalConfig
-from frappy.lib.multievent import MultiEvent
-from frappy.params import PREDEFINED_ACCESSIBLES
-from frappy.modules import Attached
 from frappy.config import load_config
+from frappy.errors import ConfigError, SECoPError
+from frappy.lib import formatException, generalConfig, get_class, mkthread
+from frappy.lib.multievent import MultiEvent
+from frappy.modules import Attached
+from frappy.params import PREDEFINED_ACCESSIBLES
 
 try:
     from daemon import DaemonContext
@@ -106,6 +106,12 @@ class Server:
 
         self._cfgfiles = cfgfiles
         self._pidfile = os.path.join(generalConfig.piddir, name + '.pid')
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+
+    def signal_handler(self, _num, _frame):
+        if hasattr(self, 'interface') and self.interface:
+            self.shutdown()
 
     def start(self):
         if not DaemonContext:
@@ -127,17 +133,18 @@ class Server:
         return f"{cls.__name__} class don't know how to handle option(s): {', '.join(options)}"
 
     def restart_hook(self):
-        pass
+        """Actions to be done on restart. May be overridden by a subclass."""
 
     def run(self):
+        global systemd  # pylint: disable=global-statement
         while self._restart:
             self._restart = False
             try:
                 # TODO: make systemd notifications configurable
-                if systemd:  # pylint: disable=used-before-assignment
+                if systemd:
                     systemd.daemon.notify("STATUS=initializing")
             except Exception:
-                systemd = None  # pylint: disable=redefined-outer-name
+                systemd = None
             try:
                 self._processCfg()
                 if self._testonly:
@@ -156,13 +163,27 @@ class Server:
                 self.log.info('startup done, handling transport messages')
                 if systemd:
                     systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
-                self.interface.serve_forever()
-                self.interface.server_close()
+                t = mkthread(self.interface.serve_forever)
+                # we wait here on the thread finishing, which means we got a
+                # signal to shut down or an exception was raised
+                # TODO: get the exception (and re-raise?)
+                t.join()
+                self.interface = None  # fine due to the semantics of 'with'
+                # server_close() called by 'with'
+
+            self.log.info(f'stopped listenning, cleaning up'
+                          f' {len(self.modules)} modules')
+            # if systemd:
+            #     if self._restart:
+            #         systemd.daemon.notify('RELOADING=1')
+            #     else:
+            #         systemd.daemon.notify('STOPPING=1')
+            for name in self._getSortedModules():
+                self.modules[name].shutdownModule()
             if self._restart:
                 self.restart_hook()
-                self.log.info('restart')
-            else:
-                self.log.info('shut down')
+                self.log.info('restarting')
+        self.log.info('shut down')
 
     def restart(self):
         if not self._restart:
@@ -299,3 +320,41 @@ class Server:
         #   history_path = os.environ.get('ALTERNATIVE_HISTORY')
         #   if history_path:
         #       from frappy_<xx>.historywriter import ... etc.
+
+    def _getSortedModules(self):
+        """Sort modules topologically by inverse dependency.
+
+        Example: if there is an IO device A and module B depends on it, then
+        the result will be [B, A].
+        Right now, if the dependency graph is not a DAG, we give up and return
+        the unvisited nodes to be dismantled at the end.
+        Taken from Introduction to Algorithms [CLRS].
+        """
+        def go(name):
+            if name in done:  # visiting a node
+                return True
+            if name in visited:
+                visited.add(name)
+                return False  # cycle in dependencies -> fail
+            visited.add(name)
+            if name in unmarked:
+                unmarked.remove(name)
+            for module in self.modules[name].attachedModules.values():
+                res = go(module.name)
+                if not res:
+                    return False
+            visited.remove(name)
+            done.add(name)
+            l.append(name)
+            return True
+
+        unmarked = set(self.modules.keys())  # unvisited nodes
+        visited = set()  # visited in DFS, but not completed
+        done = set()
+        l = []  # list of sorted modules
+
+        while unmarked:
+            if not go(unmarked.pop()):
+                self.log.error('cyclical dependency between modules!')
+                return l[::-1] + list(visited) + list(unmarked)
+        return l[::-1]

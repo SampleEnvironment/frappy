@@ -81,9 +81,10 @@ class HasConvergence:
             self.read_status()
 
     def read_status(self):
-        return merge_status(super().read_status(), self.convergence_state.status)
-        #self.log.warn('inner %r conv %r merged %r', super().read_status(), self.convergence_state.status, merged)
-        #return merged
+        try:
+            return merge_status(super().read_status(), self.convergence_state.status)
+        except AttributeError:
+            return self.convergence_state.status  # no super().read_status
 
     def convergence_min_slope(self, dif):
         """calculate minimum expected slope"""
@@ -109,7 +110,7 @@ class HasConvergence:
         """approaching, checking progress (busy)"""
         state.spent_inside = 0
         dif, tol = self.convergence_dif()
-        if dif < tol:
+        if dif <= tol:
             state.timeout_base = state.now
             return self.convergence_inside
         if not self.timeout:
@@ -117,7 +118,7 @@ class HasConvergence:
         if state.init:
             state.timeout_base = state.now
             state.dif_crit = dif  # criterium for resetting timeout base
-        self.__set_status(BUSY, 'approaching')
+        self.__set_status(BUSY, '')
         state.dif_crit -= self.convergence_min_slope(dif) * state.delta()
         if dif < state.dif_crit:  # progress is good: reset timeout base
             state.timeout_base = state.now
@@ -142,7 +143,7 @@ class HasConvergence:
     def convergence_outside(self, state):
         """temporarely outside tolerance, busy"""
         dif, tol = self.convergence_dif()
-        if dif < tol:
+        if dif <= tol:
             return self.convergence_inside
         if state.now > state.timeout_base + self.settling_time + self.timeout:
             self.__set_status(WARN, 'settling timeout')

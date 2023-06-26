@@ -56,7 +56,7 @@ class BoolInput(QCheckBox):
         self.datatype = datatype
 
     def get_input(self):
-        return self.checkState()
+        return self.isChecked()
 
     def submit(self):
         self.submitted.emit()

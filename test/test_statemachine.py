@@ -249,15 +249,22 @@ class Mod(HasStates, Drivable):
         self._my_time += 1
 
 
+class Started(RuntimeError):
+    pass
+
+
 def create_module():
     updates = []
     obj = Mod('obj', LoggerStub(), {'description': ''}, ServerStub(updates))
     obj.initModule()
     obj.statelist = []
     try:
-        obj._Module__pollThread(obj.polledModules, None)
-    except TypeError:
-        pass  # None is not callable
+        def started():
+            raise Started()
+        # run __pollThread until Started is raised (after initial phase)
+        obj._Module__pollThread(obj.polledModules, started)
+    except Started:
+        pass
     updates.clear()
     return obj, updates
 

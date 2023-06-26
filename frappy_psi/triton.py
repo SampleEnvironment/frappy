@@ -25,7 +25,7 @@ from frappy.core import Writable, Parameter, Readable, Drivable, IDLE, WARN, BUS
     Done, Property
 from frappy.datatypes import EnumType, FloatRange, StringType
 from frappy.lib.enum import Enum
-from frappy_psi.mercury import MercuryChannel, Mapped, off_on, HasInput, SELF
+from frappy_psi.mercury import MercuryChannel, Mapped, off_on, HasInput
 from frappy_psi import mercury
 
 actions = Enum(none=0, condense=1, circulate=2, collect=3)
@@ -256,15 +256,14 @@ class TemperatureLoop(ScannerChannel, mercury.TemperatureLoop):
     ctrlpars = Parameter('pid (gain, integral (inv. time), differential time')
     system_channel = Property('system channel name', StringType(), 'MC')
 
-    def write_control_active(self, value):
+    def set_control_active(self, active):
         if self.system_channel:
             self.change('SYS:DR:CHAN:%s' % self.system_channel, self.slot.split(',')[0], str)
-        if value:
+        if active:
             self.change('DEV::TEMP:LOOP:FILT:ENAB', 'ON', str)
             if self.output_module:
-                limit = self.output_module.read_limit() or None  # None: max. limit
+                limit = self.output_module.read_limit()
                 self.output_module.write_limit(limit)
-        return super().write_control_active(value)
 
 
 class HeaterOutput(HasInput, MercuryChannel, Writable):
@@ -286,7 +285,7 @@ class HeaterOutput(HasInput, MercuryChannel, Writable):
         return self.value
 
     def write_target(self, value):
-        self.write_controlled_by(SELF)
+        self.self_controlled()
         if self.resistivity:
             # round to the next voltage step
             value = round(sqrt(value * self.resistivity)) ** 2 / self.resistivity
@@ -301,13 +300,12 @@ class HeaterOutputWithRange(HeaterOutput):
 
     def read_limit(self):
         maxcur = self.query('DEV::TEMP:LOOP:RANGE')  # mA
+        if maxcur == 0:
+            maxcur = 100  # mA
         return self.read_resistivity() * maxcur ** 2  # uW
 
     def write_limit(self, value):
-        if value is None:
-            maxcur = 100  # max. allowed current 100mA
-        else:
-            maxcur = sqrt(value / self.read_resistivity())
+        maxcur = sqrt(value / self.read_resistivity())
         for cur in 0.0316, 0.1, 0.316, 1, 3.16, 10, 31.6, 100:
             if cur > maxcur * 0.999:
                 maxcur = cur

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # pylint: disable=invalid-name
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -23,8 +22,8 @@
 #
 # *****************************************************************************
 
-import sys
 import argparse
+import sys
 from os import path
 
 # Add import path for inplace usage
@@ -61,8 +60,9 @@ def parseArgv(argv):
                         action='store',
                         help="comma separated list of cfg files,\n"
                         "defaults to <name_of_the_instance>.\n"
-                        "cfgfiles given without '.cfg' extension are searched in the configuration directory, "
-                        "else they are treated as path names",
+                        "cfgfiles given without '.cfg' extension are searched"
+                        " in the configuration directory,"
+                        " else they are treated as path names",
                         default=None)
     parser.add_argument('-g',
                         '--gencfg',
@@ -96,15 +96,13 @@ def main(argv=None):
     generalConfig.init(args.gencfg)
     logger.init(loglevel)
 
-    srv = Server(args.name, logger.log, cfgfiles=args.cfgfiles, interface=args.port, testonly=args.test)
+    srv = Server(args.name, logger.log, cfgfiles=args.cfgfiles,
+                 interface=args.port, testonly=args.test)
 
     if args.daemonize:
         srv.start()
     else:
-        try:
-            srv.run()
-        except KeyboardInterrupt:
-            pass
+        srv.run()
 
 
 if __name__ == '__main__':
