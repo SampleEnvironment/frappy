@@ -10,6 +10,22 @@ The needed fields are Equipment id (1st argument), description (this)
      'tcp://10768',
 )
 
+Mod('attachtest',
+    'frappy_demo.test.WithAtt',
+    'test attached',
+    att = 'LN2',
+)
+
+Mod('pinata',
+    'frappy_demo.test.Pin',
+    'scan test',
+)
+
+Mod('recursive',
+    'frappy_demo.test.RecPin',
+    'scan test',
+)
+
 Mod('LN2',
     'frappy_demo.test.LN2',
     'random value between 0..100%',

@@ -25,14 +25,13 @@
 import os
 import signal
 import sys
-import traceback
 from collections import OrderedDict
 
 from frappy.config import load_config
-from frappy.errors import ConfigError, SECoPError
+from frappy.errors import ConfigError
+from frappy.dynamic import Pinata
 from frappy.lib import formatException, generalConfig, get_class, mkthread
 from frappy.lib.multievent import MultiEvent
-from frappy.modules import Attached
 from frappy.params import PREDEFINED_ACCESSIBLES
 
 try:
@@ -195,85 +194,57 @@ class Server:
         self.interface.shutdown()
 
     def _processCfg(self):
+        """Processes the module configuration.
+
+        All modules specified in the config file and read recursively from
+        Pinata class Modules are instantiated, initialized and started by the
+        end of this function.
+        If there are errors that occur, they will be collected and emitted
+        together in the end.
+        """
         errors = []
         opts = dict(self.node_cfg)
         cls = get_class(opts.pop('cls'))
-        self.dispatcher = cls(opts.pop('name', self._cfgfiles), self.log.getChild('dispatcher'), opts, self)
+        self.dispatcher = cls(opts.pop('name', self._cfgfiles),
+                              self.log.getChild('dispatcher'), opts, self)
 
         if opts:
-            errors.append(self.unknown_options(cls, opts))
+            self.dispatcher.errors.append(self.unknown_options(cls, opts))
         self.modules = OrderedDict()
-        failure_traceback = None  # traceback for the first error
-        failed = set()  # python modules failed to load
-        self.lastError = None
-        for modname, options in self.module_cfg.items():
-            opts = dict(options)
-            pymodule = None
-            try:
-                classname = opts.pop('cls')
-                pymodule = classname.rpartition('.')[0]
-                if pymodule in failed:
-                    continue
-                cls = get_class(classname)
-            except Exception as e:
-                if str(e) == 'no such class':
-                    errors.append(f'{classname} not found')
-                else:
-                    failed.add(pymodule)
-                    if failure_traceback is None:
-                        failure_traceback = traceback.format_exc()
-                    errors.append(f'error importing {classname}')
-            else:
-                try:
-                    modobj = cls(modname, self.log.getChild(modname), opts, self)
-                    self.modules[modname] = modobj
-                except ConfigError as e:
-                    errors.append(f'error creating module {modname}:')
-                    for errtxt in e.args[0] if isinstance(e.args[0], list) else [e.args[0]]:
-                        errors.append('  ' + errtxt)
-                except Exception:
-                    if failure_traceback is None:
-                        failure_traceback = traceback.format_exc()
-                    errors.append(f'error creating {modname}')
 
-        missing_super = set()
-        # all objs created, now start them up and interconnect
-        for modname, modobj in self.modules.items():
-            self.log.info('registering module %r', modname)
-            self.dispatcher.register_module(modobj, modname, modobj.export)
-            # also call earlyInit on the modules
-            modobj.earlyInit()
-            if not modobj.earlyInitDone:
-                missing_super.add(f'{modobj.earlyInit.__qualname__} was not called, probably missing super call')
+        # create and initialize modules
+        todos = list(self.module_cfg.items())
+        while todos:
+            modname, options = todos.pop(0)
+            if modname in self.modules:
+                # already created by Dispatcher (via Attached)
+                continue
+            # For Pinata modules: we need to access this in Dispatcher.get_module
+            self.module_cfg[modname] = dict(options)
+            modobj = self.dispatcher.get_module_instance(modname) # lazy
+            if modobj is None:
+                self.log.debug('Module %s returned None', modname)
+                continue
+            self.modules[modname] = modobj
+            if isinstance(modobj, Pinata):
+                # scan for dynamic devices
+                pinata = self.dispatcher.get_module(modname)
+                pinata_modules = list(pinata.scanModules())
+                for name, _cfg in pinata_modules:
+                    if name in self.module_cfg:
+                        self.log.error('Module %s, from pinata %s, already'
+                                       ' exists in config file!', name, modname)
+                self.log.info('Pinata %s found %d modules', modname, len(pinata_modules))
+                todos.extend(pinata_modules)
 
-        # handle attached modules
-        for modname, modobj in self.modules.items():
-            attached_modules = {}
-            for propname, propobj in modobj.propertyDict.items():
-                if isinstance(propobj, Attached):
-                    try:
-                        attname = getattr(modobj, propname)
-                        if attname:  # attached module specified in cfg file
-                            attobj = self.dispatcher.get_module(attname)
-                            if isinstance(attobj, propobj.basecls):
-                                attached_modules[propname] = attobj
-                            else:
-                                errors.append(f'attached module {propname}={attname!r} '\
-                                              f'must inherit from {propobj.basecls.__qualname__!r}')
-                    except SECoPError as e:
-                        errors.append(f'module {modname}, attached {propname}: {str(e)}')
-            modobj.attachedModules = attached_modules
+        # initialize all modules by getting them with Dispatcher.get_module,
+        # which is done in the get_descriptive data
+        # TODO: caching, to not make this extra work
+        self.dispatcher.get_descriptive_data('')
+        # =========== All modules are initialized ===========
 
-        # call init on each module after registering all
-        for modname, modobj in self.modules.items():
-            try:
-                modobj.initModule()
-                if not modobj.initModuleDone:
-                    missing_super.add(f'{modobj.initModule.__qualname__} was not called, probably missing super call')
-            except Exception as e:
-                if failure_traceback is None:
-                    failure_traceback = traceback.format_exc()
-                errors.append(f'error initializing {modname}: {e!r}')
+        # all errors from initialization process
+        errors = self.dispatcher.errors
 
         if not self._testonly:
             start_events = MultiEvent(default_timeout=30)
@@ -282,8 +253,7 @@ class Server:
                 start_events.name = f'module {modname}'
                 modobj.startModule(start_events)
                 if not modobj.startModuleDone:
-                    missing_super.add(f'{modobj.startModule.__qualname__} was not called, probably missing super call')
-            errors.extend(missing_super)
+                    errors.append(f'{modobj.startModule.__qualname__} was not called, probably missing super call')
 
         if errors:
             for errtxt in errors:
@@ -292,8 +262,6 @@ class Server:
             # print a list of config errors to stderr
             sys.stderr.write('\n'.join(errors))
             sys.stderr.write('\n')
-            if failure_traceback:
-                sys.stderr.write(failure_traceback)
             sys.exit(1)
 
         if self._testonly:
