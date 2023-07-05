@@ -25,3 +25,10 @@ Calibrated sensors and control loop not yet supported.
     :show-inheritance:
     :members:
 
+Bath Thermostat Thermofisher
+............................
+
+.. automodule:: frappy_psi.thermofisher
+    :show-inheritance:
+    :members:
+
