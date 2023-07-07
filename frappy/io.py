@@ -170,8 +170,8 @@ class IOBase(Communicator):
                 self.callCallbacks()
                 return self.is_connected
         except Exception as e:
-            if str(e) != self._last_error:
-                self._last_error = str(e)
+            if repr(e) != self._last_error:
+                self._last_error = repr(e)
                 self.log.error(self._last_error)
             raise SilentError(repr(e)) from e
         return self.is_connected
@@ -324,7 +324,7 @@ class StringIO(IOBase):
             if self._conn is None:
                 raise SilentError('disconnected') from None
             if repr(e) != self._last_error:
-                self._last_error = str(e)
+                self._last_error = repr(e)
                 self.log.error(self._last_error)
             raise SilentError(repr(e)) from e
 
