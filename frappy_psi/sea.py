@@ -138,17 +138,17 @@ class SeaClient(ProxyClient, Module):
 
     def doPoll(self):
         if not self.asynio and time.time() > self._last_connect + 10:
-            self._connect_thread = mkthread(self._connect, None)
+            with self._write_lock:
+                # make sure no more connect thread is running
+                if self._connect_thread and self._connect_thread.isAlive():
+                    return
+                self._connect_thread = mkthread(self._connect, None)
 
     def register_obj(self, module, obj):
         self.objects.add(obj)
         for k, v in module.path2param.items():
             self.path2param.setdefault(k, []).extend(v)
         self.register_callback(module.name, module.updateEvent)
-
-    def startModule(self, start_events):
-        super().startModule(start_events)
-        self._connect_thread = mkthread(self._connect, start_events.get_trigger())
 
     def _connect(self, started_callback):
         self._last_connect = time.time()
