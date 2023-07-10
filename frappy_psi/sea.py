@@ -142,6 +142,8 @@ class SeaClient(ProxyClient, Module):
                 # make sure no more connect thread is running
                 if self._connect_thread and self._connect_thread.isAlive():
                     return
+                if not self._last_connect:
+                    self.log.info('reconnect to SEA %s', self.service)
                 self._connect_thread = mkthread(self._connect, None)
 
     def register_obj(self, module, obj):
@@ -151,6 +153,14 @@ class SeaClient(ProxyClient, Module):
         self.register_callback(module.name, module.updateEvent)
 
     def _connect(self, started_callback):
+        self.asynio = None
+        if self.syncio:
+            # trigger syncio reconnect in self.request()
+            try:
+                self.syncio.disconnect()
+            except Exception:
+                pass
+        self.syncio = None
         self._last_connect = time.time()
         if self._instance:
             if not self._service_manager:
@@ -192,7 +202,9 @@ class SeaClient(ProxyClient, Module):
                         self._connect_thread.join()
                     except AttributeError:
                         pass
-                    self._connect(None)
+                    # let doPoll do the reconnect
+                    self.pollInfo.trigger(True)
+                    raise ConnectionClosed('disconnected - reconnect later')
                 self.syncio = AsynConn(self.uri)
                 assert self.syncio.readline() == b'OK'
                 self.syncio.writeline(b'seauser seaser')
@@ -232,6 +244,7 @@ class SeaClient(ProxyClient, Module):
                 except Exception:
                     pass
                 self.syncio = None
+                raise
         raise TimeoutError('no response within 10s')
 
     def _rxthread(self, started_callback):
@@ -681,6 +694,10 @@ class SeaDrivable(SeaModule, Drivable):
     _sea_status = ''
     _is_running = 0
 
+    def earlyInit(self):
+        super().earlyInit()
+        self._run_event = threading.Event()
+
     def read_status(self):
         return self.status
 
@@ -688,8 +705,10 @@ class SeaDrivable(SeaModule, Drivable):
     #    return self.target
 
     def write_target(self, value):
+        self._run_event.clear()
         self.io.query(f'run {self.sea_object} {value}')
-        # self.status = [self.Status.BUSY, 'driving']
+        if not self._run_event.wait(5):
+            self.log.warn('target changed but is_running stays 0')
         return value
 
     def update_status(self, value, timestamp, readerror):
@@ -701,6 +720,8 @@ class SeaDrivable(SeaModule, Drivable):
         if not readerror:
             self._is_running = value
             self.updateStatus()
+            if value:
+                self._run_event.set()
 
     def updateStatus(self):
         if self._sea_status:
