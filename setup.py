@@ -34,7 +34,10 @@ import frappy.version
 scripts = glob(path.join('bin', 'frappy-*'))
 
 uidir = path.join(path.dirname(__file__), 'frappy', 'gui', 'ui')
+euidir = path.join(path.dirname(__file__), 'frappy', 'gui', 'cfg_editor', 'ui')
 uis = [path.join('gui', 'ui', entry) for entry in listdir(uidir)]
+uis.extend(
+    [path.join('gui', 'cfg_editor', 'ui', entry) for entry in listdir(euidir)])
 
 setup(
     name='frappy-core',
