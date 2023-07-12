@@ -26,7 +26,7 @@
 import threading
 from time import sleep, time
 
-from frappy.core import Parameter, Command, nopoll
+from frappy.core import Parameter, Command, nopoll, Readable
 from frappy.io import HasIO, BytesIO
 from frappy.lib import mkthread
 from frappy.errors import CommunicationFailedError
@@ -185,7 +185,7 @@ class ZebraIO(BytesIO):
 
 
 # Not yet tested
-class ZebraReader(HasIO):
+class ZebraReader(HasIO, Readable):
     """Reads scanned barcodes from a Zebra barcode reader, using the USB-CDC
     interface mode and the SSI protocol.
 
@@ -208,9 +208,13 @@ class ZebraReader(HasIO):
 
     ioClass = ZebraIO
 
-    decoded = Parameter('decoded barcode (updates-only)', StringType(), update_unchanged='always')
+    decoded = Parameter('decoded barcode (updates-only)', StringType(),
+                        update_unchanged='always', default='')
     # TODO: Decide, if this is useful, remove otherwise
-    status = Parameter('status of the module', StatusType('IDLE', 'WARN', 'ERROR'))
+    status = Parameter('status of the module',
+                       StatusType('IDLE', 'WARN', 'ERROR'))
+    value = Parameter(datatype=StringType(), default='',
+                      update_unchanged='never')
 
     _thread = None
     _stoprequest = False
@@ -232,8 +236,12 @@ class ZebraReader(HasIO):
             self._thread.join()
 
     @nopoll
+    def read_value(self):
+        return ''
+
+    @nopoll
     def read_decoded(self):
-        return ''  # TODO: maybe raise Error?
+        return ''
 
     def read_status(self):
         return self.Status.IDLE, ''
@@ -252,6 +260,7 @@ class ZebraReader(HasIO):
                     code = None
                 except Exception as e:
                     self.log.exception('while receiving barcode: %s', e)
+                    self.status = self.Status.ERROR, f'{e!r}'
                     continue
             if code is not None:
                 codetype = BARCODE_TYPES.get(code[0], str(code[0]))
@@ -261,6 +270,7 @@ class ZebraReader(HasIO):
                 self.log.info('decoded barcode %r with timestamp %s',
                               code, tstamp)
                 self.decoded = code
+                self.decoded = ''  # clear value of frappy client cache
             sleep(0.5)
 
     @Command()
