@@ -36,12 +36,12 @@ from time import sleep, time as currenttime
 import PyTango
 
 from frappy.datatypes import ArrayOf, EnumType, FloatRange, IntRange, \
-    LimitsType, StringType, TupleOf, ValueType
+    LimitsType, StatusType, StringType, TupleOf, ValueType
 from frappy.errors import CommunicationFailedError, ConfigError, \
     HardwareError, ProgrammingError
 from frappy.lib import lazy_property
-from frappy.modules import Command, Drivable, Module, Parameter, Readable, \
-    StatusType, Writable, Property
+from frappy.modules import Command, Drivable, Module, Parameter, Property, \
+    Readable, Writable
 
 #####
 

@@ -27,7 +27,7 @@ import pytest
 
 from frappy.datatypes import BoolType, FloatRange, IntRange
 from frappy.errors import ProgrammingError
-from frappy.modules import HasAccessibles
+from frappy.modulebase import HasAccessibles
 from frappy.params import Command, Parameter
 
 

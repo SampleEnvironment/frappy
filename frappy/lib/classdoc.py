@@ -22,7 +22,8 @@
 
 from textwrap import indent
 
-from frappy.modules import Command, HasProperties, Module, Parameter, Property
+from frappy.modules import Command, Parameter, Property
+from frappy.modulebase import HasProperties, Module
 
 
 def indent_description(p):
