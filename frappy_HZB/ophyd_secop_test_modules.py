@@ -90,6 +90,15 @@ class OPYD_test_struct(Drivable):
         self.status = self.Status.BUSY, 'new target set'
         return value
 
+    @Command(StructOf(
+        name=StringType(),
+        id = IntRange(maxval=1000,minval=0),
+        sort = BoolType()),
+        result= IntRange())    
+    def test_cmd(self,name,id,sort):
+        if name == 'bad_name':
+            raise ImpossibleError('bad name received')
+        return random.randint(0,1000)
          
     def initModule(self):
         super().initModule()
@@ -218,5 +227,7 @@ class OPYD_test_struct(Drivable):
         self._stopflag = True
         if self._thread and self._thread.is_alive():
             self._thread.join()
+
+
 
     
