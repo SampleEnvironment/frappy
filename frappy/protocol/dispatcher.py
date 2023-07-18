@@ -165,7 +165,7 @@ class Dispatcher:
             return modobj
 
         # also call earlyInit on the modules
-        self.log.info('initializing module %r', modulename)  # TODO: change to debug
+        self.log.debug('initializing module %r', modulename)
         try:
             modobj.earlyInit()
             if not modobj.earlyInitDone:
@@ -179,7 +179,7 @@ class Dispatcher:
             self.traceback_counter += 1
             self.errors.append(f'error initializing {modulename}: {e!r}')
         modobj._isinitialized = True
-        self.log.info('initialized module %r', modulename)  # TODO: change to debug
+        self.log.debug('initialized module %r', modulename)
         return modobj
 
     def get_module_instance(self, modulename):
@@ -195,7 +195,7 @@ class Dispatcher:
             # it's actually already the module object
             return modulename
         # create module from srv.module_cfg, store and return
-        self.log.info('registering module %r', modulename)
+        self.log.debug('attempting to create module %r', modulename)
 
         opts = self.srv.module_cfg.get(modulename, None)
         if opts is None:
