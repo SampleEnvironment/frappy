@@ -239,8 +239,9 @@ class Dispatcher:
                 self.traceback_counter += 1
                 self.errors.append(f'error creating {modulename}')
                 modobj = None
-        self.register_module(modobj, modulename, modobj.export)
-        self.srv.modules[modulename] = modobj # IS HERE THE CORRECT PLACE?
+        if modobj:
+            self.register_module(modobj, modulename, modobj.export)
+            self.srv.modules[modulename] = modobj # IS HERE THE CORRECT PLACE?
         return modobj
 
     def remove_module(self, modulename_or_obj):
