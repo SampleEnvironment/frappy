@@ -7,6 +7,3 @@ markdown>=2.6
 pytest
 pytest-randomly>=1.1
 pytest-cov
-# frappy_mlz
---extra-index-url https://forge.frm2.tum.de/simple
-zapf >= 0.4.7
