@@ -176,7 +176,7 @@ class ZebraIO(BytesIO):
         if buf[1] != expected_op:
             raise CommunicationFailedError('got op %r, expected %r' %
                                        (buf[0], expected_op))
-        return buf[4:-2]
+        return buf[3:-2]
 
     def _ssi_comm(self, op, data):
         self._ssi_send(op, data)
