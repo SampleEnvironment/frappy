@@ -106,7 +106,7 @@ class OPYD_test_struct(Drivable):
         IntRange(maxval=1000,minval=0),
         BoolType()),
         IntRange())
-    def test_cmd(self,tuple):
+    def test_cmd_tuple(self,tuple):
         """testing with ophyd secop integration"""
         if tuple[0] == 'bad_name':
             raise ImpossibleError('bad name received')
