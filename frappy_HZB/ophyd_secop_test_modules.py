@@ -101,16 +101,6 @@ class OPYD_test_struct(Drivable):
             raise ImpossibleError('bad name received')
         return random.randint(0,1000)
          
-    @Command(TupleOf(
-        StringType(),
-        IntRange(maxval=1000,minval=0),
-        BoolType()),
-        IntRange())
-    def test_cmd_tuple(self,tuple):
-        """testing with ophyd secop integration"""
-        if tuple[0] == 'bad_name':
-            raise ImpossibleError('bad name received')
-        return random.randint(0,1000)
 
     def initModule(self):
         super().initModule()
