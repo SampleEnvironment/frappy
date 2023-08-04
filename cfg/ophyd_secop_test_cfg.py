@@ -20,6 +20,7 @@ Mod('ophy_struct',
     looptime=1,
     value= {'x':10,'y':10,'z':10,'color':'blue'},
     target= {'x':10,'y':10,'z':10,'color':'blue'},
+
     nested_struct = {
         'number':5,
         'string':'blablalbla',
@@ -31,7 +32,8 @@ Mod('ophy_struct',
             'col':'green',
             'enum':1
 
-        }
+        },
+    tuple_param = (5,5,5,'green')
     }
     #ramp=6,
     #maxpower=20.0,

@@ -60,8 +60,17 @@ class OPYD_test_struct(Drivable):
                 enum = EnumType('Test Enum',{'mode_zero':0,'mode_one':1,'mode_max':2})
             )
 
-        ))
+        ),readonly = False)
     
+    tuple_param = Parameter('tuple parameter for testing',
+                            datatype= TupleOf(
+                                FloatRange(0,100,unit = 'm'),
+                                FloatRange(0,100,unit = 'm'),
+                                FloatRange(0,100,unit = 'm'),
+                                StringType()
+                            ),readonly = False)
+
+
     tolerance = Parameter("distance range for stability checking",
                           datatype=FloatRange(0, 10), default=0.1, unit='m',
                           readonly=False,
@@ -82,6 +91,12 @@ class OPYD_test_struct(Drivable):
         # instead of asking a 'Hardware' take the value from the simulation
         return self.status
     
+    def write_nested_struct(self,value):
+        self.nested_struct = value
+
+    def write_tuple_param(self,value):
+        self.tuple_param = value
+
     def write_target(self, value):
         
 
