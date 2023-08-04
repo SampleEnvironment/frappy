@@ -427,6 +427,7 @@ class Sample(HasIO,Drivable):
   
         
         self.attached_robot.write_target(prog_name)
+        
        
         self.status = MEASURING , "Measuring Sample: " + str(self.value)
         
@@ -450,7 +451,8 @@ class Sample(HasIO,Drivable):
   
         
         self.attached_robot.write_target(prog_name)
-       
+        
+      
         self.status = UNLOADING , "Unloading Sample"
         
         try:
@@ -603,6 +605,10 @@ class Storage(HasIO,Readable):
         
         self.attached_robot.write_target(prog_name)
         
+        self.attached_robot.read_status()
+
+        self.read_status()
+        
         # Insert new Sample in Storage Array (it is assumed that the robot programm executed successfully)
         new_Sample = Schoki(
             sample_name= sample_name,
@@ -683,6 +689,10 @@ class Storage(HasIO,Readable):
         assert(re.match(r'out\d+\.urp',prog_name))
         
         self.attached_robot.write_target(prog_name)
+        
+        self.attached_robot.read_status()
+
+        self.read_status()
 
         try:
             self.mag.removeSample(sample_pos)
