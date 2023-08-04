@@ -646,6 +646,12 @@ class Storage(HasIO,Readable):
         assert(re.match(r'in\d+\.urp',prog_name))
         
         self.attached_robot.write_target(prog_name)
+
+        self.attached_robot.read_status()
+
+        self.read_status()
+
+        
         
         # Insert new Sample in Storage Array (it is assumed that the robot programm executed successfully)
         try:
