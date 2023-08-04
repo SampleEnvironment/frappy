@@ -32,9 +32,10 @@ Mod('ophy_struct',
             'col':'green',
             'enum':1
 
-        },
+        }
+    
+    },
     tuple_param = (5,5,5,'green')
-    }
     #ramp=6,
     #maxpower=20.0,
     #heater=4.1,
