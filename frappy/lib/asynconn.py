@@ -35,7 +35,7 @@ import time
 import re
 
 from frappy.errors import CommunicationFailedError, ConfigError
-from frappy.lib import closeSocket, parse_host_port
+from frappy.lib import closeSocket, parse_host_port, SECoP_DEFAULT_PORT
 
 try:
     from serial import Serial
@@ -176,11 +176,11 @@ class AsynTcp(AsynConn):
             uri = uri[6:]
         try:
 
-            host, port = parse_host_port(uri, self.default_settings.get('port'))
+            host, port = parse_host_port(uri, self.default_settings.get('port', SECoP_DEFAULT_PORT))
             self.connection = socket.create_connection((host, port), timeout=self.timeout)
         except (ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
             # indicate that retrying might make sense
-            raise CommunicationFailedError(str(e)) from None
+            raise CommunicationFailedError(f'can not connect to {host}:{port}, {e}') from None
 
     def shutdown(self):
         if self.connection:

@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -17,6 +16,8 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Markus Zolliker <markus.zolliker@psi.ch>
+#   Alexander Zaft <a.zaft@fz-juelich.de>
 #
 # *****************************************************************************
 """Define helpers"""
@@ -30,6 +31,9 @@ import threading
 import traceback
 from configparser import ConfigParser
 from os import environ, path
+
+
+SECoP_DEFAULT_PORT = 10767
 
 
 class GeneralConfig:
@@ -297,6 +301,7 @@ def formatException(cut=0, exc_info=None, verbose=False):
 
 HOSTNAMEPART = re.compile(r'^(?!-)[a-z0-9-]{1,63}(?<!-)$', re.IGNORECASE)
 
+
 def validate_hostname(host):
     """checks if the rules for valid hostnames are adhered to"""
     if len(host) > 255:
@@ -325,7 +330,7 @@ def validate_ipv6(addr):
     return True
 
 
-def parse_ipv6_host_and_port(addr, defaultport=10767):
+def parse_ipv6_host_and_port(addr, defaultport=SECoP_DEFAULT_PORT):
     """ Parses IPv6 addresses with optional port. See parse_host_port for valid formats"""
     if ']' in addr:
         host, port = addr.rsplit(':', 1)
@@ -333,9 +338,10 @@ def parse_ipv6_host_and_port(addr, defaultport=10767):
     if '.' in addr:
         host, port = addr.rsplit('.', 1)
         return host, int(port)
-    return (host, defaultport)
+    return addr, defaultport
 
-def parse_host_port(host, defaultport=10767):
+
+def parse_host_port(host, defaultport=SECoP_DEFAULT_PORT):
     """Parses hostnames and IP (4/6) addressses.
 
     The accepted formats are:
@@ -346,16 +352,16 @@ def parse_host_port(host, defaultport=10767):
     - IPv6 addresses in the forms '[IPv6]:port' or 'IPv6.port'
     """
     colons = host.count(':')
-    if colons == 0: # hostname/ipv4 wihtout port
+    if colons == 0:  # hostname/ipv4 without port
         port = defaultport
-    elif colons == 1: # hostname or ipv4 with port
+    elif colons == 1:  # hostname or ipv4 with port
         host, port = host.split(':')
         port = int(port)
-    else: # ipv6
+    else:  # ipv6
         host, port = parse_ipv6_host_and_port(host, defaultport)
     if (validate_ipv4(host) or validate_hostname(host) or validate_ipv6(host)) \
-        and 0 < port < 65536:
-        return (host, port)
+            and 0 < port < 65536:
+        return host, port
     raise ValueError(f'invalid host {host!r} or port {port}')
 
 
