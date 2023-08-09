@@ -11,6 +11,7 @@ Node('ophyd_secop.frappy.demo',
 )
 
 Mod('str_test',
+    'frappy_HZB.ophyd_secop_test_modules.Test_Mod_str',
     'test module for reading String signals in Bluesky RE',
     group='test',
     value = 'blah'

@@ -26,9 +26,9 @@ class Test_Mod_str(Readable):
 
     status = Parameter(datatype=StatusType(Status))
     
-    value =Parameter(StringType())
+    value =Parameter('string read value',StringType())
     
-    def get_random_string(length):
+    def get_random_string(self,length):
         # choose from all lowercase letter
         letters = string.ascii_lowercase
         return ''.join(random.choice(letters) for i in range(length))
