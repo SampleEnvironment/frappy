@@ -214,18 +214,28 @@ class Module:
             return self.read()
         self.target = target  # this sets self._is_driving
         type(self).value.prev = None  # show at least one value
-        try:
+
+        def loop():
             while self._is_driving:
                 self._driving_event.wait()
                 self._watch_parameter(self._name, 'value', mininterval=self._secnode.mininterval)
                 self._watch_parameter(self._name, 'status')
                 self._driving_event.clear()
-        except KeyboardInterrupt:
-            self.stop()
+        try:
+            loop()
+        except KeyboardInterrupt as e:
             self._secnode.log.info('-- interrupted --')
-        self._watch_parameter(self._name, 'status')
-        self._secnode.readParameter(self._name, 'value')
-        self._watch_parameter(self._name, 'value', forced=True)
+            self.stop()
+            try:
+                loop()  # wait for stopping to be finished
+            except KeyboardInterrupt:
+                # interrupted again while stopping -> definitely quit
+                pass
+            clientenv.raise_with_short_traceback(e)
+        finally:
+            self._watch_parameter(self._name, 'status')
+            self._secnode.readParameter(self._name, 'value')
+            self._watch_parameter(self._name, 'value', forced=True)
         return self.value
 
     def __repr__(self):
@@ -331,8 +341,8 @@ def watch(*args, **kwds):
         for mobj in modules:
             mobj._start_watching()
         time.sleep(3600)
-    except KeyboardInterrupt:
-        pass
+    except KeyboardInterrupt as e:
+        clientenv.raise_with_short_traceback(e)
     finally:
         for mobj in modules:
             mobj._stop_watching()
