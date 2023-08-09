@@ -10,6 +10,13 @@ Node('ophyd_secop.frappy.demo',
     more="blub",
 )
 
+Mod('str_test',
+    'test module for reading String signals in Bluesky RE',
+    group='test',
+    value = 'blah'
+    
+)
+
 Mod('ophy_struct',
     'frappy_HZB.ophyd_secop_test_modules.OPYD_test_struct',
     'simulated hardware for testing ophyd struct behavior'

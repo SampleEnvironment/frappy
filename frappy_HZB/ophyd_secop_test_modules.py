@@ -9,6 +9,7 @@ from frappy.lib.enum import Enum
 
 import random
 import time
+import string
 from math import atan
 
 from frappy.datatypes import BoolType, EnumType, FloatRange, StringType, TupleOf
@@ -20,6 +21,26 @@ from frappy.properties import Property
 
 from frappy.modules import Attached
 
+class Test_Mod_str(Readable):
+    Status = Enum(Readable.Status)
+
+    status = Parameter(datatype=StatusType(Status))
+    
+    value =Parameter(StringType())
+    
+    def get_random_string(length):
+        # choose from all lowercase letter
+        letters = string.ascii_lowercase
+        return ''.join(random.choice(letters) for i in range(length))
+        
+    
+    def read_value(self):              
+        return self.get_random_string(10)
+         
+
+    def read_status(self):
+        # instead of asking a 'Hardware' take the value from the simulation
+        return self.status
 
 class OPYD_test_struct(Drivable):
     Status = Enum(Drivable.Status)  #: status codes
