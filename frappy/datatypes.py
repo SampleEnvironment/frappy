@@ -315,7 +315,7 @@ class IntRange(DataType):
             except Exception:
                 raise WrongTypeError(f'can not convert {shortrepr(value)} to an int') from None
         if round(fvalue) != fvalue:
-            raise WrongTypeError('%r should be an int')
+            raise WrongTypeError(f'{value} should be an int')
         return value
 
     def validate(self, value, previous=None):
