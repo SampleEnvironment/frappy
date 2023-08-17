@@ -403,6 +403,7 @@ class Sample(HasIO,Drivable):
         self.target = target
         # Robot successfully unmounted the sample
         self.value = 0
+        
 
     @Command
     def measure(self):
@@ -563,6 +564,10 @@ class Storage(HasIO,Readable):
         
         
         return robo_stat
+    
+    def read_last_pos(self):
+        return self.last_pos
+
     
     @Command()
     def stop(self,group = 'control'):
