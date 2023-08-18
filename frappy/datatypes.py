@@ -191,8 +191,8 @@ class HasUnit:
 class FloatRange(HasUnit, DataType):
     """(restricted) float type
 
-    :param minval: (property **min**)
-    :param maxval: (property **max**)
+    :param min: (property **min**)
+    :param max: (property **max**)
     :param kwds: any of the properties below
     """
     min = Property('low limit', Stub('FloatRange'), extname='min', default=-sys.float_info.max)
@@ -203,11 +203,11 @@ class FloatRange(HasUnit, DataType):
     relative_resolution = Property('relative resolution', Stub('FloatRange', 0),
                                    extname='relative_resolution', default=1.2e-7)
 
-    def __init__(self, minval=None, maxval=None, **kwds):
+    def __init__(self, min=None, max=None, **kwds):  # pylint: disable=redefined-builtin
         super().__init__()
-        kwds['min'] = minval if minval is not None else -sys.float_info.max
-        kwds['max'] = maxval if maxval is not None else sys.float_info.max
-        self.set_properties(**kwds)
+        self.set_properties(min=min if min is not None else -sys.float_info.max,
+                            max=max if max is not None else sys.float_info.max,
+                            **kwds)
 
     def checkProperties(self):
         self.default = 0 if self.min <= 0 <= self.max else self.min
@@ -247,9 +247,9 @@ class FloatRange(HasUnit, DataType):
     def __repr__(self):
         hints = self.get_info()
         if 'min' in hints:
-            hints['minval'] = hints.pop('min')
+            hints['min'] = hints.pop('min')
         if 'max' in hints:
-            hints['maxval'] = hints.pop('max')
+            hints['max'] = hints.pop('max')
         return 'FloatRange(%s)' % (', '.join('%s=%r' % (k, v) for k, v in hints.items()))
 
     def export_value(self, value):
@@ -281,18 +281,18 @@ class FloatRange(HasUnit, DataType):
 class IntRange(DataType):
     """restricted int type
 
-    :param minval: (property **min**)
-    :param maxval: (property **max**)
+    :param min: (property **min**)
+    :param max: (property **max**)
     """
     min = Property('minimum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='min', mandatory=True)
     max = Property('maximum value', Stub('IntRange', -UNLIMITED, UNLIMITED), extname='max', mandatory=True)
     # a unit on an int is now allowed in SECoP, but do we need them in Frappy?
     # unit = Property('physical unit', StringType(), extname='unit', default='')
 
-    def __init__(self, minval=None, maxval=None):
+    def __init__(self, min=None, max=None):  # pylint: disable=redefined-builtin
         super().__init__()
-        self.set_properties(min=DEFAULT_MIN_INT if minval is None else minval,
-                            max=DEFAULT_MAX_INT if maxval is None else maxval)
+        self.set_properties(min=DEFAULT_MIN_INT if min is None else min,
+                            max=DEFAULT_MAX_INT if max is None else max)
 
     def checkProperties(self):
         self.default = 0 if self.min <= 0 <= self.max else self.min
@@ -364,8 +364,8 @@ class IntRange(DataType):
 class ScaledInteger(HasUnit, DataType):
     """scaled integer (= fixed resolution float) type
 
-    :param minval: (property **min**)
-    :param maxval: (property **max**)
+    :param min: (property **min**)
+    :param max: (property **max**)
     :param kwds: any of the properties below
 
     note: limits are for the scaled float value
@@ -380,7 +380,8 @@ class ScaledInteger(HasUnit, DataType):
     relative_resolution = Property('relative resolution', FloatRange(0),
                                    extname='relative_resolution', default=1.2e-7)
 
-    def __init__(self, scale, minval=None, maxval=None, absolute_resolution=None, **kwds):
+    # pylint: disable=redefined-builtin
+    def __init__(self, scale, min=None, max=None, absolute_resolution=None, **kwds):
         super().__init__()
         try:
             scale = float(scale)
@@ -390,8 +391,8 @@ class ScaledInteger(HasUnit, DataType):
             absolute_resolution = scale
         self.set_properties(
             scale=scale,
-            min=DEFAULT_MIN_INT * scale if minval is None else float(minval),
-            max=DEFAULT_MAX_INT * scale if maxval is None else float(maxval),
+            min=DEFAULT_MIN_INT * scale if min is None else float(min),
+            max=DEFAULT_MAX_INT * scale if max is None else float(max),
             absolute_resolution=absolute_resolution,
             **kwds)
 
@@ -1327,11 +1328,11 @@ DATATYPES = {
     'bool': lambda **kwds:
         BoolType(),
     'int': lambda min, max, **kwds:
-        IntRange(minval=min, maxval=max),
+        IntRange(min=min, max=max),
     'scaled': lambda scale, min, max, **kwds:
-        ScaledInteger(scale=scale, minval=min*scale, maxval=max*scale, **floatargs(kwds)),
+        ScaledInteger(scale=scale, min=min*scale, max=max*scale, **floatargs(kwds)),
     'double': lambda min=None, max=None, **kwds:
-        FloatRange(minval=min, maxval=max, **floatargs(kwds)),
+        FloatRange(min=min, max=max, **floatargs(kwds)),
     'blob': lambda maxbytes, minbytes=0, **kwds:
         BLOBType(minbytes=minbytes, maxbytes=maxbytes),
     'string': lambda minchars=0, maxchars=None, isUTF8=False, **kwds:

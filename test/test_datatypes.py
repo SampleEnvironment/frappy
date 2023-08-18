@@ -160,9 +160,9 @@ def test_ScaledInteger():
     with pytest.raises(ProgrammingError):
         ScaledInteger('xc', 'Yx')
     with pytest.raises(ProgrammingError):
-        ScaledInteger(scale=0, minval=1, maxval=2)
+        ScaledInteger(scale=0, min=1, max=2)
     with pytest.raises(ProgrammingError):
-        ScaledInteger(scale=-10, minval=1, maxval=2)
+        ScaledInteger(scale=-10, min=1, max=2)
     # check that unit can be changed
     dt.setProperty('unit', 'A')
     assert dt.export_datatype() == {'type': 'scaled', 'scale':0.01, 'min':-300, 'max':300,
@@ -563,7 +563,7 @@ def test_get_datatype():
     assert isinstance(get_datatype(
          {'type': 'scaled', 'scale':0.03, 'min':-99, 'max':111}), ScaledInteger)
 
-    dt = ScaledInteger(scale=0.03, minval=0, maxval=9.9)
+    dt = ScaledInteger(scale=0.03, min=0, max=9.9)
     assert dt.export_datatype() == {'type': 'scaled', 'max':330, 'min':0, 'scale':0.03}
     assert get_datatype(dt.export_datatype()).export_datatype() == dt.export_datatype()
 
