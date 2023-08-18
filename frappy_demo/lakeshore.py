@@ -69,24 +69,21 @@ class TemperatureSensor(HasIO, Readable):
 class TemperatureLoop(TemperatureSensor, Drivable):
     # lakeshore loop number to be used for this module
     loop = Property('lakeshore loop', IntRange(1, 2), default=1)
-    target = Parameter(datatype=FloatRange(min=0, max=1500, unit='K'))
+    target = Parameter(datatype=FloatRange(unit='K', min=0, max=1500))
     heater_range = Property('heater power range', IntRange(0, 5))  # max. 3 on LakeShore 336
-    tolerance = Parameter('convergence criterion', FloatRange(0), default=0.1, readonly = False)
+    tolerance = Parameter('convergence criterion', FloatRange(0), default=0.1, readonly=False)
     _driving = False
 
     def write_target(self, target):
         # reactivate heater in case it was switched off
         # the command has to be changed in case of model 340 to f'RANGE {self.heater_range};RANGE?'
         self.communicate(f'RANGE {self.loop},{self.heater_range};RANGE?{self.loop}')
-        reply = self.communicate(f'SETP {self.loop},{target};SETP? {self.loop}')
+        self.communicate(f'SETP {self.loop},{target};*OPC?')
         self._driving = True
         # Setting the status attribute triggers an update message for the SECoP status
         # parameter. This has to be done before returning from this method!
         self.status = BUSY, 'target changed'
-        return float(reply)
-
-    def read_target(self):
-        return float(self.communicate(f'SETP?{self.loop}'))
+        return target
 
     def read_status(self):
         code = int(self.communicate(f'RDGST?{self.channel}'))

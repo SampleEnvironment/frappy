@@ -200,7 +200,10 @@ implemented the readable stuff. We need to define some properties of the ``targe
 parameter and add a property ``loop`` indicating, which control loop and
 heater output we use.
 
-In addition, we have to implement the methods ``write_target`` and ``read_target``:
+In addition, we have to implement the method ``write_target``. Remark: we do not
+implement ``read_target`` here, because the lakeshore does not offer to read back the
+real target. The SETP command is returning the working setpoint, which may be distinct
+from target during a ramp.
 
 .. code:: python
 
@@ -216,11 +219,9 @@ In addition, we have to implement the methods ``write_target`` and ``read_target
 
         def write_target(self, target):
             # we always use a request / reply scheme
-            reply = self.communicate(f'SETP {self.loop},{target};SETP?{self.loop}')
-            return float(reply)
+            self.communicate(f'SETP {self.loop},{target};*OPC?')
+            return target
 
-        def read_target(self):
-            return float(self.communicate(f'SETP?{self.loop}'))
 
 In order to test this, we will need to change the entry module ``T`` in the
 configuration file:
@@ -272,13 +273,12 @@ There are two things still missing:
         def write_target(self, target):
             # reactivate heater in case it was switched off
             self.communicate(f'RANGE {self.loop},{self.heater_range};RANGE?{self.loop}')
-            reply = self.communicate(f'SETP {self.loop},{target};SETP? {self.loop}')
+            self.communicate(f'SETP {self.loop},{target};*OPC?')
             self._driving = True
             # Setting the status attribute triggers an update message for the SECoP status
             # parameter. This has to be done before returning from this method!
             self.status = BUSY, 'target changed'
-            return float(reply)
-
+            return target
         ...
 
         def read_status(self):
@@ -403,4 +403,10 @@ Appendix 2: Extract from the LakeShore Manual
     Command (340)          RANGE? *term*
     Command (336/350)      RANGE?<loop> *term*
     Reply                  <range> *term*
+    **Operation Complete Query**
+    ----------------------------------------------
+    Command                *OPC?
+    Reply                  1
+    Description            in Frappy, we append this command to request in order
+                           to generate a reply
     ====================== =======================
