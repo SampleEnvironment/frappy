@@ -192,9 +192,17 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
                 self.hw_stop()
 
     def read_status(self):
-        sysstatus = self.communicate(f'{self.address:x}SE')
-        sysstatus = sysstatus[1:4] if self.axis == 'X' else sysstatus[5:8]
-        status = self.STATUS_MAP.get(sysstatus[1:]) or (ERROR, f'unknown error {sysstatus[1:]}')
+        for _ in range(3):
+            sysstatus = self.communicate(f'{self.address:x}SE')
+            try:
+                sysstatus = sysstatus[1:4] if self.axis == 'X' else sysstatus[5:8]
+                status = self.STATUS_MAP[sysstatus[1:]]
+            except Exception:  # can not interprete the reply, probably communication error
+                self.log.warning('bad status reply %r', sysstatus)
+                continue
+            break
+        else:
+            status = (ERROR, f'unknown status after 3 tries {sysstatus!r}')
         self._running = sysstatus[0] != '1'
         if status[0] == ERROR:
             self._blocking_error = status[1]
@@ -213,7 +221,7 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
             enc = self.read_encoder()
         else:
             enc = self.value
-        if not self._running:  # at target
+        if not self._running:  # at target (self._running is updated in self.read_status())
             return False
         diff = abs(self.value - self._intermediate_target)
         if diff > self._prev_diff and diff > self.encoder_tolerance:
