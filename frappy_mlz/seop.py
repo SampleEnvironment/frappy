@@ -195,19 +195,19 @@ class Nmr(Readable):
         x = val['xval'][:len(val['yval'])]
         return (x, val['yval'])
 
-    @Command(result=TupleOf(ArrayOf(string, maxlen=100),
+    @Command(IntRange(1), result=TupleOf(ArrayOf(string, maxlen=100),
                 ArrayOf(floating, maxlen=100)))
-    def get_amplitude(self):
-        """Last 20 amplitude datapoints."""
-        rv = self.cell.cell.nmr_paramlog_get('amplitude', 20)
+    def get_amplitude(self, count):
+        """Last <count> amplitude datapoints."""
+        rv = self.cell.cell.nmr_paramlog_get('amplitude', count)
         x = [ str(timestamp) for timestamp in rv['xval']]
         return (x,rv['yval'])
 
-    @Command(result=TupleOf(ArrayOf(string, maxlen=100),
+    @Command(IntRange(1), result=TupleOf(ArrayOf(string, maxlen=100),
                 ArrayOf(floating, maxlen=100)))
-    def get_phase(self):
-        """Last 20 phase datapoints."""
-        val = self.cell.cell.nmr_paramlog_get('phase', 20)
+    def get_phase(self, count):
+        """Last <count> phase datapoints."""
+        val = self.cell.cell.nmr_paramlog_get('phase', count)
         return ([str(timestamp) for timestamp in val['xval']], val['yval'])
 
 

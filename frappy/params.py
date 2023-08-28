@@ -540,7 +540,6 @@ class Limit(Parameter):
         if self.hasDatatype():
             return  # the programmer is responsible that a given datatype is correct
         postfix = self.name.rpartition('_')[-1]
-        postfix = self.name.rpartition('_')[-1]
         if postfix == 'limits':
             self.datatype = TupleOf(datatype, datatype)
             self.default = (datatype.min, datatype.max)
@@ -562,6 +561,7 @@ PREDEFINED_ACCESSIBLES = {
     'unit': Parameter,  # reserved name
     'loglevel': Parameter,  # reserved name
     'mode': Parameter,  # reserved name
+    'ctrlpars': Parameter,  # spec to be confirmed
     'stop': Command,
     'reset': Command,
     'go': Command,

@@ -111,6 +111,7 @@ class SeaClient(ProxyClient, Module):
     _connect_thread = None
     _service_manager = None
     _instance = None
+    _last_connect = 0
 
     def __init__(self, name, log, opts, srv):
         nodename = srv.node_cfg.get('name') or srv.node_cfg.get('equipment_id')
@@ -135,17 +136,32 @@ class SeaClient(ProxyClient, Module):
         ProxyClient.__init__(self)
         Module.__init__(self, name, log, opts, srv)
 
+    def doPoll(self):
+        if not self.asynio and time.time() > self._last_connect + 10:
+            with self._write_lock:
+                # make sure no more connect thread is running
+                if self._connect_thread and self._connect_thread.isAlive():
+                    return
+                if not self._last_connect:
+                    self.log.info('reconnect to SEA %s', self.service)
+                self._connect_thread = mkthread(self._connect, None)
+
     def register_obj(self, module, obj):
         self.objects.add(obj)
         for k, v in module.path2param.items():
             self.path2param.setdefault(k, []).extend(v)
         self.register_callback(module.name, module.updateEvent)
 
-    def startModule(self, start_events):
-        super().startModule(start_events)
-        self._connect_thread = mkthread(self._connect, start_events.get_trigger())
-
     def _connect(self, started_callback):
+        self.asynio = None
+        if self.syncio:
+            # trigger syncio reconnect in self.request()
+            try:
+                self.syncio.disconnect()
+            except Exception:
+                pass
+        self.syncio = None
+        self._last_connect = time.time()
         if self._instance:
             if not self._service_manager:
                 if self._service_manager is None:
@@ -186,42 +202,49 @@ class SeaClient(ProxyClient, Module):
                         self._connect_thread.join()
                     except AttributeError:
                         pass
-                    self._connect(None)
+                    # let doPoll do the reconnect
+                    self.pollInfo.trigger(True)
+                    raise ConnectionClosed('disconnected - reconnect later')
                 self.syncio = AsynConn(self.uri)
                 assert self.syncio.readline() == b'OK'
                 self.syncio.writeline(b'seauser seaser')
                 assert self.syncio.readline() == b'Login OK'
                 self.log.info('connected to %s', self.uri)
-            self.syncio.flush_recv()
-            ft = 'fulltransAct' if quiet else 'fulltransact'
-            self.syncio.writeline(('%s %s' % (ft, command)).encode())
-            result = None
-            deadline = time.time() + 10
-            while time.time() < deadline:
-                try:
+            try:
+                self.syncio.flush_recv()
+                ft = 'fulltransAct' if quiet else 'fulltransact'
+                self.syncio.writeline(('%s %s' % (ft, command)).encode())
+                result = None
+                deadline = time.time() + 10
+                while time.time() < deadline:
                     reply = self.syncio.readline()
                     if reply is None:
                         continue
-                except ConnectionClosed:
-                    break
-                reply = reply.decode()
-                if reply.startswith('TRANSACTIONSTART'):
-                    result = []
-                    continue
-                if reply == 'TRANSACTIONFINISHED':
+                    reply = reply.decode()
+                    if reply.startswith('TRANSACTIONSTART'):
+                        result = []
+                        continue
+                    if reply == 'TRANSACTIONFINISHED':
+                        if result is None:
+                            self.log.info('missing TRANSACTIONSTART on: %s', command)
+                            return ''
+                        if not result:
+                            return ''
+                        return '\n'.join(result)
                     if result is None:
-                        self.log.info('missing TRANSACTIONSTART on: %s', command)
-                        return ''
+                        self.log.info('swallow: %s', reply)
+                        continue
                     if not result:
-                        return ''
-                    return '\n'.join(result)
-                if result is None:
-                    self.log.info('swallow: %s', reply)
-                    continue
-                if not result:
-                    result = [reply.split('=', 1)[-1]]
-                else:
-                    result.append(reply)
+                        result = [reply.split('=', 1)[-1]]
+                    else:
+                        result.append(reply)
+            except ConnectionClosed:
+                try:
+                    self.syncio.disconnect()
+                except Exception:
+                    pass
+                self.syncio = None
+                raise
         raise TimeoutError('no response within 10s')
 
     def _rxthread(self, started_callback):
@@ -231,6 +254,11 @@ class SeaClient(ProxyClient, Module):
                 if reply is None:
                     continue
             except ConnectionClosed:
+                try:
+                    self.asynio.disconnect()
+                except Exception:
+                    pass
+                self.asynio = None
                 break
             try:
                 msg = json.loads(reply)
@@ -666,6 +694,10 @@ class SeaDrivable(SeaModule, Drivable):
     _sea_status = ''
     _is_running = 0
 
+    def earlyInit(self):
+        super().earlyInit()
+        self._run_event = threading.Event()
+
     def read_status(self):
         return self.status
 
@@ -673,8 +705,10 @@ class SeaDrivable(SeaModule, Drivable):
     #    return self.target
 
     def write_target(self, value):
+        self._run_event.clear()
         self.io.query(f'run {self.sea_object} {value}')
-        # self.status = [self.Status.BUSY, 'driving']
+        if not self._run_event.wait(5):
+            self.log.warn('target changed but is_running stays 0')
         return value
 
     def update_status(self, value, timestamp, readerror):
@@ -686,6 +720,8 @@ class SeaDrivable(SeaModule, Drivable):
         if not readerror:
             self._is_running = value
             self.updateStatus()
+            if value:
+                self._run_event.set()
 
     def updateStatus(self):
         if self._sea_status:

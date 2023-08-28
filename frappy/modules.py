@@ -329,7 +329,6 @@ class Module(HasAccessibles):
 
     # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
-    attachedModules = None
     pollInfo = None
     triggerPoll = None  # trigger event for polls. used on io modules and modules without io
 
@@ -347,7 +346,9 @@ class Module(HasAccessibles):
         self.accessLock = threading.RLock()  # for read_* / write_* methods
         self.updateLock = threading.RLock()  # for announceUpdate
         self.polledModules = []  # modules polled by thread started in self.startModules
+        self.attachedModules = {}
         errors = []
+        self._isinitialized = False
 
         # handle module properties
         # 1) make local copies of properties
@@ -939,10 +940,12 @@ class Attached(Property):
     def __get__(self, obj, owner):
         if obj is None:
             return self
-        if obj.attachedModules is None:
-            # return the name of the module (called from Server on startup)
-            return super().__get__(obj, owner)
-        # return the module (called after startup)
+        if self.name not in obj.attachedModules:
+            modobj = obj.DISPATCHER.get_module(super().__get__(obj, owner))
+            if not isinstance(modobj, self.basecls):
+                raise ConfigError(f'attached module {self.name}={modobj.name!r} '\
+                    f'must inherit from {self.basecls.__qualname__!r}')
+            obj.attachedModules[self.name] = modobj
         return obj.attachedModules.get(self.name)  # return None if not given
 
     def copy(self):

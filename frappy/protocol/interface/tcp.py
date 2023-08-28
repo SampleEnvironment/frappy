@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,13 +31,12 @@ import time
 from frappy.datatypes import BoolType, StringType
 from frappy.errors import SECoPError
 from frappy.lib import formatException, formatExtendedStack, \
-    formatExtendedTraceback
+    formatExtendedTraceback, SECoP_DEFAULT_PORT
 from frappy.properties import Property
 from frappy.protocol.interface import decode_msg, encode_msg_frame, get_msg
 from frappy.protocol.messages import ERRORPREFIX, HELPREPLY, HELPREQUEST, \
     HelpMessage
 
-DEF_PORT = 10767
 MESSAGE_READ_SIZE = 1024
 HELP = HELPREQUEST.encode()
 
@@ -201,7 +199,7 @@ class TCPServer(DualStackTCPServer):
     # for cfg-editor
     configurables = {
         'uri': Property('hostname or ip address for binding', StringType(),
-                        default=f'tcp://{DEF_PORT}', export=False),
+                        default=f'tcp://{SECoP_DEFAULT_PORT}', export=False),
         'detailed_errors': Property('Flag to enable detailed Errorreporting.', BoolType(),
                                     default=False, export=False),
     }

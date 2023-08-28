@@ -85,6 +85,9 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
     _step_size = None  # degree / step
     _blocking_error = None  # None or a string indicating the reason of an error needing clear_errors
     _running = False  # status indicates motor is running
+    _prev_diff = 0  # for checking progress
+    _intermediate_target = 0
+    _stopped_at = 0
 
     STATUS_MAP = {
         '08': (IDLE, ''),
@@ -174,60 +177,116 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
             self.status = ERROR, 'clear_errors needed after ' + self._blocking_error
             raise HardwareError(self.status[1])
         self.saveParameters()
-        if self.backlash:
-            # drive first to target + backlash
-            # we do not optimize when already driving from the right side
-            self.set('A', self.sign * (value + self.backlash))
-        else:
-            self.set('A', self.sign * value)
-        self.start_machine(self.driving)
-        self._running = True
+        self.start_machine(self.starting, target=value)
         return value
 
+    def hw_stop(self):
+        self._stopped_at = time.time()
+        self.get('S')
+
+    def doPoll(self):
+        super().doPoll()
+        if self._running and not self.isBusy():
+            if time.time() > self._stopped_at + 5:
+                self.log.warning('stop motor not started by us')
+                self.hw_stop()
+
     def read_status(self):
-        sysstatus = self.communicate(f'{self.address:x}SE')
-        sysstatus = sysstatus[1:4] if self.axis == 'X' else sysstatus[5:8]
+        for _ in range(3):
+            sysstatus = self.communicate(f'{self.address:x}SE')
+            try:
+                sysstatus = sysstatus[1:4] if self.axis == 'X' else sysstatus[5:8]
+                status = self.STATUS_MAP[sysstatus[1:]]
+            except Exception:  # can not interprete the reply, probably communication error
+                self.log.warning('bad status reply %r', sysstatus)
+                continue
+            break
+        else:
+            status = (ERROR, f'unknown status after 3 tries {sysstatus!r}')
         self._running = sysstatus[0] != '1'
-        status = self.STATUS_MAP.get(sysstatus[1:]) or (ERROR, f'unknown error {sysstatus[1:]}')
         if status[0] == ERROR:
             self._blocking_error = status[1]
             return status
         return super().read_status()  # status from state machine
 
     def check_moving(self):
+        """checks while motor is moving
+
+        - in case motor is moving properly return Retry
+        - in case motor is moving in the wrong direction, return self.stopping_for_restart
+        - in case encoder does not follow steps, raise a blocking error
+        """
         prev_enc = self.encoder
         if self.encoder_mode != 'NO':
             enc = self.read_encoder()
         else:
             enc = self.value
-        if not self._running:  # at target
+        if not self._running:  # at target (self._running is updated in self.read_status())
             return False
+        diff = abs(self.value - self._intermediate_target)
+        if diff > self._prev_diff and diff > self.encoder_tolerance:
+            # when the motor was started while running, without stopping first
+            # it happend that the motor run (almost) endless beyond the target!
+            # add this is to catch similar errors
+            self.hw_stop()
+            self.log.warning('motor is moving the wrong way')
+            return self.stopping_for_restart
+        self._prev_diff = diff
         if self.encoder_mode != 'CHECK':
-            return True
-        e1, e2 = sorted((prev_enc, enc))
-        if e1 - self.encoder_tolerance <= self.value <= e2 + self.encoder_tolerance:
-            return True
-        self.log.error('encoder lag: %g not within %g..%g',
-                       self.value, e1, e2)
-        self.get('S')  # stop
+            return Retry
+        tol = self.encoder_tolerance + abs(enc - prev_enc)
+        if abs(self.value - enc) <= tol:
+            return Retry
+        self.log.error('encoder lag: steps %g deviate by more than %g from encoder %g',
+                       self.value, tol, enc)
+        self.hw_stop()
         self.saveParameters()
         self._blocking_error = 'encoder lag error'
         raise HardwareError(self._blocking_error)
 
+    def start_motor(self, target):
+        if self.backlash and (target - self.value) * self.backlash > 0:
+            # drive first to target + backlash
+            target += self.backlash
+        self._prev_diff = abs(target - self.value)
+        self._intermediate_target = target
+        self.set('A', self.sign * target)
+
+    @status_code(BUSY)
+    def stopping_for_restart(self, sm):
+        self.read_status()
+        if self._running:
+            return Retry
+        self.start_motor(sm.target)
+        return self.driving
+
+    @status_code(BUSY)
+    def starting(self, sm):
+        self.read_status()
+        if self._running:
+            self.hw_stop()
+            return self.stopping_for_restart
+        self.start_motor(sm.target)
+        return self.driving
+
     @status_code(BUSY)
     def driving(self, sm):
-        if self.check_moving():
-            return Retry
-        if self.backlash:
-            # drive to real target
-            self.set('A', self.sign * self.target)
+        self.read_status()
+        result = self.check_moving()
+        if result:
+            return result  # Retry or self.stopping_for_restart
+        if self._intermediate_target != self.target:
+            self._intermediate_target = self.target
+            # drive to real target after intermediate target
+            self.start_motor(self.target)
             return self.driving_to_final_position
         return self.finishing
 
     @status_code(BUSY)
     def driving_to_final_position(self, sm):
-        if self.check_moving():
-            return Retry
+        result = self.check_moving()
+        if result:
+            return result  # Retry or self.stopping_for_restart
         return self.finishing
 
     @status_code(BUSY)
@@ -257,7 +316,7 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
 
     @Command
     def stop(self):
-        self.get('S')
+        self.hw_stop()
         self.start_machine(self.stopping, status=(BUSY, 'stopping'))
 
     @Command

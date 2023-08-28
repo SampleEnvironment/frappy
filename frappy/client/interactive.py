@@ -28,8 +28,8 @@ import code
 import signal
 import os
 import traceback
+import threading
 from os.path import expanduser
-from queue import Queue
 from frappy.client import SecopClient
 from frappy.errors import SECoPError
 from frappy.datatypes import get_datatype, StatusType
@@ -66,7 +66,7 @@ class Logger:
 
     def __init__(self, loglevel='info'):
         func = self.noop
-        for lev in 'debug', 'info', 'warning', 'error':
+        for lev in 'debug', 'info', 'warning', 'error', 'exception':
             if lev == loglevel:
                 func = self.emit
             setattr(self, lev, func)
@@ -120,7 +120,8 @@ class Module:
         else:
             self._watched_params = {'value', 'status'}
             self._log_level = 'info'
-        self._running = None
+        self._is_driving = False
+        self._driving_event = threading.Event()
         self._status = None
         props = secnode.modules[name]['properties']
         self._title = f"# {props.get('implementation', '')} ({(props.get('interface_classes') or ['Module'])[0]})"
@@ -139,13 +140,9 @@ class Module:
         return self.status[0] // 100 == StatusType.BUSY // 100
 
     def _status_value_update(self, m, p, status, t, e):
-        if self._running:
-            try:
-                self._running.put(True)
-                if self._running and not self._isBusy():
-                    self._running.put(False)
-            except TypeError:  # may happen when _running is removed during above lines
-                pass
+        if self._is_driving and not self._isBusy():
+            self._is_driving = False
+        self._driving_event.set()
 
     def _watch_parameter(self, m, pname, *args, forced=False, mininterval=0):
         """show parameter update"""
@@ -215,18 +212,30 @@ class Module:
     def __call__(self, target=None):
         if target is None:
             return self.read()
-        self.target = target  # this sets self._running
+        self.target = target  # this sets self._is_driving
         type(self).value.prev = None  # show at least one value
-        try:
-            while self._running.get():
+
+        def loop():
+            while self._is_driving:
+                self._driving_event.wait()
                 self._watch_parameter(self._name, 'value', mininterval=self._secnode.mininterval)
                 self._watch_parameter(self._name, 'status')
-        except KeyboardInterrupt:
+                self._driving_event.clear()
+        try:
+            loop()
+        except KeyboardInterrupt as e:
             self._secnode.log.info('-- interrupted --')
-        self._running = None
-        self._watch_parameter(self._name, 'status')
-        self._secnode.readParameter(self._name, 'value')
-        self._watch_parameter(self._name, 'value', forced=True)
+            self.stop()
+            try:
+                loop()  # wait for stopping to be finished
+            except KeyboardInterrupt:
+                # interrupted again while stopping -> definitely quit
+                pass
+            clientenv.raise_with_short_traceback(e)
+        finally:
+            self._watch_parameter(self._name, 'status')
+            self._secnode.readParameter(self._name, 'value')
+            self._watch_parameter(self._name, 'value', forced=True)
         return self.value
 
     def __repr__(self):
@@ -269,10 +278,10 @@ class Param:
         return self.format(value)
 
     def __set__(self, obj, value):
-        if self.name == 'target':
-            obj._running = Queue()
         try:
             obj._secnode.setParameter(obj._name, self.name, value)
+            if self.name == 'target':
+                obj._is_driving = obj._isBusy()
             return
         except SECoPError as e:
             clientenv.raise_with_short_traceback(e)
@@ -332,8 +341,8 @@ def watch(*args, **kwds):
         for mobj in modules:
             mobj._start_watching()
         time.sleep(3600)
-    except KeyboardInterrupt:
-        pass
+    except KeyboardInterrupt as e:
+        clientenv.raise_with_short_traceback(e)
     finally:
         for mobj in modules:
             mobj._stop_watching()

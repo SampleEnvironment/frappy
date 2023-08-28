@@ -53,6 +53,8 @@ disable=missing-docstring
         ,unidiomatic-typecheck
         ,undefined-loop-variable
         ,consider-using-f-string
+        ,use-dict-literal
+
 [REPORTS]
 
 # Set the output format. Available formats are text, parseable, colorized, msvs

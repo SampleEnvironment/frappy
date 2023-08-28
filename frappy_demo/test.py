@@ -24,10 +24,33 @@
 import random
 
 from frappy.datatypes import FloatRange, StringType, ValueType, TupleOf, StructOf, ArrayOf
-from frappy.modules import Communicator, Drivable, Parameter, Property, Readable, Module
+from frappy.modules import Communicator, Drivable, Parameter, Property, Readable, Module, Attached
 from frappy.params import Command
+from frappy.dynamic import Pinata
 from frappy.errors import RangeError
 
+class Pin(Pinata):
+    def scanModules(self):
+        yield ('pin_a', {'cls': LN2, 'description':'hi'})
+        yield ('pin_b', {'cls': LN2, 'description':'hi'})
+
+class RecPin(Pinata):
+    def scanModules(self):
+        yield ('rec_a', {'cls': RecPinInner, 'description':'hi'})
+        yield ('rec_b', {'cls': RecPinInner, 'description':'hi'})#, 'idx':'_2'})
+
+class RecPinInner(Pinata):
+    idx = Property('', StringType(), default='')
+    def scanModules(self):
+        yield ('pin_pin_a' + self.idx, {'cls': Mapped, 'description':'recursive!', 'choices':['A', 'B']})
+        yield ('pin_pin_b' + self.idx, {'cls': Mapped, 'description':'recursive!', 'choices':['A', 'B']})
+
+
+class WithAtt(Readable):
+    att = Attached()
+
+    def read_value(self):
+        return self.att.read_value()
 
 class LN2(Readable):
     """Just a readable.

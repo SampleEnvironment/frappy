@@ -30,10 +30,10 @@ Remarks:
 import sys
 from logging import DEBUG, INFO, addLevelName
 import mlzlog
-from frappy.errors import NoSuchModuleError
 from frappy.server import Server
 from frappy.config import load_config, Mod as ConfigMod
 from frappy.lib import generalConfig
+from frappy.protocol import dispatcher
 
 
 USAGE = """create config on the fly:
@@ -77,27 +77,24 @@ class MainLogger:
         self.log.handlers[0].setLevel(LOG_LEVELS['comlog'])
 
 
-class Dispatcher:
-    def __init__(self, name, log, opts, srv):
-        self.log = log
-        self._modules = {}
-        self.equipment_id = opts.pop('equipment_id', name)
+class Dispatcher(dispatcher.Dispatcher):
+    def __init__(self, name, log, options, srv):
+        super().__init__(name, log, options, srv)
+        self.log = srv.log  # overwrite child logger
 
     def announce_update(self, modulename, pname, pobj):
         if pobj.readerror:
             value = repr(pobj.readerror)
         else:
             value = pobj.value
-        self.log.info('%s:%s %r', modulename, pname, value)
+        logobj = self._modules.get(modulename, self)
+        # self.log.info('%s:%s %r', modulename, pname, value)
+        logobj.log.info('%s %r', pname, value)
 
     def register_module(self, moduleobj, modulename, export=True):
+        self.log.info('registering %s', modulename)
         setattr(main, modulename, moduleobj)
         self._modules[modulename] = moduleobj
-
-    def get_module(self, modulename):
-        if modulename in self._modules:
-            return self._modules[modulename]
-        raise NoSuchModuleError(f'Module {modulename!r} does not exist on this SEC-Node!')
 
 
 logger = MainLogger()

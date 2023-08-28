@@ -39,16 +39,18 @@ Interface to the modules:
 """
 
 import threading
+import traceback
 from collections import OrderedDict
 from time import time as currenttime
 
 from frappy.errors import NoSuchCommandError, NoSuchModuleError, \
-    NoSuchParameterError, ProtocolError, ReadOnlyError
+    NoSuchParameterError, ProtocolError, ReadOnlyError, ConfigError
 from frappy.params import Parameter
 from frappy.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
     HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY, \
     LOGGING_REPLY, LOG_EVENT
+from frappy.lib import get_class
 
 
 def make_update(modulename, pobj):
@@ -84,6 +86,13 @@ class Dispatcher:
         self.name = name
         self.restart = srv.restart
         self.shutdown = srv.shutdown
+        # handle to server
+        self.srv = srv
+        # set of modules that failed creation
+        self.failed_modules = set()
+        # list of errors that occured during initialization
+        self.errors = []
+        self.traceback_counter = 0
 
     def broadcast_event(self, msg, reallyall=False):
         """broadcasts a msg to all active connections
@@ -147,11 +156,93 @@ class Dispatcher:
             self._export.append(modulename)
 
     def get_module(self, modulename):
+        """ Returns a fully initialized module. Or None, if something went
+        wrong during instatiating/initializing the module."""
+        modobj = self.get_module_instance(modulename)
+        if modobj is None:
+            return None
+        if modobj._isinitialized:
+            return modobj
+
+        # also call earlyInit on the modules
+        self.log.debug('initializing module %r', modulename)
+        try:
+            modobj.earlyInit()
+            if not modobj.earlyInitDone:
+                self.errors.append(f'{modobj.earlyInit.__qualname__} was not called, probably missing super call')
+            modobj.initModule()
+            if not modobj.initModuleDone:
+                self.errors.append(f'{modobj.initModule.__qualname__} was not called, probably missing super call')
+        except Exception as e:
+            if self.traceback_counter == 0:
+                self.log.exception(traceback.format_exc())
+            self.traceback_counter += 1
+            self.errors.append(f'error initializing {modulename}: {e!r}')
+        modobj._isinitialized = True
+        self.log.debug('initialized module %r', modulename)
+        return modobj
+
+    def get_module_instance(self, modulename):
+        """ Returns the module in its current initialization state or creates a
+        new uninitialized modle to return.
+
+        When creating a new module, srv.module_config is accessed to get the
+        modules configuration.
+        """
         if modulename in self._modules:
             return self._modules[modulename]
         if modulename in list(self._modules.values()):
+            # it's actually already the module object
             return modulename
-        raise NoSuchModuleError(f'Module {modulename!r} does not exist on this SEC-Node!')
+        # create module from srv.module_cfg, store and return
+        self.log.debug('attempting to create module %r', modulename)
+
+        opts = self.srv.module_cfg.get(modulename, None)
+        if opts is None:
+            raise NoSuchModuleError(f'Module {modulename!r} does not exist on this SEC-Node!')
+        pymodule = None
+        try:  # pylint: disable=no-else-return
+            classname = opts.pop('cls')
+            if isinstance(classname, str):
+                pymodule = classname.rpartition('.')[0]
+                if pymodule in self.failed_modules:
+                    # creation has failed already once, do not try again
+                    return None
+                cls = get_class(classname)
+            else:
+                pymodule = classname.__module__
+                if pymodule in self.failed_modules:
+                    # creation has failed already once, do not try again
+                    return None
+                cls = classname
+        except Exception as e:
+            if str(e) == 'no such class':
+                self.errors.append(f'{classname} not found')
+            else:
+                self.failed_modules.add(pymodule)
+                if self.traceback_counter == 0:
+                    self.log.exception(traceback.format_exc())
+                self.traceback_counter += 1
+                self.errors.append(f'error importing {classname}')
+            return None
+        else:
+            try:
+                modobj = cls(modulename, self.log.getChild(modulename), opts, self.srv)
+            except ConfigError as e:
+                self.errors.append(f'error creating module {modulename}:')
+                for errtxt in e.args[0] if isinstance(e.args[0], list) else [e.args[0]]:
+                    self.errors.append('  ' + errtxt)
+                modobj = None
+            except Exception as e:
+                if self.traceback_counter == 0:
+                    self.log.exception(traceback.format_exc())
+                self.traceback_counter += 1
+                self.errors.append(f'error creating {modulename}')
+                modobj = None
+        if modobj:
+            self.register_module(modobj, modulename, modobj.export)
+            self.srv.modules[modulename] = modobj # IS HERE THE CORRECT PLACE?
+        return modobj
 
     def remove_module(self, modulename_or_obj):
         moduleobj = self.get_module(modulename_or_obj)
@@ -183,6 +274,7 @@ class Dispatcher:
 
     def get_descriptive_data(self, specifier):
         """returns a python object which upon serialisation results in the descriptive data"""
+        specifier = specifier or ''
         modules = {}
         result = {'modules': modules}
         for modulename in self._export:
@@ -194,7 +286,7 @@ class Dispatcher:
             mod_desc.update(module.exportProperties())
             mod_desc.pop('export', False)
             modules[modulename] = mod_desc
-        modname, _, pname = (specifier or '').partition(':')
+        modname, _, pname = specifier.partition(':')
         if modname in modules:  # extension to SECoP standard: description of a single module
             result = modules[modname]
             if pname in result['accessibles']:  # extension to SECoP standard: description of a single accessible
