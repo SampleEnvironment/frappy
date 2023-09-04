@@ -23,13 +23,7 @@ Mod('robot',
     serial = "none",
     ur_version = "none",
     
-    tcp_position = [0,0,0],
-    tcp_orientation = [0,0,0],
-    joint_temperature = [0,0,0,0,0,0],
-    joint_voltage = [0,0,0,0,0,0],
-    joint_current = [0,0,0,0,0,0],
-    robot_voltage = 0,
-    robot_current = 0,
+   
     pollinterval = 0.1,
     stop_State = {'stopped' : False,'interrupted_prog' : 'none'},
     pause_State = {'paused' : False,'interrupted_prog' : 'none'}

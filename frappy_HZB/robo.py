@@ -10,8 +10,7 @@ from frappy.lib.enum import Enum
 from frappy.modules import Attached
 
 import re
-import time
-import urx
+
 
 
 
@@ -61,24 +60,9 @@ class RobotIO(StringIO):
 
 
 class UR_Robot(HasIO,Drivable):
-    _r = None
-    _rt_data = None
 
-    def initModule(self):
-        super().initModule()
-        
-        nopref = self.io.uri 
-        for i in range(30):
-            try:
-                ip = re.search(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',self.io.uri).group()
-                self._r = urx.Robot(ip, use_rt=True, urFirm=5.1)
-            
-                
-                break
-            except:
 
-                time.sleep(.5)
-        
+       
     
     attached_sample =  Attached(mandatory=True)
     
@@ -154,43 +138,9 @@ class UR_Robot(HasIO,Drivable):
                              readonly = True,
                              group = 'Status Info')
 
-    tcp_position = Parameter("Tool Center Point (TCP) position x,y,z",
-                      datatype=ArrayOf(FloatRange(unit = 'm'),3,3),
-                      readonly = True,
-                      group= "Tool Center Point")
     
-    tcp_orientation = Parameter("Tool Center Point (TCP) rotatiom Rx,Ry,Rz",
-                      datatype=ArrayOf(FloatRange(unit = 'rad',fmtstr= '%.3f'),3,3),
-                      readonly = True,
-                      group= "Tool Center Point"
-                    )
-    joint_temperature = Parameter("Joint temperatures of robot",
-                      datatype=ArrayOf(FloatRange(unit = 'K',fmtstr= '%.3f'),6,6),
-                      readonly = True,
-                      group = 'Joint Info'
-                    )
-    joint_voltage = Parameter("Joint voltages of robot",
-                      datatype=ArrayOf(FloatRange(unit = 'V',fmtstr= '%.3f'),6,6),
-                      readonly = True,
-                      group = 'Joint Info'
-                    )
-    joint_current = Parameter("Joint currents of robot",
-                      datatype=ArrayOf(FloatRange(unit = 'A',fmtstr= '%.3f'),6,6),
-                      readonly = True,
-                      group = 'Joint Info'
-                    )
     
-    robot_voltage = Parameter("Voltage of robot",
-                      datatype=FloatRange(unit = 'V',fmtstr= '%.3f'),
-                      readonly = True,
-                      group = 'Robot Info'
-                    )
-    robot_current = Parameter("Current of robot",
-                      datatype=FloatRange(unit = 'A',fmtstr= '%.3f'),
-                      readonly = True,
-                      group = 'Robot Info'
-                  
-                    )
+
     
 
     
@@ -221,30 +171,9 @@ class UR_Robot(HasIO,Drivable):
         self.read_value()
         self.read_status()
 
-    
-    
-    def read_tcp_position(self):
 
-        self._rt_data = self._r.get_all_rt_data()
-        return self._rt_data['tcp'][0:3]
-    
-    def read_tcp_orientation(self):
-        return self._rt_data['tcp'][3:6]
-    
-    def read_joint_temperature(self):    
-        return  self._rt_data['joint_temperature']+273.15
-    
-    def read_joint_voltage(self):
-        return self._rt_data['joint_voltage']
-        
-    def read_joint_current(self):
-        return self._rt_data['joint_current']
-        
-    def read_robot_current(self):
-        return self._rt_data['robot_current']
-    
-    def read_robot_voltage(self):
-        return self._rt_data['robot_voltage']
+  
+
 
     def read_is_in_remote_control(self):
         remote_control =  str(self.communicate('is in remote control'))
