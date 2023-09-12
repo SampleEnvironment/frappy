@@ -63,6 +63,7 @@ class HasIO(Module):
                 io = self.ioClass(ioname, srv.log.getChild(ioname), opts, srv)  # pylint: disable=not-callable
                 io.callingModule = []
                 srv.modules[ioname] = io
+                srv.dispatcher.register_module(io, ioname)
                 self.ioDict[self.uri] = ioname
             self.io = ioname
 

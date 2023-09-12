@@ -93,8 +93,9 @@ class Dispatcher(dispatcher.Dispatcher):
 
     def register_module(self, moduleobj, modulename, export=True):
         self.log.info('registering %s', modulename)
+        super().register_module(moduleobj, modulename, export)
         setattr(main, modulename, moduleobj)
-        self._modules[modulename] = moduleobj
+        self.get_module(modulename)
 
 
 logger = MainLogger()
