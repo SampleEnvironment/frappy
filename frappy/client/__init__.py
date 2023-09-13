@@ -261,7 +261,6 @@ class SecopClient(ProxyClient):
     """a general SECoP client"""
     reconnect_timeout = 10
     _running = False
-    _shutdown = False
     _rxthread = None
     _txthread = None
     _connthread = None
@@ -283,6 +282,7 @@ class SecopClient(ProxyClient):
         self.uri = uri
         self.nodename = uri
         self._lock = RLock()
+        self._shutdown = Event()
 
     def __del__(self):
         try:
@@ -303,7 +303,7 @@ class SecopClient(ProxyClient):
             else:
                 self._set_state(False, 'connecting')
             deadline = time.time() + try_period
-            while not self._shutdown:
+            while not self._shutdown.is_set():
                 try:
                     self.io = AsynConn(self.uri)  # timeout 1 sec
                     self.io.writeline(IDENTREQUEST.encode('utf-8'))
@@ -339,8 +339,8 @@ class SecopClient(ProxyClient):
                         # stay online for now, if activated
                         self._set_state(self.online and self.activate)
                         raise
-                    time.sleep(1)
-            if not self._shutdown:
+                    self._shutdown.wait(1)
+            if not self._shutdown.is_set():
                 self.log.info('%s ready', self.nodename)
 
     def __txthread(self):
@@ -436,7 +436,7 @@ class SecopClient(ProxyClient):
             self.log.error('rxthread ended with %r', e)
         self._rxthread = None
         self.disconnect(False)
-        if self._shutdown:
+        if self._shutdown.is_set():
             return
         if self.activate:
             self.log.info('try to reconnect to %s', self.uri)
@@ -454,7 +454,7 @@ class SecopClient(ProxyClient):
         self._connthread = mkthread(self._reconnect, connected_callback)
 
     def _reconnect(self, connected_callback=None):
-        while not self._shutdown:
+        while not self._shutdown.is_set():
             try:
                 self.connect()
                 if connected_callback:
@@ -474,15 +474,15 @@ class SecopClient(ProxyClient):
                         self.log.info('continue trying to reconnect')
                         # self.log.warning(formatExtendedTraceback())
                         self._set_state(False)
-                    time.sleep(self.reconnect_timeout)
+                    self._shutdown.wait(self.reconnect_timeout)
                 else:
-                    time.sleep(1)
+                    self._shutdown.wait(1)
         self._connthread = None
 
     def disconnect(self, shutdown=True):
         self._running = False
         if shutdown:
-            self._shutdown = True
+            self._shutdown.set()
             self._set_state(False, 'shutdown')
             if self._connthread:
                 if self._connthread == current_thread():
