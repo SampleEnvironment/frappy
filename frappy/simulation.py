@@ -54,7 +54,7 @@ class SimBase:
 
                 attrs['write_' + k] = writer
 
-        return object.__new__(type(f'SimBase_{devname}', (cls,), attrs))
+        return super().__new__(type(f'SimBase_{devname}', (cls,), attrs))
 
     def initModule(self):
         super().initModule()
