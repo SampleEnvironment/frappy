@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -185,8 +184,9 @@ class SeaClient(ProxyClient, Module):
                 break
         else:
             raise CommunicationFailedError('reply %r should be "Login OK"' % reply)
-        self.request('frappy_config %s %s' % (self.service, self.config))
-
+        result = self.request('frappy_config %s %s' % (self.service, self.config))
+        if result not in {'0', '1'}:
+            raise CommunicationFailedError(f'reply from frappy_config: {result}')
         # frappy_async_client switches to the json protocol (better for updates)
         self.asynio.writeline(b'frappy_async_client')
         self.asynio.writeline(('get_all_param ' + ' '.join(self.objects)).encode())
@@ -248,7 +248,16 @@ class SeaClient(ProxyClient, Module):
         raise TimeoutError('no response within 10s')
 
     def _rxthread(self, started_callback):
+        recheck = None
         while not self.shutdown:
+            if recheck and time.time() > recheck:
+                # try to collect device changes within 1 sec
+                recheck = None
+                result = self.request('check_config %s %s' % (self.service, self.config))
+                if result == '1':
+                    self.asynio.writeline(('get_all_param ' + ' '.join(self.objects)).encode())
+                else:
+                    self.DISPATCHER.shutdown()
             try:
                 reply = self.asynio.readline()
                 if reply is None:
@@ -307,11 +316,7 @@ class SeaClient(ProxyClient, Module):
                 if mplist is None:
                     if path.startswith('/device'):
                         if path == '/device/changetime':
-                            result = self.request('check_config %s %s' % (self.service, self.config))
-                            if result == '1':
-                                self.asynio.writeline(('get_all_param ' + ' '.join(self.objects)).encode())
-                            else:
-                                self.DISPATCHER.shutdown()
+                            recheck = time.time() + 1
                         elif path.startswith('/device/frappy_%s' % self.service) and value == '':
                             self.DISPATCHER.shutdown()
                 else:
