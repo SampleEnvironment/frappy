@@ -108,7 +108,6 @@ class SeaClient(ProxyClient, Module):
     visibility = 'expert'
     default_json_file = {}
     _connect_thread = None
-    _service_manager = None
     _instance = None
     _last_connect = 0
 
@@ -162,15 +161,11 @@ class SeaClient(ProxyClient, Module):
         self.syncio = None
         self._last_connect = time.time()
         if self._instance:
-            if not self._service_manager:
-                if self._service_manager is None:
-                    try:
-                        from servicemanager import SeaManager  # pylint: disable=import-outside-toplevel
-                        self._service_manager = SeaManager()
-                    except ImportError:
-                        self._service_manager = False
-            if self._service_manager:
-                self._service_manager.do_start(self._instance)
+            try:
+                from servicemanager import SeaManager  # pylint: disable=import-outside-toplevel
+                SeaManager().do_start(self._instance)
+            except ImportError:
+                pass
         if '//' not in self.uri:
             self.uri = 'tcp://' + self.uri
         self.asynio = AsynConn(self.uri)
@@ -185,7 +180,7 @@ class SeaClient(ProxyClient, Module):
         else:
             raise CommunicationFailedError('reply %r should be "Login OK"' % reply)
         result = self.request('frappy_config %s %s' % (self.service, self.config))
-        if result not in {'0', '1'}:
+        if result.startswith('ERROR:'):
             raise CommunicationFailedError(f'reply from frappy_config: {result}')
         # frappy_async_client switches to the json protocol (better for updates)
         self.asynio.writeline(b'frappy_async_client')
