@@ -227,7 +227,7 @@ class Dispatcher:
             return None
         else:
             try:
-                modobj = cls(modulename, self.log.getChild(modulename), opts, self.srv)
+                modobj = cls(modulename, self.log.parent.getChild(modulename), opts, self.srv)
             except ConfigError as e:
                 self.errors.append(f'error creating module {modulename}:')
                 for errtxt in e.args[0] if isinstance(e.args[0], list) else [e.args[0]]:

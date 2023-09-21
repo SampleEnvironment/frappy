@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -925,13 +924,18 @@ class Communicator(HasComlog, Module):
         """
         raise NotImplementedError()
 
+
 SECoP_BASE_CLASSES = {Readable, Writable, Drivable, Communicator}
+
 
 class Attached(Property):
     """a special property, defining an attached module
 
     assign a module name to this property in the cfg file,
     and the server will create an attribute with this module
+
+    When mandatory is set to False, and there is no value or an empty string
+    given in the config file, the value of the attribute will be None.
     """
     def __init__(self, basecls=Module, description='attached module', mandatory=True):
         self.basecls = basecls
@@ -940,13 +944,17 @@ class Attached(Property):
     def __get__(self, obj, owner):
         if obj is None:
             return self
-        if self.name not in obj.attachedModules:
-            modobj = obj.DISPATCHER.get_module(super().__get__(obj, owner))
+        modobj = obj.attachedModules.get(self.name)
+        if not modobj:
+            modulename = super().__get__(obj, owner)
+            if not modulename:
+                return None  # happens when mandatory=False and modulename is not given
+            modobj = obj.DISPATCHER.get_module(modulename)
             if not isinstance(modobj, self.basecls):
-                raise ConfigError(f'attached module {self.name}={modobj.name!r} '\
-                    f'must inherit from {self.basecls.__qualname__!r}')
+                raise ConfigError(f'attached module {self.name}={modobj.name!r} '
+                                  f'must inherit from {self.basecls.__qualname__!r}')
             obj.attachedModules[self.name] = modobj
-        return obj.attachedModules.get(self.name)  # return None if not given
+        return modobj
 
     def copy(self):
         return Attached(self.basecls, self.description, self.mandatory)
