@@ -327,10 +327,6 @@ class Module(HasAccessibles):
                                      NoneOr(FloatRange(0)), export=False, default=None)
     enablePoll = True
 
-    # properties, parameters and commands are auto-merged upon subclassing
-    parameters = {}
-    commands = {}
-
     # reference to the dispatcher (used for sending async updates)
     DISPATCHER = None
     pollInfo = None
@@ -351,12 +347,19 @@ class Module(HasAccessibles):
         self.updateLock = threading.RLock()  # for announceUpdate
         self.polledModules = []  # modules polled by thread started in self.startModules
         self.attachedModules = {}
-        errors = []
+        self.errors = []
         self._isinitialized = False
 
         # handle module properties
         # 1) make local copies of properties
         super().__init__()
+
+        # conversion from exported names to internal attribute names
+        self.accessiblename2attr = {}
+        self.writeDict = {}  # values of parameters to be written
+        # properties, parameters and commands are auto-merged upon subclassing
+        self.parameters = {}
+        self.commands = {}
 
         # 2) check and apply properties specified in cfgdict as
         # '<propertyname> = <propertyvalue>'
@@ -370,15 +373,13 @@ class Module(HasAccessibles):
                     else:
                         self.setProperty(key, value)
                 except BadValueError:
-                    errors.append(f'{key}: value {value!r} does not match {self.propertyDict[key].datatype!r}!')
+                    self.errors.append(f'{key}: value {value!r} does not match {self.propertyDict[key].datatype!r}!')
 
         # 3) set automatic properties
         mycls, = self.__class__.__bases__  # skip the wrapper class
         myclassname = f'{mycls.__module__}.{mycls.__name__}'
         self.implementation = myclassname
-        # list of all 'secop' modules
-        # self.interface_classes = [
-        #    b.__name__ for b in mycls.__mro__ if b.__module__.startswith('frappy.modules')]
+
         # list of only the 'highest' secop module class
         self.interface_classes = [
             b.__name__ for b in mycls.__mro__ if b.__name__ in SECoP_BASE_CLASSES][:1]
@@ -390,87 +391,22 @@ class Module(HasAccessibles):
         # 1) make local copies of parameter objects
         #    they need to be individual per instance since we use them also
         #    to cache the current value + qualifiers...
-        accessibles = {}
-        # conversion from exported names to internal attribute names
-        accessiblename2attr = {}
-        for aname, aobj in self.accessibles.items():
+        # do not re-use self.accessibles as this is the same for all instances
+        accessibles = self.accessibles
+        self.accessibles = {}
+        for aname, aobj in accessibles.items():
             # make a copy of the Parameter/Command object
             aobj = aobj.copy()
-            if not self.export:  # do not export parameters of a module not exported
-                aobj.export = False
-            if aobj.export:
-                accessiblename2attr[aobj.export] = aname
-            accessibles[aname] = aobj
-        # do not re-use self.accessibles as this is the same for all instances
-        self.accessibles = accessibles
-        self.accessiblename2attr = accessiblename2attr
-        # provide properties to 'filter' out the parameters/commands
-        self.parameters = {k: v for k, v in accessibles.items() if isinstance(v, Parameter)}
-        self.commands = {k: v for k, v in accessibles.items() if isinstance(v, Command)}
-
-        # 2) check and apply parameter_properties
-        bad = []
-        for aname, cfg in cfgdict.items():
-            aobj = self.accessibles.get(aname, None)
-            if aobj:
-                try:
-                    for propname, propvalue in cfg.items():
-                        aobj.setProperty(propname, propvalue)
-                except KeyError:
-                    errors.append(f"'{aname}' has no property '{propname}'")
-                except BadValueError as e:
-                    errors.append(f'{aname}.{propname}: {str(e)}')
-            else:
-                bad.append(aname)
+            acfg = cfgdict.pop(aname, None)
+            self._add_accessible(aname, aobj, cfg=acfg)
 
         # 3) complain about names not found as accessible or property names
-        if bad:
-            errors.append(
-                f"{', '.join(bad)} does not exist (use one of {', '.join(list(self.accessibles) + list(self.propertyDict))})")
-        # 4) register value for writing, if given
-        #    apply default when no value is given (in cfg or as Parameter argument)
-        #    or complain, when cfg is needed
-        self.writeDict = {}  # values of parameters to be written
-        for pname, pobj in self.parameters.items():
-            self.valueCallbacks[pname] = []
-            self.errorCallbacks[pname] = []
+        if cfgdict:
+            self.errors.append(
+                f"{', '.join(cfgdict.keys())} does not exist (use one of"
+                f" {', '.join(list(self.accessibles) + list(self.propertyDict))})")
 
-            if isinstance(pobj, Limit):
-                basepname = pname.rpartition('_')[0]
-                baseparam = self.parameters.get(basepname)
-                if not baseparam:
-                    errors.append(f'limit {pname!r} is given, but not {basepname!r}')
-                    continue
-                if baseparam.datatype is None:
-                    continue  # an error will be reported on baseparam
-                pobj.set_datatype(baseparam.datatype)
-
-            if not pobj.hasDatatype():
-                errors.append(f'{pname} needs a datatype')
-                continue
-
-            if pobj.value is None:
-                if pobj.needscfg:
-                    errors.append(f'{pname!r} has no default value and was not given in config!')
-                if pobj.default is None:
-                    # we do not want to call the setter for this parameter for now,
-                    # this should happen on the first read
-                    pobj.readerror = ConfigError(f'parameter {pname!r} not initialized')
-                    # above error will be triggered on activate after startup,
-                    # when not all hardware parameters are read because of startup timeout
-                    pobj.default = pobj.datatype.default
-                pobj.value = pobj.default
-            else:
-                # value given explicitly, either by cfg or as Parameter argument
-                pobj.given = True  # for PersistentMixin
-                if hasattr(self, 'write_' + pname):
-                    self.writeDict[pname] = pobj.value
-                if pobj.default is None:
-                    pobj.default = pobj.value
-                # this checks again for datatype and sets the timestamp
-                setattr(self, pname, pobj.value)
-
-        # 5) ensure consistency
+        # 5) ensure consistency of all accessibles added here
         for aobj in self.accessibles.values():
             aobj.finish(self)
 
@@ -482,18 +418,18 @@ class Module(HasAccessibles):
                 self.applyMainUnit(mainunit)
 
         # 6) check complete configuration of * properties
-        if not errors:
+        if not self.errors:
             try:
                 self.checkProperties()
             except ConfigError as e:
-                errors.append(str(e))
+                self.errors.append(str(e))
             for aname, aobj in self.accessibles.items():
                 try:
                     aobj.checkProperties()
                 except (ConfigError, ProgrammingError) as e:
-                    errors.append(f'{aname}: {e}')
-        if errors:
-            raise ConfigError(errors)
+                    self.errors.append(f'{aname}: {e}')
+        if self.errors:
+            raise ConfigError(self.errors)
 
     # helper cfg-editor
     def __iter__(self):
@@ -506,6 +442,69 @@ class Module(HasAccessibles):
         """replace $ in units of parameters by mainunit"""
         for pobj in self.parameters.values():
             pobj.datatype.set_main_unit(mainunit)
+
+    def _add_accessible(self, name, accessible, cfg=None):
+        if self.startModuleDone:
+            raise ProgrammingError('Accessibles can only be added before startModule()!')
+        if not self.export:  # do not export parameters of a module not exported
+            accessible.export = False
+        self.accessibles[name] = accessible
+        if accessible.export:
+            self.accessiblename2attr[accessible.export] = name
+        if isinstance(accessible, Parameter):
+            self.parameters[name] = accessible
+        if isinstance(accessible, Command):
+            self.commands[name] = accessible
+        if cfg:
+            try:
+                for propname, propvalue in cfg.items():
+                    accessible.setProperty(propname, propvalue)
+            except KeyError:
+                self.errors.append(f"'{name}' has no property '{propname}'")
+            except BadValueError as e:
+                self.errors.append(f'{name}.{propname}: {str(e)}')
+        if isinstance(accessible, Parameter):
+            self._handle_writes(name, accessible)
+
+    def _handle_writes(self, pname, pobj):
+        """ register value for writing, if given
+        apply default when no value is given (in cfg or as Parameter argument)
+        or complain, when cfg is needed
+        """
+        self.valueCallbacks[pname] = []
+        self.errorCallbacks[pname] = []
+        if isinstance(pobj, Limit):
+            basepname = pname.rpartition('_')[0]
+            baseparam = self.parameters.get(basepname)
+            if not baseparam:
+                self.errors.append(f'limit {pname!r} is given, but not {basepname!r}')
+                return
+            if baseparam.datatype is None:
+                return  # an error will be reported on baseparam
+            pobj.set_datatype(baseparam.datatype)
+        if not pobj.hasDatatype():
+            self.errors.append(f'{pname} needs a datatype')
+            return
+        if pobj.value is None:
+            if pobj.needscfg:
+                self.errors.append(f'{pname!r} has no default value and was not given in config!')
+            if pobj.default is None:
+                # we do not want to call the setter for this parameter for now,
+                # this should happen on the first read
+                pobj.readerror = ConfigError(f'parameter {pname!r} not initialized')
+                # above error will be triggered on activate after startup,
+                # when not all hardware parameters are read because of startup timeout
+                pobj.default = pobj.datatype.default
+            pobj.value = pobj.default
+        else:
+            # value given explicitly, either by cfg or as Parameter argument
+            pobj.given = True  # for PersistentMixin
+            if hasattr(self, 'write_' + pname):
+                self.writeDict[pname] = pobj.value
+            if pobj.default is None:
+                pobj.default = pobj.value
+            # this checks again for datatype and sets the timestamp
+            setattr(self, pname, pobj.value)
 
     def announceUpdate(self, pname, value=None, err=None, timestamp=None, validate=True):
         """announce a changed value or readerror
@@ -630,6 +629,8 @@ class Module(HasAccessibles):
         registers it in the server for waiting
         <timeout> defaults to 30 seconds
         """
+        # we do not need self.errors any longer. should we delete it?
+        # del self.errors
         if self.polledModules:
             mkthread(self.__pollThread, self.polledModules, start_events.get_trigger())
         self.startModuleDone = True
