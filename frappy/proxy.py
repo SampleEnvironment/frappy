@@ -215,7 +215,7 @@ def proxy_class(remote_class, name=None):
             cobj = aobj.copy()
 
             def cfunc(self, arg=None, cname=aname):
-                return self._secnode.execCommand(self.name, cname, arg)
+                return self._secnode.execCommand(self.name, cname, arg)[0]
 
             attrs[aname] = cobj(cfunc)
 
