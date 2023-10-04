@@ -15,6 +15,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Alexander Zaft <a.zaft@fz-juelich.de>
 #
 # *****************************************************************************
 """testing devices"""
@@ -27,9 +28,8 @@ import time
 from frappy.datatypes import ArrayOf, BoolType, EnumType, \
     FloatRange, IntRange, StringType, StructOf, TupleOf
 from frappy.lib.enum import Enum
-from frappy.modules import Drivable
+from frappy.modules import Drivable, Readable, Attached
 from frappy.modules import Parameter as SECoP_Parameter
-from frappy.modules import Readable
 from frappy.properties import Property
 
 
@@ -118,9 +118,7 @@ class MagneticField(Drivable):
                      default=1, datatype=EnumType(persistent=1, hold=0),
                      readonly=False,
                      )
-    heatswitch = Parameter('name of heat switch device',
-                           datatype=StringType(), export=False,
-                           )
+    heatswitch = Attached(Switch, description='name of heat switch device')
 
     Status = Enum(Drivable.Status, PERSIST=PERSIST, PREPARE=301, RAMPING=302, FINISH=303)
 
@@ -129,7 +127,6 @@ class MagneticField(Drivable):
     def initModule(self):
         super().initModule()
         self._state = Enum('state', idle=1, switch_on=2, switch_off=3, ramp=4).idle
-        self._heatswitch = self.DISPATCHER.get_module(self.heatswitch)
         _thread = threading.Thread(target=self._thread)
         _thread.daemon = True
         _thread.start()
@@ -164,10 +161,10 @@ class MagneticField(Drivable):
                 if self.target != self.value:
                     self.log.debug('got new target -> switching heater on')
                     self._state = self._state.enum.switch_on
-                    self._heatswitch.write_target('on')
+                    self.heatswitch.write_target('on')
             if self._state == self._state.enum.switch_on:
                 # wait until switch is on
-                if self._heatswitch.read_value() == 'on':
+                if self.heatswitch.read_value() == 'on':
                     self.log.debug('heatswitch is on -> ramp to %.3f',
                                    self.target)
                     self._state = self._state.enum.ramp
@@ -177,7 +174,7 @@ class MagneticField(Drivable):
                     if self.mode:
                         self.log.debug('at field -> switching heater off')
                         self._state = self._state.enum.switch_off
-                        self._heatswitch.write_target('off')
+                        self.heatswitch.write_target('off')
                     else:
                         self.log.debug('at field -> hold')
                         self._state = self._state.enum.idle
@@ -188,7 +185,7 @@ class MagneticField(Drivable):
                     self.value += step
             if self._state == self._state.enum.switch_off:
                 # wait until switch is off
-                if self._heatswitch.read_value() == 'off':
+                if self.heatswitch.read_value() == 'off':
                     self.log.debug('heatswitch is off at %.3f', self.value)
                     self._state = self._state.enum.idle
             self.read_status()  # update async
@@ -268,12 +265,8 @@ class Label(Readable):
     system = Parameter("Name of the magnet system",
                        datatype=StringType(), export=False,
                        )
-    subdev_mf = Parameter("name of subdevice for magnet status",
-                          datatype=StringType(), export=False,
-                          )
-    subdev_ts = Parameter("name of subdevice for sample temp",
-                          datatype=StringType(), export=False,
-                          )
+    mf = Attached(MagneticField, description="subdevice for magnet status")
+    ts = Attached(SampleTemp, description="subdevice for sample temp")
     value = Parameter("final value of label string", default='',
                       datatype=StringType(),
                       )
@@ -281,18 +274,16 @@ class Label(Readable):
     def read_value(self):
         strings = [self.system]
 
-        dev_ts = self.DISPATCHER.get_module(self.subdev_ts)
-        if dev_ts:
-            strings.append(f"at {dev_ts.read_value():.3f} {dev_ts.parameters['value'].datatype.unit}")
+        if self.ts:
+            strings.append(f"at {self.ts.read_value():.3f} {self.ts.parameters['value'].datatype.unit}")
         else:
             strings.append('No connection to sample temp!')
 
-        dev_mf = self.DISPATCHER.get_module(self.subdev_mf)
-        if dev_mf:
-            mf_stat = dev_mf.read_status()
-            mf_mode = dev_mf.mode
-            mf_val = dev_mf.value
-            mf_unit = dev_mf.parameters['value'].datatype.unit
+        if self.mf:
+            mf_stat = self.mf.read_status()
+            mf_mode = self.mf.mode
+            mf_val = self.mf.value
+            mf_unit = self.mf.parameters['value'].datatype.unit
             if mf_stat[0] == self.Status.IDLE:
                 state = 'Persistent' if mf_mode else 'Non-persistent'
             else:
