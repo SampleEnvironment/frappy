@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -81,8 +80,7 @@ class PersistentMixin(Module):
         self.persistentFile = os.path.join(persistentdir, f'{self.DISPATCHER.equipment_id}.{self.name}.json')
         self.initData = {}  # "factory" settings
         loaded = self.loadPersistentData()
-        for pname in self.parameters:
-            pobj = self.parameters[pname]
+        for pname, pobj in self.parameters.items():
             flag = getattr(pobj, 'persistent', False)
             if flag:
                 if flag == 'auto':

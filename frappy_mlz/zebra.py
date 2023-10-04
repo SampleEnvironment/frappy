@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # MLZ library of Tango servers
 # Copyright (c) 2015-2023 by the authors, see LICENSE

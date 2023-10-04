@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # MLZ Tango client tool
 # Copyright (c) 2015-2016 by the authors, see LICENSE

@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -33,7 +32,7 @@ else:
     class PEP487Metaclass(type):
         # support for __set_name__ and __init_subclass__ for older python versions
         # slightly modified from PEP487 doc
-        def __new__(cls, *args, **kwargs):
+        def __new__(cls, *args, **kwargs):  # pylint: disable=bad-mcs-classmethod-argument
             if len(args) != 3:
                 return super().__new__(cls, *args)
             name, bases, ns = args
