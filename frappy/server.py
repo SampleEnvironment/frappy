@@ -108,9 +108,13 @@ class Server:
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
 
-    def signal_handler(self, _num, _frame):
+    def signal_handler(self, num, frame):
         if hasattr(self, 'interface') and self.interface:
             self.shutdown()
+        else:
+            # TODO: we should probably clean up the already initialized modules
+            # when getting an interrupt while the server is starting
+            signal.default_int_handler(num, frame)
 
     def start(self):
         if not DaemonContext:
