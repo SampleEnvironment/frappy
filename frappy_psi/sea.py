@@ -253,7 +253,7 @@ class SeaClient(ProxyClient, Module):
                 if result == '1':
                     self.asynio.writeline(('get_all_param ' + ' '.join(self.objects)).encode())
                 else:
-                    self.DISPATCHER.shutdown()
+                    self.secNode.srv.shutdown()
             try:
                 reply = self.asynio.readline()
                 if reply is None:
@@ -314,7 +314,7 @@ class SeaClient(ProxyClient, Module):
                         if path == '/device/changetime':
                             recheck = time.time() + 1
                         elif path.startswith('/device/frappy_%s' % self.service) and value == '':
-                            self.DISPATCHER.shutdown()
+                            self.secNode.srv.shutdown()
                 else:
                     for module, param in mplist:
                         oldv, oldt, oldr = self.cache.get((module, param), [None, None, None])
@@ -657,7 +657,7 @@ class SeaModule(Module):
                 readerror = secop_error(e)
         pobj.readerror = readerror
         if pobj.export:
-            self.DISPATCHER.broadcast_event(make_update(self.name, pobj))
+            self.secNode.srv.dispatcher.broadcast_event(make_update(self.name, pobj))
 
     def initModule(self):
         self.io.register_obj(self, self.sea_object)

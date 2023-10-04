@@ -17,6 +17,7 @@
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #   Markus Zolliker <markus.zolliker@psi.ch>
+#   Alexander Zaft <a.zaft@fz-juelich.de>
 #
 # *****************************************************************************
 """Dispatcher for SECoP Messages
@@ -28,28 +29,18 @@ Interface to the service offering part:
    on the connectionobj or on activated connections
  - 'add_connection(connectionobj)' registers new connection
  - 'remove_connection(connectionobj)' removes now longer functional connection
-
-Interface to the modules:
- - add_module(modulename, moduleobj, export=True) registers a new module under the
-   given name, may also register it for exporting (making accessible)
- - get_module(modulename) returns the requested module or None
- - remove_module(modulename_or_obj): removes the module (during shutdown)
-
 """
 
 import threading
-import traceback
-from collections import OrderedDict
 from time import time as currenttime
 
 from frappy.errors import NoSuchCommandError, NoSuchModuleError, \
-    NoSuchParameterError, ProtocolError, ReadOnlyError, ConfigError
+    NoSuchParameterError, ProtocolError, ReadOnlyError
 from frappy.params import Parameter
 from frappy.protocol.messages import COMMANDREPLY, DESCRIPTIONREPLY, \
     DISABLEEVENTSREPLY, ENABLEEVENTSREPLY, ERRORPREFIX, EVENTREPLY, \
-    HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, READREPLY, WRITEREPLY, \
-    LOGGING_REPLY, LOG_EVENT
-from frappy.lib import get_class
+    HEARTBEATREPLY, IDENTREPLY, IDENTREQUEST, LOG_EVENT, LOGGING_REPLY, \
+    READREPLY, WRITEREPLY
 
 
 def make_update(modulename, pobj):
@@ -70,10 +61,7 @@ class Dispatcher:
             self.nodeprops[k] = options.pop(k)
 
         self.log = logger
-        # map ALL modulename -> moduleobj
-        self._modules = {}
-        # list of EXPORTED modules
-        self._export = []
+        self.secnode = srv.secnode
         # list all connections
         self._connections = []
         # active (i.e. broadcast-receiving) connections
@@ -87,11 +75,6 @@ class Dispatcher:
         self.shutdown = srv.shutdown
         # handle to server
         self.srv = srv
-        # set of modules that failed creation
-        self.failed_modules = set()
-        # list of errors that occured during initialization
-        self.errors = []
-        self.traceback_counter = 0
 
     def broadcast_event(self, msg, reallyall=False):
         """broadcasts a msg to all active connections
@@ -147,163 +130,8 @@ class Dispatcher:
             self._connections.remove(conn)
         self.reset_connection(conn)
 
-    def register_module(self, moduleobj, modulename, export=True):
-        self.log.debug('registering module %r as %s (export=%r)',
-                       moduleobj, modulename, export)
-        self._modules[modulename] = moduleobj
-        if export:
-            self._export.append(modulename)
-
-    def get_module(self, modulename):
-        """ Returns a fully initialized module. Or None, if something went
-        wrong during instatiating/initializing the module."""
-        modobj = self.get_module_instance(modulename)
-        if modobj is None:
-            return None
-        if modobj._isinitialized:
-            return modobj
-
-        # also call earlyInit on the modules
-        self.log.debug('initializing module %r', modulename)
-        try:
-            modobj.earlyInit()
-            if not modobj.earlyInitDone:
-                self.errors.append(f'{modobj.earlyInit.__qualname__} was not called, probably missing super call')
-            modobj.initModule()
-            if not modobj.initModuleDone:
-                self.errors.append(f'{modobj.initModule.__qualname__} was not called, probably missing super call')
-        except Exception as e:
-            if self.traceback_counter == 0:
-                self.log.exception(traceback.format_exc())
-            self.traceback_counter += 1
-            self.errors.append(f'error initializing {modulename}: {e!r}')
-        modobj._isinitialized = True
-        self.log.debug('initialized module %r', modulename)
-        return modobj
-
-    def get_module_instance(self, modulename):
-        """ Returns the module in its current initialization state or creates a
-        new uninitialized modle to return.
-
-        When creating a new module, srv.module_config is accessed to get the
-        modules configuration.
-        """
-        if modulename in self._modules:
-            return self._modules[modulename]
-        if modulename in list(self._modules.values()):
-            # it's actually already the module object
-            return modulename
-        # create module from srv.module_cfg, store and return
-        self.log.debug('attempting to create module %r', modulename)
-
-        opts = self.srv.module_cfg.get(modulename, None)
-        if opts is None:
-            raise NoSuchModuleError(f'Module {modulename!r} does not exist on this SEC-Node!')
-        pymodule = None
-        try:  # pylint: disable=no-else-return
-            classname = opts.pop('cls')
-            if isinstance(classname, str):
-                pymodule = classname.rpartition('.')[0]
-                if pymodule in self.failed_modules:
-                    # creation has failed already once, do not try again
-                    return None
-                cls = get_class(classname)
-            else:
-                pymodule = classname.__module__
-                if pymodule in self.failed_modules:
-                    # creation has failed already once, do not try again
-                    return None
-                cls = classname
-        except Exception as e:
-            if str(e) == 'no such class':
-                self.errors.append(f'{classname} not found')
-            else:
-                self.failed_modules.add(pymodule)
-                if self.traceback_counter == 0:
-                    self.log.exception(traceback.format_exc())
-                self.traceback_counter += 1
-                self.errors.append(f'error importing {classname}')
-            return None
-        else:
-            try:
-                modobj = cls(modulename, self.log.parent.getChild(modulename), opts, self.srv)
-            except ConfigError as e:
-                self.errors.append(f'error creating module {modulename}:')
-                for errtxt in e.args[0] if isinstance(e.args[0], list) else [e.args[0]]:
-                    self.errors.append('  ' + errtxt)
-                modobj = None
-            except Exception as e:
-                if self.traceback_counter == 0:
-                    self.log.exception(traceback.format_exc())
-                self.traceback_counter += 1
-                self.errors.append(f'error creating {modulename}')
-                modobj = None
-        if modobj:
-            self.register_module(modobj, modulename, modobj.export)
-            self.srv.modules[modulename] = modobj # IS HERE THE CORRECT PLACE?
-        return modobj
-
-    def remove_module(self, modulename_or_obj):
-        moduleobj = self.get_module(modulename_or_obj)
-        modulename = moduleobj.name
-        if modulename in self._export:
-            self._export.remove(modulename)
-        self._modules.pop(modulename)
-        self._subscriptions.pop(modulename, None)
-        for k in [kk for kk in self._subscriptions if kk.startswith(f'{modulename}:')]:
-            self._subscriptions.pop(k, None)
-
-    def list_module_names(self):
-        # return a copy of our list
-        return self._export[:]
-
-    def export_accessibles(self, modulename):
-        self.log.debug('export_accessibles(%r)', modulename)
-        if modulename in self._export:
-            # omit export=False params!
-            res = OrderedDict()
-            for aobj in self.get_module(modulename).accessibles.values():
-                if aobj.export:
-                    res[aobj.export] = aobj.for_export()
-            self.log.debug('list accessibles for module %s -> %r',
-                           modulename, res)
-            return res
-        self.log.debug('-> module is not to be exported!')
-        return OrderedDict()
-
-    def get_descriptive_data(self, specifier):
-        """returns a python object which upon serialisation results in the descriptive data"""
-        specifier = specifier or ''
-        modules = {}
-        result = {'modules': modules}
-        for modulename in self._export:
-            module = self.get_module(modulename)
-            if not module.export:
-                continue
-            # some of these need rework !
-            mod_desc = {'accessibles': self.export_accessibles(modulename)}
-            mod_desc.update(module.exportProperties())
-            mod_desc.pop('export', False)
-            modules[modulename] = mod_desc
-        modname, _, pname = specifier.partition(':')
-        if modname in modules:  # extension to SECoP standard: description of a single module
-            result = modules[modname]
-            if pname in result['accessibles']:  # extension to SECoP standard: description of a single accessible
-                # command is also accepted
-                result = result['accessibles'][pname]
-            elif pname:
-                raise NoSuchParameterError(f'Module {modname!r} has no parameter {pname!r}')
-        elif not modname or modname == '.':
-            result['equipment_id'] = self.equipment_id
-            result['firmware'] = 'FRAPPY - The Python Framework for SECoP'
-            result['version'] = '2021.02'
-            result.update(self.nodeprops)
-        else:
-            raise NoSuchModuleError(f'Module {modname!r} does not exist')
-        return result
-
     def _execute_command(self, modulename, exportedname, argument=None):
-        moduleobj = self.get_module(modulename)
+        moduleobj = self.secnode.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError(f'Module {modulename!r} does not exist')
 
@@ -322,7 +150,7 @@ class Dispatcher:
         return result, {'t': currenttime()}
 
     def _setParameterValue(self, modulename, exportedname, value):
-        moduleobj = self.get_module(modulename)
+        moduleobj = self.secnode.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError(f'Module {modulename!r} does not exist')
 
@@ -343,7 +171,7 @@ class Dispatcher:
         return pobj.export_value(), {'t': pobj.timestamp} if pobj.timestamp else {}
 
     def _getParameterValue(self, modulename, exportedname):
-        moduleobj = self.get_module(modulename)
+        moduleobj = self.secnode.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError(f'Module {modulename!r} does not exist')
 
@@ -400,7 +228,7 @@ class Dispatcher:
         return (IDENTREPLY, None, None)
 
     def handle_describe(self, conn, specifier, data):
-        return (DESCRIPTIONREPLY, specifier or '.', self.get_descriptive_data(specifier))
+        return (DESCRIPTIONREPLY, specifier or '.', self.secnode.get_descriptive_data(specifier))
 
     def handle_read(self, conn, specifier, data):
         if data:
@@ -439,9 +267,9 @@ class Dispatcher:
             modulename, exportedname = specifier, None
             if ':' in specifier:
                 modulename, exportedname = specifier.split(':', 1)
-            if modulename not in self._export:
+            if modulename not in self.secnode.export:
                 raise NoSuchModuleError(f'Module {modulename!r} does not exist')
-            moduleobj = self.get_module(modulename)
+            moduleobj = self.secnode.get_module(modulename)
             if exportedname is not None:
                 pname = moduleobj.accessiblename2attr.get(exportedname, True)
                 if pname and pname not in moduleobj.accessibles:
@@ -455,12 +283,12 @@ class Dispatcher:
         else:
             # activate all modules
             self._active_connections.add(conn)
-            modules = [(m, None) for m in self._export]
+            modules = [(m, None) for m in self.secnode.export]
 
         # send updates for all subscribed values.
         # note: The initial poll already happend before the server is active
         for modulename, pname in modules:
-            moduleobj = self._modules.get(modulename, None)
+            moduleobj = self.secnode.modules.get(modulename, None)
             if pname:
                 conn.send_reply(make_update(modulename, moduleobj.parameters[pname]))
                 continue
@@ -484,13 +312,13 @@ class Dispatcher:
         conn.send_reply((LOG_EVENT, f'{modname}:{level}', msg))
 
     def set_all_log_levels(self, conn, level):
-        for modobj in self._modules.values():
-            modobj.setRemoteLogging(conn, level)
+        for modobj in self.secnode.modules.values():
+            modobj.setRemoteLogging(conn, level, self.send_log_msg)
 
     def handle_logging(self, conn, specifier, level):
         if specifier and specifier != '.':
-            modobj = self._modules[specifier]
-            modobj.setRemoteLogging(conn, level)
+            modobj = self.secnode.modules[specifier]
+            modobj.setRemoteLogging(conn, level, self.send_log_msg)
         else:
             self.set_all_log_levels(conn, level)
         return LOGGING_REPLY, specifier, level

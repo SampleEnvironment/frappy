@@ -56,11 +56,23 @@ class LoggerStub:
 logger = LoggerStub()
 
 
+class SecNodeStub:
+    def __init__(self):
+        self.modules = {}
+
+    def add_module(self, module, modname):
+        self.modules[modname] = module
+
+    def get_module(self, modname):
+        return self.modules[modname]
+
+
 class ServerStub:
     restart = None
     shutdown = None
 
     def __init__(self):
+        self.secnode = SecNodeStub()
         self.dispatcher = Dispatcher('dispatcher', logger, {}, self)
 
 
@@ -72,6 +84,6 @@ def test_attach():
     a = Module('a', logger, {'description': ''}, srv)
     m = Mod('m', logger, {'description': '', 'att': 'a'}, srv)
     assert m.propertyValues['att'] == 'a'
-    srv.dispatcher.register_module(a, 'a')
-    srv.dispatcher.register_module(m, 'm')
+    srv.secnode.add_module(a, 'a')
+    srv.secnode.add_module(m, 'm')
     assert m.att == a

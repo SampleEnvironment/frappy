@@ -132,7 +132,7 @@ class Attached(Property):
             modulename = super().__get__(obj, owner)
             if not modulename:
                 return None  # happens when mandatory=False and modulename is not given
-            modobj = obj.DISPATCHER.get_module(modulename)
+            modobj = obj.secNode.get_module(modulename)
             if not isinstance(modobj, self.basecls):
                 raise ConfigError(f'attached module {self.name}={modobj.name!r} '
                                   f'must inherit from {self.basecls.__qualname__!r}')

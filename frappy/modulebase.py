@@ -327,14 +327,13 @@ class Module(HasAccessibles):
                                      NoneOr(FloatRange(0)), export=False, default=None)
     enablePoll = True
 
-    # reference to the dispatcher (used for sending async updates)
-    DISPATCHER = None
     pollInfo = None
     triggerPoll = None  # trigger event for polls. used on io modules and modules without io
 
     def __init__(self, name, logger, cfgdict, srv):
-        # remember the dispatcher object (for the async callbacks)
-        self.DISPATCHER = srv.dispatcher
+        # remember the secnode for interacting with other modules and the
+        # server
+        self.secNode = srv.secnode
         self.log = logger
         self.name = name
         self.valueCallbacks = {}
@@ -349,6 +348,7 @@ class Module(HasAccessibles):
         self.attachedModules = {}
         self.errors = []
         self._isinitialized = False
+        self.updateCallback =  srv.dispatcher.announce_update
 
         # handle module properties
         # 1) make local copies of properties
@@ -549,7 +549,7 @@ class Module(HasAccessibles):
                 arg = value
                 pobj.readerror = None
             if pobj.export:
-                self.DISPATCHER.announce_update(self.name, pname, pobj)
+                self.updateCallback(self.name, pname, pobj)
             cblist = callbacks[pname]
             for cb in cblist:
                 try:
@@ -818,15 +818,16 @@ class Module(HasAccessibles):
                     except Exception:
                         self.log.error(formatException())
 
-    def setRemoteLogging(self, conn, level):
+    def setRemoteLogging(self, conn, level, send_log):
         if self.remoteLogHandler is None:
             for handler in self.log.handlers:
                 if isinstance(handler, RemoteLogHandler):
+                    handler.send_log = send_log
                     self.remoteLogHandler = handler
                     break
             else:
                 raise ValueError('remote handler not found')
-        self.remoteLogHandler.set_conn_level(self, conn, level)
+        self.remoteLogHandler.set_conn_level(self.name, conn, level)
 
     def checkLimits(self, value, pname='target'):
         """check for limits

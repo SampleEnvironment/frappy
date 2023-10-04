@@ -57,6 +57,7 @@ logger = LoggerStub()
 class ServerStub:
     def __init__(self, updates):
         self.dispatcher = DispatcherStub(updates)
+        self.secnode = None
 
 
 class ModuleTest(Module):

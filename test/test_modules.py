@@ -64,6 +64,7 @@ logger = LoggerStub()
 class ServerStub:
     def __init__(self, updates):
         self.dispatcher = DispatcherStub(updates)
+        self.secnode = None
 
 
 class DummyMultiEvent(threading.Event):
@@ -711,6 +712,7 @@ def test_super_call():
     class ServerStub1:
         def __init__(self, updates):
             self.dispatcher = DispatcherStub1(updates)
+            self.secnode = None
 
     updates = []
     srv = ServerStub1(updates)

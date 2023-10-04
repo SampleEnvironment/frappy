@@ -68,6 +68,7 @@ class ServerStub:
     def __init__(self):
         generalConfig.testinit()
         self.dispatcher = DispatcherStub()
+        self.secnode = None
 
 
 class Base(Module):
