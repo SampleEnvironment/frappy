@@ -42,7 +42,8 @@ from frappy.datatypes import ArrayOf, BoolType, \
 from frappy.errors import ConfigError, HardwareError, secop_error, CommunicationFailedError
 from frappy.lib import generalConfig, mkthread
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
-from frappy.modules import Attached, Command, Done, Drivable, \
+from frappy.modulebase import Done
+from frappy.modules import Attached, Command, Drivable, \
     Module, Parameter, Property, Readable, Writable
 from frappy.protocol.dispatcher import make_update
 
