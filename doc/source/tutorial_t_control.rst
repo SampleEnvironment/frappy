@@ -405,7 +405,7 @@ Appendix 2: Extract from the LakeShore Manual
     Reply                  <range> *term*
     **Operation Complete Query**
     ----------------------------------------------
-    Command                *OPC?
+    Command                \*OPC?
     Reply                  1
     Description            in Frappy, we append this command to request in order
                            to generate a reply

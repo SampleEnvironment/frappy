@@ -27,7 +27,8 @@ from frappy.modulebase import HasProperties, Module
 
 def indent_description(p):
     """indent lines except first one"""
-    return indent(p.description, '      ').replace('      ', '', 1)
+    space = ' ' * 6
+    return indent(p.description, space).replace(space, '', 1)
 
 
 def fmt_param(name, param):

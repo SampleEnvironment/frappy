@@ -24,17 +24,17 @@ other future extensions of AsynConn
 """
 
 import re
-import time
 import threading
+import time
 
-from frappy.lib.asynconn import AsynConn, ConnectionClosed
-from frappy.datatypes import ArrayOf, BLOBType, BoolType, FloatRange, IntRange, \
-    StringType, TupleOf, ValueType
-from frappy.errors import CommunicationFailedError, ConfigError, ProgrammingError, \
-    SilentCommunicationFailedError as SilentError
-from frappy.modules import Attached, Command, \
-    Communicator, Module, Parameter, Property
+from frappy.datatypes import ArrayOf, BLOBType, BoolType, FloatRange, \
+    IntRange, StringType, StructOf, TupleOf, ValueType
+from frappy.errors import CommunicationFailedError, ConfigError, \
+    ProgrammingError, SilentCommunicationFailedError as SilentError
 from frappy.lib import generalConfig
+from frappy.lib.asynconn import AsynConn, ConnectionClosed
+from frappy.modules import Attached, Command, Communicator, Module, \
+    Parameter, Property
 
 generalConfig.set_default('legacy_hasiodev', False)
 
@@ -75,8 +75,11 @@ class HasIO(Module):
     def communicate(self, *args):
         return self.io.communicate(*args)
 
-    def multicomm(self, *args):
-        return self.io.multicomm(*args)
+    def writeline(self, *args):
+        return self.io.writeline(*args)
+
+    def multicomm(self, *args, **kwds):
+        return self.io.multicomm(*args, **kwds)
 
 
 class HasIodev(HasIO):
@@ -286,7 +289,7 @@ class StringIO(IOBase):
                                                f' does not match {regexp!r}')
 
     @Command(StringType(), result=StringType())
-    def communicate(self, command):
+    def communicate(self, command, noreply=False):
         """send a command and receive a reply
 
         using end_of_line, encoding and self._lock
@@ -313,6 +316,8 @@ class StringIO(IOBase):
                                 self.comLog('garbage: %r', garbage)
                         self._conn.send(cmd + self._eol_write)
                         self.comLog('> %s', cmd.decode(self.encoding))
+                    if noreply:
+                        return None
                     reply = self._conn.readline(self.timeout)
                 except ConnectionClosed:
                     self.closeConnection()
@@ -328,13 +333,69 @@ class StringIO(IOBase):
                 self.log.error(self._last_error)
             raise SilentError(repr(e)) from e
 
-    @Command(ArrayOf(StringType()), result=ArrayOf(StringType()))
-    def multicomm(self, commands):
-        """communicate multiple request/replies in one row"""
+    @Command(StringType())
+    def writeline(self, command):
+        """send a command without needing a reply
+
+        For keeping a request-reply scheme it is recommended to overwrite
+        this method to append a query on the same line, for example:
+
+        .. code::
+
+            def writeline(self, command):
+                self.communicate(command + ';*OPC?')
+
+        or to add an additional query which is returning always a reply, e.g.:
+
+        .. code::
+
+            def writeline(self, command):
+                with self._lock:  # important!
+                    self.communicate(command, noreply=True)
+                    self.communicate('*OPC?')
+
+        The first version is preferred when the hardware allows to join several
+        commands by a separator.
+        """
+        self.communicate(command, noreply=True)
+
+    @Command(ArrayOf(TupleOf(StringType(), BoolType(), FloatRange(0, unit='s'))),
+             result=ArrayOf(StringType()))
+    def multicomm(self, requests):
+        """communicate multiple request/replies in one go
+
+        :param requests: a sequence of tuple of (command, request_expected, delay)
+            if called internally, a sequence of strings (command) is also accepted
+        :return: list of replies
+
+        This method may be rarely used, it is intended when the hardware needs
+        that several commands are not intercepted by an other client or by the poller,
+        for example selecting a channel before reading it. Or when wait times different
+        from 'wait_before' have to be specified.
+
+        These cases may also handled by adding an additional method to the IO class.
+        This could also be a custom SECoP command.
+        Or, in the case where all useful commands in this IO class need it,
+        :meth:`communicate` may be overridden.
+
+        This method should be used in the following cases:
+
+        1) you want to use a generic communicator covering above use cases over SECoP.
+        2) you do not want to subclass the IO class.
+        """
         replies = []
         with self._lock:
-            for cmd in commands:
-                replies.append(self.communicate(cmd))
+            for request in requests:
+                if isinstance(request, str):
+                    cmd, expect_reply, delay = request, True, 0
+                else:
+                    cmd, expect_reply, delay = request
+                if expect_reply:
+                    replies.append(self.communicate(cmd))
+                else:
+                    self.writeline(cmd)
+                if delay:
+                    time.sleep(delay)
         return replies
 
 
@@ -425,13 +486,20 @@ class BytesIO(IOBase):
                 self.log.error(self._last_error)
             raise SilentError(repr(e)) from e
 
-    @Command((ArrayOf(TupleOf(BLOBType(), IntRange(0)))), result=ArrayOf(BLOBType()))
+    @Command(StructOf(requests=ArrayOf(TupleOf(BLOBType(), IntRange(0), FloatRange(0, unit='s')))),
+             result=ArrayOf(BLOBType()))
     def multicomm(self, requests):
-        """communicate multiple request/replies in one row"""
+        """communicate multiple request/replies in one go
+
+        :param requests: sequence of tuple (<command>, <expected reply length>, <delay>)
+        :return: list of replies
+        """
         replies = []
         with self._lock:
-            for request in requests:
-                replies.append(self.communicate(*request))
+            for cmd, replylen, delay in requests:
+                replies.append(self.communicate(cmd, replylen))
+            if delay:
+                time.sleep(delay)
         return replies
 
     def readBytes(self, nbytes):
