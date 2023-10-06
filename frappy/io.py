@@ -238,7 +238,7 @@ class StringIO(IOBase):
 
         a flag to indicate whether the first message should be resent once to
         avoid data that may still be in the buffer to garble the message''',
-        datatype=BoolType(), default=False)
+        datatype=BoolType(), default=True)
 
     def _convert_eol(self, value):
         if isinstance(value, str):
