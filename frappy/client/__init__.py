@@ -390,16 +390,17 @@ class SecopClient(ProxyClient):
                         else:
                             module_param = self.internal.get(f'{ident}:value', None)
                     if module_param is not None:
+                        now = time.time()
                         if action.startswith(ERRORPREFIX):
-                            timestamp = data[2].get('t', None)
+                            timestamp = data[2].get('t', now)
                             readerror = frappy.errors.make_secop_error(*data[0:2])
                             value = None
                         else:
-                            timestamp = data[1].get('t', None)
+                            timestamp = data[1].get('t', now)
                             value = data[0]
                             readerror = None
                         module, param = module_param
-                        timestamp = min(time.time(), timestamp)  # no timestamps in the future!
+                        timestamp = min(now, timestamp)  # no timestamps in the future!
                         try:
                             self.updateValue(module, param, value, timestamp, readerror)
                         except KeyError:
