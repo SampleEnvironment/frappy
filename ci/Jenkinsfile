@@ -141,10 +141,21 @@ def run_docs() {
         '''
     }
 
+    /* does not work with too many quote levels
+     * alternatively use pdf (based on rst2pdf)
+     * or singlehtml converted to pdf manually from a browser (may produce nicer output)
     stage('build latexpdf') {
         sh '''
         . /home/jenkins/secopvenv/bin/activate
         make -C doc latexpdf
+        '''
+    }
+    */
+
+    stage('build pdf') {
+        sh '''
+        . /home/jenkins/secopvenv/bin/activate
+        make -C doc pdf
         '''
     }
 
