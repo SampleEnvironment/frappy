@@ -992,7 +992,7 @@ class StructOf(DataType):
         return res
 
     def __repr__(self):
-        opt = f', optional={self.optional!r}' if set(self.optional) == set(self.members) else ''
+        opt = f', optional={self.optional!r}' if set(self.optional) != set(self.members) else ''
         return 'StructOf(%s%s)' % (', '.join(
             ['%s=%s' % (n, repr(st)) for n, st in list(self.members.items())]), opt)
 
