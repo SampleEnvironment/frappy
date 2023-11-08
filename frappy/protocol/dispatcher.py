@@ -131,6 +131,8 @@ class Dispatcher:
         self.reset_connection(conn)
 
     def _execute_command(self, modulename, exportedname, argument=None):
+        """ Execute a command. Importing the value is done in 'do' for nicer
+        error messages."""
         moduleobj = self.secnode.get_module(modulename)
         if moduleobj is None:
             raise NoSuchModuleError(f'Module {modulename!r} does not exist')
@@ -139,9 +141,6 @@ class Dispatcher:
         cobj = moduleobj.commands.get(cname)
         if cobj is None:
             raise NoSuchCommandError(f'Module {modulename!r} has no command {cname or exportedname!r}')
-
-        if cobj.argument:
-            argument = cobj.argument.import_value(argument)
         # now call func
         # note: exceptions are handled in handle_request, not here!
         result = cobj.do(moduleobj, argument)

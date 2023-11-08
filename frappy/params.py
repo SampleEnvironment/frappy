@@ -24,12 +24,12 @@
 
 import inspect
 
-from frappy.datatypes import BoolType, CommandType, DataType, \
-    DataTypeType, EnumType, NoneOr, OrType, FloatRange, \
-    StringType, StructOf, TextType, TupleOf, ValueType, ArrayOf
-from frappy.errors import BadValueError, WrongTypeError, ProgrammingError
-from frappy.properties import HasProperties, Property
+from frappy.datatypes import ArrayOf, BoolType, CommandType, DataType, \
+    DataTypeType, EnumType, FloatRange, NoneOr, OrType, StringType, StructOf, \
+    TextType, TupleOf, ValueType
+from frappy.errors import BadValueError, ProgrammingError, WrongTypeError
 from frappy.lib import generalConfig
+from frappy.properties import HasProperties, Property
 
 generalConfig.set_default('tolerate_poll_property', False)
 generalConfig.set_default('omit_unchanged_within', 0.1)
@@ -427,6 +427,18 @@ class Command(Accessible):
 
     def __call__(self, func):
         """called when used as decorator"""
+        if isinstance(self.argument, StructOf):
+            # automatically set optional struct members
+            sig = inspect.signature(func)
+            params = set(sig.parameters.keys())
+            params.discard('self')
+            members = set(self.argument.members)
+            if params != members:
+                raise ProgrammingError(f'Command {func.__name__}: Function'
+                                       f' argument names do not match struct'
+                                       f' members!: {params} != {members}')
+            self.argument.optional = [p for p,v in sig.parameters.items()
+                   if v.default is not inspect.Parameter.empty]
         if 'description' not in self.propertyValues and func.__doc__:
             self.description = inspect.cleandoc(func.__doc__)
             self.ownProperties['description'] = self.description
@@ -497,6 +509,19 @@ class Command(Accessible):
         # pylint: disable=unnecessary-dunder-call
         func = self.__get__(module_obj)
         if self.argument:
+            if argument is None:
+                raise WrongTypeError(
+                    f'{module_obj.__class__.__name__}.{self.name} needs an'
+                    f' argument of type {self.argument}!'
+                )
+            try:
+                argument = self.argument.import_value(argument)
+            except TypeError:
+                pass  # validate will raise appropriate message
+            except ValueError:
+                pass  # validate will raise appropriate message
+
+            self.argument.validate(argument)
             if isinstance(self.argument, TupleOf):
                 res = func(*argument)
             elif isinstance(self.argument, StructOf):
