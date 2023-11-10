@@ -71,19 +71,18 @@ class Server:
             multiple cfg files, the interface is taken from the first cfg file
         - testonly: test mode. tries to build all modules, but the server is not started
 
-        Format of cfg file (for now, both forms are accepted):
-        old form:                  new form:
-
-        [node <equipment id>]      [NODE]
-        description=<descr>        id=<equipment id>
-                                   description=<descr>
-
-        [interface tcp]            [INTERFACE]
-        bindport=10769             uri=tcp://10769
-        bindto=0.0.0.0
-
-        [module temp]              [temp]
-        ramp=12                    ramp=12
+        Config file:
+        Format:                     Example:
+        Node('<equipment_id>',      Node('ex.frappy.demo',
+            <description>,              'short description\n\nlong descr.',
+            <main interface>,           'tcp://10769',
+            secondary=[                 secondary=['ws://10770'],  # optional
+              <interfaces>
+            ],
+        )                               )
+        Mod('<module name>',        Mod('temp',
+            <param config>              value = Param(unit='K'),
+        )                           )
         ...
         """
         self._testonly = testonly
@@ -160,7 +159,10 @@ class Server:
             iface_threads = []
             interfaces_started = MultiEvent(default_timeout=1)#default_timeout=15)
             lock = threading.Lock()
-            for interface in [self.node_cfg['interface']] + self.node_cfg.get('interfaces', []):
+            # TODO: check if only one interface of each type is open?
+            for interface in [self.node_cfg['interface']] + self.node_cfg.get(
+                'secondary', []
+            ):
                 opts = {'uri': interface}
                 t = mkthread(
                     self._interfaceThread,
