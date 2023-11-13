@@ -41,6 +41,40 @@ class Test_Mod_str(Readable):
     def read_status(self):
         # instead of asking a 'Hardware' take the value from the simulation
         return self.status
+    
+class Test_Struct_of_arrays(Readable):
+    Status = Enum(Readable.Status)
+
+    status = Parameter(datatype=StatusType(Status))
+    
+    value = Parameter("struct of arrays containing primitive datatypes",
+                            datatype=StructOf(
+                                ints = ArrayOf(IntRange(),minlen=5,maxlen=5),
+                                strings = ArrayOf(StringType(),minlen=5,maxlen=5),
+                                floats = ArrayOf(FloatRange(),minlen=5,maxlen=5)                                    
+                            ),
+                            readonly = True)
+    
+    writable_strct_of_arr = Parameter("writable struct of arrays containing primitive datatypes",
+                        datatype=StructOf(
+                            ints = ArrayOf(IntRange(),minlen=5,maxlen=5),
+                            strings = ArrayOf(StringType(),minlen=5,maxlen=5),
+                            floats = ArrayOf(FloatRange(),minlen=5,maxlen=5)                                    
+                        ))
+    
+    def read_value(self):
+        strings = [''.join(random.choices(string.ascii_lowercase, k=5)) for _ in range(1,5)]
+        ints =random.sample(range(0,50),5)
+        floats = [random.random() for _ in range(1,5)]
+    
+        return {"ints":ints,"strings":strings,"floats":floats}
+    
+    def read_writable_strct_of_arr(self):
+        return self.writable_strct_of_arr
+    
+    def write_writable_strct_of_arr(self,val):
+        self.writable_strct_of_arr = val
+    
 
 class OPYD_test_struct(Drivable):
     Status = Enum(Drivable.Status)  #: status codes
@@ -100,10 +134,17 @@ class OPYD_test_struct(Drivable):
     looptime = Parameter("timestep for simulation",
                         datatype=FloatRange(0.01, 10), unit="s", default=1,
                         readonly=False, export=False)
+    
+    
+
+    
          
     def read_value(self):
         return self.value
          
+         
+
+
 
     def read_target(self):
         return self.target

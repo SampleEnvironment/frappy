@@ -139,7 +139,7 @@ class Magazin:
             
     def removeSample(self,samplePos):            
         if self.Mag[samplePos-1] == None:
-            raise Exception("No sample at Pos "+ (samplePos-1)+"already occupied")
+            raise Exception("No sample at Pos "+ str(samplePos-1)+" already occupied")
         else: 
             sample = self.Mag[samplePos-1]
             self.Mag[samplePos-1] = None 
@@ -376,6 +376,8 @@ class Sample(HasIO,Drivable):
         
         # Robot successfully mounting the sample
         self.value = self.target
+        
+        self.read_status()
      
 
     def _unmount(self,target):
@@ -404,6 +406,8 @@ class Sample(HasIO,Drivable):
         # Robot successfully unmounted the sample
         self.value = 0
         
+        self.read_status()
+        
 
     @Command
     def measure(self):
@@ -431,6 +435,8 @@ class Sample(HasIO,Drivable):
         
        
         self.status = MEASURING , "Measuring Sample: " + str(self.value)
+        
+        self.read_status()
         
     @Command()
     def unload(self):
@@ -463,6 +469,8 @@ class Sample(HasIO,Drivable):
         
         self.value = 0
         self.target = 0
+        
+        self.read_status()
         
         
     

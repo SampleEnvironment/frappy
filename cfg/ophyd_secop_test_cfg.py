@@ -18,6 +18,23 @@ Mod('str_test',
     
 )
 
+
+Mod('struct_of_arrays',
+    'frappy_HZB.ophyd_secop_test_modules.Test_Struct_of_arrays',
+    'module for testing struct of arrays',
+    value = {
+        'ints':[1,2,3,4,5],
+        'strings':['aaaa','aaaaa','aaaa','aaa','aa'],
+        'floats':[1.1,2.2,4.3,6.4,7.5]},
+    
+
+    writable_strct_of_arr = {
+        'ints':[1,2,3,4,5],
+        'strings':['aaaa','aaaaa','aaaa','aaa','aa'],
+        'floats':[1.1,2.2,4.3,6.4,7.5]}
+    
+)
+    
 Mod('ophy_struct',
     'frappy_HZB.ophyd_secop_test_modules.OPYD_test_struct',
     'simulated hardware for testing ophyd struct behavior'
