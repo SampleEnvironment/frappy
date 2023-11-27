@@ -38,7 +38,7 @@ import PyTango
 from frappy.datatypes import ArrayOf, EnumType, FloatRange, IntRange, \
     LimitsType, StatusType, StringType, TupleOf, ValueType
 from frappy.errors import CommunicationFailedError, ConfigError, \
-    HardwareError, ProgrammingError
+    HardwareError, ProgrammingError, WrongTypeError
 from frappy.lib import lazy_property
 from frappy.modules import Command, Drivable, Module, Parameter, Property, \
     Readable, Writable
@@ -466,6 +466,30 @@ class AnalogOutput(PyTangoDevice, Drivable):
         # replacement of '$' by main unit must be done later
         self.__main_unit = mainunit
 
+    def _init_abslimits(self):
+        """Get abslimits from tango if not configured. Otherwise, check if both
+        ranges are compatible."""
+        try:
+            tangoabslim = (
+                float(self._getProperty('absmin')),
+                float(self._getProperty('absmax'))
+            )
+            if self.parameters['abslimits'].readerror:
+                # no abslimits configured in frappy. read from entangle
+                self.parameters['abslimits'].readerror = None
+                self.abslimits = tangoabslim
+        except Exception as e:
+            self.log.error(e)
+        # check if compatible
+        try:
+            dt = FloatRange(*tangoabslim)
+            self.parameters['abslimits'].datatype.compatible(dt)
+        except WrongTypeError as e:
+            raise WrongTypeError(f'Absolute limits configured in frappy \''
+                                f'{self.abslimits}\' extend beyond the limits '
+                                f'defined in entangle \'{tangoabslim}\'!') from e
+
+
     def initModule(self):
         super().initModule()
         # init history
@@ -486,6 +510,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
             self.log.error(e)
         if self.__main_unit:
             super().applyMainUnit(self.__main_unit)
+        self._init_abslimits()
 
     def doPoll(self):
         super().doPoll()
