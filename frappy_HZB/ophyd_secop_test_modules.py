@@ -59,8 +59,10 @@ class Test_Struct_of_arrays(Readable):
                         datatype=StructOf(
                             ints = ArrayOf(IntRange(),minlen=5,maxlen=5),
                             strings = ArrayOf(StringType(),minlen=5,maxlen=5),
-                            floats = ArrayOf(FloatRange(),minlen=5,maxlen=5)                                    
-                        ))
+                            floats = ArrayOf(FloatRange(),minlen=5,maxlen=5)
+                            ),
+                        readonly = False
+                        )
     
     def read_value(self):
         strings = [''.join(random.choices(string.ascii_lowercase, k=5)) for _ in range(0,5)]    
