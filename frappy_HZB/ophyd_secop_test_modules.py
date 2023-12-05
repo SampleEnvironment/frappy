@@ -63,9 +63,9 @@ class Test_Struct_of_arrays(Readable):
                         ))
     
     def read_value(self):
-        strings = [''.join(random.choices(string.ascii_lowercase, k=5)) for _ in range(1,5)]
+        strings = [''.join(random.choices(string.ascii_lowercase, k=5)) for _ in range(0,5)]    
         ints =random.sample(range(0,50),5)
-        floats = [random.random() for _ in range(1,5)]
+        floats = [random.random() for _ in range(0,5)]
     
         return {"ints":ints,"strings":strings,"floats":floats}
     
