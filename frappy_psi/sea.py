@@ -278,6 +278,9 @@ class SeaClient(ProxyClient, Module):
                         continue
                 else:
                     continue
+                # path from sea may contain double slash //
+                # this should be fixed, however in the meantime fix it here
+                path = path.replace('//', '/')
                 data = {'%s.geterror' % path: readerror.replace('ERROR: ', '')}
                 obj = None
                 flag = 'hdbevent'
