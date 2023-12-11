@@ -40,7 +40,7 @@ def copytest(dt):
 
 def test_DataType():
     dt = DataType()
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ProgrammingError):
         dt.export_datatype()
     with pytest.raises(NotImplementedError):
         dt('')

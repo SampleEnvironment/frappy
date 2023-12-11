@@ -89,7 +89,11 @@ class DataType(HasProperties):
 
     def export_datatype(self):
         """return a python object which after jsonifying identifies this datatype"""
-        raise NotImplementedError
+        raise ProgrammingError(
+            f"{type(self).__name__} is not able to be exported to SECoP. "
+            f"It is intended for internal use only."
+        )
+
 
     def export_value(self, value):
         """if needed, reformat value for transport"""
@@ -1230,6 +1234,7 @@ class OrType(DataType):
         super().__init__()
         self.types = types
         self.default = self.types[0].default
+
 
     def __call__(self, value):
         """accepts any of the given types, takes the first valid"""
