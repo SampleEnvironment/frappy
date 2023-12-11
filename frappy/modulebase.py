@@ -348,7 +348,7 @@ class Module(HasAccessibles):
         self.attachedModules = {}
         self.errors = []
         self._isinitialized = False
-        self.updateCallback =  srv.dispatcher.announce_update
+        self.updateCallback = srv.dispatcher.announce_update
 
         # handle module properties
         # 1) make local copies of properties
@@ -549,7 +549,7 @@ class Module(HasAccessibles):
                 arg = value
                 pobj.readerror = None
             if pobj.export:
-                self.updateCallback(self.name, pname, pobj)
+                self.updateCallback(self, pobj)
             cblist = callbacks[pname]
             for cb in cblist:
                 try:

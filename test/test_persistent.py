@@ -34,7 +34,7 @@ class SecNodeStub:
 
 
 class DispatcherStub:
-    def announce_update(self, modulename, pname, pobj):
+    def announce_update(self, moduleobj, pobj):
         pass
 
 

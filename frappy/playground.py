@@ -81,14 +81,14 @@ class Dispatcher(dispatcher.Dispatcher):
         super().__init__(name, log, options, srv)
         self.log = srv.log  # overwrite child logger
 
-    def announce_update(self, modulename, pname, pobj):
+    def announce_update(self, moduleobj, pobj):
         if pobj.readerror:
             value = repr(pobj.readerror)
         else:
             value = pobj.value
-        logobj = self._modules.get(modulename, self)
+        logobj = self._modules.get(moduleobj.name, self)
         # self.log.info('%s:%s %r', modulename, pname, value)
-        logobj.log.info('%s %r', pname, value)
+        logobj.log.info('%s %r', pobj.name, value)
 
     def register_module(self, moduleobj, modulename, export=True):
         self.log.info('registering %s', modulename)

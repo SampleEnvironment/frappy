@@ -94,6 +94,7 @@ class SecNode:
         if modulename in list(self.modules.values()):
             # it's actually already the module object
             return modulename
+
         # create module from srv.module_cfg, store and return
         self.log.debug('attempting to create module %r', modulename)
 

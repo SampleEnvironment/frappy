@@ -194,12 +194,12 @@ class DispatcherStub:
         generalConfig.testinit(omit_unchanged_within=0)
         self.updates = updates
 
-    def announce_update(self, modulename, pname, pobj):
-        assert modulename == 'obj'
+    def announce_update(self, moduleobj, pobj):
+        assert moduleobj.name == 'obj'
         if pobj.readerror:
-            self.updates.append((pname, pobj.readerror))
+            self.updates.append((pobj.name, pobj.readerror))
         else:
-            self.updates.append((pname, pobj.value))
+            self.updates.append((pobj.name, pobj.value))
 
 
 class ServerStub:

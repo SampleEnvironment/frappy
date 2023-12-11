@@ -93,10 +93,10 @@ class Dispatcher:
         for conn in listeners:
             conn.send_reply(msg)
 
-    def announce_update(self, modulename, pname, pobj):
+    def announce_update(self, moduleobj, pobj):
         """called by modules param setters to notify subscribers of new values
         """
-        self.broadcast_event(make_update(modulename, pobj))
+        self.broadcast_event(make_update(moduleobj.name, pobj))
 
     def subscribe(self, conn, eventname):
         self._subscriptions.setdefault(eventname, set()).add(conn)

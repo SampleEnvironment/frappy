@@ -52,7 +52,7 @@ artime = Time()  # artificial test time
 class DispatcherStub:
     maxcycles = 10
 
-    def announce_update(self, modulename, pname, pobj):
+    def announce_update(self, moduleobj, pobj):
         now = artime.time()
         if hasattr(pobj, 'stat'):
             pobj.stat.append(now)

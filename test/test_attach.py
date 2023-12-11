@@ -23,29 +23,6 @@ from frappy.modules import Module, Attached
 from frappy.protocol.dispatcher import Dispatcher
 
 
-# class DispatcherStub:
-#     # omit_unchanged_within = 0
-#
-#     # def __init__(self, updates):
-#     #     self.updates = updates
-#     #
-#     # def announce_update(self, modulename, pname, pobj):
-#     #     self.updates.setdefault(modulename, {})
-#     #     if pobj.readerror:
-#     #         self.updates[modulename]['error', pname] = str(pobj.readerror)
-#     #     else:
-#     #         self.updates[modulename][pname] = pobj.value
-#
-#     def __init__(self):
-#         self.modules = {}
-#
-#     def get_module(self, name):
-#         return self.modules[name]
-#
-#     def register_module(self, name, module):
-#         self.modules[name] = module
-
-
 class LoggerStub:
     def debug(self, fmt, *args):
         print(fmt % args)

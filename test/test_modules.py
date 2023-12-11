@@ -43,12 +43,13 @@ class DispatcherStub:
         generalConfig.testinit(omit_unchanged_within=0)
         self.updates = updates
 
-    def announce_update(self, modulename, pname, pobj):
+    def announce_update(self, moduleobj, pobj):
+        modulename = moduleobj.name
         self.updates.setdefault(modulename, {})
         if pobj.readerror:
-            self.updates[modulename]['error', pname] = str(pobj.readerror)
+            self.updates[modulename]['error', pobj.name] = str(pobj.readerror)
         else:
-            self.updates[modulename][pname] = pobj.value
+            self.updates[modulename][pobj.name] = pobj.value
 
 
 class LoggerStub:
@@ -706,10 +707,10 @@ def test_super_call():
         def __init__(self, updates):
             self.updates = updates
 
-        def announce_update(self, modulename, pname, pobj):
+        def announce_update(self, moduleobj, pobj):
             if pobj.readerror:
                 raise pobj.readerror
-            self.updates.append((modulename, pname, pobj.value))
+            self.updates.append((moduleobj.name, pobj.name, pobj.value))
 
     class ServerStub1:
         def __init__(self, updates):
