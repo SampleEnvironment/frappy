@@ -69,8 +69,8 @@ class MainLogger:
         self.log = None
         self.console_handler = None
         mlzlog.setLoggerClass(mlzlog.MLZLogger)
-        assert self.log is None
-        self.log = mlzlog.log = mlzlog.MLZLogger('')
+        mlzlog.log = mlzlog.MLZLogger('')
+        self.log = mlzlog.log.getChild('')
         self.log.setLevel(mlzlog.DEBUG)
         self.log.addHandler(mlzlog.ColoredConsoleHandler())
         self.log.handlers[0].setLevel(LOG_LEVELS['comlog'])
@@ -86,15 +86,7 @@ class Dispatcher(dispatcher.Dispatcher):
             value = repr(pobj.readerror)
         else:
             value = pobj.value
-        logobj = self._modules.get(moduleobj.name, self)
-        # self.log.info('%s:%s %r', modulename, pname, value)
-        logobj.log.info('%s %r', pobj.name, value)
-
-    def register_module(self, moduleobj, modulename, export=True):
-        self.log.info('registering %s', modulename)
-        super().register_module(moduleobj, modulename, export)
-        setattr(main, modulename, moduleobj)
-        self.get_module(modulename)
+        moduleobj.log.info('%s %r', pobj.name, value)
 
 
 logger = MainLogger()
@@ -118,6 +110,10 @@ class Playground(Server):
             merged_cfg.pop('node', None)
             self.module_cfg = merged_cfg
         self._processCfg()
+        for modulename, moduleobj in self.secnode.modules.items():
+            cls = type(moduleobj).__bases__[0]
+            moduleobj.log.info('created as %s.%s', cls.__module__, cls.__name__)
+            setattr(main, modulename, moduleobj)
 
 
 play = Playground()
