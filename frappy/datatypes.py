@@ -105,7 +105,7 @@ class DataType(HasProperties):
         note: for importing from gui/configfile/commandline use :meth:`from_string`
         instead.
         """
-        return value
+        return self(value)
 
     def format_value(self, value, unit=None):
         """format a value of this type into a str string
@@ -259,10 +259,6 @@ class FloatRange(HasUnit, DataType):
         """returns a python object fit for serialisation"""
         return float(value)
 
-    def import_value(self, value):
-        """returns a python object from serialisation"""
-        return float(value)
-
     def from_string(self, text):
         value = float(text)
         return self(value)
@@ -339,10 +335,6 @@ class IntRange(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return int(value)
-
-    def import_value(self, value):
-        """returns a python object from serialisation"""
         return int(value)
 
     def from_string(self, text):
@@ -461,7 +453,10 @@ class ScaledInteger(HasUnit, DataType):
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        return self.scale * int(value)
+        try:
+            return self.scale * int(value)
+        except Exception:
+            raise WrongTypeError(f'can not import {shortrepr(value)} to scaled') from None
 
     def from_string(self, text):
         value = float(text)
@@ -512,10 +507,6 @@ class EnumType(DataType):
     def export_value(self, value):
         """returns a python object fit for serialisation"""
         return int(self(value))
-
-    def import_value(self, value):
-        """returns a python object from serialisation"""
-        return self(value)
 
     def __call__(self, value):
         """accepts integers and strings, converts to EnumMember (may be used like an int)"""
@@ -588,7 +579,10 @@ class BLOBType(DataType):
 
     def import_value(self, value):
         """returns a python object from serialisation"""
-        return b64decode(value)
+        try:
+            return b64decode(value)
+        except Exception:
+            raise WrongTypeError(f'can not b64decode {shortrepr(value)}') from None
 
     def from_string(self, text):
         value = text
@@ -659,10 +653,6 @@ class StringType(DataType):
         """returns a python object fit for serialisation"""
         return f'{value}'
 
-    def import_value(self, value):
-        """returns a python object from serialisation"""
-        return str(value)
-
     def from_string(self, text):
         value = str(text)
         return self(value)
@@ -721,10 +711,6 @@ class BoolType(DataType):
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
-        return self(value)
-
-    def import_value(self, value):
-        """returns a python object from serialisation"""
         return self(value)
 
     def from_string(self, text):

@@ -121,6 +121,7 @@ class Mod1(Base, Readable):
         return 0
 
 
+@pytest.mark.filterwarnings('ignore')  # ignore PytestUnhandledThreadExceptionWarning
 @pytest.mark.parametrize(
     'ncycles, pollinterval, slowinterval, mspan, pspan',
     [  # normal case:

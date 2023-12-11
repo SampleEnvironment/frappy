@@ -499,7 +499,7 @@ class Command(Accessible):
         """perform function call
 
         :param module_obj: the module on which the command is to be executed
-        :param argument: the argument from the do command
+        :param argument: the argument from the do command (transported value!)
         :returns: the return value converted to the result type
 
         - when the argument type is TupleOf, the function is called with multiple arguments
@@ -514,13 +514,9 @@ class Command(Accessible):
                     f'{module_obj.__class__.__name__}.{self.name} needs an'
                     f' argument of type {self.argument}!'
                 )
-            try:
-                argument = self.argument.import_value(argument)
-            except TypeError:
-                pass  # validate will raise appropriate message
-            except ValueError:
-                pass  # validate will raise appropriate message
-
+            # convert transported value to internal value
+            argument = self.argument.import_value(argument)
+            # verify range
             self.argument.validate(argument)
             if isinstance(self.argument, TupleOf):
                 res = func(*argument)

@@ -162,7 +162,9 @@ class Dispatcher:
         if pobj.readonly:
             raise ReadOnlyError(f"Parameter {modulename}:{pname} can not be changed remotely")
 
-        # validate!
+        # convert transported value to internal value
+        value = pobj.datatype.import_value(value)
+        # verify range
         value = pobj.datatype.validate(value, previous=pobj.value)
         # note: exceptions are handled in handle_request, not here!
         getattr(moduleobj, 'write_' + pname)(value)

@@ -76,6 +76,7 @@ class DummyMultiEvent(threading.Event):
         return trigger
 
 
+@pytest.mark.filterwarnings('ignore')  # ignore PytestUnhandledThreadExceptionWarning
 def test_Communicator():
     o = Communicator('communicator', LoggerStub(), {'description': ''}, ServerStub({}))
     o.earlyInit()
@@ -86,6 +87,7 @@ def test_Communicator():
     assert event.wait(timeout=0.1)
 
 
+@pytest.mark.filterwarnings('ignore')  # ignore PytestUnhandledThreadExceptionWarning
 def test_ModuleMagic():
     class Newclass1(Drivable):
         param1 = Parameter('param1', datatype=BoolType(), default=False)
