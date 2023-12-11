@@ -84,7 +84,7 @@ class SecNode:
 
     def get_module_instance(self, modulename):
         """ Returns the module in its current initialization state or creates a
-        new uninitialized modle to return.
+        new uninitialized module to return.
 
         When creating a new module, srv.module_config is accessed to get the
         modules configuration.
@@ -102,6 +102,7 @@ class SecNode:
         if opts is None:
             raise NoSuchModuleError(f'Module {modulename!r} does not exist on '
                                     f'this SEC-Node!')
+        opts = dict(opts)
         pymodule = None
         try:  # pylint: disable=no-else-return
             classname = opts.pop('cls')
@@ -157,7 +158,7 @@ class SecNode:
                 # already created via Attached
                 continue
             # For Pinata modules: we need to access this in Self.get_module
-            self.srv.module_cfg[modname] = dict(options)
+            self.srv.module_cfg[modname] = options
             modobj = self.get_module_instance(modname)  # lazy
             if modobj is None:
                 self.log.debug('Module %s returned None', modname)
