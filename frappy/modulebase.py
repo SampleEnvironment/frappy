@@ -109,8 +109,6 @@ class HasAccessibles(HasProperties):
         for aname in new_names:
             if aname not in paramOrder:
                 accessibles.move_to_end(aname)
-        # note: for python < 3.6 the order of inherited items is not ensured between
-        # declarations within the same class
         cls.accessibles = accessibles
 
         cls.wrappedAttributes = {'isWrapped': True}
