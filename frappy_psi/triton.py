@@ -275,9 +275,12 @@ class TemperatureLoop(ScannerChannel, mercury.TemperatureLoop):
             self.change('SYS:DR:CHAN:%s' % self.system_channel, self.slot.split(',')[0], str)
         if active:
             self.change('DEV::TEMP:LOOP:FILT:ENAB', 'ON', str)
-            if self.output_module:
+            try:
                 limit = self.output_module.read_limit()
+                # output_module is an instance of HeaterOutputWithRange
                 self.output_module.write_limit(limit)
+            except AttributeError:
+                pass  # output_module is None or an instance of HeaterOutput
 
 
 class HeaterOutput(HasInput, MercuryChannel, Writable):
