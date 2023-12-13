@@ -36,6 +36,22 @@ Mod('struct_of_arrays',
 )
 
 
+Mod('nd_arr',
+    'frappy_HZB.ophyd_secop_test_modules.Test_ND_arrays',
+    'module for testing multidimensional arrays',
+    value = [[1,1,1,1,1],
+             [1,1,1,1,1],
+             [1,1,1,1,1],
+             [1,1,1,1,1],
+             [1,1,1,1,1]
+             ],
+    arr3d = [[[0]]]
+
+)
+
+
+
+
 Mod('struct_of_arrays_readerr',
     'frappy_HZB.ophyd_secop_test_modules.Test_Struct_of_arrays_readerror',
     'module for testing struct of arrays',

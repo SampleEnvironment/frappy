@@ -1,25 +1,23 @@
 
 from frappy.datatypes import  EnumType, FloatRange, StringType, ArrayOf,StatusType
 
-from frappy.core import Command, Parameter, Readable, HasIO,StructOf, IDLE, BUSY,  IntRange, Drivable
+from frappy.core import Command, Parameter, Readable,StructOf,  IntRange, Drivable
 
-from frappy.errors import    ImpossibleError, IsBusyError
+from frappy.errors import    ImpossibleError
 
 from frappy.lib.enum import Enum
+
+import numpy as np
 
 import random
 import time
 import string
-from math import atan
+ 
 
 from frappy.datatypes import BoolType, EnumType, FloatRange, StringType, TupleOf
 from frappy.lib import clamp, mkthread
-from frappy.modules import Command, Drivable, Parameter
+
 # test custom property (value.test can be changed in config file)
-from frappy.properties import Property
-
-
-from frappy.modules import Attached
 
 class Test_Mod_str(Readable):
     Status = Enum(Readable.Status)
@@ -41,6 +39,55 @@ class Test_Mod_str(Readable):
     def read_status(self):
         # instead of asking a 'Hardware' take the value from the simulation
         return self.status
+    
+class Test_ND_arrays(Readable):
+    Status = Enum(Readable.Status)
+
+    status = Parameter(datatype=StatusType(Status))
+    
+    value = Parameter("2D integer Array",
+                            datatype=
+                            ArrayOf(
+                                members=ArrayOf(
+                                    members=IntRange(minval=0,maxval=100),
+                                    minlen=5,
+                                    maxlen=5),
+                                minlen=5,
+                                maxlen=5)                                
+                            ,
+                            readonly = True)
+    
+    arr3d = Parameter("3D integer Array",
+                        datatype=
+                        ArrayOf(
+                            ArrayOf(
+                                members=ArrayOf(
+                                    members=IntRange(minval=0,maxval=100),
+                                    minlen=0,
+                                    maxlen=5),
+                                minlen=0,
+                                maxlen=5),
+                            minlen=0,
+                            maxlen=5)                                    
+                        ,
+                        readonly = False)
+    
+    
+    def read_value(self):
+        arr2d = np.random.randint(0,10,5**2).reshape(5,5)        
+        
+        return arr2d.tolist()
+    
+    def write_arr3d(self,val):
+        self.arr3d = val
+
+    def read_arr3d(self):
+        return self.arr3d
+    
+
+        
+    
+    
     
 class Test_Struct_of_arrays(Readable):
     Status = Enum(Readable.Status)
