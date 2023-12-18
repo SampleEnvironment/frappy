@@ -455,7 +455,7 @@ class BytesIO(IOBase):
             if not replypat.match(reply):
                 self.closeConnection()
                 raise CommunicationFailedError(f'bad response: {reply!r}'
-                                               ' does not match {expected!r}')
+                                               f' does not match {expected!r}')
 
     @Command((BLOBType(), IntRange(0)), result=BLOBType())
     def communicate(self, request, replylen):  # pylint: disable=arguments-differ
