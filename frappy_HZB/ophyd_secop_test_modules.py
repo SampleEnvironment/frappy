@@ -125,27 +125,6 @@ class Test_Struct_of_arrays(Readable):
         self.writable_strct_of_arr = val
         
         
-class Test_Struct_of_arrays_readerror(Readable):
-    Status = Enum(Readable.Status)
-
-    status = Parameter(datatype=StatusType(Status))
-    
-    value = Parameter("struct of arrays containing primitive datatypes",
-                            datatype=StructOf(
-                                ints = ArrayOf(IntRange(),minlen=5,maxlen=5),
-                                strings = ArrayOf(StringType(),minlen=5,maxlen=5),
-                                floats = ArrayOf(FloatRange(),minlen=5,maxlen=5)                                    
-                            ),
-                            readonly = True)
-    
-
-    
-    def read_value(self):
-        strings = [''.join(random.choices(string.ascii_lowercase, k=5)) for _ in range(1,5)]    
-        ints =random.sample(range(0,50),5)
-        floats = [random.random() for _ in range(1,5)]
-    
-        return {"ints":ints,"strings":strings,"floats":floats}
 
 
 class OPYD_test_struct(Drivable):

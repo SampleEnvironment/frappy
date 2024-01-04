@@ -36,6 +36,8 @@ Mod('struct_of_arrays',
 )
 
 
+
+
 Mod('nd_arr',
     'frappy_HZB.ophyd_secop_test_modules.Test_ND_arrays',
     'module for testing multidimensional arrays',
@@ -52,15 +54,7 @@ Mod('nd_arr',
 
 
 
-Mod('struct_of_arrays_readerr',
-    'frappy_HZB.ophyd_secop_test_modules.Test_Struct_of_arrays_readerror',
-    'module for testing struct of arrays',
-    value = {
-        'ints':[1,2,3,4,5],
-        'strings':['aaaa','aaaaa','aaaa','aaa','aa'],
-        'floats':[1.1,2.2,4.3,6.4,7.5]},
 
-)
     
 Mod('ophy_struct',
     'frappy_HZB.ophyd_secop_test_modules.OPYD_test_struct',
