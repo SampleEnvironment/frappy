@@ -1,3 +1,114 @@
+frappy-core (0.18.0) focal; urgency=medium
+
+  [ Alexander Zaft ]
+  * Add shutdownModule function
+
+  [ Markus Zolliker ]
+  * frappy_psi.convergence: bug fixes and improvements
+
+  [ Alexander Zaft ]
+  * server: Add signal handling
+  * add test cases for server and config
+
+  [ Markus Zolliker ]
+  * fix frappy.lib.merge_status
+  * frappy_psi.sea: try to reconnect on failure
+  * pylint: disable use-dict-literal
+
+  [ Alexander Zaft ]
+  * server: add option to dynamically create devices
+
+  [ Markus Zolliker ]
+  * add StructParam
+  * add frappy_psi.thermofisher
+  * add frappy_psi.thermofisher to the doc
+  * frappy.io: make error reporting consistent
+  * frappy_psi.sea: avoid multiple connections
+  * frappy_psi.sea: further bug fixes
+  * frappy.client.interactive: bug fixes
+
+  [ Alexander Zaft ]
+  * mlz: Add Zebra Barcode Reader
+  * frappy_mlz: Zebra fixes after basic test
+  * dispatcher: change logging calls to debug
+  * core: do not call register_module on error
+  * add zapf to requirements-dev.txt
+  * frappy_mlz: Add Zapf PLC
+  * Revert "add zapf to requirements-dev.txt"
+  * add zapf to requirements-dev
+  * frappy_mlz: fix one-off error in barcode reader
+
+  [ Markus Zolliker ]
+  * improve error message on client when host/port is bad
+  * frappy/protocol/interface/tcp.py: use SECoP_DEFAULT_PORT
+  * frappy_psi.phytron: stop motor before restart
+  * interactive client: improve keyboard interrupt
+  * fix frappy/playground.py after change 31470
+
+  [ Alexander Zaft ]
+  * frappy_mlz seop: add count to ampl and phase cmds
+
+  [ Markus Zolliker ]
+  * frappy_psi.phytron: further improvements
+  * further fixes after change 31470
+  * fix missing .poll attribute in simulation
+  * psi: improve sea interface
+  * fix frappy_demo.lakeshore
+  * change FloatRange arguments minval/maxval to min/max
+  * improve client shutdown time
+  * introduce FrozenParam
+  * phytron.py: improve status
+  * frappy_psi.sea: small fixes
+  * bug in Attached (fix after change 31470)
+
+  [ Alexander Zaft ]
+  * core: split module code
+  * core: factor out accessibles from init
+
+  [ Markus Zolliker ]
+  * proxy: fix command wrapper
+
+  [ Alexander Zaft ]
+  * server: handle signals during startup
+  * all: remove coding cookies
+  * psi: fix Done import in sea
+
+  [ Markus Zolliker ]
+  * frappy.io: change default to retry_first_idn=True
+
+  [ Alexander Zaft ]
+  * core: move module handling out of dispatcher
+  * mlz/demo: move old examples to Attached
+
+  [ Markus Zolliker ]
+  * frappy.client: fix the case then timestamp is missing
+  * doc: drop latex support, add pdf support
+  * add StringIO.writeline, improve StringIO.multicomm
+  * implement pfeiffer TPG vacuum reading
+
+  [ Alexander Zaft ]
+  * core: allow multiple interfaces
+  * core: formatting and update server docstring
+  * mlz: handle unconfigured abslimits
+  * datatypes: fix optional struct export
+  * core: better command handling
+
+  [ Markus Zolliker ]
+  * frappy_psi.sea: workaround for bug in sea
+
+  [ Alexander Zaft ]
+  * core: better error on export of internal type
+
+  [ Markus Zolliker ]
+  * fix missing import in change message
+  * modify arguments of Dispatcher.announce_update
+  * frappy.secnode: fix strange error message
+  * fix playground after change 32249
+  * remove py35 compatibility code
+  * bug fix in frappy.io.BytesIO.checkHWIdent
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 17 Jan 2024 12:35:00 +0100
+
 frappy-core (0.17.13) focal; urgency=medium
 
   [ Alexander Zaft ]
