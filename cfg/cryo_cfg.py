@@ -24,7 +24,7 @@ Mod('cryo',
     heater=4.1,
     mode='pid',
     tolerance=0.1,
-    window=30,
+    window=2,
     timeout=900,
     p = Param(40, unit='%/K'),  # in case 'default' is the first arg, we can omit 'default='
     i = 10,
