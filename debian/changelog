@@ -1,3 +1,10 @@
+frappy-core (0.18.1) focal; urgency=medium
+
+  * mlz: Zapf fix unit handling and small errors
+  * mlz: entangle fix limit check
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 24 Jan 2024 14:59:21 +0100
+
 frappy-core (0.18.0) focal; urgency=medium
 
   [ Alexander Zaft ]
