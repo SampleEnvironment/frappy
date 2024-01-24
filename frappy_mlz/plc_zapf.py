@@ -99,6 +99,8 @@ class ZapfPinata(Pinata):
                     'min': max(devinfo.info['absmin'], -UNLIMITED),
                     'max': min(devinfo.info['absmax'], UNLIMITED),
                 }
+                if devinfo.info['unit'] and devinfo.info['basetype'] == 'float':
+                    config['value']['unit'] = devinfo.info['unit']
                 if devinfo.info['access'] == 'rw':
                     config['target'] = {
                         'min': config['value']['min'],
@@ -131,8 +133,6 @@ STATUS_MAP = {
 class PLCBase:
     status = Parameter(datatype=StatusType(Drivable, 'INITIALIZING',
                                            'DISABLED', 'STARTING'))
-    status_code = Parameter('raw internal status code',
-                            IntRange(0, 2**32-1))
     plcio = Property('plc io device', ValueType())
     plc_name = Property('plc io device', StringType(), export=True)
     _pinata = Attached(ZapfPinata) # TODO: make this automatic?
@@ -159,9 +159,15 @@ class PLCBase:
             dataty = cls._map_datatype(info)
             if dataty is None:
                 continue
-            param = Parameter(info['description'],
-                              dataty,
-                              readonly=readonly)
+            if info['basetype'] == 'float' and info['unit']: # TODO: better handling
+                param = Parameter(info['description'],
+                                  dataty,
+                                  unit=info['unit'],
+                                  readonly=readonly)
+            else:
+                param = Parameter(info['description'],
+                                  dataty,
+                                  readonly=readonly)
 
             def read_param(self, parameter=parameter):
                 code, val = self.plcio.get_param_raw(parameter)
@@ -223,7 +229,7 @@ class PLCBase:
         if not add_members:
             return cls
         new_name = '_' + cls.__name__ + '_' \
-                   + internalize_name("blub")
+                   + internalize_name("extended")
         return type(new_name, (cls,), add_members)
 
     @classmethod
@@ -253,10 +259,6 @@ class PLCBase:
         if err_id:
             msg.append(self.plcio.decode_errid(err_id))
         return status, ', '.join(msg)
-
-    def read_status_code(self):
-        state, reason, aux, _ = self.plcio.read_status()
-        return state << 28 | reason << 24 | aux
 
     @Command()
     def stop(self):
