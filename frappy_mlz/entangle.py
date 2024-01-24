@@ -483,7 +483,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
         # check if compatible
         try:
             dt = FloatRange(*tangoabslim)
-            self.parameters['abslimits'].datatype.compatible(dt)
+            dt.validate(self.parameters['abslimits'].datatype.min)
+            dt.validate(self.parameters['abslimits'].datatype.max)
         except WrongTypeError as e:
             raise WrongTypeError(f'Absolute limits configured in frappy \''
                                 f'{self.abslimits}\' extend beyond the limits '
