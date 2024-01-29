@@ -31,12 +31,13 @@ from frappy.modules import Drivable, Module, Parameter, Readable, Writable, Comm
 
 class SimBase:
     def __new__(cls, devname, logger, cfgdict, dispatcher):
-        extra_params = cfgdict.pop('extra_params', '') or cfgdict.pop('.extra_params', '')
+        extra_params = cfgdict.pop('extra_params', '')['value']
+        if isinstance(extra_params, str):
+            extra_params = [v.strip() for v in extra_params.split(',')]
         attrs = {}
         if extra_params:
-            for k in extra_params['value'].split(','):
-                k = k.strip()
-                attrs[k] = Parameter(f'extra_param: {k.strip()}',
+            for k in extra_params:
+                attrs[k] = Parameter(f'extra_param: {k}',
                                      datatype=FloatRange(),
                                      default=0.0)
 
