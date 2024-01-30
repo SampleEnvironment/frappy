@@ -18,12 +18,15 @@
 #   Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
-"""test frappy.mixins.HasCtrlPars"""
+"""test frappy.extparams"""
 
 
 from test.test_modules import LoggerStub, ServerStub
+import pytest
 from frappy.core import FloatRange, Module, Parameter
 from frappy.structparam import StructParam
+from frappy.extparams import FloatEnumParam
+from frappy.errors import ProgrammingError
 
 
 def test_with_read_ctrlpars():
@@ -130,3 +133,76 @@ def test_order_dependence1():
 def test_order_dependence2():
     test_with_read_ctrlpars()
     test_without_read_ctrlpars()
+
+
+def test_float_enum():
+    class Mod(Module):
+        vrange = FloatEnumParam('voltage range', [
+            (1, '50uV'), '200 µV', '1mV', ('5mV', 0.006), (9, 'max', 0.024)], 'V')
+        gain = FloatEnumParam('gain factor', ('1', '2', '4', '8'), idx_name='igain')
+        dist = FloatEnumParam('distance', ('1m', '1mm', '1µm'), unit='m')
+
+        _vrange_idx = None
+
+        def write_vrange_idx(self, value):
+            self._vrange_idx = value
+
+    logger = LoggerStub()
+    updates = {}
+    srv = ServerStub(updates)
+
+    m = Mod('m', logger, {'description': ''}, srv)
+
+    assert m.write_vrange_idx(1) == 1
+    assert m._vrange_idx == '50uV'
+    assert m._vrange_idx == 1
+    assert m.vrange == 5e-5
+
+    assert m.write_vrange_idx(2) == 2
+    assert m._vrange_idx == '200 µV'
+    assert m._vrange_idx == 2
+    assert m.vrange == 2e-4
+
+    assert m.write_vrange(6e-5) == 5e-5  # round to the next value
+    assert m._vrange_idx == '50uV'
+    assert m._vrange_idx == 1
+    assert m.write_vrange(20e-3) == 24e-3  # round to the next value
+    assert m._vrange_idx == 'max'
+    assert m._vrange_idx == 9
+
+    for idx in range(4):
+        value = 2 ** idx
+        updates.clear()
+        assert m.write_igain(idx) == idx
+        assert updates == {'m': {'igain': idx, 'gain': value}}
+        assert m.igain == idx
+        assert m.igain == str(value)
+        assert m.gain == value
+
+    for idx in range(4):
+        value = 2 ** idx
+        assert m.write_gain(value) == value
+        assert m.igain == idx
+        assert m.igain == str(value)
+
+    for idx in range(3):
+        value = 10 ** (-3 * idx)
+        assert m.write_dist(value) == value
+        assert m.dist_idx == idx
+
+
+@pytest.mark.parametrize('labels, unit, error', [
+    (FloatRange(),      '', 'not a datatype'),     # 2nd arg must not be a datatype
+    ([(1, 2, 3)],       '', 'must be strings'),    # label is not a string
+    ([(1, '1V', 3, 4)], 'V', 'labels or tuples'),  # 4-tuple
+    ([('1A', 3, 4)],    'A', 'labels or tuples'),  # two values after label
+    (('1m', (0, '1k')), '', 'conflicts with'),     # two times index 0
+    (['1mV', '10mA'],   'V', 'not the form'),      # wrong unit
+    (['.mV'],           'V', 'not the form'),      # bad number
+    (['mV'],            'V', 'not the form'),      # missing number
+    (['1+mV'],          'V', 'not the form'),      # bad number
+])
+def test_bad_float_enum(labels, unit, error):
+    with pytest.raises(ProgrammingError, match=error):
+        class Mod(Module):  # pylint:disable=unused-variable
+            param = FloatEnumParam('', labels, unit)
