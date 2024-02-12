@@ -24,8 +24,7 @@
 from test.test_modules import LoggerStub, ServerStub
 import pytest
 from frappy.core import FloatRange, Module, Parameter
-from frappy.structparam import StructParam
-from frappy.extparams import FloatEnumParam
+from frappy.extparams import StructParam, FloatEnumParam
 from frappy.errors import ProgrammingError
 
 
