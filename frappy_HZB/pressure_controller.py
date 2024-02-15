@@ -1,27 +1,27 @@
-
-
-
-
 import time
 
 
 from frappy.datatypes import FloatRange, StringType
 from frappy.lib import clamp, mkthread
-from frappy.modules import Command, Drivable, Parameter
+from frappy.modules import Command, Drivable, Parameter,Attached
 # test custom property (value.test can be changed in config file)
 
 
 
 
 
-class MassflowController(Drivable):
-    value   = Parameter("Mass flow of gas",FloatRange(minval=0,maxval=1000),default = 0,unit = "ml/min" )
-    target  = Parameter("Desired mass flow of gas",FloatRange(minval=0,maxval=200),default = 0,unit = "ml/min" )
-    ramp    = Parameter("desired ramp speed for gas flow of gas",FloatRange(minval=0,maxval=200),default = 0,unit = "ml/min^2" ,readonly = False)
-    gastype = Parameter("chemical formula of gas type handled by flow controller",StringType(maxchars=50,minchars=0))
+class PressureController(Drivable):
+    value   = Parameter("back pressure reactor section",FloatRange(minval=0,maxval=5000),default = 0,unit = "hPa" )
+    target  = Parameter("Desired back pressure",FloatRange(minval=0,maxval=5000),default = 0,unit = "hPa" )
+    ramp    = Parameter("desired ramp ",FloatRange(minval=0,maxval=1000),default = 0,unit = "hPa/min" ,readonly = False)
     pollinterval = Parameter("polling interval",datatype=FloatRange(0), default=5)
-    tolerance = Parameter("flow range for stability checking",datatype=FloatRange(0,100),default = 0.2,unit = "ml/min")
+    tolerance = Parameter("pressure range for stability checking",datatype=FloatRange(0,100),default = 5,unit = "hPa")
 
+
+    
+    attached_mfc1 = Attached(mandatory=True)
+    attached_mfc2 = Attached(mandatory=True)
+    attached_mfc3 = Attached(mandatory=True)
 
     looptime = Parameter("timestep for simulation",
         datatype=FloatRange(0.01, 10), unit="s", default=1,
@@ -115,10 +115,21 @@ class MassflowController(Drivable):
                 except (TypeError, ValueError):
                     # self.target might be None
                     pass
+            
+            mfc_flow = [self.attached_mfc1.value,
+                        self.attached_mfc2.value,
+                        self.attached_mfc3.value]
+            
+            massflow = True
+            if (all(x == 0 for x in mfc_flow)):
+                massflow = False
+            
+            if massflow or (not massflow and self.target < self.regulationFlow):
+                self.regulationFlow = self.setpoint
+            
 
-        
-            self.regulationFlow = self.setpoint
- 
+                
+
             # temperature is stable when all recorded values in the window
             # differ from setpoint by less than tolerance
 
@@ -126,7 +137,10 @@ class MassflowController(Drivable):
                 self.status = self.Status.IDLE, 'at target'
                 damper -= (damper - 1) * 0.1  # max value for damper is 11
             else:
-                self.status = self.Status.BUSY, 'ramping setpoint'
+                if massflow or (not massflow and self.target < self.regulationFlow):
+                    self.status = self.Status.BUSY, 'ramping setpoint'
+                else:
+                    self.status = self.Status.BUSY, 'unable to reach setpoint, no massflow'
             damper -= (damper - 1) * 0.05
             self.regulationFlow = round(self.regulationFlow, 4)
 
