@@ -232,7 +232,7 @@ class ReadFailedError(SECoPError):
 
 
 class OutOfRangeError(SECoPError):
-    """The requested parameter can not be read just now"""
+    """The value read from the hardware is out of sensor or calibration range"""
     name = 'OutOfRange'
 
 
