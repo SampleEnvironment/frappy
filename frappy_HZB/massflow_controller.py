@@ -5,12 +5,13 @@
 import time
 
 
-from frappy.datatypes import FloatRange, StringType
+from frappy.datatypes import FloatRange, StringType,StructOf, IntRange, BoolType
 from frappy.lib import clamp, mkthread
 from frappy.modules import Command, Drivable, Parameter
+from frappy.errors import ImpossibleError
 # test custom property (value.test can be changed in config file)
 
-
+import random
 
 
 
@@ -54,8 +55,16 @@ class MassflowController(Drivable):
         return value
     
 
-
-    
+    @Command(StructOf(
+        name=StringType(),
+        id = IntRange(maxval=1000,minval=0),
+        sort = BoolType()),
+        result= IntRange())        
+    def test_cmd(self,name,id,sort):
+        """testing with ophyd secop integration"""
+        if name == 'bad_name':
+            raise ImpossibleError('bad name received')
+        self.write_target(random.randint(0,200))
 
 
     @Command()

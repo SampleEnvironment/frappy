@@ -30,7 +30,7 @@ Mod('temperature_sam',
     looptime=1,
     pollinterval = Param(export=False),
     value = 0,
-    heat_flux = 0.2,
+    heat_flux = 0.2,    
     attached_temp_reg = "temperature_reg",
 
 )
