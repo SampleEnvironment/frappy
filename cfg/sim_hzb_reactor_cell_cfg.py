@@ -12,11 +12,11 @@ Mod('temperature_reg',
 'frappy_HZB.temp_reg.TemperatureController',
 'A simulated temperature controller ',
 group='temp control',
-target=0,
+target=293.15,
 looptime=1,
 ramp=60,
 pollinterval = Param(export=False),
-value = 0,
+value = 293.15,
 
 )
 
@@ -29,7 +29,7 @@ Mod('temperature_sam',
     group='temp_sens',
     looptime=1,
     pollinterval = Param(export=False),
-    value = 0,
+    value = 293.15,
     heat_flux = 0.2,    
     attached_temp_reg = "temperature_reg",
 
