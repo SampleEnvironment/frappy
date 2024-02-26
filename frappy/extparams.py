@@ -159,7 +159,7 @@ class StructParam(Parameter):
                     for membername, param in structparam.paramdict.items():
                         setattr(modobj, param.name, value[membername])
 
-                modobj.valueCallbacks[self.name].append(cb)
+                modobj.addCallback(self.name, cb)
             else:
                 for membername, param in self.paramdict.items():
                     def cb(value, modobj=modobj, structparam=self, membername=membername):
@@ -168,7 +168,7 @@ class StructParam(Parameter):
                             prev[membername] = value
                             setattr(modobj, structparam.name, prev)
 
-                    modobj.valueCallbacks[param.name].append(cb)
+                    modobj.addCallback(param.name, cb)
 
 
 class FloatEnumParam(Parameter):
@@ -291,12 +291,12 @@ class FloatEnumParam(Parameter):
             return self
         return self.valuedict[instance.parameters[self.idx_name].value]
 
+    def trigger_setter(self, modobj, _):
+        # trigger update of float parameter on change of enum parameter
+        modobj.announceUpdate(self.name, getattr(modobj, self.name))
+
     def finish(self, modobj=None):
         """register callbacks for consistency"""
         super().finish(modobj)
         if modobj:
-            # trigger setter of float parameter on change of enum parameter
-            def cb(value, modobj=modobj, name=self.name):
-                setattr(modobj, name, getattr(modobj, name))
-
-            modobj.valueCallbacks[self.idx_name].append(cb)
+            modobj.addCallback(self.idx_name, self.trigger_setter, modobj)

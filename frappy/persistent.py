@@ -84,9 +84,7 @@ class PersistentMixin(Module):
             flag = getattr(pobj, 'persistent', False)
             if flag:
                 if flag == 'auto':
-                    def cb(value, m=self):
-                        m.saveParameters()
-                    self.valueCallbacks[pname].append(cb)
+                    self.addCallback(pname, self.saveParameters)
                 self.initData[pname] = pobj.value
                 if not pobj.given:
                     if pname in loaded:
@@ -129,16 +127,18 @@ class PersistentMixin(Module):
         self.writeInitParams()
         return loaded
 
-    def saveParameters(self):
+    def saveParameters(self, _=None):
         """save persistent parameters
 
         - to be called regularly explicitly by the module
         - the caller has to make sure that this is not called after
           a power down of the connected hardware before loadParameters
+
+        dummy argument to avoid closure for callback
         """
         if self.writeDict:
             # do not save before all values are written to the hw, as potentially
-            # factory default values were read in the mean time
+            # factory default values were read in the meantime
             return
         self.__save_params()
 

@@ -334,8 +334,7 @@ class Module(HasAccessibles):
         self.secNode = srv.secnode
         self.log = logger
         self.name = name
-        self.valueCallbacks = {}
-        self.errorCallbacks = {}
+        self.paramCallbacks = {}
         self.earlyInitDone = False
         self.initModuleDone = False
         self.startModuleDone = False
@@ -469,8 +468,7 @@ class Module(HasAccessibles):
         apply default when no value is given (in cfg or as Parameter argument)
         or complain, when cfg is needed
         """
-        self.valueCallbacks[pname] = []
-        self.errorCallbacks[pname] = []
+        self.paramCallbacks[pname] = []
         if isinstance(pobj, Limit):
             basepname = pname.rpartition('_')[0]
             baseparam = self.parameters.get(basepname)
@@ -535,68 +533,46 @@ class Module(HasAccessibles):
                     err.report_error = False
                     return  # no updates for repeated errors
                 err = secop_error(err)
-            elif not changed and timestamp < (pobj.timestamp or 0) + pobj.omit_unchanged_within:
-                # no change within short time -> omit
-                return
-            pobj.timestamp = timestamp or time.time()
-            if err:
-                callbacks = self.errorCallbacks
-                pobj.readerror = arg = err
+                value_err = value, err
             else:
-                callbacks = self.valueCallbacks
-                arg = value
-                pobj.readerror = None
+                if not changed and timestamp < (pobj.timestamp or 0) + pobj.omit_unchanged_within:
+                    # no change within short time -> omit
+                    return
+                value_err = (value,)
+            pobj.timestamp = timestamp or time.time()
+            pobj.readerror = err
+            for cbfunc, cbargs in self.paramCallbacks[pname]:
+                try:
+                    cbfunc(*cbargs, *value_err)
+                except Exception:
+                    pass
             if pobj.export:
                 self.updateCallback(self, pobj)
-            cblist = callbacks[pname]
-            for cb in cblist:
-                try:
-                    cb(arg)
-                except Exception:
-                    # print(formatExtendedTraceback())
-                    pass
+
+    def addCallback(self, pname, callback_function, *args):
+        self.paramCallbacks[pname].append((callback_function, args))
 
     def registerCallbacks(self, modobj, autoupdate=()):
         """register callbacks to another module <modobj>
 
-        - whenever a self.<param> changes:
-          <modobj>.update_<param> is called with the new value as argument.
-          If this method raises an exception, <modobj>.<param> gets into an error state.
-          If the method does not exist and <param> is in autoupdate,
-          <modobj>.<param> is updated to self.<param>
-        - whenever <self>.<param> gets into an error state:
-          <modobj>.error_update_<param> is called with the exception as argument.
-          If this method raises an error, <modobj>.<param> gets into an error state.
-          If this method does not exist, and <param> is in autoupdate,
-          <modobj>.<param> gets into the same error state as self.<param>
-        """
-        for pname in self.parameters:
-            errfunc = getattr(modobj, 'error_update_' + pname, None)
-            if errfunc:
-                def errcb(err, p=pname, efunc=errfunc):
-                    try:
-                        efunc(err)
-                    except Exception as e:
-                        modobj.announceUpdate(p, err=e)
-                self.errorCallbacks[pname].append(errcb)
-            else:
-                def errcb(err, p=pname):
-                    modobj.announceUpdate(p, err=err)
-                if pname in autoupdate:
-                    self.errorCallbacks[pname].append(errcb)
+        whenever a self.<param> changes or changes its error state:
+        <modobj>.update_param(<value> [, <exc>]) is called,
+        where <value> is the new value and <exc> is given only in case of error.
+        if the method does not exist, and <param> is in autoupdate
+        <modobj>.announceUpdate(<pname>, <value>, <exc>) is called
+        with <exc> being None in case of no error.
 
-            updfunc = getattr(modobj, 'update_' + pname, None)
-            if updfunc:
-                def cb(value, ufunc=updfunc, efunc=errcb):
-                    try:
-                        ufunc(value)
-                    except Exception as e:
-                        efunc(e)
-                self.valueCallbacks[pname].append(cb)
+        Remark: when <modobj>.update_<param> does not accept the <exc> argument,
+        nothing happens (the callback is catched by try / except).
+        Any exceptions raised by the callback function are silently ignored.
+        """
+        autoupdate = set(autoupdate)
+        for pname in self.parameters:
+            cbfunc = getattr(modobj, 'update_' + pname, None)
+            if cbfunc:
+                self.addCallback(pname, cbfunc)
             elif pname in autoupdate:
-                def cb(value, p=pname):
-                    modobj.announceUpdate(p, value)
-                self.valueCallbacks[pname].append(cb)
+                self.addCallback(pname, modobj.announceUpdate, pname)
 
     def isBusy(self, status=None):
         """helper function for treating substates of BUSY correctly"""
@@ -717,8 +693,8 @@ class Module(HasAccessibles):
         for mobj in polled_modules:
             pinfo = mobj.pollInfo = PollInfo(mobj.pollinterval, self.triggerPoll)
             # trigger a poll interval change when self.pollinterval changes.
-            if 'pollinterval' in mobj.valueCallbacks:
-                mobj.valueCallbacks['pollinterval'].append(pinfo.update_interval)
+            if 'pollinterval' in mobj.paramCallbacks:
+                mobj.addCallback('pollinterval', pinfo.update_interval)
 
             for pname, pobj in mobj.parameters.items():
                 rfunc = getattr(mobj, 'read_' + pname)
