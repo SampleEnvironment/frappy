@@ -614,6 +614,10 @@ class Module(HasAccessibles):
             # enablePoll == False: we still need the poll thread for writing values from writeDict
             if hasattr(self, 'io'):
                 self.io.polledModules.append(self)
+                if not self.io.triggerPoll:
+                    # when self.io.enablePoll is False, triggerPoll is not
+                    # created for self.io in the else clause below
+                    self.triggerPoll = threading.Event()
             else:
                 self.triggerPoll = threading.Event()
                 self.polledModules.append(self)

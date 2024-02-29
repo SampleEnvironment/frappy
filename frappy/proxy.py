@@ -71,7 +71,7 @@ class ProxyModule(HasIO, Module):
             pname, pobj = params.popitem()
             props = remoteparams.get(pname, None)
             if props is None:
-                if pobj.export:
+                if pobj.export and pname != 'status':
                     self.log.warning('remote parameter %s:%s does not exist', self.module, pname)
                 continue
             dt = props['datatype']
@@ -108,17 +108,19 @@ class ProxyModule(HasIO, Module):
         # for now, the error message must be enough
 
     def nodeStateChange(self, online, state):
+        disconnected = Readable.Status.ERROR, 'disconnected'
         if online:
             if not self._consistency_check_done:
                 self._check_descriptive_data()
                 self._consistency_check_done = True
+            if self.status == disconnected:
+                self.status = Readable.Status.IDLE, 'connected'
         else:
-            newstatus = Readable.Status.ERROR, 'disconnected'
             readerror = CommunicationFailedError('disconnected')
-            if self.status != newstatus:
+            if self.status != disconnected:
                 for pname in set(self.parameters) - set(('module', 'status')):
                     self.announceUpdate(pname, None, readerror)
-                self.announceUpdate('status', newstatus)
+                self.status = disconnected
 
     def checkProperties(self):
         pass  # skip
@@ -193,7 +195,7 @@ def proxy_class(remote_class, name=None):
             attrs[aname] = pobj
 
             def rfunc(self, pname=aname):
-                value, _, readerror = self._secnode.getParameter(self.name, pname, True)
+                value, _, readerror = self._secnode.getParameter(self.module, pname, True)
                 if readerror:
                     raise readerror
                 return value
@@ -203,7 +205,7 @@ def proxy_class(remote_class, name=None):
             if not pobj.readonly:
 
                 def wfunc(self, value, pname=aname):
-                    value, _, readerror = self._secnode.setParameter(self.name, pname, value)
+                    value, _, readerror = self._secnode.setParameter(self.module, pname, value)
                     if readerror:
                         raise readerror
                     return value
@@ -214,7 +216,7 @@ def proxy_class(remote_class, name=None):
             cobj = aobj.copy()
 
             def cfunc(self, arg=None, cname=aname):
-                return self._secnode.execCommand(self.name, cname, arg)[0]
+                return self._secnode.execCommand(self.module, cname, arg)[0]
 
             attrs[aname] = cobj(cfunc)
 
