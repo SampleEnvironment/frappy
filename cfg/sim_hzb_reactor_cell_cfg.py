@@ -14,7 +14,7 @@ Mod('temperature_reg',
 group='temp control',
 target=293.15,
 looptime=1,
-ramp=60,
+ramp=500,
 pollinterval = Param(export=False),
 value = 293.15,
 
