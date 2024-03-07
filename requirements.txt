@@ -5,6 +5,8 @@ mlzlog >=0.2.0
 # daemonizing
 psutil
 python-daemon >=2.0
+# websocket interface:
+websockets>=11.0
 # for zmq interface
 #pyzmq>=13.1.0
 #for ppms on windows

@@ -53,6 +53,7 @@ except ImportError:
 class Server:
     INTERFACES = {
         'tcp': 'protocol.interface.tcp.TCPServer',
+        'ws': 'protocol.interface.ws.WSServer',
     }
     _restart = True
 
