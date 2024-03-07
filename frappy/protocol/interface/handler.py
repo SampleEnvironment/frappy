@@ -61,10 +61,16 @@ class RequestHandler:
         self.request = request
         self.client_address = client_address
         self.server = server
+        self.log = None
 
-        self.setup()
         try:
+            self.setup()
             self.handle()
+        except Exception:
+            if self.log:
+                self.log.error(formatException())
+            else:
+                server.log.error(formatException())
         finally:
             self.finish()
 
