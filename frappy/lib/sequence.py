@@ -141,6 +141,7 @@ class SequencerMixin:
         return self.Status.IDLE, ''
 
     def stop(self):
+        """stop sequence"""
         if self.seq_is_alive():
             self._seq_stopflag = True
 

@@ -483,6 +483,10 @@ class Temp(PpmsDrivable):
         self._expected_target_time = time.time() + abs(target - self.value) * 60.0 / max(0.1, ramp)
 
     def stop(self):
+        """set setpoint to current value
+
+        but restrict to values between last target and current target
+        """
         if not self.isDriving():
             return
         if self.status[0] != StatusType.STABILIZING:
@@ -612,6 +616,7 @@ class Field(PpmsDrivable):
         # do not execute FIELD command, as this would trigger a ramp up of leads current
 
     def stop(self):
+        """stop at current driven Field"""
         if not self.isDriving():
             return
         newtarget = clamp(self._last_target, self.value, self.target)
@@ -714,6 +719,7 @@ class Position(PpmsDrivable):
         return value  # do not execute MOVE command, as this would trigger an unnecessary move
 
     def stop(self):
+        """stop motor"""
         if not self.isDriving():
             return
         newtarget = clamp(self._last_target, self.value, self.target)

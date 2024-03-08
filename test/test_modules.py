@@ -23,6 +23,8 @@
 
 import sys
 import threading
+import importlib
+from glob import glob
 import pytest
 
 from frappy.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
@@ -440,12 +442,12 @@ def test_override():
     assert Mod.value.value == 5
     assert Mod.stop.description == "no decorator needed"
 
-    class Mod2(Drivable):
-        @Command()
+    class Mod2(Mod):
         def stop(self):
             pass
 
-    assert Mod2.stop.description == Drivable.stop.description
+    # inherit doc string
+    assert Mod2.stop.description == Mod.stop.description
 
 
 def test_command_config():
@@ -920,3 +922,24 @@ def test_interface_classes(bases, iface_classes):
         pass
     m = Mod('mod', LoggerStub(), {'description': 'test'}, srv)
     assert m.interface_classes == iface_classes
+
+
+all_drivables = set()
+for pyfile in glob('frappy_*/*.py'):
+    module = pyfile[:-3].replace('/', '.')
+    try:
+        importlib.import_module(module)
+    except Exception as e:
+        print(module, e)
+        continue
+    for obj_ in sys.modules[module].__dict__.values():
+        if isinstance(obj_, type) and issubclass(obj_, Drivable):
+            all_drivables.add(obj_)
+
+
+@pytest.mark.parametrize('modcls', all_drivables)
+def test_stop_doc(modcls):
+    # make sure that implemented stop methods have a doc string
+    if (modcls.stop.description == Drivable.stop.description
+            and modcls.stop.func != Drivable.stop.func):
+        assert modcls.stop.func.__doc__  # stop method needs a doc string

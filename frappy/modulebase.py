@@ -83,15 +83,14 @@ class HasAccessibles(HasProperties):
                     override_values.pop(key, None)
                 elif key in accessibles:
                     override_values[key] = value
+        # remark: merged_properties contain already the properties of accessibles of cls
         for aname, aobj in list(accessibles.items()):
             if aname in override_values:
-                aobj = aobj.copy()
                 value = override_values[aname]
                 if value is None:
                     accessibles.pop(aname)
                     continue
-                aobj.merge(merged_properties[aname])
-                aobj.override(value)
+                aobj = aobj.create_from_value(merged_properties[aname], value)
                 # replace the bare value by the created accessible
                 setattr(cls, aname, aobj)
             else:

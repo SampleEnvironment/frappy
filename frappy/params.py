@@ -57,13 +57,17 @@ class Accessible(HasProperties):
     def as_dict(self):
         return self.propertyValues
 
-    def override(self, value):
-        """override with a bare value"""
+    def create_from_value(self, properties, value):
+        """return a clone with given value and inherited properties"""
+        raise NotImplementedError
+
+    def clone(self, properties, **kwds):
+        """return a clone of ourselfs with inherited properties"""
         raise NotImplementedError
 
     def copy(self):
         """return a (deep) copy of ourselfs"""
-        raise NotImplementedError
+        return self.clone(self.propertyValues)
 
     def updateProperties(self, merged_properties):
         """update merged_properties with our own properties"""
@@ -234,13 +238,15 @@ class Parameter(Accessible):
                 # avoid export=True overrides export=<name>
                 self.ownProperties['export'] = self.export
 
-    def copy(self):
-        """return a (deep) copy of ourselfs"""
-        res = type(self)()
+    def clone(self, properties, **kwds):
+        """return a clone of ourselfs with inherited properties"""
+        res = type(self)(**kwds)
         res.name = self.name
-        res.init(self.propertyValues)
+        res.init(properties)
+        res.init(res.ownProperties)
         if 'datatype' in self.propertyValues:
             res.datatype = res.datatype.copy()
+        res.finish()
         return res
 
     def updateProperties(self, merged_properties):
@@ -253,9 +259,9 @@ class Parameter(Accessible):
                     merged_properties.pop(key)
         merged_properties.update(self.ownProperties)
 
-    def override(self, value):
-        """override default"""
-        self.value = self.datatype(value)
+    def create_from_value(self, properties, value):
+        """return a clone with given value and inherited properties"""
+        return self.clone(properties, value=self.datatype(value))
 
     def merge(self, merged_properties):
         """merge with inherited properties
@@ -390,7 +396,7 @@ class Command(Accessible):
         else:
             # goodie: allow @Command instead of @Command()
             self.func = argument  # this is the wrapped method!
-            if argument.__doc__:
+            if argument.__doc__ is not None:
                 self.description = inspect.cleandoc(argument.__doc__)
             self.name = self.func.__name__  # this is probably not needed
         self._inherit = inherit  # save for __set_name__
@@ -439,38 +445,37 @@ class Command(Accessible):
                                        f' members!: {params} != {members}')
             self.argument.optional = [p for p,v in sig.parameters.items()
                    if v.default is not inspect.Parameter.empty]
-        if 'description' not in self.propertyValues and func.__doc__:
+        if 'description' not in self.ownProperties and func.__doc__ is not None:
             self.description = inspect.cleandoc(func.__doc__)
             self.ownProperties['description'] = self.description
         self.func = func
         return self
 
-    def copy(self):
-        """return a (deep) copy of ourselfs"""
-        res = type(self)()
+    def clone(self, properties, **kwds):
+        """return a clone of ourselfs with inherited properties"""
+        res = type(self)(**kwds)
         res.name = self.name
         res.func = self.func
-        res.init(self.propertyValues)
+        res.init(properties)
+        res.init(res.ownProperties)
         if res.argument:
             res.argument = res.argument.copy()
         if res.result:
             res.result = res.result.copy()
-        self.finish()
+        res.finish()
         return res
 
     def updateProperties(self, merged_properties):
         """update merged_properties with our own properties"""
         merged_properties.update(self.ownProperties)
 
-    def override(self, value):
-        """override method
+    def create_from_value(self, properties, value):
+        """return a clone with given value and inherited properties
 
         this is needed when the @Command is missing on a method overriding a command"""
         if not callable(value):
             raise ProgrammingError(f'{self.name} = {value!r} is overriding a Command')
-        self.func = value
-        if value.__doc__:
-            self.description = inspect.cleandoc(value.__doc__)
+        return self.clone(properties)(value)
 
     def merge(self, merged_properties):
         """merge with inherited properties

@@ -120,6 +120,7 @@ class MagneticField(Drivable):
                      )
     heatswitch = Attached(Switch, description='name of heat switch device')
 
+    # pylint: disable=invalid-name
     Status = Enum(Drivable.Status, PERSIST=PERSIST, PREPARE=301, RAMPING=302, FINISH=303)
 
     status = Parameter(datatype=TupleOf(EnumType(Status), StringType()))
@@ -193,6 +194,7 @@ class MagneticField(Drivable):
         self.log.error(self, 'main thread exited unexpectedly!')
 
     def stop(self):
+        """stop at current value"""
         self.write_target(self.read_value())
 
 

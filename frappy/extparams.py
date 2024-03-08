@@ -79,7 +79,9 @@ class StructParam(Parameter):
             datatype = StructOf(**{m: p.datatype for m, p in paramdict.items()})
             kwds['influences'] = [p.name for p in paramdict.values()]
         self.updateEnable = {}
-        super().__init__(description, datatype, paramdict=paramdict, readonly=readonly, **kwds)
+        if paramdict:
+            kwds['paramdict'] = paramdict
+        super().__init__(description, datatype, readonly=readonly, **kwds)
 
     def __set_name__(self, owner, name):
         # names of access methods of structed param (e.g. ctrlpars)

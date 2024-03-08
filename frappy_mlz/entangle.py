@@ -641,6 +641,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
             sleep(0.3)
 
     def stop(self):
+        """cease driving, go to IDLE state"""
         self._dev.Stop()
 
 

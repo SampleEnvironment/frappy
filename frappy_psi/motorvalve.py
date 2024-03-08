@@ -198,6 +198,10 @@ class MotorValve(PersistentMixin, Drivable):
 
     @Command
     def stop(self):
+        """stop at current position
+
+        state will probably be undefined
+        """
         self._state.stop()
         self.motor.stop()
 

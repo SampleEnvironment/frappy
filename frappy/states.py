@@ -239,6 +239,7 @@ class HasStates:
 
     @Command
     def stop(self):
+        """stop state machine"""
         self.stop_machine()
 
     def final_status(self, code=IDLE, text=''):

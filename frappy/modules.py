@@ -36,6 +36,7 @@ from .modulebase import Module
 
 class Readable(Module):
     """basic readable module"""
+    # pylint: disable=invalid-name
     Status = Enum('Status',
                   IDLE=StatusType.IDLE,
                   WARN=StatusType.WARN,
@@ -92,7 +93,7 @@ class Drivable(Writable):
 
     @Command(None, result=None)
     def stop(self):
-        """cease driving, go to IDLE state"""
+        """not implemented - this is a no-op"""
 
 
 class Communicator(HasComlog, Module):
