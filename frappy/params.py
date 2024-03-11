@@ -98,6 +98,16 @@ class Accessible(HasProperties):
             props.append(f'{k}={v!r}')
         return f"{self.__class__.__name__}({', '.join(props)})"
 
+    def fixExport(self):
+        if self.export is True:
+            predefined_cls = PREDEFINED_ACCESSIBLES.get(self.name)
+            if predefined_cls is None:
+                self.export = '_' + self.name
+            elif isinstance(self, predefined_cls):
+                self.export = self.name
+            else:
+                raise ProgrammingError(f'can not use {self.name!r} as name of a {type(self).__name__}')
+
 
 class Parameter(Accessible):
     """defines a parameter
@@ -225,18 +235,7 @@ class Parameter(Accessible):
         self.name = name
         if isinstance(self.datatype, EnumType):
             self.datatype.set_name(name)
-
-        if self.export is True:
-            predefined_cls = PREDEFINED_ACCESSIBLES.get(self.name, None)
-            if predefined_cls is Parameter:
-                self.export = self.name
-            elif predefined_cls is None:
-                self.export = '_' + self.name
-            else:
-                raise ProgrammingError(f'can not use {self.name!r} as name of a Parameter')
-            if 'export' in self.ownProperties:
-                # avoid export=True overrides export=<name>
-                self.ownProperties['export'] = self.export
+        self.fixExport()
 
     def clone(self, properties, **kwds):
         """return a clone of ourselfs with inherited properties"""
@@ -280,7 +279,7 @@ class Parameter(Accessible):
 
         :param modobj: final call, called from Module.__init__
         """
-
+        self.fixExport()
         if self.constant is not None:
             constant = self.datatype(self.constant)
             # The value of the `constant` property should be the
@@ -407,18 +406,8 @@ class Command(Accessible):
         if self.func is None:
             raise ProgrammingError(f'Command {owner.__name__}.{name} must be used as a method decorator')
 
+        self.fixExport()
         self.datatype = CommandType(self.argument, self.result)
-        if self.export is True:
-            predefined_cls = PREDEFINED_ACCESSIBLES.get(name, None)
-            if predefined_cls is Command:
-                self.export = name
-            elif predefined_cls is None:
-                self.export = '_' + name
-            else:
-                raise ProgrammingError(f'can not use {name!r} as name of a Command') from None
-            if 'export' in self.ownProperties:
-                # avoid export=True overrides export=<name>
-                self.ownProperties['export'] = self.export
         if not self._inherit:
             for key, pobj in self.properties.items():
                 if key not in self.propertyValues:
@@ -455,6 +444,7 @@ class Command(Accessible):
         """return a clone of ourselfs with inherited properties"""
         res = type(self)(**kwds)
         res.name = self.name
+        self.fixExport()
         res.func = self.func
         res.init(properties)
         res.init(res.ownProperties)
