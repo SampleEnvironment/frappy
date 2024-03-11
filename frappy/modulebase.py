@@ -592,7 +592,7 @@ class Module(HasAccessibles):
                 if not self.io.triggerPoll:
                     # when self.io.enablePoll is False, triggerPoll is not
                     # created for self.io in the else clause below
-                    self.triggerPoll = threading.Event()
+                    self.io.triggerPoll = threading.Event()
             else:
                 self.triggerPoll = threading.Event()
                 self.polledModules.append(self)
