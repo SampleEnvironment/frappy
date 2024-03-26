@@ -47,9 +47,11 @@ def make_update(modulename, pobj):
     if pobj.readerror:
         return (ERRORPREFIX + EVENTREPLY, f'{modulename}:{pobj.export}',
                 # error-report !
-                [pobj.readerror.name, str(pobj.readerror), {'t': pobj.timestamp}])
+                [pobj.readerror.name, str(pobj.readerror),
+                 {'t': pobj.timestamp} if pobj.timestamp else {}])
     return (EVENTREPLY, f'{modulename}:{pobj.export}',
-            [pobj.export_value(), {'t': pobj.timestamp}])
+            [pobj.export_value(),
+             {'t': pobj.timestamp} if pobj.timestamp else {}])
 
 
 class Dispatcher:
