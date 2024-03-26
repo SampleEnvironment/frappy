@@ -416,6 +416,14 @@ class SecopClient(ProxyClient):
                             self.updateValue(module, param, value, timestamp, readerror)
                         except KeyError:
                             pass  # ignore updates of unknown parameters
+                        except Exception as e:
+                            self.log.debug(f'error when updating %s:%s %r', module, param, value)
+                            try:
+                                # catch errors in callback functions
+                                self.updateValue(module, param, None, timestamp,
+                                                 type(e)(f'{e} - raised on client side'))
+                            except Exception as ee:
+                                self.log.warn(f'can not handle error update %r for %s:%s: %r', e, module, param, ee)
                         if action in (EVENTREPLY, ERRORPREFIX + EVENTREPLY):
                             continue
                 try:
