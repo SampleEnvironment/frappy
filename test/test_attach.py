@@ -19,6 +19,7 @@
 #
 # *****************************************************************************
 
+from frappy.io import HasIO
 from frappy.modules import Module, Attached
 from frappy.protocol.dispatcher import Dispatcher
 
@@ -28,6 +29,9 @@ class LoggerStub:
         print(fmt % args)
     info = warning = exception = debug
     handlers = []
+
+    def getChild(self, name):
+        return self
 
 
 logger = LoggerStub()
@@ -51,6 +55,7 @@ class ServerStub:
     def __init__(self):
         self.secnode = SecNodeStub()
         self.dispatcher = Dispatcher('dispatcher', logger, {}, self)
+        self.log = logger
 
 
 def test_attach():
@@ -64,3 +69,22 @@ def test_attach():
     srv.secnode.add_module(a, 'a')
     srv.secnode.add_module(m, 'm')
     assert m.att == a
+
+
+def test_attach_hasio_uri():
+    class TestIO(Module):
+        def __init__(self, name, logger, cfgdict, srv):
+            self._uri = cfgdict.pop('uri')
+            super().__init__(name, logger, cfgdict, srv)
+
+    class HasIOTest(HasIO):
+        ioClass = TestIO
+
+    srv = ServerStub()
+    m = HasIOTest('m', logger, {'description': '', 'uri': 'abc'}, srv)
+    assert srv.secnode.modules['m_io']._uri == 'abc'
+    assert m.io == srv.secnode.modules['m_io']
+    # two modules with the same IO should use the same io module
+    m2 = HasIOTest('m', logger, {'description': '', 'uri': 'abc'}, srv)
+    assert m2.io == srv.secnode.modules['m_io']
+
