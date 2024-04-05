@@ -28,8 +28,9 @@ import signal
 import os
 import traceback
 import threading
+import logging
 from os.path import expanduser
-from frappy.client import SecopClient
+from frappy.client import SecopClient, UnregisterCallback
 from frappy.errors import SECoPError
 from frappy.datatypes import get_datatype, StatusType
 try:
@@ -55,40 +56,45 @@ watch(io, T=True)            # watch io and all parameters of T
 {tail}"""
 
 
-LOG_LEVELS = {'debug', 'comlog', 'info', 'warning', 'error', 'off'}
+LOG_LEVELS = {
+    'debug': logging.DEBUG,
+    'comlog':  logging.DEBUG+1,
+    'info': logging.INFO,
+    'warning': logging.WARN,
+    'error': logging.ERROR,
+    'off': logging.ERROR+1}
 CLR = '\r\x1b[K'  # code to move to the left and clear current line
 
 
-class Logger:
-    show_time = False
-    sigwinch = False
-
-    def __init__(self, loglevel='info'):
-        func = self.noop
-        for lev in 'debug', 'info', 'warning', 'error', 'exception':
-            if lev == loglevel:
-                func = self.emit
-            setattr(self, lev, func)
-        self._minute = 0
-
-    def emit(self, fmt, *args, **kwds):
-        if self.show_time:
-            now = time.time()
-            tm = time.localtime(now)
-            if tm.tm_min != self._minute:
-                self._minute = tm.tm_min
-                print(CLR + time.strftime('--- %H:%M:%S ---', tm))
-            sec = f'{now % 60.0:6.3f}'.replace(' ', '0')
-            print(CLR + sec, str(fmt) % args)
-        else:
-            print(CLR + (str(fmt) % args))
-        if self.sigwinch:
+class Handler(logging.StreamHandler):
+    def emit(self, record):
+        super().emit(record)
+        if clientenv.sigwinch:
             # SIGWINCH: 'window size has changed' -> triggers a refresh of the input line
             os.kill(os.getpid(), signal.SIGWINCH)
 
-    @staticmethod
-    def noop(fmt, *args, **kwds):
-        pass
+
+class Logger(logging.Logger):
+    show_time = False
+    _minute = None
+
+    def __init__(self, name, loglevel='info'):
+        super().__init__(name, LOG_LEVELS.get(loglevel, logging.INFO))
+        handler = Handler()
+        handler.formatter = logging.Formatter('%(asctime)s%(message)s')
+        handler.formatter.formatTime = self.format_time
+        self.addHandler(handler)
+
+    def format_time(self, record, datefmt=None):
+        if self.show_time:
+            now = record.created
+            tm = time.localtime(now)
+            sec = f'{now % 60.0:6.3f}'.replace(' ', '0')
+            if tm.tm_min == self._minute:
+                return f'{CLR}{sec} '
+            self._minute = tm.tm_min
+            return f"{CLR}{time.strftime('--- %H:%M:%S ---', tm)}\n{sec} "
+        return ''
 
 
 class PrettyFloat(float):
@@ -238,6 +244,9 @@ class Module:
         return self.value
 
     def __repr__(self):
+        return f'<module {self._name}>'
+
+    def showAll(self):
         wid = max((len(k) for k in self._parameters), default=0)
         return '%s\n%s%s' % (
             self._title,
@@ -271,10 +280,7 @@ class Param:
         return value
 
     def formatted(self, obj):
-        value, _, error = obj._secnode.cache[obj._name, self.name]
-        if error:
-            return repr(error)
-        return self.format(value)
+        return obj._secnode.cache[obj._name, self.name].formatted()
 
     def __set__(self, obj, value):
         try:
@@ -285,9 +291,6 @@ class Param:
         except SECoPError as e:
             clientenv.raise_with_short_traceback(e)
             obj._secnode.log.error(repr(e))
-
-    def format(self, value):
-        return self.datatype.format_value(value)
 
 
 class Command:
@@ -337,9 +340,28 @@ def watch(*args, **kwds):
             mobj._set_watching(arg)
     print('---')
     try:
+        nodes = set()
         for mobj in modules:
+            nodes.add(mobj._secnode)
             mobj._start_watching()
-        time.sleep(3600)
+
+        close_event = threading.Event()
+
+        def close_node(online, state):
+            if online and state != 'shutdown':
+                return
+            close_event.set()
+            return UnregisterCallback
+
+        def handle_error(*_):
+            close_event.set()
+            return UnregisterCallback
+
+        for node in nodes:
+            node.register_callback(None, nodeStateChange=close_node, handleError=handle_error)
+
+        close_event.wait()
+
     except KeyboardInterrupt as e:
         clientenv.raise_with_short_traceback(e)
     finally:
@@ -359,7 +381,7 @@ class Client(SecopClient):
             clientenv.init(sys.modules['__main__'].__dict__)
         # remove previous client:
         prev = self.secnodes.pop(uri, None)
-        log = Logger(loglevel)
+        log = Logger(name, loglevel)
         removed_modules = []
         if prev:
             log.info('remove previous client to %s', uri)
@@ -433,8 +455,10 @@ def run(filepath):
 class ClientEnvironment:
     namespace = None
     last_frames = 0
+    sigwinch = False
 
     def init(self, namespace=None):
+        self.nodes = []
         self.namespace = namespace or {}
         self.namespace.update(run=run, watch=watch, Client=Client)
 
@@ -444,7 +468,7 @@ class ClientEnvironment:
         raise exc
 
     def short_traceback(self):
-        """cleanup tracback from irrelevant lines"""
+        """cleanup traceback from irrelevant lines"""
         lines = traceback.format_exception(*sys.exc_info())
         # line 0: Traceback header
         # skip line 1+2 (contains unspecific console line and exec code)
@@ -482,11 +506,15 @@ class Console(code.InteractiveConsole):
                 readline.write_history_file(history)
 
     def raw_input(self, prompt=""):
-        Logger.sigwinch = bool(readline)  # activate refresh signal
+        clientenv.sigwinch = bool(readline)  # activate refresh signal
         line = input(prompt)
-        Logger.sigwinch = False
+        clientenv.sigwinch = False
         if line.startswith('/'):
             line = f"run('{line[1:].strip()}')"
+        module = clientenv.namespace.get(line.strip())
+        if isinstance(module, Module):
+            print(module.showAll())
+            line = ''
         return line
 
     def showtraceback(self):
@@ -499,7 +527,8 @@ def init(*nodes):
     for idx, node in enumerate(nodes):
         client_name = '_c%d' % idx
         try:
-            clientenv.namespace[client_name] = Client(node, name=client_name)
+            node = clientenv.namespace[client_name] = Client(node, name=client_name)
+            clientenv.nodes.append(node)
             success = True
         except Exception as e:
             print(repr(e))
