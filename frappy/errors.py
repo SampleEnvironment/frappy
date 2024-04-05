@@ -218,7 +218,7 @@ class IsErrorError(SECoPError):
 
 class DisabledError(SECoPError):
     """The requested action can not be performed while the module is disabled"""
-    name = 'disabled'
+    name = 'Disabled'
 
 
 class ImpossibleError(SECoPError):
