@@ -21,6 +21,12 @@ class MassSpectrometer(Readable):
                           timestamp = ArrayOf(FloatRange(0,1000),num_spec,num_spec)
                           ))
     
+    aquire_time = Parameter("time duration for aquisition of spectrum",
+                            FloatRange(0,60),
+                            default = 2,
+                            unit = "s",
+                            readonly = False)
+    
     def initModule(self):
         super().initModule()
         self._stopflag = False
@@ -33,6 +39,7 @@ class MassSpectrometer(Readable):
     
     def read_value(self):
         return self.spectrum
+    
 
 
     @Command()
@@ -49,7 +56,7 @@ class MassSpectrometer(Readable):
 
         mass = np.random.randint(0,1000,num_spec)
         partial_pressure = np.random.randint(0,1000,num_spec)
-        timestamp = np.linspace(start=start,stop=start+5,endpoint=False,num=num_spec)
+        timestamp = np.linspace(start=start,stop=start+self.aquire_time,endpoint=False,num=num_spec)
 
         new_spectr = {
             'mass':mass.tolist(),
@@ -79,7 +86,7 @@ class MassSpectrometer(Readable):
         while not self._stopflag:
 
             if self.go_flag:
-                time.sleep(5)
+                time.sleep(self.aquire_time)
                 self.spectrum = self.getSpectrum()
                 self.status = self.Status.IDLE, 'Spectrum finished'
                 self.go_flag = False
