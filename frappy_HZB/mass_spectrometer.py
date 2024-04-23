@@ -90,6 +90,7 @@ class MassSpectrometer(Readable):
                 self.spectrum = self.getSpectrum()
                 self.status = self.Status.IDLE, 'Spectrum finished'
                 self.go_flag = False
+                self.read_value()
 
             time.sleep(1)
             self.read_value()
