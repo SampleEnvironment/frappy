@@ -318,7 +318,8 @@ class SecopClient(ProxyClient):
 
     def __del__(self):
         try:
-            self.disconnect()
+            self.callbacks.clear()  # avoid callbacks when deleting. may cause deadlocks in NICOS
+            self.disconnect(True)
         except Exception:
             pass
 
