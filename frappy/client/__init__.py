@@ -68,6 +68,10 @@ class Logger:
     error = exception = warning = critical = info
 
 
+class NullLogger(Logger):
+    error = exception = warning = critical = info = Logger.noop
+
+
 class CallbackObject:
     """abstract definition for a target object for callbacks
 
@@ -290,6 +294,13 @@ class SecopClient(ProxyClient):
     _max_error_count = 10
 
     def __init__(self, uri, log=Logger):
+        """initialize SecopClient
+
+        :param uri: the uri to connect to
+        :param log: a logger.
+                    when not given, the print command is used for messages with at least info level.
+                    when None, nothing is logged at all
+        """
         super().__init__()
         # maps expected replies to [request, Event, is_error, result] until a response came
         # there can only be one entry per thread calling 'request'
@@ -297,7 +308,7 @@ class SecopClient(ProxyClient):
         self.io = None
         self.txq = queue.Queue(30)   # queue for tx requests
         self.pending = queue.Queue(30)  # requests with colliding action + ident
-        self.log = log
+        self.log = log or NullLogger
         self.uri = uri
         self.nodename = uri
         self._lock = RLock()
