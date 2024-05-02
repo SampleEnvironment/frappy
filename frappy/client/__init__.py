@@ -317,8 +317,11 @@ class SecopClient(ProxyClient):
         self.register_callback(None, self.handleError)
 
     def __del__(self):
+        # make sure threads are stopping. this is needed in case
+        # a frappy client object is lost without calling .disconnect()
         try:
-            self.callbacks.clear()  # avoid callbacks when deleting. may cause deadlocks in NICOS
+            # avoid callbacks when deleting. may cause deadlocks in NICOS
+            self.callbacks.clear()
             self.disconnect(True)
         except Exception:
             pass
@@ -405,6 +408,7 @@ class SecopClient(ProxyClient):
 
     def __rxthread(self):
         noactivity = 0
+        shutdown = False
         try:
             while self._running:
                 while self.cleanup:
@@ -480,14 +484,13 @@ class SecopClient(ProxyClient):
         except ConnectionClosed:
             pass
         except Exception as e:
-            self._shutdown.set()
+            shutdown = True
             self.callback(None, 'handleError', e)
         finally:
             self._rxthread = None
+            self.disconnect(shutdown)
             if self._shutdown.is_set():
-                self.disconnect(True)
                 return
-            self.disconnect(False)
             if self.activate:
                 self.log.info('try to reconnect to %s', self.uri)
                 self._connthread = mkthread(self._reconnect)
