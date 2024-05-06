@@ -48,8 +48,8 @@ class Robot(Readable):
         # self.robot = UniversalRobot(IP_ROBOT)#
         pass
 
-    @Command(argument=IntRange(min=0,max=12),description = 'unload description')
-    def load(self,sample_num):
+    @Command(description = 'unload description')
+    def load(self):
         if self.status[0] >= BUSY:
             raise IsBusyError('cannot load robot is busy')
         
@@ -58,8 +58,8 @@ class Robot(Readable):
         # self.robot.load(sample_num)
         pass
 
-    @Command(argument=IntRange(min=0,max=12),description = 'unload description')
-    def unload(self,sample_num):
+    @Command(description = 'unload description')
+    def unload(self):
         if self.status[0] >= BUSY:
             raise IsBusyError('cannot unload robot is busy')
 
