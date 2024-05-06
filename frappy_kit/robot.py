@@ -13,7 +13,6 @@ class Robot(Readable):
                           x = FloatRange(),
                           y = FloatRange(),
                           z = FloatRange()),
-                          readoly = True,
                           default = {'x' : 0,'y':0,'z':0})
     
     Status = Enum(
@@ -49,17 +48,17 @@ class Robot(Readable):
         # self.robot = UniversalRobot(IP_ROBOT)#
         pass
 
-    @Command(argument=IntRange(min=0,max=12))
+    @Command(argument=IntRange(min=0,max=12),description = 'unload description')
     def load(self,sample_num):
         if self.status[0] >= BUSY:
             raise IsBusyError('cannot load robot is busy')
         
-        
+
         # Dispatch to run in different Thread
         # self.robot.load(sample_num)
         pass
 
-    @Command(argument=IntRange(min=0,max=12))
+    @Command(argument=IntRange(min=0,max=12),description = 'unload description')
     def unload(self,sample_num):
         if self.status[0] >= BUSY:
             raise IsBusyError('cannot unload robot is busy')
