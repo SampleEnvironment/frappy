@@ -30,6 +30,7 @@ MLZ TANGO interface for the respective device classes.
 # pylint: disable=too-many-lines, consider-using-f-string
 
 import re
+import sys
 import threading
 from time import sleep, time as currenttime
 
@@ -38,7 +39,7 @@ import PyTango
 from frappy.datatypes import ArrayOf, EnumType, FloatRange, IntRange, \
     LimitsType, StatusType, StringType, TupleOf, ValueType
 from frappy.errors import CommunicationFailedError, ConfigError, \
-    HardwareError, ProgrammingError, WrongTypeError
+    HardwareError, ProgrammingError, WrongTypeError, RangeError
 from frappy.lib import lazy_property
 from frappy.modules import Command, Drivable, Module, Parameter, Property, \
     Readable, Writable
@@ -440,6 +441,7 @@ class AnalogOutput(PyTangoDevice, Drivable):
                            )
     abslimits = Parameter('Absolute limits of device value',
                           datatype=LimitsType(FloatRange(unit='$')),
+                          export=False,
                           )
     precision = Parameter('Precision of the device value (allowed deviation '
                           'of stable values from target)',
@@ -466,30 +468,52 @@ class AnalogOutput(PyTangoDevice, Drivable):
         # replacement of '$' by main unit must be done later
         self.__main_unit = mainunit
 
-    def _init_abslimits(self):
+    def _init_limits(self):
         """Get abslimits from tango if not configured. Otherwise, check if both
         ranges are compatible."""
-        try:
-            tangoabslim = (
-                float(self._getProperty('absmin')),
-                float(self._getProperty('absmax'))
-            )
-            if self.parameters['abslimits'].readerror:
-                # no abslimits configured in frappy. read from entangle
-                self.parameters['abslimits'].readerror = None
-                self.abslimits = tangoabslim
-        except Exception as e:
-            self.log.error(e)
-        # check if compatible
-        try:
-            dt = FloatRange(*tangoabslim)
-            dt.validate(self.parameters['abslimits'].datatype.min)
-            dt.validate(self.parameters['abslimits'].datatype.max)
-        except WrongTypeError as e:
-            raise WrongTypeError(f'Absolute limits configured in frappy \''
-                                f'{self.abslimits}\' extend beyond the limits '
-                                f'defined in entangle \'{tangoabslim}\'!') from e
 
+        def intersect_limits(first, second, first_kind, second_kind):
+            lower = max(first[0], second[0])
+            upper = min(first[1], second[1])
+            if lower >= upper:
+                raise WrongTypeError(f"{first_kind} limits '{first}' are not "
+                                     f"compatible with {second_kind} limits "
+                                     f"'{second}'!")
+            return lower, upper
+
+        tangoabslim = (-sys.float_info.max, sys.float_info.max)
+        try:
+            read_tangoabslim = (float(self._getProperty('absmin')),
+                                float(self._getProperty('absmax')))
+            # Entangle convention for "unrestricted"
+            if read_tangoabslim != (0, 0):
+                tangoabslim = read_tangoabslim
+        except Exception as e:
+            self.log.error('could not read Tango abslimits: %s' % e)
+
+        if self.parameters['abslimits'].readerror:
+            # no abslimits configured in frappy
+            self.parameters['abslimits'].readerror = None
+            self.abslimits = tangoabslim
+
+        # check both abslimits against each other
+        self.abslimits = intersect_limits(self.abslimits, tangoabslim,
+                                          'frappy absolute',
+                                          'entangle absolute')
+
+        # set abslimits as hard target limits
+        self.parameters['target'].datatype.set_properties(
+            min=self.abslimits[0], max=self.abslimits[1])
+
+        # restrict current user limits by abslimits
+        self.userlimits = intersect_limits(self.userlimits, self.abslimits,
+                                           'user', 'absolute')
+
+        # restrict settable user limits by abslimits
+        self.parameters['userlimits'].datatype.members[0].set_properties(
+            min=self.abslimits[0], max=self.abslimits[1])
+        self.parameters['userlimits'].datatype.members[1].set_properties(
+            min=self.abslimits[0], max=self.abslimits[1])
 
     def initModule(self):
         super().initModule()
@@ -509,9 +533,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
                 self.__main_unit = attrInfo.unit
         except Exception as e:
             self.log.error(e)
-        if self.__main_unit:
-            super().applyMainUnit(self.__main_unit)
-        self._init_abslimits()
+        super().applyMainUnit(self.__main_unit)
+        self._init_limits()
 
     def doPoll(self):
         super().doPoll()
@@ -601,8 +624,8 @@ class AnalogOutput(PyTangoDevice, Drivable):
         umin, umax = limits
         amin, amax = self.abslimits
         if umin > umax:
-            raise ValueError(
-                self, f'user minimum ({umin}) above the user maximum ({umax})')
+            raise RangeError(
+                f'user minimum ({umin}) above the user maximum ({umax})')
         if umin < amin - abs(amin * 1e-12):
             umin = amin
         if umax > amax + abs(amax * 1e-12):
@@ -613,6 +636,10 @@ class AnalogOutput(PyTangoDevice, Drivable):
         return self._checkLimits(value)
 
     def write_target(self, value=FloatRange()):
+        umin, umax = self.userlimits
+        if not umin <= value <= umax:
+            raise RangeError(
+                f'target value {value} must be between {umin} and {umax}')
         if self.status[0] == self.Status.BUSY:
             # changing target value during movement is not allowed by the
             # Tango base class state machine. If we are moving, stop first.
