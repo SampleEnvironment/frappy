@@ -1244,15 +1244,19 @@ UInt64 = IntRange(0, (1 << 64) - 1)
 
 # Goodie: Convenience Datatypes for Programming
 class LimitsType(TupleOf):
-    def __init__(self, members):
-        super().__init__(members, members)
+    def __init__(self, member):
+        super().__init__(member, member)
 
-    def __call__(self, value):
+    def validate(self, value, previous=None):
         """accepts an ordered tuple of numeric member types"""
-        limits = TupleOf.validate(self, value)
+        limits = TupleOf.validate(self, value, previous)
         if limits[1] < limits[0]:
-            raise RangeError(f'Maximum Value {limits[1]} must be greater than minimum value {limits[0]}!')
+            raise RangeError(f'maximum value {limits[1]} must be greater than '
+                             f'minimum value {limits[0]}')
         return limits
+
+    def copy(self):
+        return LimitsType(TupleOf.copy(self).members[0])
 
 
 class StatusType(TupleOf):

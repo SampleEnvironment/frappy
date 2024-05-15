@@ -620,20 +620,14 @@ class AnalogOutput(PyTangoDevice, Drivable):
 
     del __getusermin, __setusermin, __getusermax, __setusermax
 
-    def _checkLimits(self, limits):
-        umin, umax = limits
+    def write_userlimits(self, value):
+        umin, umax = value
         amin, amax = self.abslimits
-        if umin > umax:
-            raise RangeError(
-                f'user minimum ({umin}) above the user maximum ({umax})')
         if umin < amin - abs(amin * 1e-12):
             umin = amin
         if umax > amax + abs(amax * 1e-12):
             umax = amax
-        return (umin, umax)
-
-    def write_userlimits(self, value):
-        return self._checkLimits(value)
+        return umin, umax
 
     def write_target(self, value=FloatRange()):
         umin, umax = self.userlimits
