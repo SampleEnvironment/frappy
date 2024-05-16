@@ -1,3 +1,59 @@
+frappy-core (0.19.0) jammy; urgency=medium
+
+  [ Markus Zolliker ]
+  * simulation: extra_params might be a list
+  * add FloatEnumParam
+  * move StructParam to frappy/extparams.py
+  * bugfix in automatic creation if attached io
+  * fixes for proxy modules
+  * simplify callbacks
+  * fix docstring in frappy.error.OutOfRangeError
+
+  [ Alexander Zaft ]
+  * core: introduce common handler class
+  * core: cover errors in handler setup()
+
+  [ Markus Zolliker ]
+  * fix command doc string handling and change default stop doc string
+  * follow up fix for change 33168
+  * follow up fix: handler export=True correctly
+
+  [ Alexander Zaft ]
+  * core: add websocket interface
+
+  [ Georg Brandl ]
+  * dispatcher: consistent handling of missing timestamps
+
+  [ Alexander Zaft ]
+  * gui: catch invalid inputs
+  * gui: sort qt imports
+
+  [ Markus Zolliker ]
+  * frappy.client: cleanup properly after a reply timeout
+
+  [ Alexander Zaft ]
+  * gui: more specialized input widgets
+  * test: add uri attach test
+
+  [ Markus Zolliker ]
+  * frappy.client: catch errors on callbacks
+  * frappy.client: improve error handling more
+  * frappy.client.interactive: improve logging and error handling
+  * frappy.client.SecopClient: add the option to use no logging at all
+  * SecopClient.__del__ must not call callbacks
+  * frappy.client: avoid shutdown callback sent twice
+
+  [ Georg Brandl ]
+  * add config for the Entangle simulation server
+
+  [ Jens Krüger ]
+  * Fix abslimits reading from entangle device
+
+  [ Georg Brandl ]
+  * fix LimitsType to be actually used and validated
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Thu, 16 May 2024 11:31:25 +0200
+
 frappy-core (0.18.1) focal; urgency=medium
 
   * mlz: Zapf fix unit handling and small errors
