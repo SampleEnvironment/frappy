@@ -5,7 +5,7 @@ Node('gas_dosing',
     
 )
 
-Gases = ["H2","O2","CO"]
+Gases = ["N2","H2","CO"]
 nMFC = 3
 
 for i in range(0,nMFC):
