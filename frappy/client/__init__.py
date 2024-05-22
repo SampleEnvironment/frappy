@@ -675,9 +675,14 @@ class SecopClient(ProxyClient):
         """forced read over connection"""
         try:
             self.request(READREQUEST, self.identifier[module, parameter])
-        except SECoPError:
-            # error reply message is already stored as readerror in cache
-            pass
+        except SECoPError as e:
+            result = self.cache[module, parameter]
+            if e == result.readerror:
+                # the update was already done in the rx thread
+                return result
+            # e was not originating from a secop error message e.g. a connection problem
+            # -> we have to do the error update
+            self.updateValue(module, parameter, None, time.time(), e)
         return self.cache.get((module, parameter), None)
 
     def getParameter(self, module, parameter, trycache=False):
