@@ -30,7 +30,7 @@ from collections import defaultdict
 from threading import Event, RLock, current_thread
 
 import frappy.params
-from frappy.errors import make_secop_error, SECoPError, WrongTypeError, ProtocolError, ProgrammingError
+from frappy.errors import make_secop_error, SECoPError, WrongTypeError
 from frappy.datatypes import get_datatype
 from frappy.lib import mkthread
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
@@ -370,9 +370,9 @@ class SecopClient(ProxyClient):
                     # pylint: disable=unsubscriptable-object
                     self._init_descriptive_data(self.request(DESCRIPTIONREQUEST)[2])
                     self.nodename = self.properties.get('equipment_id', self.uri)
+                    self._set_state(True, 'connected')
                     if self.activate:
                         self.request(ENABLEEVENTSREQUEST)
-                    self._set_state(True, 'connected')
                     break
                 except Exception:
                     # print(formatExtendedTraceback())
