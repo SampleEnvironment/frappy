@@ -802,7 +802,7 @@ class ArrayOf(DataType):
             return tuple(self.members(v) for v in value)
         except Exception as e:
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
-            raise errcls('can not convert some array elements') from e
+            raise errcls(f'can not convert some array elements: {e!r}') from e
 
     def validate(self, value, previous=None):
         self.check_type(value)
@@ -812,7 +812,7 @@ class ArrayOf(DataType):
             return tuple(self.members.validate(v) for v in value)
         except Exception as e:
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
-            raise errcls('some array elements are invalid') from e
+            raise errcls(f'some array elements are invalid: {e!r}') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -897,7 +897,7 @@ class TupleOf(DataType):
             return tuple(sub(elem) for sub, elem in zip(self.members, value))
         except Exception as e:
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
-            raise errcls('can not convert some tuple elements') from e
+            raise errcls(f'can not convert some tuple elements: {e!r}') from e
 
     def validate(self, value, previous=None):
         self.check_type(value)
@@ -907,7 +907,7 @@ class TupleOf(DataType):
             return tuple(sub.validate(v, p) for sub, v, p in zip(self.members, value, previous))
         except Exception as e:
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
-            raise errcls('some tuple elements are invalid') from e
+            raise errcls(f'some tuple elements are invalid: {e!r}') from e
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
