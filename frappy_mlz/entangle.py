@@ -909,7 +909,7 @@ class PartialDigitalInput(NamedDigitalInput):
         return value  # mapping is done by datatype upon export()
 
 
-class DigitalOutput(PyTangoDevice, Writable):
+class DigitalOutput(PyTangoDevice, Drivable):
     """A device that can set and read a digital value corresponding to a
     bitfield.
     """
