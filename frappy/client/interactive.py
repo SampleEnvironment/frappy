@@ -30,13 +30,12 @@ import traceback
 import threading
 import logging
 from os.path import expanduser
+from frappy.lib import delayed_import
 from frappy.client import SecopClient, UnregisterCallback
 from frappy.errors import SECoPError
 from frappy.datatypes import get_datatype, StatusType
-try:
-    import readline
-except ImportError:
-    readline = None
+
+readline = delayed_import('readline')
 
 
 USAGE = """
