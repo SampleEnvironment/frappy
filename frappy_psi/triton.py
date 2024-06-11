@@ -36,8 +36,9 @@ actions_map.mapping['NONE'] = actions.none  # when writing, STOP is used instead
 
 class Action(MercuryChannel, Writable):
     kind = 'ACTN'
-    cooldown_channel = Property('cool down channel', StringType(), 'T5')
+    cooldown_channel = Property('cool down channel', StringType(), 'T3')
     mix_channel = Property('mix channel', StringType(), 'T5')
+    still_channel = Property('still channel', StringType(), 'T4')
     value = Parameter('running action', EnumType(actions))
     target = FrozenParam('action to do', EnumType(none=0, condense=1, collect=3), readonly=False)
     _target = 0
@@ -50,9 +51,12 @@ class Action(MercuryChannel, Writable):
     read_target = read_value
 
     def write_target(self, value):
+        # because of some funny behavior of the triton software
+        # these channels must be set even when no change is needed
         self.change('SYS:DR:CHAN:COOL', self.cooldown_channel, str)
-        # self.change('SYS:DR:CHAN:MC', self.mix_channel, str)
-        # self.change('DEV:T5:TEMP:MEAS:ENAB', 'ON', str)
+        self.change('SYS:DR:CHAN:STIL', self.still_channel, str)
+        self.change('SYS:DR:CHAN:MC', self.mix_channel, str)
+        self.change('DEV:T5:TEMP:MEAS:ENAB', 'ON', str)
         self.change('SYS:DR:ACTN', value, actions_map)
         return value
 
