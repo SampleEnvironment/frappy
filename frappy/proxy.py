@@ -122,7 +122,7 @@ class ProxyModule(HasIO, Module):
                 self.status = Readable.Status.IDLE, state
         else:
             readerror = CommunicationFailedError('disconnected')
-            if self.status != disconnected:
+            if self.status != DISCONNECTED:
                 for pname in set(self.parameters) - set(('module', 'status')):
                     self.announceUpdate(pname, None, readerror)
                 self.status = self._connection_status = DISCONNECTED

@@ -219,7 +219,7 @@ class AsynTcp(AsynConn):
             # timeout while waiting
             return b''
         except ConnectionResetError:
-            pass  # treat equallly as a gracefully disconnected peer
+            pass  # treat equally as a gracefully disconnected peer
         # note that when no data is sent on a connection, an interruption might
         # not be detected within a reasonable time. sending a heartbeat should
         # help in this case.

@@ -38,6 +38,8 @@ class HasControlledBy:
 
         :param name: the name of the module (for controlled_by enum)
         :param deactivate_control: a method on the input module to switch off control
+
+        called by <controller module>.initModule
         """
         if not self.inputCallbacks:
             self.inputCallbacks = {}
@@ -75,7 +77,7 @@ class HasOutputModule:
     """mixin for modules having an output module
 
     in the :meth:`write_target` the hardware action to switch to own control should be done
-    and in addition self.activate_output() should be called
+    and in addition self.activate_control() should be called
     """
     # mandatory=False: it should be possible to configure a module with fixed control
     output_module = Attached(HasControlledBy, mandatory=False)
@@ -105,7 +107,10 @@ class HasOutputModule:
         self.set_control_active(True)
 
     def deactivate_control(self, source=None):
-        """called when an other module takes over control"""
+        """called when another module takes over control
+
+        registered to be called from the controlled module(s)
+        """
         if self.control_active:
             self.set_control_active(False)
             self.log.warning(f'switched to manual mode by {source or self.name}')
