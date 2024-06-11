@@ -370,9 +370,10 @@ class SecopClient(ProxyClient):
                     # pylint: disable=unsubscriptable-object
                     self._init_descriptive_data(self.request(DESCRIPTIONREQUEST)[2])
                     self.nodename = self.properties.get('equipment_id', self.uri)
-                    self._set_state(True, 'connected')
                     if self.activate:
+                        self._set_state(True, 'activating')
                         self.request(ENABLEEVENTSREQUEST)
+                    self._set_state(True, 'connected')
                     break
                 except Exception:
                     # print(formatExtendedTraceback())

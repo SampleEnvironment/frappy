@@ -30,11 +30,15 @@ from frappy.properties import Property
 from frappy.io import HasIO
 
 
+DISCONNECTED = Readable.Status.ERROR, 'disconnected'
+
+
 class ProxyModule(HasIO, Module):
     module = Property('remote module name', datatype=StringType(), default='')
     status = Parameter('connection status', Readable.status.datatype)  # add status even when not a Readable
 
     _consistency_check_done = False
+    _connection_status = None  # status when not connected
     _secnode = None
     enablePoll = False
 
@@ -45,6 +49,8 @@ class ProxyModule(HasIO, Module):
     def updateEvent(self, module, parameter, value, timestamp, readerror):
         if parameter not in self.parameters:
             return  # ignore unknown parameters
+        if parameter == 'status' and not readerror:
+            self._connection_status = None
         # should be done here: deal with clock differences
         self.announceUpdate(parameter, value, readerror, timestamp)
 
@@ -108,19 +114,18 @@ class ProxyModule(HasIO, Module):
         # for now, the error message must be enough
 
     def nodeStateChange(self, online, state):
-        disconnected = Readable.Status.ERROR, 'disconnected'
         if online:
             if not self._consistency_check_done:
                 self._check_descriptive_data()
                 self._consistency_check_done = True
-            if self.status == disconnected:
-                self.status = Readable.Status.IDLE, 'connected'
+            if self._connection_status:
+                self.status = Readable.Status.IDLE, state
         else:
             readerror = CommunicationFailedError('disconnected')
             if self.status != disconnected:
                 for pname in set(self.parameters) - set(('module', 'status')):
                     self.announceUpdate(pname, None, readerror)
-                self.status = disconnected
+                self.status = self._connection_status = DISCONNECTED
 
     def checkProperties(self):
         pass  # skip

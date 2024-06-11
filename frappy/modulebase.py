@@ -524,7 +524,7 @@ class Module(HasAccessibles):
                 except Exception as e:
                     err = e
                 else:
-                    changed = pobj.value != value
+                    changed = pobj.value != value or pobj.readerror
                     # store the value even in case of error
                     pobj.value = value
             if err:
