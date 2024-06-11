@@ -56,6 +56,20 @@ class HasControlledBy:
             for deactivate_control in self.inputCallbacks.values():
                 deactivate_control(self.name)
 
+    def update_target(self, module, value):
+        """update internal target value
+
+        as write_target would switch to manual mode, the controlling module
+        has to use this method to update the value
+
+        override and super call, if other actions are needed
+        """
+        if self.controlled_by != module:
+            deactivate_control = self.inputCallbacks.get(self.controlled_by)
+            if deactivate_control:
+                deactivate_control(module)
+        self.target = value
+
 
 class HasOutputModule:
     """mixin for modules having an output module
