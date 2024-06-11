@@ -28,6 +28,8 @@ from scipy.interpolate import splev, splrep  # pylint: disable=import-error
 
 from frappy.core import Attached, BoolType, Parameter, Readable, StringType, \
     FloatRange, nopoll
+from frappy_psi.convergence import HasConvergence
+from frappy_psi.picontrol import PImixin
 
 
 def linear(x):
@@ -232,3 +234,7 @@ class Sensor(Readable):
     @nopoll
     def read_status(self):
         return self._get_status(self.rawsensor.read_status())
+
+
+class SoftPiLoop(HasConvergence, PImixin, Sensor):
+    pass
