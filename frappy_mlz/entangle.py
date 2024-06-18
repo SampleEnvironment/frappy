@@ -917,6 +917,7 @@ class DigitalOutput(PyTangoDevice, Drivable):
     # overrides
     value = Parameter('current value', datatype=IntRange())
     target = Parameter('target value', datatype=IntRange())
+    status = Parameter(datatype=StatusType(Drivable, 'BUSY'))  # for some reason, just deriving from Drivable doesn't work
 
     def read_value(self):
         return self._dev.value  # mapping is done by datatype upon export()
