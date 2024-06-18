@@ -1,3 +1,28 @@
+frappy-core (0.19.2) jammy; urgency=medium
+
+  [ l_samenv ]
+  * fix missing update after error on parameter
+
+  [ Markus Zolliker ]
+  * frappy.lib.asynconn: handle ConnectionResetError nicely
+  * HasControlledBy: update target without switching to self control
+  * bug fix in frappy_psi.convergence
+
+  [ Alexander Zaft ]
+  * add option for delayed imports
+
+  [ Markus Zolliker ]
+  * frappy_psi.ah2700: auto create loss module with Pinata
+  * frappy_psi.picontrol: software control loop
+  * frappy_psi.triton: bug fixes
+  * frappy_psi.sea: various improvments
+  * frappy_psi.triton: fix heater output issue
+
+  [ Enrico Faulhaber ]
+  * frappy_mlz/entangle: fix missing status enum
+
+ -- l_samenv <jenkins@frm2.tum.de>  Tue, 18 Jun 2024 15:21:43 +0200
+
 frappy-core (0.19.1) jammy; urgency=medium
 
   [ Markus Zolliker ]
