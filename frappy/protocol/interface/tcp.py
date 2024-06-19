@@ -159,7 +159,8 @@ class TCPServer(DualStackTCPServer):
         self.detailed_errors = options.pop('detailed_errors', False)
 
         self.log.info("TCPServer %s binding to port %d", name, port)
-        for ntry in range(5):
+        maxtry = 5
+        for ntry in range(maxtry):
             try:
                 DualStackTCPServer.__init__(
                     self, ('', port), TCPRequestHandler,
@@ -167,8 +168,8 @@ class TCPServer(DualStackTCPServer):
                 )
                 break
             except OSError as e:
-                if e.args[0] == errno.EADDRINUSE:  # address already in use
-                    # this may happen despite of allow_reuse_address
+                if ntry < maxtry - 1 and e.args[0] == errno.EADDRINUSE:  # address already in use
+                    # this may happen after restarting for a short time even with allow_reuse_address
                     time.sleep(0.3 * (1 << ntry))  # max accumulated sleep time: 0.3 * 31 = 9.3 sec
                 else:
                     self.log.error('could not initialize TCP Server: %r', e)
