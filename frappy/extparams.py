@@ -39,12 +39,11 @@ class StructParam(Parameter):
 
             ...
 
-            ctrlpars = StructParam('ctrlpars struct', [
-                ('pid_p', 'p', Parameter('control parameter p', FloatRange())),
-                ('pid_i', 'i', Parameter('control parameter i', FloatRange())),
-                ('pid_d', 'd', Parameter('control parameter d', FloatRange())),
-            ], readonly=False)
-
+            ctrlpars = StructParam('ctrlpars struct', {
+                'p': Parameter('control parameter p', FloatRange()),
+                'i': Parameter('control parameter i', FloatRange()),
+                'd': Parameter('control parameter d', FloatRange()),
+            }, prefix='pid_', readonly=False)
             ...
 
         then implement either read_ctrlpars and write_ctrlpars or
@@ -60,22 +59,19 @@ class StructParam(Parameter):
 
     insideRW = 0  # counter for avoiding multiple superfluous updates
 
-    def __init__(self, description=None, paramdict=None, prefix_or_map='', *, datatype=None, readonly=False, **kwds):
+    def __init__(self, description=None, paramdict=None, prefix='', *, datatype=None, readonly=False, **kwds):
         """create a struct parameter together with individual parameters
 
         in addition to normal Parameter arguments:
 
         :param paramdict: dict <member name> of Parameter(...)
-        :param prefix_or_map: either a prefix for the parameter name to add to the member name
-                              or a dict <member name> or <parameter name>
+        :param prefix: a prefix for the parameter name to add to the member name
         """
         if isinstance(paramdict, DataType):
             raise ProgrammingError('second argument must be a dict of Param')
         if datatype is None and paramdict is not None:  # omit the following on Parameter.copy()
-            if isinstance(prefix_or_map, str):
-                prefix_or_map = {m: prefix_or_map + m for m in paramdict}
             for membername, param in paramdict.items():
-                param.name = prefix_or_map[membername]
+                param.name = prefix + membername
             datatype = StructOf(**{m: p.datatype for m, p in paramdict.items()})
             kwds['influences'] = [p.name for p in paramdict.values()]
         self.updateEnable = {}

@@ -116,12 +116,12 @@ def test_readonly():
             p = Parameter('control parameter p', FloatRange()),
             i = Parameter('control parameter i', FloatRange()),
             d = Parameter('control parameter d', FloatRange()),
-        ), {'p': 'pp', 'i':'ii', 'd': 'dd'}, readonly=True)
+        ), readonly=True)
 
     assert Mod.ctrlpars.readonly is True
-    assert Mod.pp.readonly is True
-    assert Mod.ii.readonly is True
-    assert Mod.dd.readonly is True
+    assert Mod.p.readonly is True
+    assert Mod.i.readonly is True
+    assert Mod.d.readonly is True
 
 
 def test_order_dependence1():
