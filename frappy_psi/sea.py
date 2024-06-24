@@ -38,9 +38,9 @@ from os.path import expanduser, join, exists
 
 from frappy.client import ProxyClient
 from frappy.datatypes import ArrayOf, BoolType, \
-    EnumType, FloatRange, IntRange, StringType
-from frappy.core import IDLE, BUSY, ERROR
-from frappy.errors import ConfigError, HardwareError, CommunicationFailedError
+    EnumType, FloatRange, IntRange, StringType, StatusType
+from frappy.core import IDLE, BUSY, ERROR, DISABLED
+from frappy.errors import ConfigError, HardwareError, ReadFailedError, CommunicationFailedError
 from frappy.lib import generalConfig, mkthread
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
 from frappy.modulebase import Done
@@ -307,7 +307,8 @@ class SeaClient(ProxyClient, Module):
                 readerror = None
                 if path.endswith('.geterror'):
                     if value:
-                        readerror = HardwareError(value)
+                        # TODO: add mechanism in SEA to indicate hardware errors
+                        readerror = ReadFailedError(value)
                     path = path.rsplit('.', 1)[0]
                     value = None
                 mplist = self.path2param.get(path)
@@ -422,9 +423,9 @@ class SeaEnum(EnumType):
     def __call__(self, value):
         try:
             value = int(value)
-        except TypeError:
-            pass
-        return super().__call__(value)
+            return super().__call__(value)
+        except Exception as e:
+            raise ReadFailedError(e)
 
 
 def get_datatype(paramdesc):
@@ -658,6 +659,8 @@ class SeaReadable(SeaModule, Readable):
     _readerror = None
     _status = IDLE, ''
 
+    status = Parameter(datatype=StatusType(Readable, 'DISABLED'))
+
     def update_value(self, value, timestamp, readerror):
         # make sure status is always ERROR when reading value fails
         self._readerror = readerror
@@ -669,9 +672,9 @@ class SeaReadable(SeaModule, Readable):
             self.read_status()  # send event for ordinary self._status
 
     def update_status(self, value, timestamp, readerror):
-        if readerror:
-            value = f'{readerror.name} - {readerror}'
-        if value == '':
+        if 'disable' in value.lower():
+            self._status = DISABLED, value
+        elif value == '':
             self._status = IDLE, ''
         else:
             self._status = ERROR, value
@@ -679,6 +682,8 @@ class SeaReadable(SeaModule, Readable):
 
     def read_status(self):
         if self._readerror:
+            if 'disable' in str(self._readerror).lower():
+                return DISABLED, str(self._readerror)
             return ERROR, f'{self._readerror.name} - {self._readerror}'
         return self._status
 
@@ -695,6 +700,8 @@ class SeaWritable(SeaReadable, Writable):
 
 class SeaDrivable(SeaReadable, Drivable):
     _is_running = 0
+
+    status = Parameter(datatype=StatusType(Drivable, 'DISABLED'))
 
     def earlyInit(self):
         super().earlyInit()
