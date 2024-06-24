@@ -425,7 +425,7 @@ class SeaEnum(EnumType):
             value = int(value)
             return super().__call__(value)
         except Exception as e:
-            raise ReadFailedError(e)
+            raise ReadFailedError(e) from e
 
 
 def get_datatype(paramdesc):
