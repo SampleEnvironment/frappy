@@ -110,6 +110,7 @@ class Afp(Readable):
 
 
 class Nmr(Readable):
+    # pylint: disable=invalid-name
     Status = Drivable.Status
     status = Parameter(datatype=StatusType(Drivable.Status))
     value = Parameter('Timestamp of last NMR', string)
