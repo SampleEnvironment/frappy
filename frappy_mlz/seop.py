@@ -33,7 +33,7 @@ from frappy.modules import Command, Drivable, Module, Parameter, Property, \
     Readable
 from frappy.rwhandler import CommonReadHandler
 
-he3d = delayed_import('he3d')
+he3cell = delayed_import('he3d.he3cell')
 
 integral = IntRange()
 floating = FloatRange()
@@ -52,7 +52,7 @@ class Cell(Module):
 
     def initModule(self):
         super().initModule()
-        self.cell = he3d.he3cell.He3_cell(
+        self.cell = he3cell.He3_cell(
             path.join(self.config_directory, 'cell.yml'))
 
     # Commands
