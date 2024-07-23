@@ -59,7 +59,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Frappy'
-copyright = '2017-2023, Enrico Faulhaber, Markus Zolliker'
+copyright = '2017-2024, Enrico Faulhaber, Markus Zolliker'
 #copyright = '2017, SECoP Committee'
 author = 'Enrico Faulhaber, Markus Zolliker'
 
