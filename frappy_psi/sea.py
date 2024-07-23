@@ -74,7 +74,7 @@ SERVICE_NAMES = {
 
 SEA_DIR = expanduser('~/sea')
 seaconfdir = os.environ.get('FRAPPY_SEA_DIR')
-if not exists(seaconfdir):
+if seaconfdir is None or not exists(seaconfdir):
     for confdir in generalConfig.confdir.split(os.pathsep):
         seaconfdir = join(confdir, 'sea')
         if exists(seaconfdir):
