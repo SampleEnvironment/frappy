@@ -32,7 +32,7 @@ import frappy.version
 
 # cfg-editor is currently not functional
 scripts = [script for script in glob(path.join('bin', 'frappy-*'))
-           if script != 'frappy-cfg-editor']
+           if not script.endswith('cfg-editor')]
 
 uidir = path.join(path.dirname(__file__), 'frappy', 'gui', 'ui')
 uis = [path.join('gui', 'ui', entry) for entry in listdir(uidir)]
