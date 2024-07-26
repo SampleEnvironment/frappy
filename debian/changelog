@@ -1,3 +1,23 @@
+frappy-core (0.19.3) jammy; urgency=medium
+
+  [ Markus Zolliker ]
+  * frappy_psi.extparams.StructParam: fix doc + simplify
+  * better behaviour on startup in case of errors
+  * frappy_psi.sea: use ReadFailedError
+  * frappy_psi.sea: use raise from
+
+  [ Alexander Zaft ]
+  * mlz: fix delayed import of he3cell
+  * mlz seop: add pylint
+
+  [ Jens Krüger ]
+  * Update copyright year
+
+  [ Enrico Faulhaber ]
+  * remove cfg_editor for now
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Fri, 26 Jul 2024 08:36:43 +0200
+
 frappy-core (0.19.2) jammy; urgency=medium
 
   [ l_samenv ]
