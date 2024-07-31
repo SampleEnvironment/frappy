@@ -22,23 +22,24 @@
 # *****************************************************************************
 """general SECoP client"""
 
-import re
 import json
 import queue
+import re
 import time
 from collections import defaultdict
 from threading import Event, RLock, current_thread
 
 import frappy.params
-from frappy.errors import make_secop_error, SECoPError, WrongTypeError
 from frappy.datatypes import get_datatype
+from frappy.errors import HardwareError, SECoPError, WrongTypeError, \
+    make_secop_error
 from frappy.lib import mkthread
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
 from frappy.protocol.interface import decode_msg, encode_msg_frame
-from frappy.protocol.messages import COMMANDREQUEST, \
-    DESCRIPTIONREQUEST, ENABLEEVENTSREQUEST, ERRORPREFIX, \
-    EVENTREPLY, HEARTBEATREQUEST, IDENTPREFIX, IDENTREQUEST, \
-    READREPLY, READREQUEST, REQUEST2REPLY, WRITEREPLY, WRITEREQUEST
+from frappy.protocol.messages import COMMANDREQUEST, DESCRIPTIONREQUEST, \
+    ENABLEEVENTSREQUEST, ERRORPREFIX, EVENTREPLY, HEARTBEATREQUEST, \
+    IDENTPREFIX, IDENTREQUEST, READREPLY, READREQUEST, REQUEST2REPLY, \
+    WRITEREPLY, WRITEREQUEST
 
 # replies to be handled for cache
 UPDATE_MESSAGES = {EVENTREPLY, READREPLY, WRITEREPLY, ERRORPREFIX + READREQUEST, ERRORPREFIX + EVENTREPLY}
@@ -269,7 +270,7 @@ class ProxyClient:
                         e.args = [f'error in callback {cbname}{args}: {e}']
                         self.callback(None, 'handleError', e)
                     except Exception:
-                         pass
+                        pass
         return bool(cblist)
 
     def updateValue(self, module, param, value, timestamp, readerror):
@@ -352,10 +353,10 @@ class SecopClient(ProxyClient):
                     if reply:
                         self.secop_version = reply.decode('utf-8')
                     else:
-                        raise self.error_map('HardwareError')(f'no answer to {IDENTREQUEST}')
+                        raise HardwareError(f'no answer to {IDENTREQUEST}')
 
                     if not VERSIONFMT.match(self.secop_version):
-                        raise self.error_map('HardwareError')(f'bad answer to {IDENTREQUEST}: {self.secop_version!r}')
+                        raise HardwareError(f'bad answer to {IDENTREQUEST}: {self.secop_version!r}')
                     # inform that the other party still uses a legacy identifier
                     # see e.g. Frappy Bug #4659 (https://forge.frm2.tum.de/redmine/issues/4659)
                     if not self.secop_version.startswith(IDENTPREFIX):
@@ -491,8 +492,8 @@ class SecopClient(ProxyClient):
             self._rxthread = None
             self.disconnect(shutdown)
             if self._shutdown.is_set():
-                return
-            if self.activate:
+                pass
+            elif self.activate:
                 self.log.info('try to reconnect to %s', self.uri)
                 self._connthread = mkthread(self._reconnect)
             else:
