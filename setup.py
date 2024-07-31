@@ -46,6 +46,13 @@ setup(
     description='SECoP Playground core system',
     packages=find_packages(exclude=['test']),
     package_data={'frappy': ['RELEASE-VERSION'] + uis},
+    install_requires=[
+        "pyserial",
+        "mlzlog",
+        "psutil",
+        "python-daemon",
+    ],
+
     data_files=[
         ('/lib/systemd/system-generators', ['etc/frappy-generator']),
         ('/lib/systemd/system', ['etc/frappy@.service',
