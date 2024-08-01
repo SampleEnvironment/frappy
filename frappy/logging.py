@@ -51,6 +51,7 @@ def check_level(level):
 
 class RemoteLogHandler(mlzlog.Handler):
     """handler for remote logging"""
+
     def __init__(self):
         super().__init__()
         self.subscriptions = {}  # dict[modname] of tuple(mobobj, dict [conn] of level)
@@ -131,12 +132,16 @@ class HasComlog:
             directory = join(logger.logdir, logger.rootname, 'comlog', self.secNode.name)
             self._comLog.addHandler(ComLogfileHandler(
                 directory, self.name, max_days=generalConfig.getint('comlog_days', 7)))
-            return
 
     def comLog(self, msg, *args, **kwds):
         self.log.log(COMLOG, msg, *args, **kwds)
         if self._comLog:
             self._comLog.info(msg, *args)
+
+
+def init_remote_logging(log):
+    '''Install RemoteLogHandler to the given logger.'''
+    log.addHandler(RemoteLogHandler())
 
 
 class MainLogger:
@@ -164,8 +169,6 @@ class MainLogger:
             logfile_handler = LogfileHandler(self.logdir, self.rootname, max_days=logfile_days)
             logfile_handler.setLevel(LOG_LEVELS[generalConfig.get('logfile_level', 'info')])
             self.log.addHandler(logfile_handler)
-
-        self.log.addHandler(RemoteLogHandler())
         self.log.handlers[0].setLevel(LOG_LEVELS[console_level])
 
 

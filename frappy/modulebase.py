@@ -523,6 +523,7 @@ class Module(HasAccessibles):
                         value = pobj.datatype(value)
                 except Exception as e:
                     err = e
+                    changed = False
                 else:
                     changed = pobj.value != value or pobj.readerror
                     # store the value even in case of error
@@ -797,10 +798,19 @@ class Module(HasAccessibles):
 
     def setRemoteLogging(self, conn, level, send_log):
         if self.remoteLogHandler is None:
-            for handler in self.log.handlers:
-                if isinstance(handler, RemoteLogHandler):
-                    handler.send_log = send_log
-                    self.remoteLogHandler = handler
+            # for non-mlzlog loggers: search parents for remoteloghandler
+            log = self.log
+            while log is not None:
+                for handler in log.handlers:
+                    if isinstance(handler, RemoteLogHandler):
+                        handler.send_log = send_log
+                        self.remoteLogHandler = handler
+                        break
+                if self.remoteLogHandler is None:
+                    # if the log message does not propagate, we would not get it in
+                    # the handler anyway, so we can stop searching and fail
+                    log = log.parent if log.propagate else None
+                else:
                     break
             else:
                 raise ValueError('remote handler not found')

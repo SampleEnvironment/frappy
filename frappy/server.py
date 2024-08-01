@@ -31,6 +31,7 @@ from frappy.config import load_config
 from frappy.errors import ConfigError
 from frappy.lib import formatException, generalConfig, get_class, mkthread
 from frappy.lib.multievent import MultiEvent
+from frappy.logging import init_remote_logging
 from frappy.params import PREDEFINED_ACCESSIBLES
 from frappy.secnode import SecNode
 
@@ -62,7 +63,8 @@ class Server:
 
         Arguments:
         - name:  the node name
-        - parent_logger: the logger to inherit from
+        - parent_logger: the logger to inherit from. a handler is installed by
+            the server to provide remote logging
         - cfgfiles: if not given, defaults to name
             may be a comma separated list of cfg files
             items ending with .cfg are taken as paths, else .cfg is appended and
@@ -93,6 +95,7 @@ class Server:
         # sanitize name (in case it is a cfgfile)
         name = os.path.splitext(os.path.basename(name))[0]
         self.log = parent_logger.getChild(name, True)
+        init_remote_logging(self.log)
 
         merged_cfg = load_config(cfgfiles, self.log)
         self.node_cfg = merged_cfg.pop('node')

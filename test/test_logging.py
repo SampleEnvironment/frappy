@@ -19,13 +19,15 @@
 #
 # *****************************************************************************
 
-import pytest
 import mlzlog
+import pytest
+
+import frappy.logging
+from frappy.logging import HasComlog, generalConfig, init_remote_logging, \
+    logger
 from frappy.modules import Module
 from frappy.protocol.dispatcher import Dispatcher
-from frappy.protocol.interface import encode_msg_frame, decode_msg
-import frappy.logging
-from frappy.logging import logger, generalConfig, HasComlog
+from frappy.protocol.interface import decode_msg, encode_msg_frame
 
 
 class SecNodeStub:
@@ -127,6 +129,7 @@ def init_(monkeypatch):
 
             generalConfig.testinit(logger_root='frappy', comlog=comlog)
             logger.init(console_level)
+            init_remote_logging(logger.log)
             self.srv = ServerStub()
 
             self.conn1 = Connection('conn1', self.srv.dispatcher, self.result_dict['conn1'])

@@ -37,6 +37,11 @@ class LoggerStub:
     def getChild(self, *args):
         return self
 
+
+    def addHandler(self, *args):
+        pass
+
+
     info = warning = exception = error = debug
     handlers = []
 
