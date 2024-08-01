@@ -64,7 +64,7 @@ class MassflowController(Drivable):
         """testing with ophyd secop integration"""
         if name == 'bad_name':
             raise ImpossibleError('bad name received')
-        retval = random.randint(0,200)
+        retval = random.randint(0,50)
         self.write_target(retval)
 
         return retval
