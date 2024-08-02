@@ -27,6 +27,8 @@ import signal
 import sys
 import threading
 
+import mlzlog
+
 from frappy.config import load_config
 from frappy.errors import ConfigError
 from frappy.lib import formatException, generalConfig, get_class, mkthread
@@ -94,7 +96,10 @@ class Server:
             cfgfiles = name
         # sanitize name (in case it is a cfgfile)
         name = os.path.splitext(os.path.basename(name))[0]
-        self.log = parent_logger.getChild(name, True)
+        if isinstance(parent_logger, mlzlog.MLZLogger):
+            self.log = parent_logger.getChild(name, True)
+        else:
+            self.log = parent_logger.getChild(name)
         init_remote_logging(self.log)
 
         merged_cfg = load_config(cfgfiles, self.log)
