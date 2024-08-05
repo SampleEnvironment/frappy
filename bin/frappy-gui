@@ -46,8 +46,11 @@ def parseArgv(argv):
     loggroup.add_argument('-q', '--quiet',
                           help='Supress everything but errors',
                           action='store_true', default=False)
+    parser.add_argument('-D', '--detailed',
+                        help='Start in detailed mode',
+                        action='store_true', default=False)
     parser.add_argument('node',
-                        help='Nodes the Gui should connect to.\n', metavar='host[:port]',
+                        help='Nodes the GUI should connect to.\n', metavar='host[:port]',
                         nargs='*', type=str, default=[])
     return parser.parse_args(argv)
 
@@ -67,7 +70,7 @@ def main(argv=None):
 
     app = QApplication(argv)
 
-    win = MainWindow(args.node, logger)
+    win = MainWindow(args, logger)
     app.aboutToQuit.connect(win._onQuit)
     win.show()
 

@@ -88,10 +88,11 @@ class HistorySerializer(QObject):
         settings = QSettings()
         settings.setValue('consoleHistory', self.history)
 
+
 class MainWindow(QMainWindow):
     recentNodesChanged = pyqtSignal()
 
-    def __init__(self, hosts, logger, parent=None):
+    def __init__(self, args, logger, parent=None):
         super().__init__(parent)
 
         # centralized handling for logging and cmd-history
@@ -103,6 +104,11 @@ class MainWindow(QMainWindow):
 
         loadUi(self, 'mainwin.ui')
         Colors._setPalette(self.palette())
+
+        self._nodeWidgets = {}
+
+        if args.detailed:
+            self.actionDetailed_View.setChecked(True)
 
         self.toolBar.hide()
         self.buildRecentNodeMenu()
@@ -127,10 +133,8 @@ class MainWindow(QMainWindow):
         self.recentNodesChanged.connect(greeter.loadRecent)
         self.tab.addPanel(greeter, 'Welcome')
 
-        self._nodeWidgets = {}
-
         # add localhost (if available) and SEC nodes given as arguments
-        self.addNodes(hosts)
+        self.addNodes(args.node)
 
     @pyqtSlot()
     def on_actionAbout_triggered(self):
@@ -286,10 +290,6 @@ class MainWindow(QMainWindow):
             self.tab.setCurrentIndex(curr_idx)
 
     def _rebuildAdvanced(self, advanced):
-        if advanced:
-            pass
-        else:
-            pass
         for widget in self._nodeWidgets.values():
             widget._rebuildAdvanced(advanced)
 
