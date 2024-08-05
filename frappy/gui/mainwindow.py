@@ -21,9 +21,9 @@
 #
 # *****************************************************************************
 
-from frappy.gui.qt import QAction, QInputDialog, QKeySequence, QMainWindow, \
-    QMessageBox, QObject, QPixmap, QSettings, QShortcut, Qt, QWidget, \
-    pyqtSignal, pyqtSlot
+from frappy.gui.qt import QAction, QByteArray, QInputDialog, QKeySequence, \
+    QMainWindow, QMessageBox, QObject, QPixmap, QSettings, QShortcut, Qt, \
+    QWidget, pyqtSignal, pyqtSlot
 
 import frappy.version
 from frappy.gui.connection import QSECNode
@@ -133,8 +133,15 @@ class MainWindow(QMainWindow):
         self.recentNodesChanged.connect(greeter.loadRecent)
         self.tab.addPanel(greeter, 'Welcome')
 
+        self.restoreGeometry(settings.value('geometry', '', QByteArray))
+
         # add localhost (if available) and SEC nodes given as arguments
         self.addNodes(args.node)
+
+    def closeEvent(self, event):
+        settings = QSettings()
+        settings.setValue('geometry', self.saveGeometry())
+        return super().closeEvent(event)
 
     @pyqtSlot()
     def on_actionAbout_triggered(self):
