@@ -1,3 +1,9 @@
+frappy-core (0.19.7) jammy; urgency=medium
+
+  * lib: GeneralConfig fix missing keys logic
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 06 Aug 2024 15:04:07 +0200
+
 frappy-core (0.19.6) jammy; urgency=medium
 
   [ Jens Krüger ]
