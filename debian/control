@@ -61,17 +61,6 @@ Breaks: secop-gui (<= 0.14.3)
 Description: Frappy SECoP gui client + cfgtool
  contains the GUI client and the configurator
 
-Package: frappy-demo
-Architecture: all
-Depends: frappy-core,
- ${misc:Depends},
- ${python3:Depends}
-Replaces: secop-demo (<= 0.14.3)
-Breaks: secop-demo (<= 0.14.3)
-Recommends: frappy-gui
-Description: SECoP demo files
- for demonstration purposes
-
 Package: frappy-ess
 Architecture: all
 Depends: frappy-core,

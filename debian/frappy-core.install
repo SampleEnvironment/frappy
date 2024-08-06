@@ -7,5 +7,6 @@ usr/lib/python3.*/dist-packages/frappy/client
 usr/lib/python3.*/dist-packages/frappy/protocol
 usr/lib/python3.*/dist-packages/frappy_core-*
 usr/lib/python3.*/dist-packages/frappy/RELEASE-VERSION
+usr/lib/python3.*/dist-packages/frappy_demo
 lib/systemd
 var/log/frappy
