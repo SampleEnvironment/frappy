@@ -72,16 +72,17 @@ class GeneralConfig:
         mandatory = 'piddir', 'logdir', 'confdir'
         repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
         # create default paths
-        if path.splitext(sys.executable)[1] == ".exe" and not path.basename(sys.executable).startswith('python'):
+        if (path.splitext(sys.executable)[1] == ".exe"
+           and not path.basename(sys.executable).startswith('python')):
             # special MS windows environment
-            cfg.update(piddir='./', logdir='./log', confdir='./')
+            self.update_defaults(piddir='./', logdir='./log', confdir='./')
         elif path.exists(path.join(repodir, 'cfg')):
             # running from git repo
-            cfg['confdir'] = path.join(repodir, 'cfg')
+            self.set_default('confdir', path.join(repodir, 'cfg'))
             # take logdir and piddir from <repodir>/cfg/generalConfig.cfg
         else:
             # running on installed system (typically with systemd)
-            cfg.update(piddir='/var/run/frappy', logdir='/var/log', confdir='/etc/frappy')
+            self.update_defaults(piddir='/var/run/frappy', logdir='/var/log', confdir='/etc/frappy')
         if configfile is None:
             configfile = environ.get('FRAPPY_CONFIG_FILE')
             if configfile:
@@ -89,7 +90,7 @@ class GeneralConfig:
                 if not path.exists(configfile):
                     raise FileNotFoundError(configfile)
             else:
-                configfile = path.join(cfg['confdir'], 'generalConfig.cfg')
+                configfile = path.join(self['confdir'], 'generalConfig.cfg')
                 if not path.exists(configfile):
                     configfile = None
         if configfile:
@@ -106,12 +107,14 @@ class GeneralConfig:
             if cfg.get('confdir') is None:
                 cfg['confdir'] = path.dirname(configfile)
         for key in mandatory:
-            cfg[key] = environ.get(f'FRAPPY_{key.upper()}', cfg.get(key))
-        missing_keys = [key for key in mandatory if cfg[key] is None]
+            if (env := environ.get(f'FRAPPY_{key.upper()}')) is not None:
+                cfg[key] = env
+        missing_keys = [key for key in mandatory if self[key] is None]
         if missing_keys:
             if configfile:
                 raise KeyError(f"missing value for {' and '.join(missing_keys)} in {configfile}")
-            raise KeyError('missing %s' % ' and '.join('FRAPPY_%s' % k.upper() for k in missing_keys))
+            raise KeyError('missing %s'
+                           % ' and '.join('FRAPPY_%s' % k.upper() for k in missing_keys))
         # this is not customizable
         cfg['basedir'] = repodir
         self._config = cfg
@@ -154,6 +157,11 @@ class GeneralConfig:
     @property
     def initialized(self):
         return bool(self._config)
+
+    def update_defaults(self, **updates):
+        """Set a default value, when there is not already one for each dict entry."""
+        for key, value in updates.items():
+            self.set_default(key, value)
 
     def set_default(self, key, value):
         """set a default value, in case not set already"""
