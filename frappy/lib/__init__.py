@@ -109,7 +109,10 @@ class GeneralConfig:
         for key in mandatory:
             if (env := environ.get(f'FRAPPY_{key.upper()}')) is not None:
                 cfg[key] = env
-        missing_keys = [key for key in mandatory if self[key] is None]
+        missing_keys = [
+            key for key in mandatory
+            if cfg.get(key) is None and self.defaults.get(key) is None
+        ]
         if missing_keys:
             if configfile:
                 raise KeyError(f"missing value for {' and '.join(missing_keys)} in {configfile}")
