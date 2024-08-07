@@ -107,7 +107,8 @@ class GeneralConfig:
             if cfg.get('confdir') is None:
                 cfg['confdir'] = path.dirname(configfile)
         for key in mandatory:
-            if (env := environ.get(f'FRAPPY_{key.upper()}')) is not None:
+            env = environ.get(f'FRAPPY_{key.upper()}')
+            if env is not None:
                 cfg[key] = env
         missing_keys = [
             key for key in mandatory
