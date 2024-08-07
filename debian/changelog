@@ -1,3 +1,13 @@
+frappy-core (0.19.10) jammy; urgency=medium
+
+  [ Alexander Zaft ]
+  * debian: let frappy-core replace frappy-demo
+
+  [ Georg Brandl ]
+  * remove walrus
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 07 Aug 2024 17:00:06 +0200
+
 frappy-core (0.19.9) jammy; urgency=medium
 
   * debian: fix missing install dir
