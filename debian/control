@@ -35,8 +35,10 @@ Depends: python3 (>= 3.6),
  python3-mlzlog,
  markdown,
  python3-daemon
-Replaces: secop-core (<= 0.14.3)
-Breaks: secop-core (<= 0.14.3)
+Replaces: secop-core (<= 0.14.3),
+ frappy-demo (<= 0.19.7)
+Breaks: secop-core (<= 0.14.3),
+ frappy-demo (<= 0.19.7)
 Description: Frappy SECoP core system
  contains the core server and client libraries and the server binary
  as well as the systemd integration
