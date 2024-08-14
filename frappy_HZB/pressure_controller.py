@@ -11,11 +11,11 @@ from frappy.modules import Command, Drivable, Parameter,Attached
 
 
 class PressureController(Drivable):
-    value   = Parameter("back pressure reactor section",FloatRange(minval=0,maxval=5000),default = 0,unit = "hPa" )
-    target  = Parameter("Desired back pressure",FloatRange(minval=0,maxval=5000),default = 0,unit = "hPa" )
-    ramp    = Parameter("desired ramp ",FloatRange(minval=0,maxval=1000),default = 0,unit = "hPa/min" ,readonly = False)
+    value   = Parameter("back pressure reactor section",FloatRange(minval=0,maxval=5000),default = 0,unit = "mbar" )
+    target  = Parameter("Desired back pressure",FloatRange(minval=0,maxval=5000),default = 0,unit = "mbar" )
+    ramp    = Parameter("desired ramp ",FloatRange(minval=0,maxval=1000),default = 0,unit = "mbar/min" ,readonly = False)
     pollinterval = Parameter("polling interval",datatype=FloatRange(0), default=5)
-    tolerance = Parameter("pressure range for stability checking",datatype=FloatRange(0,100),default = 5,unit = "hPa")
+    tolerance = Parameter("pressure range for stability checking",datatype=FloatRange(0,100),default = 5,unit = "mbar")
 
 
     
