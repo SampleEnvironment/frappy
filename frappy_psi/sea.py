@@ -34,7 +34,7 @@ import json
 import threading
 import time
 import os
-from os.path import expanduser, join, exists
+from pathlib import Path
 
 from frappy.client import ProxyClient
 from frappy.datatypes import ArrayOf, BoolType, \
@@ -72,19 +72,21 @@ SERVICE_NAMES = {
     'addon': 'addons',
 }
 
-SEA_DIR = expanduser('~/sea')
+SEA_DIR = Path('~/sea').expanduser()
 seaconfdir = os.environ.get('FRAPPY_SEA_DIR')
-if seaconfdir is None or not exists(seaconfdir):
-    for confdir in generalConfig.confdir.split(os.pathsep):
-        seaconfdir = join(confdir, 'sea')
-        if exists(seaconfdir):
+if seaconfdir is None or not Path(seaconfdir).expanduser().absolute().exists():
+    for confdir in generalConfig.confdir:
+        seaconfdir = confdir / 'sea'
+        if seaconfdir.exists():
             break
+else:
+    seaconfdir = Path(seaconfdir).expanduser().absolute()
 
 
 def get_sea_port(instance):
     for filename in ('sea_%s.tcl' % instance, 'sea.tcl'):
         try:
-            with open(join(SEA_DIR, filename), encoding='utf-8') as f:
+            with open(SEA_DIR / filename, encoding='utf-8') as f:
                 for line in f:
                     linesplit = line.split()
                     if len(linesplit) == 3:
@@ -375,16 +377,16 @@ class SeaConfigCreator(SeaClient):
             stripped, _, ext = filename.rpartition('.')
             service = SERVICE_NAMES[ext]
             seaconn = 'sea_' + service
-            cfgfile = join(seaconfdir, stripped + '_cfg.py')
-            with open(cfgfile, 'w', encoding='utf-8') as fp:
+            cfgfile = seaconfdir / (stripped + '_cfg.py')
+            with cfgfile.open('w', encoding='utf-8') as fp:
                 fp.write(CFG_HEADER % {'config': filename, 'seaconn': seaconn, 'service': service,
                                        'nodedescr': description.get(filename, filename)})
                 for obj in descr:
                     fp.write(CFG_MODULE % {'modcls': modcls[obj], 'module': obj, 'seaconn': seaconn})
             content = json.dumps(descr).replace('}, {', '},\n{').replace('[{', '[\n{').replace('}]}, ', '}]},\n\n')
             result.append('%s\n' % cfgfile)
-            with open(join(seaconfdir, filename + '.json'), 'w', encoding='utf-8') as fp:
-                fp.write(content + '\n')
+            fpath = seaconfdir / (filename + '.json')
+            fpath.write_text(content + '\n', encoding='utf-8')
             result.append('%s: %s' % (filename, ','.join(n for n in descr)))
         raise SystemExit('; '.join(result))
 
@@ -482,7 +484,7 @@ class SeaModule(Module):
                 cfgdict['description'] = '%s@%s%s' % (
                     name, json_file, '' if rel_paths == '.' else f' (rel_paths={rel_paths})')
 
-            with open(join(seaconfdir, json_file), encoding='utf-8') as fp:
+            with open(seaconfdir / json_file, encoding='utf-8') as fp:
                 content = json.load(fp)
                 descr = content[sea_object]
             if rel_paths == '*' or not rel_paths:

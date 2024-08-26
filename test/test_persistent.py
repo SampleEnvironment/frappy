@@ -22,6 +22,7 @@
 import json
 import os
 from os.path import join
+from pathlib import Path
 import pytest
 from frappy.config import Param
 from frappy.core import Module, ScaledInteger, IntRange, StringType, StructOf
@@ -74,7 +75,7 @@ save_tests = [
 ]
 @pytest.mark.parametrize('cfg, data', save_tests)
 def test_save(tmpdir, cfg, data):
-    generalConfig.logdir = tmpdir
+    generalConfig.logdir = Path(tmpdir)
 
     cfg['description'] = ''
     m = Mod('m', logger, cfg, ServerStub('savetest'))
@@ -101,7 +102,7 @@ load_tests = [
 ]
 @pytest.mark.parametrize('cfg, data, written', load_tests)
 def test_load(tmpdir, cfg, data, written):
-    generalConfig.logdir = tmpdir
+    generalConfig.logdir = Path(tmpdir)
 
     os.makedirs(join(tmpdir, 'persistent'), exist_ok=True)
     with open(join(tmpdir, 'persistent', 'loadtest.m.json'), 'w', encoding='utf-8') as f:

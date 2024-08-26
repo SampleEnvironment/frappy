@@ -75,9 +75,9 @@ class PersistentMixin(Module):
 
     def __init__(self, name, logger, cfgdict, srv):
         super().__init__(name, logger, cfgdict, srv)
-        persistentdir = os.path.join(generalConfig.logdir, 'persistent')
+        persistentdir = generalConfig.logdir / 'persistent'
         os.makedirs(persistentdir, exist_ok=True)
-        self.persistentFile = os.path.join(persistentdir, f'{self.secNode.equipment_id}.{self.name}.json')
+        self.persistentFile = persistentdir / f'{self.secNode.equipment_id}.{self.name}.json'
         self.initData = {}  # "factory" settings
         loaded = self.loadPersistentData()
         for pname, pobj in self.parameters.items():
@@ -147,10 +147,10 @@ class PersistentMixin(Module):
                 if getattr(v, 'persistent', False)}
         if data != self.persistentData:
             self.persistentData = data
-            persistentdir = os.path.dirname(self.persistentFile)
-            tmpfile = self.persistentFile + '.tmp'
-            if not os.path.isdir(persistentdir):
-                os.makedirs(persistentdir, exist_ok=True)
+            persistentdir = self.persistentFile.parent
+            tmpfile = self.persistentFile.parent / (self.persistentFile.name + '.tmp')
+            if not persistentdir.is_dir():
+                persistentdir.mkdir(parents=True, exist_ok=True)
             try:
                 with open(tmpfile, 'w', encoding='utf-8') as f:
                     json.dump(self.persistentData, f, indent=2)

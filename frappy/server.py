@@ -112,7 +112,7 @@ class Server:
             raise ConfigError('No interface specified in configuration or arguments!')
 
         self._cfgfiles = cfgfiles
-        self._pidfile = os.path.join(generalConfig.piddir, name + '.pid')
+        self._pidfile = generalConfig.piddir / (name + '.pid')
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
 
@@ -127,9 +127,9 @@ class Server:
     def start(self):
         if not DaemonContext:
             raise ConfigError('can not daemonize, as python-daemon is not installed')
-        piddir = os.path.dirname(self._pidfile)
-        if not os.path.isdir(piddir):
-            os.makedirs(piddir)
+        piddir = self._pidfile.parent
+        if not piddir.is_dir():
+            piddir.mkdir(parents=True)
         pidfile = pidlockfile.TimeoutPIDLockFile(self._pidfile)
 
         if pidfile.is_locked():

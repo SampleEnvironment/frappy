@@ -64,7 +64,7 @@ def direc(tmp_path_factory):
     ff.touch()
     fff.touch()
     pyfile.write_text(PY_FILE)
-    generalConfig.testinit(confdir=f'{a}:{b}', piddir=str(d))
+    generalConfig.testinit(confdir=[a, b], piddir=d)
     return d
 
 
@@ -81,7 +81,7 @@ files = [('config', 'a/config_cfg.py'),
 
 @pytest.mark.parametrize('file, res', files)
 def test_to_cfg_path(log, direc, file, res):
-    assert to_config_path(file, log).endswith(res)
+    assert str(to_config_path(file, log)).endswith(res)
 
 
 def test_cfg_not_existing(direc, log):
@@ -132,7 +132,7 @@ def do_asserts(ret):
 
 
 def test_process_file(direc, log):
-    ret = process_file(str(direc / 'a' / 'pyfile_cfg.py'), log)
+    ret = process_file(direc / 'a' / 'pyfile_cfg.py', log)
     do_asserts(ret)
 
 

@@ -31,6 +31,7 @@ import threading
 import traceback
 from configparser import ConfigParser
 from os import environ, path
+from pathlib import Path
 
 
 SECoP_DEFAULT_PORT = 10767
@@ -70,28 +71,32 @@ class GeneralConfig:
         """
         cfg = {}
         mandatory = 'piddir', 'logdir', 'confdir'
-        repodir = path.abspath(path.join(path.dirname(__file__), '..', '..'))
+        repodir = Path(__file__).parents[2].expanduser().resolve()
         # create default paths
-        if (path.splitext(sys.executable)[1] == ".exe"
-           and not path.basename(sys.executable).startswith('python')):
+        if (Path(sys.executable).suffix == ".exe"
+           and not Path(sys.executable).name.startswith('python')):
             # special MS windows environment
-            self.update_defaults(piddir='./', logdir='./log', confdir='./')
+            self.update_defaults(piddir=Path('./'), logdir=Path('./log'), confdir=Path('./'))
         elif path.exists(path.join(repodir, 'cfg')):
             # running from git repo
-            self.set_default('confdir', path.join(repodir, 'cfg'))
+            self.set_default('confdir', repodir / 'cfg')
             # take logdir and piddir from <repodir>/cfg/generalConfig.cfg
         else:
             # running on installed system (typically with systemd)
-            self.update_defaults(piddir='/var/run/frappy', logdir='/var/log', confdir='/etc/frappy')
+            self.update_defaults(
+                piddir=Path('/var/run/frappy'),
+                logdir=Path('/var/log'),
+                confdir=Path('/etc/frappy')
+            )
         if configfile is None:
             configfile = environ.get('FRAPPY_CONFIG_FILE')
             if configfile:
-                configfile = path.expanduser(configfile)
-                if not path.exists(configfile):
+                configfile = Path(configfile).expanduser()
+                if not configfile.exists():
                     raise FileNotFoundError(configfile)
             else:
-                configfile = path.join(self['confdir'], 'generalConfig.cfg')
-                if not path.exists(configfile):
+                configfile = self['confdir'] / 'generalConfig.cfg'
+                if not configfile.exists():
                     configfile = None
         if configfile:
             parser = ConfigParser()
@@ -100,16 +105,16 @@ class GeneralConfig:
             # only the FRAPPY section is relevant, other sections might be used by others
             for key, value in parser['FRAPPY'].items():
                 if value.startswith('./'):
-                    cfg[key] = path.abspath(path.join(repodir, value))
+                    cfg[key] = (repodir / value).absolute()
                 else:
                     # expand ~ to username, also in path lists separated with ':'
                     cfg[key] = ':'.join(path.expanduser(v) for v in value.split(':'))
             if cfg.get('confdir') is None:
-                cfg['confdir'] = path.dirname(configfile)
+                cfg['confdir'] = configfile.parent
         for key in mandatory:
             env = environ.get(f'FRAPPY_{key.upper()}')
             if env is not None:
-                cfg[key] = env
+                cfg[key] = Path(env)
         missing_keys = [
             key for key in mandatory
             if cfg.get(key) is None and self.defaults.get(key) is None
@@ -119,6 +124,8 @@ class GeneralConfig:
                 raise KeyError(f"missing value for {' and '.join(missing_keys)} in {configfile}")
             raise KeyError('missing %s'
                            % ' and '.join('FRAPPY_%s' % k.upper() for k in missing_keys))
+        if isinstance(cfg['confdir'], Path):
+            cfg['confdir'] = [cfg['confdir']]
         # this is not customizable
         cfg['basedir'] = repodir
         self._config = cfg
