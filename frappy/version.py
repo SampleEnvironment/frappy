@@ -21,14 +21,13 @@
 #
 # *****************************************************************************
 
-import os.path
+from pathlib import Path
 from subprocess import PIPE, Popen
 
 __all__ = ['get_version']
 
-RELEASE_VERSION_FILE = os.path.join(os.path.dirname(__file__),
-                                    'RELEASE-VERSION')
-GIT_REPO = os.path.join(os.path.dirname(__file__), '..', '.git')
+RELEASE_VERSION_FILE = Path(__file__).parent / 'RELEASE-VERSION'
+GIT_REPO = (Path(__file__).parents[1] / '.git').resolve()
 
 
 def translate_version(ver):
@@ -49,14 +48,14 @@ def get_git_version(abbrev=4):
 
 def read_release_version():
     try:
-        with open(RELEASE_VERSION_FILE, encoding='utf-8') as f:
+        with RELEASE_VERSION_FILE.open(encoding='utf-8') as f:
             return f.readline().strip()
     except Exception:
         return None
 
 
 def write_release_version(version):
-    with open(RELEASE_VERSION_FILE, 'w', encoding='utf-8') as f:
+    with RELEASE_VERSION_FILE.open('w', encoding='utf-8') as f:
         f.write(f'{version}\n')
 
 

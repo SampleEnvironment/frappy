@@ -22,10 +22,10 @@
 # *****************************************************************************
 
 import sys
-from os import path
+from pathlib import Path
 
 # Add import path for inplace usage
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+sys.path.insert(0, str(Path(__file__).absolute().parents[1]))
 
 from frappy.client.interactive import Console
 from frappy.playground import play, USAGE

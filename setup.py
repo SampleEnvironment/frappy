@@ -23,19 +23,20 @@
 # *****************************************************************************
 
 
-from glob import glob
-from os import listdir, path
+from pathlib import Path
 
 from setuptools import find_packages, setup
 
 import frappy.version
 
 # cfg-editor is currently not functional
-scripts = [script for script in glob(path.join('bin', 'frappy-*'))
-           if not script.endswith('cfg-editor')]
+scripts = [str(script) for script in Path('bin').glob('frappy-*')
+           if not str(script).endswith('cfg-editor')]
 
-uidir = path.join(path.dirname(__file__), 'frappy', 'gui', 'ui')
-uis = [path.join('gui', 'ui', entry) for entry in listdir(uidir)]
+
+frappydir = Path(__file__).parent / 'frappy'
+uidir = frappydir / 'gui' / 'ui'
+uis = [str(f.relative_to(frappydir)) for f in uidir.iterdir()]
 
 setup(
     name='frappy-core',
@@ -57,7 +58,7 @@ setup(
         ('/lib/systemd/system-generators', ['etc/frappy-generator']),
         ('/lib/systemd/system', ['etc/frappy@.service',
                                  'etc/frappy.target',
-                                ]),
+                                 ]),
         ('/var/log/frappy', []),
     ],
     scripts=scripts,

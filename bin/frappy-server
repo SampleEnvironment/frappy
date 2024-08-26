@@ -24,10 +24,10 @@
 
 import argparse
 import sys
-from os import path
+from pathlib import Path
 
 # Add import path for inplace usage
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+sys.path.insert(0, str(Path(__file__).absolute().parents[1]))
 
 from frappy.lib import generalConfig
 from frappy.logging import logger

@@ -34,13 +34,13 @@ Use cases, mainly for test purposes:
 
 import sys
 import argparse
-from os import path
+from pathlib import Path
 import asyncore
 import socket
 import time
 
 # Add import path for inplace usage
-sys.path.insert(0, path.abspath(path.join(path.dirname(__file__), '..')))
+sys.path.insert(0, str(Path(__file__).absolute().parents[1]))
 
 from frappy.lib import get_class, formatException, mkthread
 

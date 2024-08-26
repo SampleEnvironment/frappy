@@ -21,15 +21,15 @@
 # *****************************************************************************
 
 
-from os import path
+from pathlib import Path
 
 from frappy.gui.qt import QColor, uic
 
-uipath = path.dirname(__file__)
+uipath = Path(__file__).parent
 
 
 def loadUi(widget, uiname, subdir='ui'):
-    uic.loadUi(path.join(uipath, subdir, uiname), widget)
+    uic.loadUi(uipath / subdir / uiname, widget)
 
 
 def is_light_theme(palette):

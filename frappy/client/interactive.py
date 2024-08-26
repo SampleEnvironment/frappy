@@ -348,7 +348,7 @@ def watch(*args, **kwds):
 
         def close_node(online, state):
             if online and state != 'shutdown':
-                return
+                return None
             close_event.set()
             return UnregisterCallback
 
@@ -446,7 +446,7 @@ def run(filepath):
         "__file__": filepath,
         "__name__": "__main__",
     })
-    with open(filepath, 'rb') as file:
+    with filepath.open('rb') as file:
         # pylint: disable=exec-used
         exec(compile(file.read(), filepath, 'exec'), clientenv.namespace, None)
 
