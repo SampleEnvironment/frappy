@@ -310,12 +310,13 @@ class ModuleWidget(QWidget):
         p.setColor(display.backgroundRole(), Colors.palette.window().color())
         display.setPalette(p)
         self._paramDisplays[param] = display
-        self._paramWidgets[param] = [nameLabel, display]
+        emptyLabel = QLabel('')
+        self._paramWidgets[param] = [nameLabel, display, emptyLabel]
 
         l = self.moduleDisplay.layout()
         l.addWidget(nameLabel, row,0,1,1)
         l.addWidget(display, row,1,1,5)
-        l.addWidget(QLabel(''), row,6,1,1)
+        l.addWidget(emptyLabel, row,6,1,1)
         self._addButtons(param, row)
 
     def _addRWParam(self, param, row):
