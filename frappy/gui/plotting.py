@@ -131,7 +131,7 @@ class PlotWidget(QWidget):
         curve = self.curves[name]
         x,y = self.data[name]
         x = np.append(x, value.timestamp)
-        y = np.append(y, value.value)
+        y = np.append(y, float(value.value))
         self.data[name] = (x,y)
         curve.setData(x,y)
 
