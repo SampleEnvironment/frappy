@@ -17,6 +17,12 @@ looptime=1,
 ramp=500,
 pollinterval = Param(export=False),
 value = 293.15,
+meaning = {
+    "key":"PLACEHOLDER",
+    "link":"https://w3id.org/nfdi4cat/PLACEHOLDER",
+    "function":"temperature_regulation",
+    "importance": 40,
+    "belongs_to":"sample"}
 
 )
 
@@ -32,6 +38,12 @@ Mod('temperature_sam',
     value = 293.15,
     heat_flux = 0.2,    
     attached_temp_reg = "temperature_reg",
+    meaning = {   "key":"PLACEHOLDER",
+        "link":"https://w3id.org/nfdi4cat/PLACEHOLDER",
+        "function":"temperature",
+        "importance": 40,
+        "belongs_to":"sample"}
+
 
 )
 

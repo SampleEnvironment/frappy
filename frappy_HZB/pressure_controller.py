@@ -1,9 +1,9 @@
 import time
 
 
-from frappy.datatypes import FloatRange, StringType
+from frappy.datatypes import FloatRange, StringType, StructOf, IntRange
 from frappy.lib import clamp, mkthread
-from frappy.modules import Command, Drivable, Parameter,Attached
+from frappy.modules import Command, Drivable, Parameter,Attached, Property
 # test custom property (value.test can be changed in config file)
 
 
@@ -11,6 +11,17 @@ from frappy.modules import Command, Drivable, Parameter,Attached
 
 
 class PressureController(Drivable):
+    meaning = Property(
+        description="Module Meaning",
+        datatype=StructOf(
+            key = StringType(),
+            link = StringType(),
+            function = StringType(),
+            importance= IntRange(0,50),
+            belongs_to  = StringType()),
+        export=True,
+        extname='meaning')
+
     value   = Parameter("back pressure reactor section",FloatRange(minval=0,maxval=5000),default = 0,unit = "mbar" )
     target  = Parameter("Desired back pressure",FloatRange(minval=0,maxval=5000),default = 0,unit = "mbar" )
     ramp    = Parameter("desired ramp ",FloatRange(minval=0,maxval=1000),default = 0,unit = "mbar/min" ,readonly = False)

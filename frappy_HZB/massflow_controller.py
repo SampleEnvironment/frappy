@@ -7,7 +7,7 @@ import time
 
 from frappy.datatypes import FloatRange, StringType,StructOf, IntRange, BoolType
 from frappy.lib import clamp, mkthread
-from frappy.modules import Command, Drivable, Parameter
+from frappy.modules import Command, Drivable, Parameter, Property
 from frappy.errors import ImpossibleError
 # test custom property (value.test can be changed in config file)
 
@@ -16,6 +16,18 @@ import random
 
 
 class MassflowController(Drivable):
+
+    meaning = Property(
+        description="Module Meaning",
+        datatype=StructOf(
+            key = StringType(),
+            link = StringType(),
+            function = StringType(),
+            importance= IntRange(0,50),
+            belongs_to  = StringType()),
+        export=True,
+        extname='meaning')
+
     value   = Parameter("Mass flow of gas",FloatRange(minval=0,maxval=1000),default = 0,unit = "ml/min" )
     target  = Parameter("Desired mass flow of gas",FloatRange(minval=0,maxval=200),default = 0,unit = "ml/min" )
     ramp    = Parameter("desired ramp speed for gas flow of gas",FloatRange(minval=0,maxval=200),default = 0,unit = "ml/min^2" ,readonly = False)

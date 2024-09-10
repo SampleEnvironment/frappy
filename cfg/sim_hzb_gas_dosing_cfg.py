@@ -18,7 +18,12 @@ for i in range(0,nMFC):
     ramp=150,
     pollinterval = Param(export=False),
     value = 0,
-    gastype = Gases[i]
+    gastype = Gases[i],
+    meaning = {   "key":"PLACEHOLDER",
+        "link":"https://w3id.org/nfdi4cat/PLACEHOLDER",
+        "function":"flowrate",
+        "importance": 40,
+        "belongs_to":"sample"}
     )
 
 
@@ -36,6 +41,11 @@ Mod('backpressure_contr1',
     attached_mfc1 = "massflow_contr1",
     attached_mfc2 = "massflow_contr2",
     attached_mfc3 = "massflow_contr3",
+    meaning = {   "key":"PLACEHOLDER",
+        "link":"https://w3id.org/nfdi4cat/PLACEHOLDER",
+        "function":"pressure",
+        "importance": 40,
+        "belongs_to":"sample"}
 
 )
 

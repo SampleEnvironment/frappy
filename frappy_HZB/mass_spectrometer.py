@@ -189,7 +189,7 @@ class MassSpectrometer(Readable):
         super().initModule()
         self._stopflag = False
         self._thread = mkthread(self.thread)
-        self.interface_classes = ['Triggerable']
+        self.interface_classes = ['Triggerable','Readable']
     
 
     def read_status(self):

@@ -1,9 +1,9 @@
 import time
 
 
-from frappy.datatypes import FloatRange, StringType
+from frappy.datatypes import FloatRange, StringType,StructOf,IntRange
 from frappy.lib import clamp, mkthread
-from frappy.modules import Command, Drivable, Parameter,Attached,Readable
+from frappy.modules import Command, Drivable, Parameter,Attached,Readable,Property
 # test custom property (value.test can be changed in config file)
 
 
@@ -11,6 +11,19 @@ from frappy.modules import Command, Drivable, Parameter,Attached,Readable
 
 
 class TemperatureController(Drivable):
+
+
+    meaning = Property(
+        description="Module Meaning",
+        datatype=StructOf(
+            key = StringType(),
+            link = StringType(),
+            function = StringType(),
+            importance= IntRange(0,50),
+            belongs_to  = StringType()),
+        export=True,
+        extname='meaning')
+
     value   = Parameter("Heater temperature at reactor cell",FloatRange(minval=0,maxval=5000),default = 0,unit = "K" )
     target  = Parameter("desired heater temperature at reactor cell",FloatRange(minval=0,maxval=5000),default = 0,unit = "K" )
     ramp    = Parameter("desired ramp speed for the heater temperature",FloatRange(minval=0,maxval=1000),default = 0,unit = "K/min" ,readonly = False)
@@ -140,6 +153,19 @@ class TemperatureController(Drivable):
 
 
 class TemperatureSensor(Readable):
+
+    meaning = Property(
+        description="Module Meaning",
+        datatype=StructOf(
+            key = StringType(),
+            link = StringType(),
+            function = StringType(),
+            importance= IntRange(0,50),
+            belongs_to  = StringType()),
+        export=True,
+        extname='meaning')
+
+
     value   = Parameter("Heater temperature at reactor cell",
                         FloatRange(minval=0,maxval=5000),
                         default = 0,
