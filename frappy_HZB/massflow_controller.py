@@ -33,7 +33,7 @@ class MassflowController(Drivable):
     ramp    = Parameter("desired ramp speed for gas flow of gas",FloatRange(minval=0,maxval=200),default = 0,unit = "ml/min^2" ,readonly = False)
     gastype = Parameter("chemical formula of gas type handled by flow controller",StringType(maxchars=50,minchars=0))
     pollinterval = Parameter("polling interval",datatype=FloatRange(0), default=5)
-    tolerance = Parameter("flow range for stability checking",datatype=FloatRange(0,100),default = 0.2,unit = "ml/min")
+    tolerance = Parameter("flow range for stability checking",datatype=FloatRange(0,100),default = 0.2,unit = "ml/min",readonly = False)
 
 
     looptime = Parameter("timestep for simulation",

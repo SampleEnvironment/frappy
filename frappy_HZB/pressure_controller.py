@@ -26,7 +26,7 @@ class PressureController(Drivable):
     target  = Parameter("Desired back pressure",FloatRange(minval=0,maxval=5000),default = 0,unit = "mbar" )
     ramp    = Parameter("desired ramp ",FloatRange(minval=0,maxval=1000),default = 0,unit = "mbar/min" ,readonly = False)
     pollinterval = Parameter("polling interval",datatype=FloatRange(0), default=5)
-    tolerance = Parameter("pressure range for stability checking",datatype=FloatRange(0,100),default = 5,unit = "mbar")
+    tolerance = Parameter("pressure range for stability checking",datatype=FloatRange(0,100),default = 5,unit = "mbar",readonly = False)
 
 
     

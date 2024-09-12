@@ -28,7 +28,7 @@ class TemperatureController(Drivable):
     target  = Parameter("desired heater temperature at reactor cell",FloatRange(minval=0,maxval=5000),default = 0,unit = "K" )
     ramp    = Parameter("desired ramp speed for the heater temperature",FloatRange(minval=0,maxval=1000),default = 0,unit = "K/min" ,readonly = False)
     pollinterval = Parameter("polling interval",datatype=FloatRange(0), default=5)
-    tolerance = Parameter("Temperature range for stability checking",datatype=FloatRange(0,100),default = 5,unit = "K")
+    tolerance = Parameter("Temperature range for stability checking",datatype=FloatRange(0,100),default = 5,unit = "K",readonly = False)
 
 
 
