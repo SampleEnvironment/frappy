@@ -221,7 +221,7 @@ class MassSpectrometer(Readable):
     def go(self):
         """generate new spectrum"""
         if self.status[0] == BUSY:
-            raise IsBusyError('Spectrometer is already scanning')
+            return
 
         self.status = self.Status.BUSY, 'reading Spectrum'
         self.go_flag = True
