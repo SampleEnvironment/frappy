@@ -203,10 +203,16 @@ class MassSpectrometer(Readable):
     def read_vacuum_pressure(self):
         return 1.0e-10 * random.randint(0,1)
     
-    @Command()
+
+
+
+    @Command(None, result=None)
     def stop(self):
+        """cease driving, go to IDLE state"""
         self.go_flag = False
         self.status = self.Status.IDLE, 'Stopped'
+
+
     
 
 
