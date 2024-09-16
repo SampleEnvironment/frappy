@@ -203,6 +203,11 @@ class MassSpectrometer(Readable):
     def read_vacuum_pressure(self):
         return 1.0e-10 * random.randint(0,1)
     
+    @Command()
+    def stop(self):
+        self.go_flag = False
+        self.status = self.Status.IDLE, 'Stopped'
+    
 
 
 
@@ -285,11 +290,12 @@ class MassSpectrometer(Readable):
             if self.go_flag:
                 time.sleep(self.aquire_time)
                 self.spectrum = self.getSpectrum()
-                self.status = self.Status.IDLE, 'Spectrum finished'
-                self.go_flag = False
+                if self.scan_cycle == 'SINGLE':
+                    self.status = self.Status.IDLE, 'Spectrum finished'
+                    self.go_flag = False
                 self.read_value()
 
-            time.sleep(1)
+            time.sleep(0.1)
             self.read_value()
 
     def shutdownModule(self):
