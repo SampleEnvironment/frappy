@@ -86,7 +86,7 @@ else:
 def get_sea_port(instance):
     for filename in ('sea_%s.tcl' % instance, 'sea.tcl'):
         try:
-            with open(SEA_DIR / filename, encoding='utf-8') as f:
+            with (SEA_DIR / filename).open(encoding='utf-8') as f:
                 for line in f:
                     linesplit = line.split()
                     if len(linesplit) == 3:
@@ -484,7 +484,7 @@ class SeaModule(Module):
                 cfgdict['description'] = '%s@%s%s' % (
                     name, json_file, '' if rel_paths == '.' else f' (rel_paths={rel_paths})')
 
-            with open(seaconfdir / json_file, encoding='utf-8') as fp:
+            with (seaconfdir / json_file).open(encoding='utf-8') as fp:
                 content = json.load(fp)
                 descr = content[sea_object]
             if rel_paths == '*' or not rel_paths:
