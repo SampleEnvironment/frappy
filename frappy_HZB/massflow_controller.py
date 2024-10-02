@@ -17,16 +17,6 @@ import random
 
 class MassflowController(Drivable):
 
-    meaning = Property(
-        description="Module Meaning",
-        datatype=StructOf(
-            key = StringType(),
-            link = StringType(),
-            function = StringType(),
-            importance= IntRange(0,50),
-            belongs_to  = StringType()),
-        export=True,
-        extname='meaning')
 
     value   = Parameter("Mass flow of gas",FloatRange(minval=0,maxval=1000),default = 0,unit = "ml/min" )
     target  = Parameter("Desired mass flow of gas",FloatRange(minval=0,maxval=200),default = 0,unit = "ml/min" )
