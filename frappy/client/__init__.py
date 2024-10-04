@@ -22,6 +22,8 @@
 # *****************************************************************************
 """general SECoP client"""
 
+# pylint: disable=too-many-positional-arguments
+
 import json
 import queue
 import re
@@ -79,10 +81,12 @@ class CallbackObject:
     this is mainly for documentation, but it might be extended
     and used as a mixin for objects registered as a callback
     """
-    def updateEvent(self, module, parameter, value, timestamp, readerror):
+    def updateItem(self, module, parameter, item):
         """called whenever a value is changed
 
-        or when new callbacks are registered
+        :param module: the module name
+        :param parameter: the parameter name
+        :param item: a CacheItem object
         """
 
     def unhandledMessage(self, action, ident, data):
@@ -108,6 +112,12 @@ class CallbackObject:
         and on every changed module with module==<module name>
         """
 
+    def updateEvent(self, module, parameter, value, timestamp, readerror):
+        """legacy method: called whenever a value is changed
+
+        or when new callbacks are registered
+        """
+
 
 class CacheItem(tuple):
     """cache entry
@@ -115,12 +125,14 @@ class CacheItem(tuple):
     includes formatting information
     inheriting from tuple: compatible with old previous version of cache
     """
+
     def __new__(cls, value, timestamp=None, readerror=None, datatype=None):
         obj = tuple.__new__(cls, (value, timestamp, readerror))
         if datatype:
             try:
-                # override default method
+                # override default methods
                 obj.format_value = datatype.format_value
+                obj.to_string = datatype.to_string
             except AttributeError:
                 pass
         return obj
@@ -138,20 +150,31 @@ class CacheItem(tuple):
         return self[2]
 
     def __str__(self):
-        """format value without unit"""
+        """format value without unit
+
+        may be used in this form for SecopClient.setParameterFromString
+        """
         if self[2]:  # readerror
             return repr(self[2])
-        return self.format_value(self[0], unit='')  # skip unit
+        return self.to_string(self[0])
 
     def formatted(self):
-        """format value with using unit"""
+        """format value with using unit
+
+        nicer format for humans, hard to parse
+        """
         if self[2]:  # readerror
             return repr(self[2])
         return self.format_value(self[0])
 
     @staticmethod
-    def format_value(value, unit=None):
+    def format_value(value):
         """typically overridden with datatype.format_value"""
+        return str(value)
+
+    @staticmethod
+    def to_string(value):
+        """typically overridden with datatype.to_string"""
         return str(value)
 
     def __repr__(self):
@@ -160,7 +183,7 @@ class CacheItem(tuple):
             args += (self.timestamp,)
         if self.readerror:
             args += (self.readerror,)
-        return f'CacheItem{repr(args)}'
+        return f'CacheItem{args!r}'
 
 
 class Cache(dict):
@@ -700,6 +723,17 @@ class SecopClient(ProxyClient):
         self.connect()  # make sure we are connected
         datatype = self.modules[module]['parameters'][parameter]['datatype']
         value = datatype.export_value(value)
+        self.request(WRITEREQUEST, self.identifier[module, parameter], value)
+        return self.cache[module, parameter]
+
+    def setParameterFromString(self, module, parameter, formatted):
+        """set parameter from string
+
+        formatted is a string in the form obtained by str(<cache item>)
+        """
+        self.connect()  # make sure we are connected
+        datatype = self.modules[module]['parameters'][parameter]['datatype']
+        value = datatype.from_string(formatted)
         self.request(WRITEREQUEST, self.identifier[module, parameter], value)
         return self.cache[module, parameter]
 

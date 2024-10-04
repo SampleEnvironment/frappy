@@ -264,7 +264,7 @@ def test_EnumType():
     with pytest.raises(RangeError):
         dt.import_value('A')
 
-    assert dt.format_value(3) == 'a<3>'
+    assert dt.format_value(dt(3)) == 'a<3>'
 
 
 def test_BLOBType():
@@ -378,20 +378,20 @@ def test_BoolType():
     with pytest.raises(WrongTypeError):
         dt('av')
 
-    assert dt('true') is True
-    assert dt('off') is False
+    assert dt.from_string('true') is True
+    assert dt.from_string('off') is False
     assert dt(1) is True
 
-    assert dt.export_value('false') is False
+    assert dt.export_value(False) is False
     assert dt.export_value(0) is False
-    assert dt.export_value('on') is True
+    assert dt.export_value(1) is True
 
     assert dt.import_value(False) is False
     assert dt.import_value(True) is True
     with pytest.raises(WrongTypeError):
         dt.import_value('av')
 
-    assert dt.format_value(0) == "False"
+    assert dt.format_value(dt(0)) == "False"
     assert dt.format_value(True) == "True"
 
     with pytest.raises(TypeError):
@@ -468,7 +468,7 @@ def test_TupleOf():
     assert dt.export_value([1, True]) == [1, True]
     assert dt.import_value([1, True]) == (1, True)
 
-    assert dt.format_value([3,0]) == "(3, False)"
+    assert dt.format_value(dt([3,0])) == "(3, False)"
 
     dt = TupleOf(EnumType('myenum', single=0))
     copytest(dt)

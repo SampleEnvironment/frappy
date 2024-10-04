@@ -25,13 +25,13 @@
 
 
 import sys
+import ast
 from base64 import b64decode, b64encode
 
 from frappy.errors import ConfigError, ProgrammingError, \
-    ProtocolError, RangeError, WrongTypeError
+    RangeError, WrongTypeError
 from frappy.lib import clamp, generalConfig
 from frappy.lib.enum import Enum
-from frappy.parse import Parser
 from frappy.properties import HasProperties, Property
 
 generalConfig.set_default('lazy_number_validation', False)
@@ -40,8 +40,6 @@ generalConfig.set_default('lazy_number_validation', False)
 DEFAULT_MIN_INT = -16777216
 DEFAULT_MAX_INT = 16777216
 UNLIMITED = 1 << 64  # internal limit for integers, is probably high enough for any datatype size
-
-Parser = Parser()
 
 
 def shortrepr(value):
@@ -83,9 +81,29 @@ class DataType(HasProperties):
         return self(value)
 
     def from_string(self, text):
-        """interprets a given string and returns a validated (internal) value"""
-        # to evaluate values from configfiles, ui, etc...
-        raise NotImplementedError
+        """interprets a given string and returns a validated (internal) value
+
+        intended to be given e.g. from a GUI text input
+        """
+        try:
+            value = ast.literal_eval(text)
+        except Exception:
+            raise WrongTypeError(f'{shortrepr(text)} is no valid value') from None
+        return self(value)
+
+    def to_string(self, value):
+        """convert a value of this type into a string
+
+        This is intended for a GUI text input and is the opposite of
+        :meth:`from_string`
+        - no units are shown
+        - value is not checked before formatting
+
+        typically the output is a stringified value in python syntax except for
+        - StringType: the bare string is returned
+        - EnumType: the name of the enum is returned
+        """
+        return self.format_value(value, False)
 
     def export_datatype(self):
         """return a python object which after jsonifying identifies this datatype"""
@@ -93,7 +111,6 @@ class DataType(HasProperties):
             f"{type(self).__name__} is not able to be exported to SECoP. "
             f"It is intended for internal use only."
         )
-
 
     def export_value(self, value):
         """if needed, reformat value for transport"""
@@ -107,12 +124,17 @@ class DataType(HasProperties):
         """
         return self(value)
 
-    def format_value(self, value, unit=None):
-        """format a value of this type into a str string
+    def format_value(self, value, unit=True):
+        """format a value of this type into a string
 
         This is intended for 'nice' formatting for humans and is NOT
         the opposite of :meth:`from_string`
-        if unit is given, use it, else use the unit of the datatype (if any)"""
+
+        possible values of unit:
+        - True: use the string of the datatype
+        - False: return a value interpretable by ast.literal_eval (internal use only)
+        - any other string: use as unit (internal use only)
+        """
         raise NotImplementedError
 
     def set_properties(self, **kwds):
@@ -259,15 +281,11 @@ class FloatRange(HasUnit, DataType):
         """returns a python object fit for serialisation"""
         return float(value)
 
-    def from_string(self, text):
-        value = float(text)
-        return self(value)
-
-    def format_value(self, value, unit=None):
-        if unit is None:
+    def format_value(self, value, unit=True):
+        if unit is True:
             unit = self.unit
         if unit:
-            return ' '.join([self.fmtstr % value, unit])
+            return f'{self.fmtstr % value} {unit}'
         return self.fmtstr % value
 
     def compatible(self, other):
@@ -337,11 +355,7 @@ class IntRange(DataType):
         """returns a python object fit for serialisation"""
         return int(value)
 
-    def from_string(self, text):
-        value = int(text)
-        return self(value)
-
-    def format_value(self, value, unit=None):
+    def format_value(self, value, unit=True):
         return f'{value}'
 
     def compatible(self, other):
@@ -458,15 +472,11 @@ class ScaledInteger(HasUnit, DataType):
         except Exception:
             raise WrongTypeError(f'can not import {shortrepr(value)} to scaled') from None
 
-    def from_string(self, text):
-        value = float(text)
-        return self(value)
-
-    def format_value(self, value, unit=None):
-        if unit is None:
+    def format_value(self, value, unit=True):
+        if unit is True:
             unit = self.unit
         if unit:
-            return ' '.join([self.fmtstr % value, unit])
+            return f'{self.fmtstr % value} {unit}'
         return self.fmtstr % value
 
     def compatible(self, other):
@@ -483,6 +493,7 @@ class EnumType(DataType):
     :param members: members dict or None when using kwds only
     :param kwds: (additional) members
     """
+
     def __init__(self, enum_or_name='', members=None, **kwds):
         super().__init__()
         if members is not None:
@@ -518,10 +529,19 @@ class EnumType(DataType):
             raise WrongTypeError(f'{shortrepr(value)} must be either int or str for an enum value') from None
 
     def from_string(self, text):
-        return self(text)
+        try:
+            return self._enum(text.strip())
+        except KeyError:
+            return super().from_string(text)
 
-    def format_value(self, value, unit=None):
-        return f'{self._enum[value].name}<{self._enum[value].value}>'
+    def format_value(self, value, unit=True):
+        if unit is False:
+            return repr(value.name)
+        # for humans: contains more information (name + code)
+        return f'{value.name}<{value.value}>'
+
+    def to_string(self, value):
+        return value.name
 
     def set_name(self, name):
         self._enum.name = name
@@ -584,12 +604,7 @@ class BLOBType(DataType):
         except Exception:
             raise WrongTypeError(f'can not b64decode {shortrepr(value)}') from None
 
-    def from_string(self, text):
-        value = text
-        # XXX: what should we do here?
-        return self(value)
-
-    def format_value(self, value, unit=None):
+    def format_value(self, value, unit=True):
         return repr(value)
 
     def compatible(self, other):
@@ -653,12 +668,14 @@ class StringType(DataType):
         """returns a python object fit for serialisation"""
         return f'{value}'
 
-    def from_string(self, text):
-        value = str(text)
-        return self(value)
-
-    def format_value(self, value, unit=None):
+    def format_value(self, value, unit=True):
         return repr(value)
+
+    def to_string(self, value):
+        return value
+
+    def from_string(self, text):
+        return self(text)
 
     def compatible(self, other):
         try:
@@ -700,25 +717,26 @@ class BoolType(DataType):
     def __repr__(self):
         return 'BoolType()'
 
-    def __call__(self, value):
+    def from_string(self, text):
         """accepts 0, False, 1, True"""
-        # TODO: probably remove conversion from string (not needed anymore with python cfg)
-        if value in [0, '0', 'False', 'false', 'no', 'off', False]:
+        value = text.strip()
+        if value in ['0', 'False', 'false', 'no', 'off']:
             return False
-        if value in [1, '1', 'True', 'true', 'yes', 'on', True]:
+        if value in ['1', 'True', 'true', 'yes', 'on']:
             return True
+        raise WrongTypeError(f'{shortrepr(value)} is not a boolean value!')
+
+    def __call__(self, value):
+        if value in (0, 1):
+            return bool(value)
         raise WrongTypeError(f'{shortrepr(value)} is not a boolean value!')
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
         return self(value)
 
-    def from_string(self, text):
-        value = text
-        return self(value)
-
-    def format_value(self, value, unit=None):
-        return repr(bool(value))
+    def format_value(self, value, unit=True):
+        return repr(value)
 
     def compatible(self, other):
         other(False)
@@ -753,6 +771,10 @@ class ArrayOf(DataType):
             maxlen = minlen or 100
         self.members = members
         self.set_properties(minlen=minlen, maxlen=maxlen)
+
+    @property
+    def unit(self):
+        return self.members.unit
 
     def copy(self):
         """DataType.copy does not work when members are enums"""
@@ -823,25 +845,20 @@ class ArrayOf(DataType):
         """returns a python object from serialisation"""
         return tuple(self.members.import_value(elem) for elem in value)
 
-    def from_string(self, text):
-        value, rem = Parser.parse(text)
-        if rem:
-            raise ProtocolError(f'trailing garbage: {rem!r}')
-        return self(value)
-
-    def format_value(self, value, unit=None):
-        innerunit = ''
-        if unit is None:
+    def format_value(self, value, unit=True):
+        innerunit = False
+        if unit is True:
             members = self.members
             while isinstance(members, ArrayOf):
                 members = members.members
             if members.unit:
                 unit = members.unit
             else:
-                innerunit = None
+                unit = ''
+                innerunit = True
         res = f"[{', '.join([self.members.format_value(elem, innerunit) for elem in value])}]"
         if unit:
-            return ' '.join([res, unit])
+            return f'{res} {unit}'
         return res
 
     def compatible(self, other):
@@ -918,14 +935,8 @@ class TupleOf(DataType):
         """returns a python object from serialisation"""
         return tuple(sub.import_value(elem) for sub, elem in zip(self.members, value))
 
-    def from_string(self, text):
-        value, rem = Parser.parse(text)
-        if rem:
-            raise ProtocolError(f'trailing garbage: {rem!r}')
-        return self(value)
-
-    def format_value(self, value, unit=None):
-        return f"({', '.join([sub.format_value(elem) for sub, elem in zip(self.members, value)])})"
+    def format_value(self, value, unit=True):
+        return f"({', '.join([sub.format_value(elem, unit) for sub, elem in zip(self.members, value)])})"
 
     def compatible(self, other):
         if not isinstance(other, TupleOf):
@@ -1036,14 +1047,13 @@ class StructOf(DataType):
         return {str(k): self.members[k].import_value(v)
                 for k, v in value.items()}
 
-    def from_string(self, text):
-        value, rem = Parser.parse(text)
-        if rem:
-            raise ProtocolError(f'trailing garbage: {rem!r}')
-        return self(dict(value))
-
-    def format_value(self, value, unit=None):
-        return '{%s}' % (', '.join(['%s=%s' % (k, self.members[k].format_value(v)) for k, v in value.items()]))
+    def format_value(self, value, unit=True):
+        if unit is False:
+            return '{%s}' % (', '.join(['%r: %s' % (k, self.members[k].format_value(v, False))
+                                        for k, v in value.items()]))
+        # more human readable format (no quotes on keys)
+        return '{%s}' % (', '.join(['%s=%s' % (k, self.members[k].format_value(v, True))
+                                    for k, v in value.items()]))
 
     def compatible(self, other):
         try:
@@ -1103,14 +1113,11 @@ class CommandType(DataType):
         raise ProgrammingError('values of type command can not be transported!')
 
     def from_string(self, text):
-        value, rem = Parser.parse(text)
-        if rem:
-            raise ProtocolError(f'trailing garbage: {rem!r}')
-        return self(value)
+        raise ProgrammingError('a string can not be converted to a command')
 
-    def format_value(self, value, unit=None):
+    def format_value(self, value, unit=True):
         # actually I have no idea what to do here!
-        raise NotImplementedError
+        raise ProgrammingError('commands can not be converted to a string')
 
     def compatible(self, other):
         try:
@@ -1220,7 +1227,6 @@ class OrType(DataType):
         super().__init__()
         self.types = types
         self.default = self.types[0].default
-
 
     def __call__(self, value):
         """accepts any of the given types, takes the first valid"""
