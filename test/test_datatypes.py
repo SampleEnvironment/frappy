@@ -36,6 +36,41 @@ def copytest(dt):
     assert repr(dt) == repr(dt.copy())
     assert dt.export_datatype() == dt.copy().export_datatype()
     assert dt != dt.copy()
+    with pytest.raises(KeyError):
+        dt.setProperty('visibility', 0)
+
+
+def valid(dt, *args, exported=None, formatted=()):
+    for value in args:
+        v = dt(value)
+        assert dt.import_value(dt.export_value(v)) == v
+        vv = dt.from_string(dt.to_string(v))
+        if isinstance(vv, float):
+            assert abs(vv - v) <= max(dt.absolute_resolution, (vv + v) * dt.relative_resolution)
+        else:
+            assert vv == v
+    if exported is None:
+        exported = args
+    for value, ex in zip(args, exported):
+        assert dt.export_value(value) == ex
+    for value, fm in zip(args, formatted):
+        assert dt.format_value(dt(value)) == fm
+
+
+def invalid(dt, *args, test_import=True):
+    for value in args:
+        with pytest.raises(WrongTypeError):
+            dt(value)
+        if test_import:
+            with pytest.raises(WrongTypeError):
+                dt.import_value(value)
+
+
+def out_of_range(dt, *args):
+    for value in args:
+        dt(value)
+        with pytest.raises(RangeError):
+            dt.validate(value)
 
 
 def test_DataType():
@@ -52,33 +87,19 @@ def test_FloatRange():
     copytest(dt)
     assert dt.export_datatype() == {'type': 'double', 'min':-3.14, 'max':3.14}
 
-    with pytest.raises(RangeError):
-        dt.validate(9)
-    with pytest.raises(RangeError):
-        dt.validate(-9)
-    dt(9)  # convert, but do not check limits
-    dt(-9)  # convert, but do not check limits
-    with pytest.raises(WrongTypeError):
-        dt('XX')
-    with pytest.raises(WrongTypeError):
-        dt.import_value('XX')
-    with pytest.raises(WrongTypeError):
-        dt([19, 'X'])
-    with pytest.raises(WrongTypeError):
-        dt.import_value([19, 'X'])
-    dt(1)
-    dt(0)
+    valid(dt, -2.718, 1, 0)
     dt(13.14 - 10)  # raises an error, if resolution is not handled correctly
-    assert dt.export_value(-2.718) == -2.718
-    assert dt.import_value(-2.718) == -2.718
-    with pytest.raises(ProgrammingError):
-        FloatRange('x', 'Y')
+    invalid(dt, 'XX', [19, 'XX'])
+    out_of_range(dt, -9, 9)
     # check that unit can be changed
     dt.setProperty('unit', 'K')
     assert dt.export_datatype() == {'type': 'double', 'min':-3.14, 'max':3.14, 'unit': 'K'}
-    with pytest.raises(KeyError):
-        dt.setProperty('visibility', 0)
     dt.setProperty('absolute_resolution', 0)
+    valid(dt, 1.25, formatted=['1.25 K'])
+
+    with pytest.raises(ProgrammingError):
+        FloatRange('x', 'Y')
+
 
     dt = FloatRange()
     copytest(dt)
@@ -90,8 +111,9 @@ def test_FloatRange():
     assert dt.export_datatype() == {'type': 'double', 'unit':'X', 'fmtstr':'%.2f',
                                       'absolute_resolution':1.0,
                                       'relative_resolution':0.1}
-    assert dt(4) == 4
-    assert dt.format_value(3.14) == '3.14 X'
+    valid(dt, 4, 3.1392,
+          formatted=['4.00 X', '3.14 X'])
+
     assert dt.format_value(3.14, '') == '3.14'
     assert dt.format_value(3.14, '#') == '3.14 #'
 
@@ -109,30 +131,10 @@ def test_IntRange():
     copytest(dt)
     assert dt.export_datatype() == {'type': 'int', 'min':-3, 'max':3}
 
-    with pytest.raises(RangeError):
-        dt.validate(9)
-    with pytest.raises(RangeError):
-        dt.validate(-9)
-    dt(9)  # convert, but do not check limits
-    dt(-9)  # convert, but do not check limits
-    with pytest.raises(WrongTypeError):
-        dt('XX')
-    with pytest.raises(WrongTypeError):
-        dt.import_value('XX')
-    with pytest.raises(WrongTypeError):
-        dt([19, 'X'])
-    with pytest.raises(WrongTypeError):
-        dt.import_value([19, 'X'])
-    with pytest.raises(WrongTypeError):
-        dt(1.3)
-    with pytest.raises(WrongTypeError):
-        dt.import_value(1.3)
-    with pytest.raises(WrongTypeError):
-        dt('1.3')
-    with pytest.raises(WrongTypeError):
-        dt.import_value('1.3')
-    dt(1)
-    dt(0)
+    out_of_range(dt, 9, -9)
+    invalid(dt, 'XX', [19, 'X'], 1.3, '1.3')
+    valid(dt, 0, 1)
+
     with pytest.raises(ProgrammingError):
         IntRange('xc', 'Yx')
 
@@ -155,22 +157,10 @@ def test_ScaledInteger():
     # serialisation of datatype contains limits on the 'integer' value
     assert dt.export_datatype() == {'type': 'scaled', 'scale':0.01, 'min':-300, 'max':300}
 
-    with pytest.raises(RangeError):
-        dt.validate(9)
-    with pytest.raises(RangeError):
-        dt.validate(-9)
-    dt(9)  # convert, but do not check limits
-    dt(-9)  # convert, but do not check limits
-    with pytest.raises(WrongTypeError):
-        dt('XX')
-    with pytest.raises(WrongTypeError):
-        dt.import_value('XX')
-    with pytest.raises(WrongTypeError):
-        dt([19, 'X'])
-    with pytest.raises(WrongTypeError):
-        dt.import_value([19, 'X'])
-    dt(1)
-    dt(0)
+    out_of_range(dt, 9, -9)
+    invalid(dt, 'XX', [19, 'X'], '1.3')
+    valid(dt, 0, 1, 0.0001, 2.71819, exported=[0, 100, 0, 272])
+
     with pytest.raises(ProgrammingError):
         ScaledInteger('xc', 'Yx')
     with pytest.raises(ProgrammingError):
@@ -181,10 +171,6 @@ def test_ScaledInteger():
     dt.setProperty('unit', 'A')
     assert dt.export_datatype() == {'type': 'scaled', 'scale':0.01, 'min':-300, 'max':300,
                                     'unit': 'A'}
-
-    assert dt.export_value(0.0001) == int(0)
-    assert dt.export_value(2.71819) == int(272)
-    assert dt.import_value(272) == 2.72
 
     dt.setProperty('scale', 0.1)
     assert dt.export_datatype() == {'type': 'scaled', 'scale':0.1, 'min':-30, 'max':30,
@@ -203,11 +189,8 @@ def test_ScaledInteger():
     assert dt.format_value(0.6, '') == '0.6'
     assert dt.format_value(0.6, 'Z') == '0.6 Z'
     assert round(dt.validate(1.0004), 5) == 0.999  # rounded value within limit
-    with pytest.raises(RangeError):
-        dt.validate(1.006)  # rounded value outside limit
+    out_of_range(dt, 1.006, 0.395)  # rounded value outside limit
     assert round(dt.validate(0.398), 5) == 0.399  # rounded value within rounded limit
-    with pytest.raises(RangeError):
-        dt.validate(0.395)  # rounded value outside limit
 
     dt.setProperty('min', 1)
     dt.setProperty('max', 0)
@@ -230,39 +213,14 @@ def test_EnumType():
 
     assert dt.export_datatype() == {'type': 'enum', 'members': {'a': 3, 'c': 7, 'stuff': 1}}
 
+    invalid(dt, 2.3, [19, 'X'])
     with pytest.raises(RangeError):
         dt(9)
     with pytest.raises(RangeError):
-        dt.import_value(9)
-    with pytest.raises(RangeError):
         dt(-9)
     with pytest.raises(RangeError):
-        dt.import_value(-9)
-    with pytest.raises(RangeError):
         dt('XX')
-    with pytest.raises(RangeError):
-        dt.import_value('XX')
-    with pytest.raises(WrongTypeError):
-        dt([19, 'X'])
-    with pytest.raises(WrongTypeError):
-        dt.import_value([19, 'X'])
-
-    assert dt('a') == 3
-    assert dt('stuff') == 1
-    assert dt(1) == 1
-    with pytest.raises(RangeError):
-        dt(2)
-
-    assert dt.export_value('c') == 7
-    assert dt.export_value('stuff') == 1
-    assert dt.export_value(1) == 1
-    assert dt.import_value('c') == 7
-    assert dt.import_value('a') == 3
-    assert dt.import_value('stuff') == 1
-    with pytest.raises(RangeError):
-        dt.export_value(2)
-    with pytest.raises(RangeError):
-        dt.import_value('A')
+    valid(dt, 'a', 'stuff', 1, 'c', exported=[3, 1, 1, 7])
 
     assert dt.format_value(dt(3)) == 'a<3>'
 
@@ -280,33 +238,19 @@ def test_BLOBType():
     copytest(dt)
     assert dt.export_datatype() == {'type': 'blob', 'minbytes':3, 'maxbytes':10}
 
-    with pytest.raises(WrongTypeError):
-        dt(9)
+    valid(dt, b'abcd', b'ert', b'123456789a', exported=['YWJjZA=='])
+    invalid(dt, 9, 'abcd', test_import=False)
     with pytest.raises(RangeError):
         dt(b'av')
     with pytest.raises(RangeError):
         dt(b'abcdefghijklmno')
-    with pytest.raises(WrongTypeError):
-        dt('abcd')
-    with pytest.raises(WrongTypeError):
-        dt.import_value('ab')
-    with pytest.raises(WrongTypeError):
-        dt.import_value(b'xxx')
-    assert dt(b'abcd') == b'abcd'
 
     dt.setProperty('minbytes', 1)
     dt.setProperty('maxbytes', 0)
     with pytest.raises(ConfigError):
         dt.checkProperties()
-
-    assert dt.export_value(b'abcd') == 'YWJjZA=='
-    assert dt.export_value(b'abcd') == 'YWJjZA=='
-    # assert dt.export_value('abcd') == 'YWJjZA=='
     assert dt.import_value('YWJjZA==') == b'abcd'
-
-    # XXX: right? or different format?
-    # to be added after migration to py3
-    # assert dt.format_value(b'ab\0cd') == "b'ab\\x00cd\'"
+    assert dt.format_value(b'ab\0cd') == "b'ab\\x00cd\'"
 
 
 def test_StringType():
@@ -322,8 +266,8 @@ def test_StringType():
     copytest(dt)
     assert dt.export_datatype() == {'type': 'string', 'minchars':4, 'maxchars':11}
 
-    with pytest.raises(WrongTypeError):
-        dt(9)
+    invalid(dt, 9, b'abcd')
+    valid(dt, 'abcd', exported=['abcd'])
     with pytest.raises(RangeError):
         dt('av')
     with pytest.raises(RangeError):
@@ -331,14 +275,9 @@ def test_StringType():
     with pytest.raises(RangeError):
         dt('abcdefg\0')
     assert dt('abcd') == 'abcd'
-    # tests with bytes have to be added after migration to py3
-    #assert dt(b'abcd') == 'abcd'
-
-    assert dt.export_value('abcd') == 'abcd'
-    # assert dt.export_value(b'abcd') == 'abcd'
-    assert dt.import_value('abcd') == 'abcd'
 
     assert dt.format_value('abcd') == "'abcd'"
+    assert dt.to_string('abcd') == 'abcd'
 
     dt.setProperty('minchars', 1)
     dt.setProperty('maxchars', 0)
@@ -352,19 +291,13 @@ def test_TextType():
     copytest(dt)
     assert dt.export_datatype() == {'type': 'string', 'maxchars':12}
 
-    with pytest.raises(WrongTypeError):
-        dt(9)
+    invalid(dt, 9, b'abcd')
     with pytest.raises(RangeError):
         dt('abcdefghijklmno')
     with pytest.raises(RangeError):
         dt('abcdefg\0')
+    valid(dt, 'abcd', exported=['abcd'])
     assert dt('ab\n\ncd\n') == 'ab\n\ncd\n'
-    # assert dt(b'ab\n\ncd\n') == 'ab\n\ncd\n'
-
-    assert dt.export_value('abcd') == 'abcd'
-    # assert dt.export_value(b'abcd') == b'abcd'
-    assert dt.export_value('abcd') == 'abcd'
-    assert dt.import_value('abcd') == 'abcd'
 
 
 def test_BoolType():
@@ -373,26 +306,11 @@ def test_BoolType():
     copytest(dt)
     assert dt.export_datatype() == {'type': 'bool'}
 
-    with pytest.raises(WrongTypeError):
-        dt(9)
-    with pytest.raises(WrongTypeError):
-        dt('av')
-
+    valid(dt, 1, True, 0, False, exported=[1, 1, 0, 0],
+          formatted=['True', 'True', 'False', 'False'])
     assert dt.from_string('true') is True
     assert dt.from_string('off') is False
-    assert dt(1) is True
-
-    assert dt.export_value(False) is False
-    assert dt.export_value(0) is False
-    assert dt.export_value(1) is True
-
-    assert dt.import_value(False) is False
-    assert dt.import_value(True) is True
-    with pytest.raises(WrongTypeError):
-        dt.import_value('av')
-
-    assert dt.format_value(dt(0)) == "False"
-    assert dt.format_value(True) == "True"
+    invalid(dt, 2, 'av')
 
     with pytest.raises(TypeError):
         # pylint: disable=unexpected-keyword-arg
@@ -421,6 +339,7 @@ def test_ArrayOf():
     with pytest.raises(WrongTypeError):
         dt('av')
 
+    valid(dt, [1, 2, 3])
     assert dt([1, 2, 3]) == (1, 2, 3)
 
     assert dt.export_value([1, 2, 3]) == [1, 2, 3]
@@ -448,6 +367,13 @@ def test_ArrayOf():
     dt = ArrayOf(ArrayOf(FloatRange(unit='m')))
     assert dt.format_value([[0, 1], [2, 3]]) == '[[0, 1], [2, 3]] m'
 
+    dt = ArrayOf(StructOf(f=FloatRange(unit='K')))
+    assert dt.format_value([{'f': 1.5}]) == "[{f=1.5 K}]"
+    assert dt.to_string([{'f': 1.5}]) == "[{'f': 1.5}]"
+
+    dt = ArrayOf(ArrayOf(EnumType(a=1, b=2)))
+    assert dt.to_string(dt([[1, 2]])) == "[['a', 'b']]"
+
 
 def test_TupleOf():
     # test constructor catching illegal arguments
@@ -463,6 +389,7 @@ def test_TupleOf():
     with pytest.raises(WrongTypeError):
         dt([99, 'X'])
 
+    valid(dt, [1, True])
     assert dt([1, True]) == (1, True)
 
     assert dt.export_value([1, True]) == [1, True]
@@ -496,6 +423,7 @@ def test_StructOf():
     with pytest.raises(RangeError):
         dt.validate({'a_string': 'XXX', 'an_int': 1811})
 
+    valid(dt, {'a_string': 'XXX', 'an_int': 8})
     assert dt({'a_string': 'XXX', 'an_int': 8}) == {'a_string': 'XXX',
                                                     'an_int': 8}
     assert dt.export_value({'an_int': 13, 'a_string': 'WFEC'}) == {
@@ -504,6 +432,7 @@ def test_StructOf():
         'a_string': 'WFEC', 'an_int': 13}
 
     assert dt.format_value({'an_int': 2, 'a_string': 'Z'}) == "{an_int=2, a_string='Z'}"
+    assert dt.to_string({'an_int': 2, 'a_string': 'Z'}) == "{'an_int': 2, 'a_string': 'Z'}"
 
     dt = StructOf(['optionalmember'], optionalmember=EnumType('myenum', single=0))
     copytest(dt)
