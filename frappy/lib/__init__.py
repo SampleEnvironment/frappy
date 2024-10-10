@@ -95,7 +95,10 @@ class GeneralConfig:
                 if not configfile.exists():
                     raise FileNotFoundError(configfile)
             else:
-                configfile = self['confdir'] / 'generalConfig.cfg'
+                confdir = self['confdir']
+                if isinstance(confdir, list):
+                    confdir = confdir[0]
+                configfile = confdir / 'generalConfig.cfg'
                 if not configfile.exists():
                     configfile = None
         if configfile:
@@ -124,6 +127,7 @@ class GeneralConfig:
                 raise KeyError(f"missing value for {' and '.join(missing_keys)} in {configfile}")
             raise KeyError('missing %s'
                            % ' and '.join('FRAPPY_%s' % k.upper() for k in missing_keys))
+        # XXX: Why? breaks init() on second run....
         if isinstance(cfg['confdir'], Path):
             cfg['confdir'] = [cfg['confdir']]
         # this is not customizable
