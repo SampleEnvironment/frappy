@@ -25,7 +25,7 @@
 IDENTREQUEST = '*IDN?'  # literal
 # literal! first part is fixed!
 IDENTPREFIX = 'ISSE&SINE2020,SECoP,'
-IDENTREPLY = IDENTPREFIX + 'V2019-08-20,v1.0 RC2'
+IDENTREPLY = IDENTPREFIX + 'V2019-09-16,v1.0'
 
 DESCRIPTIONREQUEST = 'describe'  # literal
 DESCRIPTIONREPLY = 'describing'  # +<id> +json
