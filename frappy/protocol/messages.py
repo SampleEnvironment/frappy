@@ -45,11 +45,6 @@ WRITEREQUEST = 'change'
 # +module[:parameter] +json_value # send with the read back value
 WRITEREPLY = 'changed'
 
-# +module[:parameter] +json_value
-BUFFERREQUEST = 'buffer'
-# +module[:parameter] +json_value # send with the read back value
-BUFFERREPLY = 'buffered'
-
 # +module[:parameter] -> NO direct reply, calls POLL internally!
 READREQUEST = 'read'
 READREPLY = 'reply'  # See Issue 54
@@ -79,7 +74,6 @@ REQUEST2REPLY = {
     DISABLEEVENTSREQUEST: DISABLEEVENTSREPLY,
     COMMANDREQUEST:       COMMANDREPLY,
     WRITEREQUEST:         WRITEREPLY,
-    BUFFERREQUEST:        BUFFERREPLY,
     READREQUEST:          READREPLY,
     HEARTBEATREQUEST:     HEARTBEATREPLY,
     HELPREQUEST:          HELPREPLY,
