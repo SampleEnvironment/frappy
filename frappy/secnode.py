@@ -25,6 +25,7 @@ from collections import OrderedDict
 from frappy.dynamic import Pinata
 from frappy.errors import ConfigError, NoSuchModuleError, NoSuchParameterError
 from frappy.lib import get_class
+from frappy.version import get_version
 
 
 class SecNode:
@@ -216,9 +217,11 @@ class SecNode:
                                            f'has no parameter {pname!r}')
         elif not modname or modname == '.':
             result['equipment_id'] = self.equipment_id
-            result['firmware'] = 'FRAPPY - The Python Framework for SECoP'
-            result['version'] = '2021.02'
-            result.update(self.nodeprops)
+            result['firmware'] = 'FRAPPY ' + get_version()
+            result['description'] = self.nodeprops['description']
+            for prop in self.nodeprops:
+                if prop.startswith('_'):
+                    result[prop] = self.nodeprops[prop]
         else:
             raise NoSuchModuleError(f'Module {modname!r} does not exist')
         return result
