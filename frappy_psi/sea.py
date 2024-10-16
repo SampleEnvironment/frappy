@@ -41,7 +41,7 @@ from frappy.datatypes import ArrayOf, BoolType, \
     EnumType, FloatRange, IntRange, StringType, StatusType
 from frappy.core import IDLE, BUSY, ERROR, DISABLED
 from frappy.errors import ConfigError, HardwareError, ReadFailedError, CommunicationFailedError
-from frappy.lib import generalConfig, mkthread
+from frappy.lib import generalConfig, mkthread, lazy_property
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
 from frappy.modulebase import Done
 from frappy.modules import Attached, Command, Drivable, \
@@ -72,15 +72,8 @@ SERVICE_NAMES = {
     'addon': 'addons',
 }
 
+
 SEA_DIR = Path('~/sea').expanduser()
-seaconfdir = os.environ.get('FRAPPY_SEA_DIR')
-if seaconfdir is None or not Path(seaconfdir).expanduser().absolute().exists():
-    for confdir in generalConfig.confdir:
-        seaconfdir = confdir / 'sea'
-        if seaconfdir.exists():
-            break
-else:
-    seaconfdir = Path(seaconfdir).expanduser().absolute()
 
 
 def get_sea_port(instance):
@@ -96,6 +89,23 @@ def get_sea_port(instance):
         except FileNotFoundError:
             pass
     return None
+
+
+class SeaConfig:
+    @lazy_property
+    def dir(self):
+        seaconfdir = os.environ.get('FRAPPY_SEA_DIR')
+        if seaconfdir is None or not Path(seaconfdir).expanduser().absolute().exists():
+            for confdir in generalConfig.confdir:
+                seaconfdir = confdir / 'sea'
+                if seaconfdir.exists():
+                    break
+        else:
+            seaconfdir = Path(seaconfdir).expanduser().absolute()
+        return seaconfdir
+
+
+seaconfig = SeaConfig()
 
 
 class SeaClient(ProxyClient, Module):
@@ -151,7 +161,7 @@ class SeaClient(ProxyClient, Module):
         self.objects.add(obj)
         for k, v in module.path2param.items():
             self.path2param.setdefault(k, []).extend(v)
-        self.register_callback(module.name, module.updateEvent)
+        self.register_callback(module.name, module.updateItem)
 
     def _connect(self):
         try:
@@ -377,7 +387,7 @@ class SeaConfigCreator(SeaClient):
             stripped, _, ext = filename.rpartition('.')
             service = SERVICE_NAMES[ext]
             seaconn = 'sea_' + service
-            cfgfile = seaconfdir / (stripped + '_cfg.py')
+            cfgfile = seaconfig.dir / (stripped + '_cfg.py')
             with cfgfile.open('w', encoding='utf-8') as fp:
                 fp.write(CFG_HEADER % {'config': filename, 'seaconn': seaconn, 'service': service,
                                        'nodedescr': description.get(filename, filename)})
@@ -385,7 +395,7 @@ class SeaConfigCreator(SeaClient):
                     fp.write(CFG_MODULE % {'modcls': modcls[obj], 'module': obj, 'seaconn': seaconn})
             content = json.dumps(descr).replace('}, {', '},\n{').replace('[{', '[\n{').replace('}]}, ', '}]},\n\n')
             result.append('%s\n' % cfgfile)
-            fpath = seaconfdir / (filename + '.json')
+            fpath = seaconfig.dir / (filename + '.json')
             fpath.write_text(content + '\n', encoding='utf-8')
             result.append('%s: %s' % (filename, ','.join(n for n in descr)))
         raise SystemExit('; '.join(result))
@@ -484,7 +494,7 @@ class SeaModule(Module):
                 cfgdict['description'] = '%s@%s%s' % (
                     name, json_file, '' if rel_paths == '.' else f' (rel_paths={rel_paths})')
 
-            with (seaconfdir / json_file).open(encoding='utf-8') as fp:
+            with (seaconfig.dir / json_file).open(encoding='utf-8') as fp:
                 content = json.load(fp)
                 descr = content[sea_object]
             if rel_paths == '*' or not rel_paths:
@@ -642,12 +652,12 @@ class SeaModule(Module):
         result = Module.__new__(newcls)
         return result
 
-    def updateEvent(self, module, parameter, value, timestamp, readerror):
+    def updateItem(self, module, parameter, item):
         upd = getattr(self, 'update_' + parameter, None)
         if upd:
-            upd(value, timestamp, readerror)
+            upd(*item)
             return
-        self.announceUpdate(parameter, value, readerror, timestamp)
+        self.announceUpdate(parameter, *item)
 
     def initModule(self):
         self.io.register_obj(self, self.sea_object)
@@ -731,9 +741,10 @@ class SeaDrivable(SeaReadable, Drivable):
             return BUSY, 'driving'
         return status
 
-    def updateTarget(self, module, parameter, value, timestamp, readerror):
-        if value is not None:
-            self.target = value
+    def update_target(self, module, parameter, item):
+        # TODO: check if this is needed
+        if item.value is not None:
+            self.target = item.value
 
     @Command()
     def stop(self):
