@@ -11,7 +11,6 @@ RUN apt-get update && \
           locales \
           python3 \
           python3-dev \
-          python3-tango \
           python3-venv python3-setuptools \
           virtualenv
 
