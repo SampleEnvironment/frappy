@@ -36,6 +36,7 @@ git diff HEAD~1... --name-only --diff-filter=ARCM -- \\*.py
 #!/bin/bash -x
 . /home/jenkins/secopvenv/bin/activate
 pip install -r requirements-dev.txt
+pip install -r requirements-gui.txt
 pip install -r requirements.txt
 pip install isort pylint
 pip install -e .
@@ -94,6 +95,7 @@ addopts = --junit-xml=pytest.xml --junit-prefix=''' + pyver
 #!/bin/bash
 . /home/jenkins/secopvenv/bin/activate
 pip install -r requirements-dev.txt
+pip install -r requirements-gui.txt
 pip install -r requirements.txt
 pip install -e .
 make test
@@ -114,6 +116,7 @@ def run_docs() {
         sh '''
         . /home/jenkins/secopvenv/bin/activate
         pip install -r requirements-dev.txt
+        pip install -r requirements-gui.txt
         pip install -r requirements.txt
         pip install -e .
         '''
