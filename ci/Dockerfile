@@ -35,7 +35,9 @@ RUN virtualenv -p /usr/bin/python3 --system-site-packages /home/jenkins/secopven
     git clone https://forge.frm2.tum.de/review/secop/frappy /home/jenkins/frappy && \
     . /home/jenkins/secopvenv/bin/activate && \
     pip install -U pip wheel setuptools importlib_metadata && \
-    pip install -r /home/jenkins/frappy/requirements-dev.txt -r /home/jenkins/frappy/requirements.txt pylint pytest && \
+    pip install -r /home/jenkins/frappy/requirements-dev.txt \
+                -r /home/jenkins/frappy/requirements-gui.txt \
+                -r /home/jenkins/frappy/requirements.txt pylint pytest && \
     rm -rf /home/jenkins/frappy
 
 

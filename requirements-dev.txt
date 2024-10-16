@@ -10,3 +10,4 @@ pytest-randomly>=1.1
 pytest-cov
 # frappy mlz
 zapf >= 0.4.7
+pytango >= 10.0.0
