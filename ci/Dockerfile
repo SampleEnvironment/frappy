@@ -9,9 +9,11 @@ RUN apt-get update && \
           openssh-client \
           make \
           locales \
+          libgl1 \
           python3 \
           python3-dev \
-          python3-venv python3-setuptools \
+          python3-venv \
+          python3-setuptools \
           virtualenv
 
 
