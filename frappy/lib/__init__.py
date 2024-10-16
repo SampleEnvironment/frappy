@@ -76,18 +76,20 @@ class GeneralConfig:
         if (Path(sys.executable).suffix == ".exe"
            and not Path(sys.executable).name.startswith('python')):
             # special MS windows environment
-            self.update_defaults(piddir=Path('./'), logdir=Path('./log'), confdir=Path('./'))
+            confdir = Path('./')
+            self.update_defaults(piddir=Path('./'), logdir=Path('./log'))
         elif path.exists(path.join(repodir, 'cfg')):
             # running from git repo
-            self.set_default('confdir', repodir / 'cfg')
+            confdir = repodir / 'cfg'
             # take logdir and piddir from <repodir>/cfg/generalConfig.cfg
         else:
             # running on installed system (typically with systemd)
             self.update_defaults(
                 piddir=Path('/var/run/frappy'),
                 logdir=Path('/var/log'),
-                confdir=Path('/etc/frappy')
             )
+            confdir = Path('/etc/frappy')
+        self.set_default('confdir', confdir)
         if configfile is None:
             configfile = environ.get('FRAPPY_CONFIG_FILE')
             if configfile:
@@ -95,7 +97,7 @@ class GeneralConfig:
                 if not configfile.exists():
                     raise FileNotFoundError(configfile)
             else:
-                configfile = self['confdir'] / 'generalConfig.cfg'
+                configfile = confdir / 'generalConfig.cfg'
                 if not configfile.exists():
                     configfile = None
         if configfile:
