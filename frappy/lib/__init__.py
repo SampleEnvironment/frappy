@@ -126,7 +126,7 @@ class GeneralConfig:
                 raise KeyError(f"missing value for {' and '.join(missing_keys)} in {configfile}")
             raise KeyError('missing %s'
                            % ' and '.join('FRAPPY_%s' % k.upper() for k in missing_keys))
-        if isinstance(cfg['confdir'], Path):
+        if 'confdir' in cfg and isinstance(cfg['confdir'], Path):
             cfg['confdir'] = [cfg['confdir']]
         # this is not customizable
         cfg['basedir'] = repodir
