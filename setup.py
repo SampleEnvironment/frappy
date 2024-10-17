@@ -33,18 +33,23 @@ import frappy.version
 scripts = [str(script) for script in Path('bin').glob('frappy-*')
            if not str(script).endswith('cfg-editor')]
 
-
 frappydir = Path(__file__).parent / 'frappy'
 uidir = frappydir / 'gui' / 'ui'
 uis = [str(f.relative_to(frappydir)) for f in uidir.iterdir()]
 
+with open('README.md') as f:
+    long_description = f.read()
+
 setup(
     name='frappy-core',
     version=frappy.version.get_version(),
-    license='GPL',
+    license='GPL-2.0+',
+    url='https://github.com/SampleEnvironment/frappy',
+    description='Implementation of SECoP server and client',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     author='Enrico Faulhaber',
     author_email='enrico.faulhaber@frm2.tum.de',
-    description='SECoP Playground core system',
     packages=find_packages(exclude=['test']),
     package_data={'frappy': ['RELEASE-VERSION'] + uis},
     install_requires=[
