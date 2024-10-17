@@ -1,3 +1,48 @@
+frappy-core (0.20.0) jammy; urgency=medium
+
+  [ Alexander Zaft ]
+  * bin: remove make_doc
+
+  [ Markus Zolliker ]
+  * GUI: avoid space needed for closed groups
+  * GUI: allow enums to be plotted
+
+  [ Alexander Zaft ]
+  * all: start using pathlib
+  * generalConfig, config: use pathlib
+  * psi: change open calls in sea
+
+  [ Georg Brandl ]
+  * fix descriptive data
+
+  [ Markus Zolliker ]
+  * frappy_psi.sea: avoid error on import
+
+  [ Enrico Faulhaber ]
+  * ci: also install gui requirements for additional tests
+
+  [ Georg Brandl ]
+  * remove old "buffer" message
+  * ci/Dockerfile: do no use pytango from upstream
+  * new setuptools needs new importlib_metadata
+  * install pytango for testing
+  * install libgl1 for pyqt6
+
+  [ Enrico Faulhaber ]
+  * add test for importing custom modules
+
+  [ Markus Zolliker ]
+  * do not fail when generalConfig.init() is called twice
+  * add Datatype.to_string as counterpart of .from_string
+  * add more datatype tests
+
+  [ Georg Brandl ]
+  * update declared version to 1.0 final
+  * setup: fix classifiers
+  * setup: fill long_description and url
+
+ -- Alexander Zaft <jenkins@frm2.tum.de>  Thu, 17 Oct 2024 14:24:29 +0200
+
 frappy-core (0.19.10) jammy; urgency=medium
 
   [ Alexander Zaft ]
