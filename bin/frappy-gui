@@ -64,9 +64,10 @@ def main(argv=None):
     loglevel = logging.DEBUG if args.debug else (logging.ERROR if args.quiet else logging.INFO)
     logger = logging.getLogger('gui')
     logger.setLevel(logging.DEBUG)
-    console = ColoredConsoleHandler()
-    console.setLevel(loglevel)
-    logger.addHandler(console)
+    if sys.stdout is not None:
+        console = ColoredConsoleHandler()
+        console.setLevel(loglevel)
+        logger.addHandler(console)
 
     app = QApplication(argv)
 
