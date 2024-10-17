@@ -21,13 +21,13 @@
 # *****************************************************************************
 
 
-from frappy.gui.qt import QCheckBox, QComboBox, QDialog, QDoubleSpinBox, \
+from frappy.gui.qt import QCheckBox, QComboBox, QDoubleSpinBox, \
     QFrame, QGridLayout, QGroupBox, QLabel, QLineEdit, QSpinBox, QTextEdit, \
     QVBoxLayout
 
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
     FloatRange, IntRange, StringType, StructOf, TextType, TupleOf
-from frappy.gui.util import loadUi
+
 
 # XXX: implement live validators !!!!
 # XXX: signals upon change of value
@@ -229,35 +229,3 @@ def get_widget(datatype, readonly=False, parent=None):
         ArrayOf: ArrayWidget,
     }.get(datatype.__class__, TextWidget)(datatype, readonly, parent)
 # TODO: handle NoneOr
-
-
-class msg(QDialog):
-    def __init__(self, stuff, parent=None):
-        super().__init__(parent)
-        loadUi(self, 'cmddialog.ui')
-        print(dir(self))
-        self.setWindowTitle('Please enter the arguments for calling command "blubb()"')
-        row = 0
-
-        self.gridLayout.addWidget(QLabel('struct'), row, 0)
-        dt = StructOf(i=IntRange(0, 10), f=FloatRange(), b=BoolType())
-        w = StructWidget(dt)
-        self.gridLayout.addWidget(w, row, 1)
-        row += 1
-
-        self.gridLayout.addWidget(QLabel('stuff'), row, 0, 1, 0)
-        row += 1  # at pos (0,0) span 2 cols, 1 row
-        self.gridLayout.setRowStretch(row, 1)
-        self.setModal(True)
-
-    def accept(self):
-        print('accepted')
-        super().accept()
-
-    def reject(self):
-        print('rejected')
-        super().reject()
-
-    def done(self, how):
-        print(f'done({how!r})')
-        return super().done(how)
