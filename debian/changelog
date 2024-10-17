@@ -1,3 +1,13 @@
+frappy-core (0.20.1) jammy; urgency=medium
+
+  * gui: do not add a console logger when there is no sys.stdout
+  * remove unused test class
+  * remove old unused parse module
+  * remove sim-server
+  * lib: there might be no confdir in "cfg"
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 17 Oct 2024 16:31:27 +0200
+
 frappy-core (0.20.0) jammy; urgency=medium
 
   [ Alexander Zaft ]
