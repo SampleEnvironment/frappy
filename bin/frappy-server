@@ -35,7 +35,15 @@ from frappy.server import Server
 
 
 def parseArgv(argv):
-    parser = argparse.ArgumentParser(description="Manage a SECoP server")
+    parser = argparse.ArgumentParser(
+        description="Manage a SECoP server",
+        epilog="""The server needs some configuration, by default from the
+            generalConfig.cfg file. the keys confdir, logdir and piddir have to
+            be set.
+            Alternatively, one can set the environment variables FRAPPY_CONFDIR
+            FRAPPY_LOGDIR and FRAPPY_PIDDIR to set the required values.
+        """
+    )
     loggroup = parser.add_mutually_exclusive_group()
     loggroup.add_argument("-v", "--verbose",
                           help="Output lots of diagnostic information",
