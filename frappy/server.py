@@ -192,6 +192,7 @@ class Server:
             if not self.interfaces:
                 self.log.error('no interface started')
                 return
+            self.secnode.add_secnode_property('_interfaces', list(self.interfaces.keys()))
             self.log.info('startup done with interface(s) %s' % ', '.join(self.interfaces))
             if systemd:
                 systemd.daemon.notify("READY=1\nSTATUS=accepting requests")

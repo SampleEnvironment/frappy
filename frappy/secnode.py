@@ -36,6 +36,7 @@ class SecNode:
      - get_module(modulename) returns the requested module or None if there is
        no suitable configuration on the server
     """
+
     def __init__(self, name, logger, options, srv):
         self.equipment_id = options.pop('equipment_id', name)
         self.nodeprops = {}
@@ -53,6 +54,9 @@ class SecNode:
         self.errors = []
         self.traceback_counter = 0
         self.name = name
+
+    def add_secnode_property(self, prop, value):
+        self.nodeprops[prop] = value
 
     def get_module(self, modulename):
         """ Returns a fully initialized module. Or None, if something went
@@ -219,9 +223,9 @@ class SecNode:
             result['equipment_id'] = self.equipment_id
             result['firmware'] = 'FRAPPY ' + get_version()
             result['description'] = self.nodeprops['description']
-            for prop in self.nodeprops:
+            for prop, propvalue in self.nodeprops.items():
                 if prop.startswith('_'):
-                    result[prop] = self.nodeprops[prop]
+                    result[prop] = propvalue
         else:
             raise NoSuchModuleError(f'Module {modname!r} does not exist')
         return result
