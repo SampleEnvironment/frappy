@@ -56,11 +56,6 @@ def make_update(modulename, pobj):
 
 class Dispatcher:
     def __init__(self, name, logger, options, srv):
-        # to avoid errors, we want to eat all options here
-        self.equipment_id = options.pop('equipment_id', name)
-        self.nodeprops = {}
-        for k in list(options):
-            self.nodeprops[k] = options.pop(k)
 
         self.log = logger
         self.secnode = srv.secnode

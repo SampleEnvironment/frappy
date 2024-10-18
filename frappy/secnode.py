@@ -40,8 +40,6 @@ class SecNode:
     def __init__(self, name, logger, options, srv):
         self.equipment_id = options.pop('equipment_id', name)
         self.nodeprops = {}
-        for k in list(options):
-            self.nodeprops[k] = options.pop(k)
         # map ALL modulename -> moduleobj
         self.modules = {}
         # list of EXPORTED modules

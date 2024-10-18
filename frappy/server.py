@@ -268,8 +268,10 @@ class Server:
         self.secnode = SecNode(name, self.log.getChild('secnode'), opts, self)
         self.dispatcher = cls(name, self.log.getChild('dispatcher'), opts, self)
 
-        if opts:
-            self.secnode.errors.append(self.unknown_options(cls, opts))
+        # add other options as SECNode properties, those with '_' prefixed will
+        # get exported
+        for k in list(opts):
+            self.secnode.add_secnode_property(k, opts.pop(k))
 
         self.secnode.create_modules()
         # initialize all modules by getting them with Dispatcher.get_module,
