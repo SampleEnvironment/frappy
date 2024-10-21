@@ -60,7 +60,7 @@ class Server:
     }
     _restart = True
 
-    def __init__(self, name, parent_logger, cfgfiles=None, interface=None, testonly=False):
+    def __init__(self, name, parent_logger, *, cfgfiles=None, interface=None, testonly=False):
         """initialize server
 
         Arguments:
