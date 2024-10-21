@@ -40,6 +40,7 @@ disable=missing-docstring
         ,locally-disabled
         ,fixme
         ,no-member
+        ,not-callable
         ,wrong-import-position
         ,ungrouped-imports
         ,import-self
