@@ -91,6 +91,7 @@ Mod('ccidu1_V6',
     'frappy.simulation.SimDrivable',
     'Needle valve',
     value = Param(default=99, datatype={"type":"double", "min":0, "max":100, "unit":"%%"}),
+    target = Param(min=0, max=100),
     visibility='expert',
 )
 

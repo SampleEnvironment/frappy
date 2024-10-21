@@ -31,7 +31,7 @@ from frappy.modules import Drivable, Module, Parameter, Readable, Writable, Comm
 
 class SimBase:
     def __new__(cls, devname, logger, cfgdict, dispatcher):
-        extra_params = cfgdict.pop('extra_params', '')['value']
+        extra_params = cfgdict.pop('extra_params', {'value': ''})['value']
         if isinstance(extra_params, str):
             extra_params = [v.strip() for v in extra_params.split(',')]
         attrs = {}
