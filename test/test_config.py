@@ -41,7 +41,7 @@ def log():
     return LoggerStub()
 
 
-PY_FILE = """Node('foonode', 'fodesc', 'fooface')
+PY_FILE = """Node('foonode', 'fodesc', 'fooface', _secnode_prop='secnode_prop')
 Mod('foo', 'frappy.modules.Readable', 'description', value=5)
 Mod('bar', 'frappy.modules.Readable', 'about me', export=False)
 Mod('baz', 'frappy.modules.Readable', 'things', value=Param(3, unit='BAR'))

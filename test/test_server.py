@@ -37,10 +37,8 @@ class LoggerStub:
     def getChild(self, *args):
         return self
 
-
     def addHandler(self, *args):
         pass
-
 
     info = warning = exception = error = debug
     handlers = []
@@ -61,3 +59,14 @@ def test_file(direc, log):
     """only see that this does not throw. get config from cfgfiles."""
     s = Server('foo', log, cfgfiles='pyfile_cfg.py')
     s._processCfg()
+
+
+def test_basic_description(direc, log):
+    """only see that this does not throw. get config from cfgfiles."""
+    s = Server('foo', log, cfgfiles='pyfile_cfg.py')
+    s._processCfg()
+    desc = s.secnode.get_descriptive_data('')
+    # secnode properties correctly exported
+    assert set(desc.keys()) == set(['modules', 'description', 'equipment_id', 'firmware', '_secnode_prop'])
+    assert desc['_secnode_prop'] == 'secnode_prop'
+    assert set(desc['modules'].keys()) == set(['foo', 'baz'])
