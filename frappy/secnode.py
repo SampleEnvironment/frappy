@@ -54,7 +54,16 @@ class SecNode:
         self.name = name
 
     def add_secnode_property(self, prop, value):
+        """Add SECNode property. If starting with an underscore, it is exported
+        in the description."""
         self.nodeprops[prop] = value
+
+    def get_secnode_property(self, prop):
+        """Get SECNode property.
+
+        Returns None if not present.
+        """
+        return self.nodeprops.get(prop)
 
     def get_module(self, modulename):
         """ Returns a fully initialized module. Or None, if something went

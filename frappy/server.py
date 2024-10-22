@@ -37,6 +37,7 @@ from frappy.lib.multievent import MultiEvent
 from frappy.logging import init_remote_logging
 from frappy.params import PREDEFINED_ACCESSIBLES
 from frappy.secnode import SecNode
+from frappy.protocol.discovery import UDPListener
 
 try:
     from daemon import DaemonContext
@@ -117,6 +118,8 @@ class Server:
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
 
+        self.discovery = None
+
     def signal_handler(self, num, frame):
         if hasattr(self, 'interfaces') and self.interfaces:
             self.shutdown()
@@ -165,6 +168,7 @@ class Server:
                 print(formatException(verbose=True))
                 raise
 
+            # client interfaces
             self.interfaces = {}
             iface_threads = []
             # default_timeout 12 sec: TCPServer might need up to 10 sec to wait for Address no longer in use
@@ -197,6 +201,16 @@ class Server:
             self.secnode.add_secnode_property('_interfaces', list(self.interfaces))
             self.log.info('startup done with interface(s) %s',
                           ', '.join(self.interfaces))
+
+            # start discovery interface when we know where we listen
+            self.discovery = UDPListener(
+                self.secnode.equipment_id,
+                self.secnode.get_secnode_property('description'),
+                list(self.interfaces),
+                self.log.getChild('discovery')
+            )
+            mkthread(self.discovery.run)
+
             if systemd:
                 systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
 
@@ -237,6 +251,8 @@ class Server:
 
     def shutdown(self):
         self._restart = False
+        if self.discovery:
+            self.discovery.shutdown()
         for iface in self.interfaces.values():
             iface.shutdown()
 
