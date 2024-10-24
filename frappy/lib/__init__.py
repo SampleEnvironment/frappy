@@ -37,10 +37,6 @@ from pathlib import Path
 SECoP_DEFAULT_PORT = 10767
 
 
-_gcfg_help = """
-"""
-
-
 class GeneralConfig:
     """generalConfig holds server configuration items
 
@@ -94,14 +90,16 @@ class GeneralConfig:
             if cfg.get('confdir') is None:
                 cfg['confdir'] = configfile.parent
         # environment variables will overwrite the config file
+        missing_keys = []
         for key in mandatory:
-            env = environ.get(f'FRAPPY_{key.upper()}')
-            if env is not None:
-                cfg[key] = Path(env)
-        missing_keys = [
-            key for key in mandatory
-            if cfg.get(key) is None and self.defaults.get(key) is None
-        ]
+            env = environ.get(f'FRAPPY_{key.upper()}') or cfg.get(key)
+            if env is None:
+                if self.defaults.get(key) is None:
+                    missing_keys.append(key)
+            else:
+                if not isinstance(env, Path):
+                    env = [Path(v) for v in env.split(':')]
+                cfg[key] = env
         if missing_keys:
             if configfile:
                 raise KeyError(f"missing value for {' and '.join(missing_keys)} in {configfile}")
