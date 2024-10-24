@@ -161,7 +161,7 @@ class SeaClient(ProxyClient, Module):
         self.objects.add(obj)
         for k, v in module.path2param.items():
             self.path2param.setdefault(k, []).extend(v)
-        self.register_callback(module.name, module.updateItem)
+        self.register_callback(module.name, module.updateEvent)
 
     def _connect(self):
         try:
@@ -652,12 +652,12 @@ class SeaModule(Module):
         result = Module.__new__(newcls)
         return result
 
-    def updateItem(self, module, parameter, item):
+    def updateEvent(self, module, parameter, value, timestamp, readerror):
         upd = getattr(self, 'update_' + parameter, None)
         if upd:
-            upd(*item)
+            upd(value, timestamp, readerror)
             return
-        self.announceUpdate(parameter, *item)
+        self.announceUpdate(parameter, value, readerror, timestamp)
 
     def initModule(self):
         self.io.register_obj(self, self.sea_object)
@@ -741,10 +741,10 @@ class SeaDrivable(SeaReadable, Drivable):
             return BUSY, 'driving'
         return status
 
-    def update_target(self, module, parameter, item):
+    def update_target(self, module, parameter, value, timestamp, readerror):
         # TODO: check if this is needed
-        if item.value is not None:
-            self.target = item.value
+        if value is not None:
+            self.target = value
 
     @Command()
     def stop(self):
