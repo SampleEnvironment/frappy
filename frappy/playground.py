@@ -97,7 +97,9 @@ class Playground(Server):
         for modname, cfg in kwds.items():
             cfg.setdefault('description', modname)
         self.log = logger.log
-        self.node_cfg = {'cls': 'frappy.playground.Dispatcher', 'name': 'playground'}
+        self.node_cfg = {'cls': 'frappy.playground.Dispatcher',
+                         'name': 'playground',
+                         'description': 'playground'}
         self._testonly = True  # stops before calling startModule
         self._cfgfiles = 'main'
         self.module_cfg = {}
