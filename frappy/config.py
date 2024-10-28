@@ -133,7 +133,7 @@ def process_file(filename, log):
     node = NodeCollector()
     mods = Collector(Mod)
     ns = {'Node': node.add, 'Mod': mods.add, 'Param': Param,
-          'Prop': 'Param', 'Command': Param, 'Group': Group}
+          'Prop': Param, 'Command': Param, 'Group': Group}
 
     # pylint: disable=exec-used
     exec(compile(config_text, filename, 'exec'), ns)
