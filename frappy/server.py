@@ -26,6 +26,7 @@ import os
 import signal
 import sys
 import threading
+import time
 
 import mlzlog
 
@@ -171,17 +172,18 @@ class Server:
             lock = threading.Lock()
             failed = {}
             interfaces = [self.node_cfg['interface']] + self.node_cfg.get('secondary', [])
-            # TODO: check if only one interface of each type is open?
-            for interface in interfaces:
-                opts = {'uri': interface}
-                t = mkthread(
-                    self._interfaceThread,
-                    opts,
-                    lock,
-                    failed,
-                    interfaces_started.get_trigger(),
-                )
-                iface_threads.append(t)
+            with lock:
+                for interface in interfaces:
+                    opts = {'uri': interface}
+                    t = mkthread(
+                        self._interfaceThread,
+                        opts,
+                        lock,
+                        failed,
+                        interfaces,
+                        interfaces_started.get_trigger(),
+                    )
+                    iface_threads.append(t)
             if not interfaces_started.wait():
                 for iface in interfaces:
                     if iface not in failed and iface not in self.interfaces:
@@ -192,15 +194,23 @@ class Server:
             if not self.interfaces:
                 self.log.error('no interface started')
                 return
-            self.secnode.add_secnode_property('_interfaces', list(self.interfaces.keys()))
-            self.log.info('startup done with interface(s) %s' % ', '.join(self.interfaces))
+            self.secnode.add_secnode_property('_interfaces', list(self.interfaces))
+            self.log.info('startup done with interface(s) %s',
+                          ', '.join(self.interfaces))
             if systemd:
                 systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
 
-            # we wait here on the thread finishing, which means we got a
-            # signal to shut down or an exception was raised
-            for t in iface_threads:
-                t.join()
+            if os.name == 'nt':
+                # workaround: thread.join() on Windows blocks and is not
+                # interruptible by the signal handler, so loop and check
+                # periodically whether the interfaces are still running.
+                while True:
+                    time.sleep(1)
+                    if not interfaces:
+                        break
+            else:
+                for t in iface_threads:
+                    t.join()
 
             while failed:
                 iface, err = failed.popitem()
@@ -230,7 +240,7 @@ class Server:
         for iface in self.interfaces.values():
             iface.shutdown()
 
-    def _interfaceThread(self, opts, lock, failed, start_cb):
+    def _interfaceThread(self, opts, lock, failed, interfaces, start_cb):
         iface = opts['uri']
         scheme, _, _ = iface.rpartition('://')
         scheme = scheme or 'tcp'
@@ -247,9 +257,12 @@ class Server:
         except Exception as e:
             with lock:
                 failed[iface] = e
-            start_cb()
-            return
-        self.log.info(f'stopped {iface}')
+                interfaces.remove(iface)
+            start_cb()  # callback should also be called on failure
+        else:
+            with lock:
+                interfaces.remove(iface)
+            self.log.info(f'stopped {iface}')
 
     def _processCfg(self):
         """Processes the module configuration.
