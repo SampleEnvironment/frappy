@@ -68,9 +68,9 @@ def parseArgv(argv):
                         action='store',
                         help="comma separated list of cfg files,\n"
                         "defaults to <name_of_the_instance>.\n"
-                        "cfgfiles given without '.cfg' extension are searched"
-                        " in the configuration directory,"
-                        " else they are treated as path names",
+                        "If a config file contains a slash, it is treated as a"
+                        "path, otherwise the file is searched for in the "
+                        "configuration directory.",
                         default=None)
     parser.add_argument('-g',
                         '--gencfg',
@@ -104,7 +104,9 @@ def main(argv=None):
     generalConfig.init(args.gencfg)
     logger.init(loglevel)
 
-    srv = Server(args.name, logger.log, cfgfiles=args.cfgfiles,
+    cfgfiles = [s.strip() for s in args.cfgfiles.split(',')]
+
+    srv = Server(args.name, logger.log, cfgfiles=cfgfiles,
                  interface=args.port, testonly=args.test)
 
     if args.daemonize:

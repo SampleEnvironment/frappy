@@ -137,5 +137,5 @@ def test_process_file(direc, log):
 
 
 def test_full(direc, log):
-    ret = load_config('pyfile_cfg.py', log)
+    ret = load_config(['pyfile_cfg.py'], log)
     do_asserts(ret)

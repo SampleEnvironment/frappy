@@ -57,13 +57,13 @@ def test_name_only(direc, log):
 
 def test_file(direc, log):
     """only see that this does not throw. get config from cfgfiles."""
-    s = Server('foo', log, cfgfiles='pyfile_cfg.py')
+    s = Server('foo', log, cfgfiles=['pyfile_cfg.py'])
     s._processCfg()
 
 
 def test_basic_description(direc, log):
     """only see that this does not throw. get config from cfgfiles."""
-    s = Server('foo', log, cfgfiles='pyfile_cfg.py')
+    s = Server('foo', log, cfgfiles=['pyfile_cfg.py'])
     s._processCfg()
     desc = s.secnode.get_descriptive_data('')
     # secnode properties correctly exported

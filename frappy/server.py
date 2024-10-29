@@ -69,9 +69,9 @@ class Server:
         - name:  the node name
         - parent_logger: the logger to inherit from. a handler is installed by
             the server to provide remote logging
-        - cfgfiles: if not given, defaults to name
-            may be a comma separated list of cfg files
-            items ending with .cfg are taken as paths, else .cfg is appended and
+        - cfgfiles: if not given, defaults to [name]
+            may be a list of cfg files
+            items ending with .py are taken as paths, else _cfg.py is appended and
             files are looked up in the config path retrieved from the general config
         - interface: an uri of the from tcp://<port> or a bare port number for tcp
             if not given, the interface is taken from the config file. In case of
@@ -95,7 +95,7 @@ class Server:
         self._testonly = testonly
 
         if not cfgfiles:
-            cfgfiles = name
+            cfgfiles = [name]
         # sanitize name (in case it is a cfgfile)
         name = os.path.splitext(os.path.basename(name))[0]
         if isinstance(parent_logger, mlzlog.MLZLogger):

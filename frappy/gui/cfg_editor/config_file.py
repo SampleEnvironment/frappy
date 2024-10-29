@@ -218,8 +218,9 @@ def write_config(file_name, tree_widget):
     with open(file_name, 'w', encoding='utf-8') as configfile:
         configfile.write('\n'.join(lines))
 
+
 def read_config(file_path, log):
-    config = load_config(file_path, log)
+    config = load_config([file_path], log)
     node = TreeWidgetItem(NODE)
     ifs = TreeWidgetItem(name='Interfaces')
     mods = TreeWidgetItem(name='Modules')

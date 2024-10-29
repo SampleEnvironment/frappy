@@ -172,8 +172,8 @@ def load_config(cfgfiles, log):
     Only the node-section of the first config file will be returned.
     The others will be discarded.
     Arguments
-    - cfgfiles : str
-        Comma separated list of config-files
+    - cfgfiles : list
+        List of config file paths
     - log : frappy.logging.Mainlogger
         Logger aquired from frappy.logging
     Returns
@@ -181,8 +181,8 @@ def load_config(cfgfiles, log):
         merged configuration
     """
     config = None
-    for cfgfile in cfgfiles.split(','):
-        filename = to_config_path(cfgfile, log)
+    for cfgfile in cfgfiles:
+        filename = to_config_path(str(cfgfile), log)
         log.debug('Parsing config file %s...', filename)
         cfg = process_file(filename, log)
         if config:
