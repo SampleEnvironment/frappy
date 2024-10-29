@@ -218,11 +218,11 @@ class Server:
 
             self.log.info('stopped listening, cleaning up %d modules',
                           len(self.secnode.modules))
-            # if systemd:
-            #     if self._restart:
-            #         systemd.daemon.notify('RELOADING=1')
-            #     else:
-            #         systemd.daemon.notify('STOPPING=1')
+            if systemd:
+                if self._restart:
+                    systemd.daemon.notify('RELOADING=1')
+                else:
+                    systemd.daemon.notify('STOPPING=1')
             self.secnode.shutdown_modules()
             if self._restart:
                 self.restart_hook()
