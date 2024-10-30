@@ -564,15 +564,18 @@ class Limit(Parameter):
 
 
 # list of predefined accessibles with their type
+# the order of this list affects the parameter order
 PREDEFINED_ACCESSIBLES = {
     'value': Parameter,
     'status': Parameter,
     'target': Parameter,
     'pollinterval': Parameter,
     'ramp': Parameter,
-    'user_ramp': Parameter,
+    'use_ramp': Parameter,
     'setpoint': Parameter,
     'time_to_target': Parameter,
+    'controlled_by': Parameter,
+    'control_active': Parameter,
     'unit': Parameter,  # reserved name
     'loglevel': Parameter,  # reserved name
     'mode': Parameter,  # reserved name

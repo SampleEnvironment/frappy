@@ -33,7 +33,7 @@ from frappy.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
 from frappy.errors import BadValueError, CommunicationFailedError, ConfigError, \
     ProgrammingError, SECoPError, secop_error, RangeError
 from frappy.lib import formatException, mkthread, UniqueObject
-from frappy.params import Accessible, Command, Parameter, Limit
+from frappy.params import Accessible, Command, Parameter, Limit, PREDEFINED_ACCESSIBLES
 from frappy.properties import HasProperties, Property
 from frappy.logging import RemoteLogHandler
 
@@ -41,6 +41,7 @@ from frappy.logging import RemoteLogHandler
 # from .interfaces import SECoP_BASE_CLASSES
 # WORKAROUND:
 SECoP_BASE_CLASSES = ['Readable', 'Writable', 'Drivable', 'Communicator']
+PREDEF_ORDER = list(reversed(PREDEFINED_ACCESSIBLES))
 
 Done = UniqueObject('Done')
 """a special return value for a read_<param>/write_<param> method
@@ -77,7 +78,7 @@ class HasAccessibles(HasProperties):
             for key, value in base.__dict__.items():
                 if isinstance(value, Accessible):
                     value.updateProperties(merged_properties.setdefault(key, {}))
-                    if base == cls and key not in accessibles:
+                    if base == cls and key not in accessibles and key not in PREDEFINED_ACCESSIBLES:
                         new_names.append(key)
                     accessibles[key] = value
                     override_values.pop(key, None)
@@ -97,17 +98,15 @@ class HasAccessibles(HasProperties):
                 aobj.merge(merged_properties[aname])
             accessibles[aname] = aobj
 
-        # rebuild order: (1) inherited items, (2) items from paramOrder, (3) new accessibles
-        # move (2) to the end
-        paramOrder = cls.__dict__.get('paramOrder', ())
-        for aname in paramOrder:
-            if aname in accessibles:
-                accessibles.move_to_end(aname)
-                # ignore unknown names
+        # rebuild order:
+        # (1) predefined accessibles, in a predefined order, (2) inherited custom items, (3) new custom items
+        # move (1) to the beginning
+        for key in PREDEF_ORDER:
+            if key in accessibles:
+                accessibles.move_to_end(key, last=False)
         # move (3) to the end
         for aname in new_names:
-            if aname not in paramOrder:
-                accessibles.move_to_end(aname)
+            accessibles.move_to_end(aname)
         cls.accessibles = accessibles
 
         cls.wrappedAttributes = {'isWrapped': True}

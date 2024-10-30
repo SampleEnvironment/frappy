@@ -141,12 +141,10 @@ def test_ModuleMagic():
 
 
     # first inherited accessibles
-    sortcheck1 = ['value', 'status', 'pollinterval', 'target', 'stop',
-                 'param1', 'param2', 'cmd', 'a1', 'a2', 'cmd2']
+    sortcheck1 = ['value', 'status', 'target', 'pollinterval', 'stop',
+                  'param1', 'param2', 'cmd', 'a1', 'a2', 'cmd2']
 
     class Newclass2(Newclass1):
-        paramOrder = 'param1', 'param2', 'cmd', 'value'
-
         @Command(description='another stuff')
         def cmd2(self, arg):
             return arg
@@ -171,9 +169,9 @@ def test_ModuleMagic():
         def read_value(self):
             return 0
 
-    # first inherited items not mentioned, then the ones mentioned in paramOrder, then the other new ones
-    sortcheck2 = ['status', 'pollinterval', 'target', 'stop',
-                  'a1', 'a2', 'cmd2', 'param1', 'param2', 'cmd', 'value', 'b2']
+    # first predefined parameters, then in the order of inheritance
+    sortcheck2 = ['value', 'status', 'target', 'pollinterval', 'stop',
+                  'param1', 'param2', 'cmd', 'a1', 'a2', 'cmd2', 'b2']
 
     updates = {}
     srv = ServerStub(updates)
