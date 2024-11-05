@@ -104,7 +104,7 @@ def main(argv=None):
     generalConfig.init(args.gencfg)
     logger.init(loglevel)
 
-    cfgfiles = [s.strip() for s in args.cfgfiles.split(',')]
+    cfgfiles = [s.strip() for s in args.cfgfiles.split(',')] if args.cfgfiles else None
 
     srv = Server(args.name, logger.log, cfgfiles=cfgfiles,
                  interface=args.port, testonly=args.test)
