@@ -1,3 +1,49 @@
+frappy-core (0.20.2) jammy; urgency=medium
+
+  [ Georg Brandl ]
+  * pylint: do not try to infer too much
+
+  [ Alexander Zaft ]
+  * test_server: basic description checks
+  * simulation: fix extra_params default, ccidu1 cfg
+  * sim: make amagnet sim cfg startable again
+  * server: fix positional argument lint
+  * server: show interfaces as custom property
+  * core: fix Dispatcher and SECNode opts handling
+
+  [ Markus Zolliker ]
+  * frappy_psi.sea: bugfix: revert change of updateEvent to udpateItem
+  * fix playground
+
+  [ Alexander Zaft ]
+  * config: allow using Prop(...)
+  * config: fix typo
+  * Revert "config: allow using Prop(...)"
+  * generalconfig: streamlined config discovery
+
+  [ Markus Zolliker ]
+  * better order of accessibles: 'value' 'status' and 'target' first
+
+  [ Alexander Zaft ]
+  * server: fix windows ctrl-c
+
+  [ Georg Brandl ]
+  * systemd: enable indication of reloading/stopping
+
+  [ Alexander Zaft ]
+  * server: service discovery over UDP.
+
+  [ Markus Zolliker ]
+  * generalConfig: fix the case when confdir is a list of paths
+
+  [ Georg Brandl ]
+  * server: better handling of cfgfile argument
+
+  [ Alexander Zaft ]
+  * fix frappy-server cfgfiles command
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Wed, 06 Nov 2024 10:40:26 +0100
+
 frappy-core (0.20.1) jammy; urgency=medium
 
   * gui: do not add a console logger when there is no sys.stdout
