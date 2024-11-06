@@ -1,6 +1,7 @@
 usr/bin/frappy-cli
 usr/bin/frappy-server
 usr/bin/frappy-play
+usr/bin/frappy-scan
 usr/lib/python3.*/dist-packages/frappy/*.py
 usr/lib/python3.*/dist-packages/frappy/__pycache__
 usr/lib/python3.*/dist-packages/frappy/lib
@@ -11,3 +12,4 @@ usr/lib/python3.*/dist-packages/frappy/RELEASE-VERSION
 usr/lib/python3.*/dist-packages/frappy_demo
 lib/systemd
 var/log/frappy
+etc/frappy/generalConfig.cfg
