@@ -106,7 +106,8 @@ def get_file_paths(widget, open_file=True):
 
 def get_modules():
     modules = {}
-    generalConfig.init()
+    if not generalConfig.initialized:
+        generalConfig.init()
     base_path = generalConfig.basedir
     # pylint: disable=too-many-nested-blocks
     for dirname in listdir(base_path):
@@ -157,7 +158,8 @@ def get_interface_class_from_name(name):
 def get_interfaces():
     # TODO class must be found out like for modules
     interfaces = []
-    generalConfig.init()
+    if not generalConfig.initialized:
+        generalConfig.init()
     interface_path = path.join(generalConfig.basedir, 'frappy',
                                'protocol', 'interface')
     for filename in listdir(interface_path):
