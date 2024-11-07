@@ -1,3 +1,13 @@
+frappy-core (0.20.3) jammy; urgency=medium
+
+  [ Georg Brandl ]
+  * fixup test for cfg_editor utils to run from non-checkout, and fix names, and remove example code
+
+  [ Alexander Zaft ]
+  * add generalConfig to etc
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 07 Nov 2024 10:57:11 +0100
+
 frappy-core (0.20.2) jammy; urgency=medium
 
   [ Georg Brandl ]
