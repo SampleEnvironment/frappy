@@ -55,7 +55,7 @@ class MultiEvent(threading.Event):
 
     def __init__(self, default_timeout=None):
         self.events = set()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.default_timeout = default_timeout or None  # treat 0 as None
         self.name = None  # default event name
         self._actions = []  # actions to be executed on trigger
