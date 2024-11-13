@@ -98,7 +98,10 @@ class GeneralConfig:
                     missing_keys.append(key)
             else:
                 if not isinstance(env, Path):
-                    env = [Path(v) for v in env.split(':')]
+                    if key == 'confdir':
+                        env = [Path(v) for v in env.split(':')]
+                    else:
+                        env = Path(env)
                 cfg[key] = env
         if missing_keys:
             if configfile:
