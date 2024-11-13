@@ -189,7 +189,7 @@ class MassSpectrometer(Readable):
         super().initModule()
         self._stopflag = False
         self._thread = mkthread(self.thread)
-        #self.interface_classes = ['Triggerable','Readable']
+        self.interface_classes = ['Triggerable','Readable']
     
 
     def read_status(self):
@@ -211,6 +211,8 @@ class MassSpectrometer(Readable):
         """cease driving, go to IDLE state"""
         self.go_flag = False
         self.status = self.Status.IDLE, 'Stopped'
+        self.read_status()
+
 
 
     
