@@ -21,7 +21,7 @@
 
 from frappy.core import Command, StringIO, Parameter, HasIO, \
     Drivable, FloatRange, IDLE, BUSY, ERROR, WARN, BoolType
-from frappy.structparam import StructParam
+from frappy.extparams import StructParam
 from frappy_psi.convergence import HasConvergence
 
 
