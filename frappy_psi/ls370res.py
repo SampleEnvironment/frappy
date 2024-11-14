@@ -63,7 +63,12 @@ def parse_result(reply):
 
 class LakeShoreIO(HasIO):
     def set_param(self, cmd, *args):
-        head = ','.join([cmd] + [f'{a:g}' for a in args])
+        args = [f'{a:g}' for a in args]
+        if ' ' in cmd.strip():
+            args.insert(0, cmd)
+        else:
+            args[0] = cmd + args[0]
+        head = ','.join(args)
         tail = cmd.replace(' ', '?')
         reply = self.io.communicate(f'{head};{tail}')
         return parse_result(reply)
@@ -99,7 +104,7 @@ class Switcher(LakeShoreIO, ChannelSwitcher):
             if channelno is None:
                 self.status = 'ERROR', 'no enabled channel'
                 return
-        self.set_param(f'SCAN {channelno},0')
+        self.set_param('SCAN ', channelno, 0)
 
     def doPoll(self):
         """poll buttons
@@ -160,7 +165,7 @@ class Switcher(LakeShoreIO, ChannelSwitcher):
             self.measure_delay = chan.dwell
 
     def set_active_channel(self, chan):
-        self.set_param(f'SCAN {chan.channel},0')
+        self.set_param('SCAN ', chan.channel, 0)
         chan._last_range_change = time.monotonic()
         self.set_delays(chan)
 
@@ -227,7 +232,7 @@ class ResChannel(LakeShoreIO, Channel):
         now = time.monotonic()
         if now + 0.5 < max(self._last_range_change, self.switcher._start_switch) + self.pause:
             return None
-        result = self.get_param(f'RDGR{self.channel}')
+        result = self.get_param(f'RDGR?{self.channel}')
         if self.autorange:
             self.fix_autorange()
             if now + 0.5 > self._last_range_change + self.pause:
@@ -251,7 +256,7 @@ class ResChannel(LakeShoreIO, Channel):
 
     def read_value(self):
         if self.channel == self.switcher.value == self.switcher.target:
-            value = self._read_value()
+            value = self.get_value()
             if value is not None:
                 return value
         return self.value  # return previous value
@@ -264,7 +269,7 @@ class ResChannel(LakeShoreIO, Channel):
 
     @CommonReadHandler(rdgrng_params)
     def read_rdgrng(self):
-        iscur, exc, rng, autorange, excoff = self.get_param(f'RDGRNG{self.channel}')
+        iscur, exc, rng, autorange, excoff = self.get_param(f'RDGRNG?{self.channel}')
         self._prev_rdgrng = iscur, exc
         if autorange:  # pressed autorange button
             if not self._toggle_autorange:
@@ -293,8 +298,7 @@ class ResChannel(LakeShoreIO, Channel):
             excoff = 1
         rng = change['range']
         if self.autorange:
-            if rng < self.minrange:
-                rng = self.minrange
+            rng = max(rng, self.minrange)
         self.set_param(f'RDGRNG {self.channel}', iscur, exc, rng, 0, excoff)
         self.read_range()
 

@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+# pylint: disable=invalid-name
+# *****************************************************************************
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# Module authors:
+#   Markus Zolliker <markus.zolliker@psi.ch>
+# *****************************************************************************
+"""server for a string communicator
+
+Usage:
+
+    bin/sim-server <communicator class> -p <server port> [-o <option1>=<value> <option2>=<value>]
+
+open a server on <server port> to communicate with the string based <communicator> over TCP/IP.
+
+Use cases, mainly for test purposes:
+
+- relay to a hardware simulation written as a communicator
+
+  > bin/sim-server frappy_psi.ls370sim.Ls370Sim
+
+- relay to a communicator not using TCP/IP, if Frappy should run on an other host
+
+  > bin/sim-server frappy.io.StringIO -o uri=serial:///dev/tty...
+
+- as a T, if the hardware allows only one connection, and more than one is needed:
+
+  > bin/sim-server frappy.io.StringIO -o uri=tcp://<host>:<port>
+
+  typically using communicator class frappy.io.StringIO
+"""
+
+import sys
+import argparse
+from pathlib import Path
+import socket
+import time
+import os
+from ast import literal_eval
+from socketserver import BaseRequestHandler, ThreadingTCPServer
+
+# Add import path for inplace usage
+sys.path.insert(0, str(Path(__file__).absolute().parents[1]))
+
+from frappy.lib import get_class, formatException, mkthread
+
+
+class Logger:
+    def debug(self, *args):
+        pass
+
+    def log(self, level, *args):
+        pass
+
+    def info(self, *args):
+        print(*args)
+
+    exception = error = warn = info
+
+
+class TcpRequestHandler(BaseRequestHandler):
+    def setup(self):
+        print(f'connection opened from {self.client_address}')
+        self.running = True
+        self.request.settimeout(1)
+        self.data = b''
+
+    def finish(self):
+        """called when handle() terminates, i.e. the socket closed"""
+        # close socket
+        try:
+            self.request.shutdown(socket.SHUT_RDWR)
+        except Exception:
+            pass
+        finally:
+            print(f'connection closed from {self.client_address}')
+            self.request.close()
+
+    def poller(self):
+        while True:
+            time.sleep(1.0)
+            self.module.doPoll()
+
+    def handle(self):
+        """handle a new connection"""
+        # do a copy of the options, as they are consumed
+        self.module = self.server.modulecls(
+            'mod', Logger(), dict(self.server.options), self.server)
+        self.module.earlyInit()
+
+        mkthread(self.poller)
+        while self.running:
+            try:
+                newdata = self.request.recv(1024)
+                if not newdata:
+                    return
+            except socket.timeout:
+                # no new data during read, continue
+                continue
+            self.data += newdata
+            while self.running:
+                message, sep, self.data = self.data.partition(b'\n')
+                if not sep:
+                    break
+                cmd = message.decode('latin-1')
+                try:
+                    reply = self.module.communicate(cmd.strip())
+                    if self.server.verbose:
+                        print('%-40s | %s' % (cmd, reply))
+                except Exception:
+                    print(formatException(verbose=True))
+                    return
+                outdata = reply.encode('latin-1') + b'\n'
+                try:
+                    self.request.sendall(outdata)
+                except Exception as e:
+                    print(repr(e))
+                    self.running = False
+
+
+class Server(ThreadingTCPServer):
+    allow_reuse_address = os.name != 'nt'  # False on Windows systems
+
+    class Dispatcher:
+        def announce_update(self, *_):
+            pass
+
+        def announce_update_error(self, *_):
+            pass
+
+    def __init__(self, port, modulecls, options, verbose=False):
+        super().__init__(('', port), TcpRequestHandler,
+                         bind_and_activate=True)
+        self.secnode = None
+        self.dispatcher = self.Dispatcher()
+        self.verbose = verbose
+        self.modulecls = get_class(modulecls)
+        self.options = options
+        print(f'started sim-server listening on port {port}')
+
+
+def parse_argv(argv):
+    parser = argparse.ArgumentParser(description="Relay to a communicator (simulated HW or other)")
+    parser.add_argument("-v", "--verbose",
+                        help="output full communication",
+                        action='store_true', default=False)
+    parser.add_argument("cls",
+                        type=str,
+                        help="communicator class.\n",)
+    parser.add_argument('-p',
+                        '--port',
+                        action='store',
+                        help='server port or uri',
+                        default=2089)
+    parser.add_argument('-o',
+                        '--options',
+                        action='store',
+                        nargs='*',
+                        help='options in the form key=value',
+                        default=None)
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    args = parse_argv(argv[1:])
+    options = {'description': ''}
+    for item in args.options or ():
+        key, eq, value = item.partition('=')
+        if not eq:
+            raise ValueError(f"missing '=' in {item}")
+        try:
+            value = literal_eval(value)
+        except Exception:
+            pass
+        options[key] = value
+    srv = Server(int(args.port), args.cls, options, args.verbose)
+    srv.serve_forever()
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
