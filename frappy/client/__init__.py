@@ -481,7 +481,10 @@ class SecopClient(ProxyClient):
                                 continue
                 except Exception as e:
                     e.args = (f'error handling SECoP message {reply!r}: {e}',)
-                    self.callback(None, 'handleError',  e)
+                    try:
+                        self.callback(None, 'handleError',  e)
+                    except Exception:
+                        pass
                     continue
                 try:
                     key = action, ident
