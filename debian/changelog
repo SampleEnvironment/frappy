@@ -1,3 +1,22 @@
+frappy-core (0.20.4) jammy; urgency=medium
+
+  [ Georg Brandl ]
+  * remove unused file
+
+  [ Markus Zolliker ]
+  * frappy.lib.multievent: avoid deadlock
+
+  [ Jens Krüger ]
+  * PSI: Fix import error on ThermoFisher module
+
+  [ Markus Zolliker ]
+  * frappy.client: catch all errors in handleError callback
+
+  [ Jens Krüger ]
+  * Lib/config: Create a list of pathes only for confdir
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 14 Nov 2024 14:43:54 +0100
+
 frappy-core (0.20.3) jammy; urgency=medium
 
   [ Georg Brandl ]
