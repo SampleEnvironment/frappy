@@ -97,7 +97,7 @@ class Server:
         if not cfgfiles:
             cfgfiles = [name]
         # sanitize name (in case it is a cfgfile)
-        name = os.path.splitext(os.path.basename(name))[0]
+        self.name = name = os.path.splitext(os.path.basename(name))[0]
         if isinstance(parent_logger, mlzlog.MLZLogger):
             self.log = parent_logger.getChild(name, True)
         else:
@@ -292,10 +292,9 @@ class Server:
         errors = []
         opts = dict(self.node_cfg)
         cls = get_class(opts.pop('cls'))
-        name = opts.pop('name', '-'.join(self._cfgfiles))
         # TODO: opts not in both
-        self.secnode = SecNode(name, self.log.getChild('secnode'), opts, self)
-        self.dispatcher = cls(name, self.log.getChild('dispatcher'), opts, self)
+        self.secnode = SecNode(self.name, self.log.getChild('secnode'), opts, self)
+        self.dispatcher = cls(self.name, self.log.getChild('dispatcher'), opts, self)
 
         # add other options as SECNode properties, those with '_' prefixed will
         # get exported
