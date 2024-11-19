@@ -143,6 +143,7 @@ class HasProperties(HasDescriptors):
                 try:
                     # try to apply bare value to Property
                     po.value = po.datatype.validate(value)
+                    setattr(cls, pn, po)  # replace bare value by updated Property
                 except BadValueError:
                     if callable(value):
                         raise ProgrammingError(f'method {cls.__name__}.{pn} collides with property of {base.__name__}') from None

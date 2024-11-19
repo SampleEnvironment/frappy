@@ -148,6 +148,8 @@ def test_Property_override():
     o2 = co()
     assert o1.a == 1
     assert o2.a == 3
+    o2.setProperty('a', 4)
+    assert o2.a == 4
 
     with pytest.raises(ProgrammingError) as e:
         class cx(c):  # pylint: disable=unused-variable
