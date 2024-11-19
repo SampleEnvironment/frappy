@@ -292,7 +292,6 @@ class Server:
         errors = []
         opts = dict(self.node_cfg)
         cls = get_class(opts.pop('cls'))
-        # TODO: opts not in both
         self.secnode = SecNode(self.name, self.log.getChild('secnode'), opts, self)
         self.dispatcher = cls(self.name, self.log.getChild('dispatcher'), opts, self)
 
