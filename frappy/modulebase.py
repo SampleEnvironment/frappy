@@ -41,7 +41,7 @@ from frappy.logging import RemoteLogHandler
 # from .interfaces import SECoP_BASE_CLASSES
 # WORKAROUND:
 SECoP_BASE_CLASSES = ['Readable', 'Writable', 'Drivable', 'Communicator']
-PREDEF_ORDER = list(reversed(PREDEFINED_ACCESSIBLES))
+PREDEF_ORDER = list(PREDEFINED_ACCESSIBLES)
 
 Done = UniqueObject('Done')
 """a special return value for a read_<param>/write_<param> method
@@ -101,7 +101,7 @@ class HasAccessibles(HasProperties):
         # rebuild order:
         # (1) predefined accessibles, in a predefined order, (2) inherited custom items, (3) new custom items
         # move (1) to the beginning
-        for key in PREDEF_ORDER:
+        for key in reversed(PREDEF_ORDER):
             if key in accessibles:
                 accessibles.move_to_end(key, last=False)
         # move (3) to the end
