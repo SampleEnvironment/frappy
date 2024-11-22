@@ -259,8 +259,16 @@ class Parameter(Accessible):
         merged_properties.update(self.ownProperties)
 
     def create_from_value(self, properties, value):
-        """return a clone with given value and inherited properties"""
-        return self.clone(properties, value=self.datatype(value))
+        """return a clone with given value and inherited properties
+
+        called when a Parameter is overridden with a bare value
+        """
+        try:
+            value = self.datatype(value)
+        except Exception as e:
+            raise ProgrammingError(f'{self.name} must be assigned to a Parameter '
+                                   f'or a value compatible with {type(self.datatype).name}') from e
+        return self.clone(properties, value=value)
 
     def merge(self, merged_properties):
         """merge with inherited properties
@@ -462,7 +470,8 @@ class Command(Accessible):
     def create_from_value(self, properties, value):
         """return a clone with given value and inherited properties
 
-        this is needed when the @Command is missing on a method overriding a command"""
+        called when the @Command is missing on a method overriding a command
+        """
         if not callable(value):
             raise ProgrammingError(f'{self.name} = {value!r} is overriding a Command')
         return self.clone(properties)(value)
