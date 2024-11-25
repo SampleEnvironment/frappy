@@ -202,40 +202,41 @@ class MassSpectrometer(Readable):
     
 
     def read_value(self):
+        
         return self.spectrum
     
     def read_vacuum_pressure(self):
         return 1.0e-10 * random.randint(0,1)
     
-    def write_start_mass(self,value):
-        self.start_mass = value
-        self.spectrum = self.getSpectrum()
+    def write_start_mass(self,start_mass):
+        self.start_mass = start_mass
+        self.spectrum = self.getSpectrum(dummy = True)
         self.read_value()
         return self.start_mass
     
-    def write_end_mass(self,value):
-        self.end_mass = value
-        self.spectrum = self.getSpectrum()
+    def write_end_mass(self,end_mass):
+        self.end_mass = end_mass
+        self.spectrum = self.getSpectrum(dummy=True)
         self.read_value()
         return self.end_mass
         
         
-    def write_increment(self,value):
-        self.increment = value
-        self.spectrum = self.getSpectrum()
+    def write_increment(self,increment):
+        self.increment = increment
+        self.spectrum = self.getSpectrum(dummy=True)
         self.read_value()
         return self.increment
 
     
-    def write_mid_descriptor(self,value):
-        self.mid_descriptor = value
-        self.spectrum = self.getSpectrum()
+    def write_mid_descriptor(self,mid_descriptor):
+        self.mid_descriptor = mid_descriptor
+        self.spectrum = self.getSpectrum(dummy=True)
         self.read_value()
         return self.mid_descriptor
     
-    def write_mode(self,value):
-        self.mode = value
-        self.spectrum = self.getSpectrum()
+    def write_mode(self,mode):
+        self.mode = mode
+        self.spectrum = self.getSpectrum(dummy=True)
         self.read_value()
         return self.mode
 
@@ -264,14 +265,15 @@ class MassSpectrometer(Readable):
 
 
 
-    def getSpectrum(self,dummy:bool):
+    def getSpectrum(self,dummy:bool = False) -> list[float]:
         if self.mode == Mode('BAR_SCAN'):
             self.mass = np.arange(start=self.start_mass,stop=self.end_mass+self.increment,step=self.increment).tolist()
-
             num_mass = len(self.mass)
             
             if dummy:
                 return np.zeros(num_mass)
+            
+            print(np.random.randint(0,1000,num_mass).tolist())
             
             return np.random.randint(0,1000,num_mass).tolist()
 
@@ -285,6 +287,8 @@ class MassSpectrometer(Readable):
             
             if dummy:
                 return np.zeros(num_mass)
+            
+            print(np.random.randint(0,1000,num_mass).tolist())
 
             return np.random.randint(0,1000,num_mass).tolist()
             
@@ -305,7 +309,7 @@ class MassSpectrometer(Readable):
 
 
     def thread(self):
-        self.spectrum = {'mass':[],'partial_pressure':[],'timestamp':[]}
+        self.spectrum = [0.0,1.2]
         self.go_flag = False
 
         self.status = self.Status.IDLE, ''
@@ -319,21 +323,22 @@ class MassSpectrometer(Readable):
     def __sim(self):
 
         # keep history values for stability check
-        timestamp = time.time()
-        damper = 1
 
         while not self._stopflag:
 
             if self.go_flag:
                 time.sleep(self.aquire_time)
-                self.spectrum = self.getSpectrum()
+                self.spectrum = self.getSpectrum(dummy=False)
                 if self.scan_cycle == 'SINGLE':
                     self.status = self.Status.IDLE, 'Spectrum finished'
                     self.go_flag = False
                 self.read_value()
+                
+            
+                
+            
 
-            time.sleep(0.1)
-            self.read_value()
+
 
     def shutdownModule(self):
         # should be called from server when the server is stopped
