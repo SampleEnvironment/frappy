@@ -309,7 +309,7 @@ class MassSpectrometer(Readable):
 
 
     def thread(self):
-        self.spectrum = [0.0,1.2]
+        self.spectrum = self.getSpectrum(dummy=True)
         self.go_flag = False
 
         self.status = self.Status.IDLE, ''
