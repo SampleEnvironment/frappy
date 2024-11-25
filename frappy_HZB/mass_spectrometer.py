@@ -32,13 +32,17 @@ class MassSpectrometer(Readable):
 
     status = Parameter(datatype=StatusType(Readable, 'BUSY'))  
     
-    value = Parameter("mass, partial pressure, timestamp",
-                      StructOf(
-                          mass = ArrayOf(FloatRange(0,1000)),
-                          partial_pressure = ArrayOf(FloatRange(0,1000)),
-                          timestamp = ArrayOf(FloatRange(0,1000))
-                          ))
-    
+    value = Parameter("partial pressures of measured spectrum",
+                      ArrayOf(FloatRange(0,1000)),
+                      unit= "mbar",
+                      readonly = True        
+                          )
+        
+    mass = Parameter("mass numbers in sprectrum of value",
+                     ArrayOf(FloatRange(0,1000)),
+                             unit = 'amu',
+                             readonly = True)
+                     
     aquire_time = Parameter("time duration for aquisition of spectrum",
                             FloatRange(0,60),
                             default = 2,
@@ -66,7 +70,7 @@ class MassSpectrometer(Readable):
                                    default = {'mass':[1,2,3],'device':[0,0,0]}
                                 )
     
-    signal_measurement_device = Parameter("Selects the detector for a bar scan",
+    measurement_device = Parameter("Selects the detector for a bar scan",
                                           EnumType(Device),
                                             group = 'BAR_SCAN',
                                             readonly = False,
@@ -87,7 +91,7 @@ class MassSpectrometer(Readable):
                         readonly = False,
                         default = 30)
     
-    mass_increment = Parameter('Mass increment between scans in a bar scan',
+    increment = Parameter('Mass increment between scans in a bar scan',
                                FloatRange(0,200),
                                unit = 'amu',
                                group = 'BAR_SCAN',
@@ -203,7 +207,37 @@ class MassSpectrometer(Readable):
     def read_vacuum_pressure(self):
         return 1.0e-10 * random.randint(0,1)
     
+    def write_start_mass(self,value):
+        self.start_mass = value
+        self.spectrum = self.getSpectrum()
+        self.read_value()
+        return self.start_mass
+    
+    def write_end_mass(self,value):
+        self.end_mass = value
+        self.spectrum = self.getSpectrum()
+        self.read_value()
+        return self.end_mass
+        
+        
+    def write_increment(self,value):
+        self.increment = value
+        self.spectrum = self.getSpectrum()
+        self.read_value()
+        return self.increment
 
+    
+    def write_mid_descriptor(self,value):
+        self.mid_descriptor = value
+        self.spectrum = self.getSpectrum()
+        self.read_value()
+        return self.mid_descriptor
+    
+    def write_mode(self,value):
+        self.mode = value
+        self.spectrum = self.getSpectrum()
+        self.read_value()
+        return self.mode
 
 
     @Command(None, result=None)
@@ -230,50 +264,45 @@ class MassSpectrometer(Readable):
 
 
 
-    def getSpectrum(self):
-        start = time.time()
- 
-
+    def getSpectrum(self,dummy:bool):
         if self.mode == Mode('BAR_SCAN'):
-            mass = np.arange(start=self.start_mass,stop=self.end_mass,step=self.mass_increment).tolist()
+            self.mass = np.arange(start=self.start_mass,stop=self.end_mass+self.increment,step=self.increment).tolist()
 
-            num_mass = len(mass)
-            partial_pressure = np.random.randint(0,1000,num_mass).tolist()
+            num_mass = len(self.mass)
+            
+            if dummy:
+                return np.zeros(num_mass)
+            
+            return np.random.randint(0,1000,num_mass).tolist()
 
-            timestamps = np.linspace(start=start,stop=start+self.aquire_time,endpoint=False,num=num_mass).tolist()
 
-            return {
-                'mass':mass,
-                'partial_pressure':partial_pressure,
-                'timestamp':timestamps}
             
 
 
         elif self.mode == Mode('MID_SCAN'):
-            mass = self.mid_descriptor['mass']
-            num_mass = len(mass)
-
-            partial_pressure = np.random.randint(0,1000,num_mass).tolist()
-            timestamps = np.linspace(start=start,stop=start+self.aquire_time,endpoint=False,num=num_mass).tolist()
+            self.mass = self.mid_descriptor['mass']
+            num_mass = len(self.mass)
             
-            return {
-                'mass':mass,
-                'partial_pressure':partial_pressure,
-                'timestamp':timestamps}
+            if dummy:
+                return np.zeros(num_mass)
+
+            return np.random.randint(0,1000,num_mass).tolist()
+            
+      
         else:
-            mass = np.random.randint(0,1000,num_spec).tolist()
-            partial_pressure = np.random.randint(0,1000,num_spec).tolist()
-            timestamps = np.linspace(start=start,stop=start+self.aquire_time,endpoint=False,num=num_spec).tolist()
             
-            return {
-                'mass':mass,
-                'partial_pressure':partial_pressure,
-                'timestamp':timestamps}
+            self.mass = np.random.randint(0,1000,num_mass).tolist()
+            
+
+            if dummy:
+                return np.zeros(len(self.mass))
+
+            return np.random.randint(0,1000,num_mass).tolist()
         
 
 
         
-        return new_spectr
+
 
     def thread(self):
         self.spectrum = {'mass':[],'partial_pressure':[],'timestamp':[]}
