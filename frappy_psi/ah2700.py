@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,9 +17,20 @@
 # Module authors:
 #   Markus Zolliker <markus.zolliker@psi.ch>
 # *****************************************************************************
-"""Andeen Hagerling capacitance bridge"""
+"""Andeen Hagerling capacitance bridge
 
-from frappy.core import FloatRange, HasIO, Parameter, Readable, StringIO, nopoll
+two modules: the capacitance itself and the loss angle
+
+in the configuration file, only the capacitance module needs to be configured,
+while the loss module will be created automatically.
+
+the name of the loss module may be configured, or disabled by choosing
+an empty name
+"""
+
+from frappy.core import FloatRange, HasIO, Parameter, Readable, StringIO, nopoll, \
+    Attached, Property, StringType
+from frappy.dynamic import Pinata
 
 
 class Ah2700IO(StringIO):
@@ -28,23 +38,36 @@ class Ah2700IO(StringIO):
     timeout = 5
 
 
-class Capacitance(HasIO, Readable):
-
+class Capacitance(HasIO, Pinata, Readable):
     value = Parameter('capacitance', FloatRange(unit='pF'))
     freq = Parameter('frequency', FloatRange(unit='Hz'), readonly=False, default=0)
     voltage = Parameter('voltage', FloatRange(unit='V'), readonly=False, default=0)
-    loss = Parameter('loss', FloatRange(unit='deg'), default=0)
+    loss_name = Property('''name of loss module (default: <name>_loss)
+
+                         configure '' to disable the creation of the loss module
+                         ''',
+                         StringType(), default='$_loss')
 
     ioClass = Ah2700IO
+    loss = 0  # not a parameter
+
+    def scanModules(self):
+        if self.loss_name:
+            # if loss_name is not empty, we tell the framework to create
+            # a module for the loss with this name, and config below
+            yield self.loss_name.replace('$', self.name), {
+                'cls': Loss,
+                'description': f'loss value of {self.name}',
+                'cap': self.name}
 
     def parse_reply(self, reply):
         if reply.startswith('SI'):  # this is an echo
             self.communicate('SERIAL ECHO OFF')
             reply = self.communicate('SI')
         if not reply.startswith('F='):  # this is probably an error message like "LOSS TOO HIGH"
-            self.status = [self.Status.ERROR, reply]
+            self.status = self.Status.ERROR, reply
             return self.value
-        self.status = [self.Status.IDLE, '']
+        self.status = self.Status.IDLE, ''
         # examples of replies:
         # 'F= 1000.0  HZ C= 0.000001    PF L> 0.0         DS V= 15.0     V'
         # 'F= 1000.0  HZ C= 0.0000059   PF L=-0.4         DS V= 15.0     V OVEN'
@@ -74,11 +97,6 @@ class Capacitance(HasIO, Readable):
         return self.freq
 
     @nopoll
-    def read_loss(self):
-        self.read_value()
-        return self.loss
-
-    @nopoll
     def read_voltage(self):
         self.read_value()
         return self.voltage
@@ -90,3 +108,21 @@ class Capacitance(HasIO, Readable):
     def write_voltage(self, value):
         self.value = self.parse_reply(self.communicate(f'V {value:g};SI'))
         return self.voltage
+
+
+class Loss(Readable):
+    cap = Attached()
+    value = Parameter('loss', FloatRange(unit='deg'), default=0)
+
+    def initModule(self):
+        super().initModule()
+        self.cap.registerCallbacks(self, ['status'])  # auto update status
+
+    def update_value(self, _):
+        # value is always changed shortly after loss
+        self.value = self.cap.loss
+
+    @nopoll
+    def read_value(self):
+        self.cap.read_value()
+        return self.cap.loss

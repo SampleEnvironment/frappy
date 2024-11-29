@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -31,11 +30,15 @@ from frappy.properties import Property
 from frappy.io import HasIO
 
 
+DISCONNECTED = Readable.Status.ERROR, 'disconnected'
+
+
 class ProxyModule(HasIO, Module):
     module = Property('remote module name', datatype=StringType(), default='')
     status = Parameter('connection status', Readable.status.datatype)  # add status even when not a Readable
 
     _consistency_check_done = False
+    _connection_status = None  # status when not connected
     _secnode = None
     enablePoll = False
 
@@ -46,6 +49,8 @@ class ProxyModule(HasIO, Module):
     def updateEvent(self, module, parameter, value, timestamp, readerror):
         if parameter not in self.parameters:
             return  # ignore unknown parameters
+        if parameter == 'status' and not readerror:
+            self._connection_status = None
         # should be done here: deal with clock differences
         self.announceUpdate(parameter, value, readerror, timestamp)
 
@@ -72,7 +77,7 @@ class ProxyModule(HasIO, Module):
             pname, pobj = params.popitem()
             props = remoteparams.get(pname, None)
             if props is None:
-                if pobj.export:
+                if pobj.export and pname != 'status':
                     self.log.warning('remote parameter %s:%s does not exist', self.module, pname)
                 continue
             dt = props['datatype']
@@ -113,13 +118,14 @@ class ProxyModule(HasIO, Module):
             if not self._consistency_check_done:
                 self._check_descriptive_data()
                 self._consistency_check_done = True
+            if self._connection_status:
+                self.status = Readable.Status.IDLE, state
         else:
-            newstatus = Readable.Status.ERROR, 'disconnected'
             readerror = CommunicationFailedError('disconnected')
-            if self.status != newstatus:
+            if self.status != DISCONNECTED:
                 for pname in set(self.parameters) - set(('module', 'status')):
                     self.announceUpdate(pname, None, readerror)
-                self.announceUpdate('status', newstatus)
+                self.status = self._connection_status = DISCONNECTED
 
     def checkProperties(self):
         pass  # skip
@@ -194,7 +200,7 @@ def proxy_class(remote_class, name=None):
             attrs[aname] = pobj
 
             def rfunc(self, pname=aname):
-                value, _, readerror = self._secnode.getParameter(self.name, pname, True)
+                value, _, readerror = self._secnode.getParameter(self.module, pname, True)
                 if readerror:
                     raise readerror
                 return value
@@ -204,7 +210,7 @@ def proxy_class(remote_class, name=None):
             if not pobj.readonly:
 
                 def wfunc(self, value, pname=aname):
-                    value, _, readerror = self._secnode.setParameter(self.name, pname, value)
+                    value, _, readerror = self._secnode.setParameter(self.module, pname, value)
                     if readerror:
                         raise readerror
                     return value
@@ -215,7 +221,7 @@ def proxy_class(remote_class, name=None):
             cobj = aobj.copy()
 
             def cfunc(self, arg=None, cname=aname):
-                return self._secnode.execCommand(self.name, cname, arg)
+                return self._secnode.execCommand(self.module, cname, arg)[0]
 
             attrs[aname] = cobj(cfunc)
 

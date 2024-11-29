@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -25,12 +24,12 @@
 
 import inspect
 
-from frappy.datatypes import BoolType, CommandType, DataType, \
-    DataTypeType, EnumType, NoneOr, OrType, FloatRange, \
-    StringType, StructOf, TextType, TupleOf, ValueType, ArrayOf
-from frappy.errors import BadValueError, WrongTypeError, ProgrammingError
-from frappy.properties import HasProperties, Property
+from frappy.datatypes import ArrayOf, BoolType, CommandType, DataType, \
+    DataTypeType, EnumType, FloatRange, NoneOr, OrType, StringType, StructOf, \
+    TextType, TupleOf, ValueType
+from frappy.errors import BadValueError, ProgrammingError, WrongTypeError
 from frappy.lib import generalConfig
+from frappy.properties import HasProperties, Property
 
 generalConfig.set_default('tolerate_poll_property', False)
 generalConfig.set_default('omit_unchanged_within', 0.1)
@@ -58,13 +57,17 @@ class Accessible(HasProperties):
     def as_dict(self):
         return self.propertyValues
 
-    def override(self, value):
-        """override with a bare value"""
+    def create_from_value(self, properties, value):
+        """return a clone with given value and inherited properties"""
+        raise NotImplementedError
+
+    def clone(self, properties, **kwds):
+        """return a clone of ourselfs with inherited properties"""
         raise NotImplementedError
 
     def copy(self):
         """return a (deep) copy of ourselfs"""
-        raise NotImplementedError
+        return self.clone(self.propertyValues)
 
     def updateProperties(self, merged_properties):
         """update merged_properties with our own properties"""
@@ -94,6 +97,16 @@ class Accessible(HasProperties):
         for k, v in sorted(self.propertyValues.items()):
             props.append(f'{k}={v!r}')
         return f"{self.__class__.__name__}({', '.join(props)})"
+
+    def fixExport(self):
+        if self.export is True:
+            predefined_cls = PREDEFINED_ACCESSIBLES.get(self.name)
+            if predefined_cls is None:
+                self.export = '_' + self.name
+            elif isinstance(self, predefined_cls):
+                self.export = self.name
+            else:
+                raise ProgrammingError(f'can not use {self.name!r} as name of a {type(self).__name__}')
 
 
 class Parameter(Accessible):
@@ -222,26 +235,17 @@ class Parameter(Accessible):
         self.name = name
         if isinstance(self.datatype, EnumType):
             self.datatype.set_name(name)
+        self.fixExport()
 
-        if self.export is True:
-            predefined_cls = PREDEFINED_ACCESSIBLES.get(self.name, None)
-            if predefined_cls is Parameter:
-                self.export = self.name
-            elif predefined_cls is None:
-                self.export = '_' + self.name
-            else:
-                raise ProgrammingError(f'can not use {self.name!r} as name of a Parameter')
-            if 'export' in self.ownProperties:
-                # avoid export=True overrides export=<name>
-                self.ownProperties['export'] = self.export
-
-    def copy(self):
-        """return a (deep) copy of ourselfs"""
-        res = type(self)()
+    def clone(self, properties, **kwds):
+        """return a clone of ourselfs with inherited properties"""
+        res = type(self)(**kwds)
         res.name = self.name
-        res.init(self.propertyValues)
+        res.init(properties)
+        res.init(res.ownProperties)
         if 'datatype' in self.propertyValues:
             res.datatype = res.datatype.copy()
+        res.finish()
         return res
 
     def updateProperties(self, merged_properties):
@@ -254,9 +258,9 @@ class Parameter(Accessible):
                     merged_properties.pop(key)
         merged_properties.update(self.ownProperties)
 
-    def override(self, value):
-        """override default"""
-        self.value = self.datatype(value)
+    def create_from_value(self, properties, value):
+        """return a clone with given value and inherited properties"""
+        return self.clone(properties, value=self.datatype(value))
 
     def merge(self, merged_properties):
         """merge with inherited properties
@@ -275,7 +279,7 @@ class Parameter(Accessible):
 
         :param modobj: final call, called from Module.__init__
         """
-
+        self.fixExport()
         if self.constant is not None:
             constant = self.datatype(self.constant)
             # The value of the `constant` property should be the
@@ -391,7 +395,7 @@ class Command(Accessible):
         else:
             # goodie: allow @Command instead of @Command()
             self.func = argument  # this is the wrapped method!
-            if argument.__doc__:
+            if argument.__doc__ is not None:
                 self.description = inspect.cleandoc(argument.__doc__)
             self.name = self.func.__name__  # this is probably not needed
         self._inherit = inherit  # save for __set_name__
@@ -402,18 +406,8 @@ class Command(Accessible):
         if self.func is None:
             raise ProgrammingError(f'Command {owner.__name__}.{name} must be used as a method decorator')
 
+        self.fixExport()
         self.datatype = CommandType(self.argument, self.result)
-        if self.export is True:
-            predefined_cls = PREDEFINED_ACCESSIBLES.get(name, None)
-            if predefined_cls is Command:
-                self.export = name
-            elif predefined_cls is None:
-                self.export = '_' + name
-            else:
-                raise ProgrammingError(f'can not use {name!r} as name of a Command') from None
-            if 'export' in self.ownProperties:
-                # avoid export=True overrides export=<name>
-                self.ownProperties['export'] = self.export
         if not self._inherit:
             for key, pobj in self.properties.items():
                 if key not in self.propertyValues:
@@ -428,38 +422,50 @@ class Command(Accessible):
 
     def __call__(self, func):
         """called when used as decorator"""
-        if 'description' not in self.propertyValues and func.__doc__:
+        if isinstance(self.argument, StructOf):
+            # automatically set optional struct members
+            sig = inspect.signature(func)
+            params = set(sig.parameters.keys())
+            params.discard('self')
+            members = set(self.argument.members)
+            if params != members:
+                raise ProgrammingError(f'Command {func.__name__}: Function'
+                                       f' argument names do not match struct'
+                                       f' members!: {params} != {members}')
+            self.argument.optional = [p for p,v in sig.parameters.items()
+                   if v.default is not inspect.Parameter.empty]
+        if 'description' not in self.ownProperties and func.__doc__ is not None:
             self.description = inspect.cleandoc(func.__doc__)
             self.ownProperties['description'] = self.description
         self.func = func
         return self
 
-    def copy(self):
-        """return a (deep) copy of ourselfs"""
-        res = type(self)()
+    def clone(self, properties, **kwds):
+        """return a clone of ourselfs with inherited properties"""
+        res = type(self)(**kwds)
         res.name = self.name
+        self.fixExport()
         res.func = self.func
-        res.init(self.propertyValues)
+        res.init(properties)
+        res.init(res.ownProperties)
         if res.argument:
             res.argument = res.argument.copy()
         if res.result:
             res.result = res.result.copy()
-        self.finish()
+        res.finish()
         return res
 
     def updateProperties(self, merged_properties):
         """update merged_properties with our own properties"""
         merged_properties.update(self.ownProperties)
 
-    def override(self, value):
-        """override method
+    def create_from_value(self, properties, value):
+        """return a clone with given value and inherited properties
 
         this is needed when the @Command is missing on a method overriding a command"""
         if not callable(value):
             raise ProgrammingError(f'{self.name} = {value!r} is overriding a Command')
-        self.func = value
-        if value.__doc__:
-            self.description = inspect.cleandoc(value.__doc__)
+        return self.clone(properties)(value)
 
     def merge(self, merged_properties):
         """merge with inherited properties
@@ -488,7 +494,7 @@ class Command(Accessible):
         """perform function call
 
         :param module_obj: the module on which the command is to be executed
-        :param argument: the argument from the do command
+        :param argument: the argument from the do command (transported value!)
         :returns: the return value converted to the result type
 
         - when the argument type is TupleOf, the function is called with multiple arguments
@@ -498,6 +504,15 @@ class Command(Accessible):
         # pylint: disable=unnecessary-dunder-call
         func = self.__get__(module_obj)
         if self.argument:
+            if argument is None:
+                raise WrongTypeError(
+                    f'{module_obj.__class__.__name__}.{self.name} needs an'
+                    f' argument of type {self.argument}!'
+                )
+            # convert transported value to internal value
+            argument = self.argument.import_value(argument)
+            # verify range
+            self.argument.validate(argument)
             if isinstance(self.argument, TupleOf):
                 res = func(*argument)
             elif isinstance(self.argument, StructOf):

@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -20,31 +19,9 @@
 #
 # *****************************************************************************
 
+from frappy.io import HasIO
 from frappy.modules import Module, Attached
 from frappy.protocol.dispatcher import Dispatcher
-
-
-# class DispatcherStub:
-#     # omit_unchanged_within = 0
-#
-#     # def __init__(self, updates):
-#     #     self.updates = updates
-#     #
-#     # def announce_update(self, modulename, pname, pobj):
-#     #     self.updates.setdefault(modulename, {})
-#     #     if pobj.readerror:
-#     #         self.updates[modulename]['error', pname] = str(pobj.readerror)
-#     #     else:
-#     #         self.updates[modulename][pname] = pobj.value
-#
-#     def __init__(self):
-#         self.modules = {}
-#
-#     def get_module(self, name):
-#         return self.modules[name]
-#
-#     def register_module(self, name, module):
-#         self.modules[name] = module
 
 
 class LoggerStub:
@@ -53,8 +30,22 @@ class LoggerStub:
     info = warning = exception = debug
     handlers = []
 
+    def getChild(self, name):
+        return self
+
 
 logger = LoggerStub()
+
+
+class SecNodeStub:
+    def __init__(self):
+        self.modules = {}
+
+    def add_module(self, module, modname):
+        self.modules[modname] = module
+
+    def get_module(self, modname):
+        return self.modules[modname]
 
 
 class ServerStub:
@@ -62,7 +53,9 @@ class ServerStub:
     shutdown = None
 
     def __init__(self):
+        self.secnode = SecNodeStub()
         self.dispatcher = Dispatcher('dispatcher', logger, {}, self)
+        self.log = logger
 
 
 def test_attach():
@@ -73,6 +66,25 @@ def test_attach():
     a = Module('a', logger, {'description': ''}, srv)
     m = Mod('m', logger, {'description': '', 'att': 'a'}, srv)
     assert m.propertyValues['att'] == 'a'
-    srv.dispatcher.register_module(a, 'a')
-    srv.dispatcher.register_module(m, 'm')
+    srv.secnode.add_module(a, 'a')
+    srv.secnode.add_module(m, 'm')
     assert m.att == a
+
+
+def test_attach_hasio_uri():
+    class TestIO(Module):
+        def __init__(self, name, logger, cfgdict, srv):
+            self._uri = cfgdict.pop('uri')
+            super().__init__(name, logger, cfgdict, srv)
+
+    class HasIOTest(HasIO):
+        ioClass = TestIO
+
+    srv = ServerStub()
+    m = HasIOTest('m', logger, {'description': '', 'uri': 'abc'}, srv)
+    assert srv.secnode.modules['m_io']._uri == 'abc'
+    assert m.io == srv.secnode.modules['m_io']
+    # two modules with the same IO should use the same io module
+    m2 = HasIOTest('m', logger, {'description': '', 'uri': 'abc'}, srv)
+    assert m2.io == srv.secnode.modules['m_io']
+

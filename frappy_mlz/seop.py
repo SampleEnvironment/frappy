@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -25,16 +24,16 @@
 
 from os import path
 
-# eventually he3control
-from he3d import he3cell  # pylint: disable=import-error
-
 from frappy.core import Attached
 from frappy.datatypes import ArrayOf, FloatRange, IntRange, StatusType, \
     StringType, TupleOf
 from frappy.errors import CommandRunningError
+from frappy.lib import delayed_import
 from frappy.modules import Command, Drivable, Module, Parameter, Property, \
     Readable
 from frappy.rwhandler import CommonReadHandler
+
+he3cell = delayed_import('he3d.he3cell')
 
 integral = IntRange()
 floating = FloatRange()
@@ -111,6 +110,7 @@ class Afp(Readable):
 
 
 class Nmr(Readable):
+    # pylint: disable=invalid-name
     Status = Drivable.Status
     status = Parameter(datatype=StatusType(Drivable.Status))
     value = Parameter('Timestamp of last NMR', string)

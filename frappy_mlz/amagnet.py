@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -17,6 +16,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+#   Alexander Zaft <a.zaft@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -28,10 +28,10 @@
 
 import math
 
-from frappy.datatypes import ArrayOf, FloatRange, StringType, StructOf, TupleOf
+from frappy.datatypes import ArrayOf, FloatRange, StructOf, TupleOf
 from frappy.errors import ConfigError, DisabledError
 from frappy.lib.sequence import SequencerMixin, Step
-from frappy.modules import Drivable, Parameter
+from frappy.modules import Drivable, Parameter, Attached
 
 
 class GarfieldMagnet(SequencerMixin, Drivable):
@@ -47,19 +47,12 @@ class GarfieldMagnet(SequencerMixin, Drivable):
     the symmetry setting selects which.
     """
 
+    # attached submodules
+    currentsource = Attached(description='(bipolar) Powersupply')
+    enable = Attached(description='Switch to set for on/off')
+    polswitch = Attached(description='Switch to set for polarity')
+    symmetry = Attached(description='Switch to read for symmetry')
     # parameters
-    subdev_currentsource = Parameter('(bipolar) Powersupply',
-                                     datatype=StringType(),
-                                     readonly=True, export=False)
-    subdev_enable = Parameter('Switch to set for on/off',
-                              datatype=StringType(), readonly=True,
-                              export=False)
-    subdev_polswitch = Parameter('Switch to set for polarity',
-                                 datatype=StringType(), readonly=True,
-                                 export=False)
-    subdev_symmetry = Parameter('Switch to read for symmetry',
-                                datatype=StringType(), readonly=True,
-                                export=False)
     userlimits = Parameter('User defined limits of device value',
                            datatype=TupleOf(FloatRange(unit='$'),
                                             FloatRange(unit='$')),
@@ -111,7 +104,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         Note: This may be overridden in derived classes.
         """
         # binary search/bisection
-        maxcurr = self._currentsource.abslimits[1]
+        maxcurr = self.currentsource.abslimits[1]
         mincurr = -maxcurr
         maxfield = self._current2field(maxcurr)
         minfield = -maxfield
@@ -143,26 +136,21 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
     def initModule(self):
         super().initModule()
-        self._enable = self.DISPATCHER.get_module(self.subdev_enable)
-        self._symmetry = self.DISPATCHER.get_module(self.subdev_symmetry)
-        self._polswitch = self.DISPATCHER.get_module(self.subdev_polswitch)
-        self._currentsource = self.DISPATCHER.get_module(
-            self.subdev_currentsource)
         self.init_sequencer(fault_on_error=False, fault_on_stop=False)
-        self._symmetry.read_value()
+        self.symmetry.read_value()
 
     def read_calibration(self):
         try:
             try:
-                return self.calibrationtable[self._symmetry.value]
+                return self.calibrationtable[self.symmetry.value]
             except KeyError:
-                return self.calibrationtable[self._symmetry.value.name]
+                return self.calibrationtable[self.symmetry.value.name]
         except KeyError:
             minslope = min(entry[0]
                            for entry in self.calibrationtable.values())
             self.log.error(
                 'unconfigured calibration for symmetry %r',
-                self._symmetry.value)
+                self.symmetry.value)
             return [minslope, 0, 0, 0, 0]
 
     def _checkLimits(self, limits):
@@ -182,22 +170,22 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         return limits
 
     def read_abslimits(self):
-        maxfield = self._current2field(self._currentsource.abslimits[1])
+        maxfield = self._current2field(self.currentsource.abslimits[1])
         # limit to configured value (if any)
         maxfield = min(maxfield, max(self.accessibles['abslimits'].default))
         return -maxfield, maxfield
 
     def read_ramp(self):
         # This is an approximation!
-        return self.calibration[0] * abs(self._currentsource.ramp)
+        return self.calibration[0] * abs(self.currentsource.ramp)
 
     def write_ramp(self, newramp):
         # This is an approximation!
-        self._currentsource.ramp = float(newramp) / self.calibration[0]
+        self.currentsource.ramp = float(newramp) / self.calibration[0]
 
     def _get_field_polarity(self):
-        sign = int(self._polswitch.read_value())
-        if self._enable.read_value():
+        sign = int(self.polswitch.read_value())
+        if self.enable.read_value():
             return sign
         return 0
 
@@ -210,35 +198,35 @@ class GarfieldMagnet(SequencerMixin, Drivable):
             return
         if current_pol == 0:
             # safe to switch
-            self._polswitch.write_target(
+            self.polswitch.write_target(
                 '+1' if polarity > 0 else str(polarity))
             return
-        if self._currentsource.value < 0.1:
-            self._polswitch.write_target('0')
+        if self.currentsource.value < 0.1:
+            self.polswitch.write_target('0')
             return
         # unsafe to switch, go to safe state first
-        self._currentsource.write_target(0)
+        self.currentsource.write_target(0)
 
     def read_value(self):
         return self._current2field(
-            self._currentsource.read_value() *
+            self.currentsource.read_value() *
             self._get_field_polarity())
 
     def readHwStatus(self):
         # called from SequencerMixin.read_status if no sequence is running
-        if self._enable.value == 'Off':
+        if self.enable.value == 'Off':
             return self.Status.WARN, 'Disabled'
-        if self._enable.read_status()[0] != self.Status.IDLE:
-            return self._enable.status
-        if self._polswitch.value in ['0', 0]:
-            return self.Status.IDLE, 'Shorted, ' + self._currentsource.status[1]
-        if self._symmetry.value in ['short', 0]:
-            return self._currentsource.status[
-                0], 'Shorted, ' + self._currentsource.status[1]
-        return self._currentsource.read_status()
+        if self.enable.read_status()[0] != self.Status.IDLE:
+            return self.enable.status
+        if self.polswitch.value in ['0', 0]:
+            return self.Status.IDLE, 'Shorted, ' + self.currentsource.status[1]
+        if self.symmetry.value in ['short', 0]:
+            return self.currentsource.status[
+                0], 'Shorted, ' + self.currentsource.status[1]
+        return self.currentsource.read_status()
 
     def write_target(self, target):
-        if target != 0 and self._symmetry.read_value() in ['short', 0]:
+        if target != 0 and self.symmetry.read_value() in ['short', 0]:
             raise DisabledError(
                 'Symmetry is shorted, please select another symmetry first!')
 
@@ -251,7 +239,7 @@ class GarfieldMagnet(SequencerMixin, Drivable):
         seq.append(Step('preparing', 0, self._prepare_ramp))
         seq.append(Step('recover', 0, self._recover))
         if current_polarity != wanted_polarity:
-            if self._currentsource.read_value() > 0.1:
+            if self.currentsource.read_value() > 0.1:
                 # switching only allowed if current is low enough -> ramp down
                 # first
                 seq.append(
@@ -281,54 +269,54 @@ class GarfieldMagnet(SequencerMixin, Drivable):
 
     # steps for the sequencing
     def _prepare_ramp(self, store, *args):
-        store.old_window = self._currentsource.window
-        self._currentsource.window = 1
+        store.old_window = self.currentsource.window
+        self.currentsource.window = 1
 
     def _finish_ramp(self, store, *args):
-        self._currentsource.window = max(store.old_window, 10)
+        self.currentsource.window = max(store.old_window, 10)
 
     def _recover(self, store):
         # check for interlock
-        if self._currentsource.read_status()[0] != self.Status.ERROR:
+        if self.currentsource.read_status()[0] != self.Status.ERROR:
             return
         # recover from interlock
-        ramp = self._currentsource.ramp
-        self._polswitch.write_target('0')  # short is safe...
-        self._polswitch._hw_wait()
-        self._enable.write_target('On')  # else setting ramp won't work
-        self._enable._hw_wait()
-        self._currentsource.ramp = 60000
-        self._currentsource.target = 0
-        self._currentsource.ramp = ramp
+        ramp = self.currentsource.ramp
+        self.polswitch.write_target('0')  # short is safe...
+        self.polswitch._hw_wait()
+        self.enable.write_target('On')  # else setting ramp won't work
+        self.enable._hw_wait()
+        self.currentsource.ramp = 60000
+        self.currentsource.target = 0
+        self.currentsource.ramp = ramp
         # safe state.... if anything of the above fails, the tamperatures may
         # be too hot!
 
     def _ramp_current(self, store, target):
-        if abs(self._currentsource.value - target) <= 0.05:
+        if abs(self.currentsource.value - target) <= 0.05:
             # done with this step if no longer BUSY
-            return self._currentsource.read_status()[0] == 'BUSY'
-        if self._currentsource.status[0] != 'BUSY':
-            if self._enable.status[0] == 'ERROR':
-                self._enable.reset()
-                self._enable.read_status()
-            self._enable.write_target('On')
-            self._enable._hw_wait()
-            self._currentsource.write_target(target)
+            return self.currentsource.read_status()[0] == 'BUSY'
+        if self.currentsource.status[0] != 'BUSY':
+            if self.enable.status[0] == 'ERROR':
+                self.enable.reset()
+                self.enable.read_status()
+            self.enable.write_target('On')
+            self.enable._hw_wait()
+            self.currentsource.write_target(target)
         return True  # repeat
 
     def _ramp_current_cleanup(self, store, step_was_busy, target):
         # don't cleanup if step finished
         if step_was_busy:
-            self._currentsource.write_target(self._currentsource.read_value())
-        self._currentsource.window = max(store.old_window, 10)
+            self.currentsource.write_target(self.currentsource.read_value())
+        self.currentsource.window = max(store.old_window, 10)
 
     def _set_polarity(self, store, target):
-        if self._polswitch.read_status()[0] == self.Status.BUSY:
+        if self.polswitch.read_status()[0] == self.Status.BUSY:
             return True
-        if int(self._polswitch.value) == int(target):
+        if int(self.polswitch.value) == int(target):
             return False  # done with this step
-        if self._polswitch.read_value() != 0:
-            self._polswitch.write_target(0)
+        if self.polswitch.read_value() != 0:
+            self.polswitch.write_target(0)
         else:
-            self._polswitch.write_target(target)
+            self.polswitch.write_target(target)
         return True  # repeat

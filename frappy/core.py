@@ -1,6 +1,5 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
-# Copyright (c) 2015-2016 by the authors, see LICENSE
+# Copyright (c) 2015-2024 by the authors, see LICENSE
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,8 +28,9 @@
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, EnumType, \
     FloatRange, IntRange, ScaledInteger, StringType, StructOf, TupleOf, StatusType
 from frappy.lib.enum import Enum
+from frappy.modulebase import Done, Module, Feature
 from frappy.modules import Attached, Communicator, \
-    Done, Drivable, Feature, Module, Readable, Writable, HasAccessibles
+    Drivable, Readable, Writable
 from frappy.params import Command, Parameter, Limit
 from frappy.properties import Property
 from frappy.proxy import Proxy, SecNode, proxy_class

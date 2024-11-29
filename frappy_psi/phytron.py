@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -32,6 +31,7 @@ from frappy.core import Done, Command, EnumType, FloatRange, IntRange, \
 from frappy.errors import CommunicationFailedError, HardwareError
 from frappy.features import HasOffset
 from frappy.states import HasStates, status_code, Retry
+from frappy.lib import formatStatusBits
 
 
 class PhytronIO(StringIO):
@@ -88,15 +88,8 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
     _prev_diff = 0  # for checking progress
     _intermediate_target = 0
     _stopped_at = 0
-
-    STATUS_MAP = {
-        '08': (IDLE, ''),
-        '01': (ERROR, 'power stage failure'),
-        '02': (ERROR, 'power too low'),
-        '04': (ERROR, 'power stage over temperature'),
-        '07': (ERROR, 'no power stage'),
-        '80': (ERROR, 'encoder failure'),
-    }
+    status_bits = ['power stage error', 'undervoltage', 'overtemperature', 'active',
+                   'lower switch active', 'upper switch active', 'step failure', 'encoder error']
 
     def get(self, cmd):
         return self.communicate(f'{self.address:x}{self.axis}{cmd}')
@@ -196,14 +189,19 @@ class Motor(HasOffset, HasStates, PersistentMixin, HasIO, Drivable):
             sysstatus = self.communicate(f'{self.address:x}SE')
             try:
                 sysstatus = sysstatus[1:4] if self.axis == 'X' else sysstatus[5:8]
-                status = self.STATUS_MAP[sysstatus[1:]]
-            except Exception:  # can not interprete the reply, probably communication error
+                hexstatus = int(sysstatus, base=16)
+                status_items = formatStatusBits(hexstatus & 0xf7, self.status_bits)
+                if status_items:
+                    status = ERROR, ', '.join(status_items)
+                else:
+                    status = IDLE, ''
+            except TimeoutError: # Exception:  # can not interprete the reply, probably communication error
                 self.log.warning('bad status reply %r', sysstatus)
                 continue
             break
         else:
             status = (ERROR, f'unknown status after 3 tries {sysstatus!r}')
-        self._running = sysstatus[0] != '1'
+        self._running = (hexstatus & 0x100) == 0
         if status[0] == ERROR:
             self._blocking_error = status[1]
             return status

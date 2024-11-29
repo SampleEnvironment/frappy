@@ -5,11 +5,11 @@ Comment: FRAPPY is an implementation of the free SECoP protocol
  see https://www.github.com/SampleEnvironment/SECoP
 
 Files: *
-Copyright: 2016-2022 by the FRAPPY-SECOP contributors (see AUTHORS)
+Copyright: 2016-2024 by the FRAPPY-SECOP contributors (see AUTHORS)
 License: GPL-2
 
 Files: debian/*
-Copyright: 2015-2022 Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
+Copyright: 2015-2024 Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 License: GPL-2
 
 License: GPL-2

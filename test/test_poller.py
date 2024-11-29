@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -53,7 +52,7 @@ artime = Time()  # artificial test time
 class DispatcherStub:
     maxcycles = 10
 
-    def announce_update(self, modulename, pname, pobj):
+    def announce_update(self, moduleobj, pobj):
         now = artime.time()
         if hasattr(pobj, 'stat'):
             pobj.stat.append(now)
@@ -69,6 +68,7 @@ class ServerStub:
     def __init__(self):
         generalConfig.testinit()
         self.dispatcher = DispatcherStub()
+        self.secnode = None
 
 
 class Base(Module):
@@ -121,6 +121,7 @@ class Mod1(Base, Readable):
         return 0
 
 
+@pytest.mark.filterwarnings('ignore')  # ignore PytestUnhandledThreadExceptionWarning
 @pytest.mark.parametrize(
     'ncycles, pollinterval, slowinterval, mspan, pspan',
     [  # normal case:

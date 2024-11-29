@@ -419,3 +419,26 @@ def merge_status(*args):
     # use dict instead of set for preserving order
     merged = {m: True for mm in merged for m in mm.split(', ')}
     return maxcode, ', '.join(merged)
+
+
+class _Raiser:
+    def __init__(self, modname):
+        self.modname = modname
+
+    def __getattr__(self, name):
+        # Just retry the import, it will give the most useful exception.
+        __import__(self.modname)
+
+    def __bool__(self):
+        return False
+
+
+def delayed_import(modname):
+    """Import a module, and return an object that raises a delayed exception
+    on access if it failed.
+    """
+    try:
+        module = __import__(modname, None, None, ['*'])
+    except Exception:
+        return _Raiser(modname)
+    return module

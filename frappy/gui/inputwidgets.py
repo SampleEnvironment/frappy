@@ -1,6 +1,10 @@
-from frappy.gui.qt import QCheckBox, QComboBox, QLineEdit, pyqtSignal
+import sys
 
-from frappy.datatypes import BoolType, EnumType
+from frappy.gui.qt import QCheckBox, QComboBox, QDoubleSpinBox, QLineEdit, \
+    QSpinBox, pyqtSignal
+
+from frappy.datatypes import BoolType, EnumType, FloatRange, IntRange, \
+    StringType, TextType
 
 # ArrayOf, BLOBType, FloatRange, IntRange, StringType, StructOf, TextType, TupleOf
 
@@ -9,11 +13,24 @@ def get_input_widget(datatype, parent=None):
     return {
         EnumType: EnumInput,
         BoolType: BoolInput,
+        IntRange: IntInput,
+        StringType: StringInput,
+        TextType: StringInput,
     }.get(datatype.__class__, GenericInput)(datatype, parent)
 
 
-class GenericInput(QLineEdit):
+class InputBase:
     submitted = pyqtSignal()
+    input_feedback = pyqtSignal(str)
+
+    def get_input(self):
+        raise NotImplementedError
+
+    def submit(self):
+        self.submitted.emit()
+
+
+class GenericInput(InputBase, QLineEdit):
     def __init__(self, datatype, parent=None):
         super().__init__(parent)
         self.datatype = datatype
@@ -23,12 +40,28 @@ class GenericInput(QLineEdit):
     def get_input(self):
         return self.datatype.from_string(self.text())
 
-    def submit(self):
-        self.submitted.emit()
+
+class StringInput(GenericInput):
+    def __init__(self, datatype, parent=None):
+        super().__init__(datatype, parent)
 
 
-class EnumInput(QComboBox):
-    submitted = pyqtSignal()
+class IntInput(InputBase, QSpinBox):
+    def __init__(self, datatype, parent=None):
+        super().__init__(parent)
+        self.datatype = datatype
+        # we dont use setMaximum and setMinimum because it is quite restrictive
+        # when typing, so set it as high as possible
+        self.setMaximum(2147483647)
+        self.setMinimum(-2147483648)
+
+        self.lineEdit().returnPressed.connect(self.submit)
+
+    def get_input(self):
+        return self.datatype(self.value())
+
+
+class EnumInput(InputBase, QComboBox):
     def __init__(self, datatype, parent=None):
         super().__init__(parent)
         self.setPlaceholderText('choose value')
@@ -45,18 +78,11 @@ class EnumInput(QComboBox):
     def get_input(self):
         return self._map[self.currentIndex()].value
 
-    def submit(self):
-        self.submitted.emit()
 
-
-class BoolInput(QCheckBox):
-    submitted = pyqtSignal()
+class BoolInput(InputBase, QCheckBox):
     def __init__(self, datatype, parent=None):
         super().__init__(parent)
         self.datatype = datatype
 
     def get_input(self):
         return self.isChecked()
-
-    def submit(self):
-        self.submitted.emit()

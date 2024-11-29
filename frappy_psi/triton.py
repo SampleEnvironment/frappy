@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +26,7 @@ from frappy.datatypes import EnumType, FloatRange, StringType
 from frappy.lib.enum import Enum
 from frappy_psi.mercury import MercuryChannel, Mapped, off_on, HasInput
 from frappy_psi import mercury
+from frappy_psi.frozenparam import FrozenParam
 
 actions = Enum(none=0, condense=1, circulate=2, collect=3)
 open_close = Mapped(CLOSE=0, OPEN=1)
@@ -36,24 +36,29 @@ actions_map.mapping['NONE'] = actions.none  # when writing, STOP is used instead
 
 class Action(MercuryChannel, Writable):
     kind = 'ACTN'
-    cooldown_channel = Property('cool down channel', StringType(), 'T5')
+    cooldown_channel = Property('cool down channel', StringType(), 'T3')
     mix_channel = Property('mix channel', StringType(), 'T5')
+    still_channel = Property('still channel', StringType(), 'T4')
     value = Parameter('running action', EnumType(actions))
-    target = Parameter('action to do', EnumType(none=0, condense=1, collect=3), readonly=False)
+    target = FrozenParam('action to do', EnumType(none=0, condense=1, collect=3), readonly=False)
     _target = 0
 
     def read_value(self):
         return self.query('SYS:DR:ACTN', actions_map)
 
-    def read_target(self):
-        return self._target
+    # as target is a FrozenParam, value might be still lag behind target
+    # but will be updated when changed from an other source
+    read_target = read_value
 
     def write_target(self, value):
-        self._target = value
+        # because of some funny behavior of the triton software
+        # these channels must be set even when no change is needed
         self.change('SYS:DR:CHAN:COOL', self.cooldown_channel, str)
-        # self.change('SYS:DR:CHAN:MC', self.mix_channel, str)
-        # self.change('DEV:T5:TEMP:MEAS:ENAB', 'ON', str)
-        return self.change('SYS:DR:ACTN', value, actions_map)
+        self.change('SYS:DR:CHAN:STIL', self.still_channel, str)
+        self.change('SYS:DR:CHAN:MC', self.mix_channel, str)
+        self.change('DEV:T5:TEMP:MEAS:ENAB', 'ON', str)
+        self.change('SYS:DR:ACTN', value, actions_map)
+        return value
 
     # actions:
     # NONE (no action)
@@ -73,7 +78,7 @@ class Action(MercuryChannel, Writable):
 class Valve(MercuryChannel, Drivable):
     kind = 'VALV'
     value = Parameter('valve state', EnumType(closed=0, opened=1))
-    target = Parameter('valve target', EnumType(close=0, open=1))
+    target = FrozenParam('valve target', EnumType(close=0, open=1))
 
     _try_count = None
 
@@ -107,6 +112,10 @@ class Valve(MercuryChannel, Drivable):
         self.change('DEV::VALV:SIG:STATE', self.target, open_close)
         return BUSY, 'waiting'
 
+    # as target is a FrozenParam, value might be still lag behind target
+    # but will be updated when changed from an other source
+    read_target = read_value
+
     def write_target(self, value):
         if value != self.read_value():
             self._try_count = 0
@@ -119,13 +128,18 @@ class Valve(MercuryChannel, Drivable):
 class Pump(MercuryChannel, Writable):
     kind = 'PUMP'
     value = Parameter('pump state', EnumType(off=0, on=1))
-    target = Parameter('pump target', EnumType(off=0, on=1))
+    target = FrozenParam('pump target', EnumType(off=0, on=1))
 
     def read_value(self):
         return self.query('DEV::PUMP:SIG:STATE', off_on)
 
+    # as target is a FrozenParam, value might be still lag behind target
+    # but will be updated when changed from an other source
+    read_target = read_value
+
     def write_target(self, value):
-        return self.change('DEV::PUMP:SIG:STATE', value, off_on)
+        self.change('DEV::PUMP:SIG:STATE', value, off_on)
+        return value
 
     def read_status(self):
         return IDLE, ''
@@ -261,9 +275,12 @@ class TemperatureLoop(ScannerChannel, mercury.TemperatureLoop):
             self.change('SYS:DR:CHAN:%s' % self.system_channel, self.slot.split(',')[0], str)
         if active:
             self.change('DEV::TEMP:LOOP:FILT:ENAB', 'ON', str)
-            if self.output_module:
+            try:
                 limit = self.output_module.read_limit()
+                # output_module is an instance of HeaterOutputWithRange
                 self.output_module.write_limit(limit)
+            except AttributeError:
+                pass  # output_module is None or an instance of HeaterOutput
 
 
 class HeaterOutput(HasInput, MercuryChannel, Writable):

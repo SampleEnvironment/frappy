@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -41,12 +40,11 @@ def copytest(dt):
 
 def test_DataType():
     dt = DataType()
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ProgrammingError):
         dt.export_datatype()
     with pytest.raises(NotImplementedError):
         dt('')
     dt.export_value('')
-    dt.import_value('')
 
 
 def test_FloatRange():
@@ -63,7 +61,11 @@ def test_FloatRange():
     with pytest.raises(WrongTypeError):
         dt('XX')
     with pytest.raises(WrongTypeError):
+        dt.import_value('XX')
+    with pytest.raises(WrongTypeError):
         dt([19, 'X'])
+    with pytest.raises(WrongTypeError):
+        dt.import_value([19, 'X'])
     dt(1)
     dt(0)
     dt(13.14 - 10)  # raises an error, if resolution is not handled correctly
@@ -116,11 +118,19 @@ def test_IntRange():
     with pytest.raises(WrongTypeError):
         dt('XX')
     with pytest.raises(WrongTypeError):
+        dt.import_value('XX')
+    with pytest.raises(WrongTypeError):
         dt([19, 'X'])
+    with pytest.raises(WrongTypeError):
+        dt.import_value([19, 'X'])
     with pytest.raises(WrongTypeError):
         dt(1.3)
     with pytest.raises(WrongTypeError):
+        dt.import_value(1.3)
+    with pytest.raises(WrongTypeError):
         dt('1.3')
+    with pytest.raises(WrongTypeError):
+        dt.import_value('1.3')
     dt(1)
     dt(0)
     with pytest.raises(ProgrammingError):
@@ -154,15 +164,19 @@ def test_ScaledInteger():
     with pytest.raises(WrongTypeError):
         dt('XX')
     with pytest.raises(WrongTypeError):
+        dt.import_value('XX')
+    with pytest.raises(WrongTypeError):
         dt([19, 'X'])
+    with pytest.raises(WrongTypeError):
+        dt.import_value([19, 'X'])
     dt(1)
     dt(0)
     with pytest.raises(ProgrammingError):
         ScaledInteger('xc', 'Yx')
     with pytest.raises(ProgrammingError):
-        ScaledInteger(scale=0, minval=1, maxval=2)
+        ScaledInteger(scale=0, min=1, max=2)
     with pytest.raises(ProgrammingError):
-        ScaledInteger(scale=-10, minval=1, maxval=2)
+        ScaledInteger(scale=-10, min=1, max=2)
     # check that unit can be changed
     dt.setProperty('unit', 'A')
     assert dt.export_datatype() == {'type': 'scaled', 'scale':0.01, 'min':-300, 'max':300,
@@ -219,11 +233,19 @@ def test_EnumType():
     with pytest.raises(RangeError):
         dt(9)
     with pytest.raises(RangeError):
+        dt.import_value(9)
+    with pytest.raises(RangeError):
         dt(-9)
     with pytest.raises(RangeError):
+        dt.import_value(-9)
+    with pytest.raises(RangeError):
         dt('XX')
+    with pytest.raises(RangeError):
+        dt.import_value('XX')
     with pytest.raises(WrongTypeError):
         dt([19, 'X'])
+    with pytest.raises(WrongTypeError):
+        dt.import_value([19, 'X'])
 
     assert dt('a') == 3
     assert dt('stuff') == 1
@@ -266,6 +288,10 @@ def test_BLOBType():
         dt(b'abcdefghijklmno')
     with pytest.raises(WrongTypeError):
         dt('abcd')
+    with pytest.raises(WrongTypeError):
+        dt.import_value('ab')
+    with pytest.raises(WrongTypeError):
+        dt.import_value(b'xxx')
     assert dt(b'abcd') == b'abcd'
 
     dt.setProperty('minbytes', 1)
@@ -563,7 +589,7 @@ def test_get_datatype():
     assert isinstance(get_datatype(
          {'type': 'scaled', 'scale':0.03, 'min':-99, 'max':111}), ScaledInteger)
 
-    dt = ScaledInteger(scale=0.03, minval=0, maxval=9.9)
+    dt = ScaledInteger(scale=0.03, min=0, max=9.9)
     assert dt.export_datatype() == {'type': 'scaled', 'max':330, 'min':0, 'scale':0.03}
     assert get_datatype(dt.export_datatype()).export_datatype() == dt.export_datatype()
 

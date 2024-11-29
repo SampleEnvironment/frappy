@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -27,12 +26,11 @@ import inspect
 
 from frappy.errors import BadValueError, ConfigError, ProgrammingError
 from frappy.lib import UniqueObject
-from frappy.lib.py35compat import Object
 
 UNSET = UniqueObject('undefined value')  #: an unset value, not even None
 
 
-class HasDescriptors(Object):
+class HasDescriptors:
     @classmethod
     def __init_subclass__(cls):
         # when migrating old style declarations, sometimes the trailing comma is not removed

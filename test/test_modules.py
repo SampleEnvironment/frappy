@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -24,6 +23,8 @@
 
 import sys
 import threading
+import importlib
+from glob import glob
 import pytest
 
 from frappy.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
@@ -44,12 +45,13 @@ class DispatcherStub:
         generalConfig.testinit(omit_unchanged_within=0)
         self.updates = updates
 
-    def announce_update(self, modulename, pname, pobj):
+    def announce_update(self, moduleobj, pobj):
+        modulename = moduleobj.name
         self.updates.setdefault(modulename, {})
         if pobj.readerror:
-            self.updates[modulename]['error', pname] = str(pobj.readerror)
+            self.updates[modulename]['error', pobj.name] = str(pobj.readerror)
         else:
-            self.updates[modulename][pname] = pobj.value
+            self.updates[modulename][pobj.name] = pobj.value
 
 
 class LoggerStub:
@@ -65,6 +67,7 @@ logger = LoggerStub()
 class ServerStub:
     def __init__(self, updates):
         self.dispatcher = DispatcherStub(updates)
+        self.secnode = None
 
 
 class DummyMultiEvent(threading.Event):
@@ -76,6 +79,7 @@ class DummyMultiEvent(threading.Event):
         return trigger
 
 
+@pytest.mark.filterwarnings('ignore')  # ignore PytestUnhandledThreadExceptionWarning
 def test_Communicator():
     o = Communicator('communicator', LoggerStub(), {'description': ''}, ServerStub({}))
     o.earlyInit()
@@ -86,6 +90,7 @@ def test_Communicator():
     assert event.wait(timeout=0.1)
 
 
+@pytest.mark.filterwarnings('ignore')  # ignore PytestUnhandledThreadExceptionWarning
 def test_ModuleMagic():
     class Newclass1(Drivable):
         param1 = Parameter('param1', datatype=BoolType(), default=False)
@@ -437,12 +442,12 @@ def test_override():
     assert Mod.value.value == 5
     assert Mod.stop.description == "no decorator needed"
 
-    class Mod2(Drivable):
-        @Command()
+    class Mod2(Mod):
         def stop(self):
             pass
 
-    assert Mod2.stop.description == Drivable.stop.description
+    # inherit doc string
+    assert Mod2.stop.description == Mod.stop.description
 
 
 def test_command_config():
@@ -704,14 +709,15 @@ def test_super_call():
         def __init__(self, updates):
             self.updates = updates
 
-        def announce_update(self, modulename, pname, pobj):
+        def announce_update(self, moduleobj, pobj):
             if pobj.readerror:
                 raise pobj.readerror
-            self.updates.append((modulename, pname, pobj.value))
+            self.updates.append((moduleobj.name, pobj.name, pobj.value))
 
     class ServerStub1:
         def __init__(self, updates):
             self.dispatcher = DispatcherStub1(updates)
+            self.secnode = None
 
     updates = []
     srv = ServerStub1(updates)
@@ -916,3 +922,24 @@ def test_interface_classes(bases, iface_classes):
         pass
     m = Mod('mod', LoggerStub(), {'description': 'test'}, srv)
     assert m.interface_classes == iface_classes
+
+
+all_drivables = set()
+for pyfile in glob('frappy_*/*.py'):
+    module = pyfile[:-3].replace('/', '.')
+    try:
+        importlib.import_module(module)
+    except Exception as e:
+        print(module, e)
+        continue
+    for obj_ in sys.modules[module].__dict__.values():
+        if isinstance(obj_, type) and issubclass(obj_, Drivable):
+            all_drivables.add(obj_)
+
+
+@pytest.mark.parametrize('modcls', all_drivables)
+def test_stop_doc(modcls):
+    # make sure that implemented stop methods have a doc string
+    if (modcls.stop.description == Drivable.stop.description
+            and modcls.stop.func != Drivable.stop.func):
+        assert modcls.stop.func.__doc__  # stop method needs a doc string

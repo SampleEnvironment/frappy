@@ -1,5 +1,5 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
+# Copyright (c) 2015-2024 by the authors, see LICENSE
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -89,11 +89,10 @@ class MainWindow(QMainWindow):
               cfg-editor is a graphical interface for editing
               FRAPPY-configuration-files.
             </p>
-            <h3>Author:</h3>
+            <h3>Authors:</h3>
+            Copyright (C) 2019-2024
             <ul>
-              <li>Copyright (C) 2019
-                <a href="mailto:sandra.seger@frm2.tum.de">Sandra Seger</a>
-                </li>
+              <li><a href="mailto:sandra.seger@frm2.tum.de">Sandra Seger</a></li>
             </ul>
             <p>
               cfg-editor is published under the

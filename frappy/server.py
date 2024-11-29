@@ -25,14 +25,14 @@
 import os
 import signal
 import sys
-from collections import OrderedDict
+import threading
 
 from frappy.config import load_config
 from frappy.errors import ConfigError
-from frappy.dynamic import Pinata
 from frappy.lib import formatException, generalConfig, get_class, mkthread
 from frappy.lib.multievent import MultiEvent
 from frappy.params import PREDEFINED_ACCESSIBLES
+from frappy.secnode import SecNode
 
 try:
     from daemon import DaemonContext
@@ -53,6 +53,7 @@ except ImportError:
 class Server:
     INTERFACES = {
         'tcp': 'protocol.interface.tcp.TCPServer',
+        'ws': 'protocol.interface.ws.WSServer',
     }
     _restart = True
 
@@ -71,19 +72,18 @@ class Server:
             multiple cfg files, the interface is taken from the first cfg file
         - testonly: test mode. tries to build all modules, but the server is not started
 
-        Format of cfg file (for now, both forms are accepted):
-        old form:                  new form:
-
-        [node <equipment id>]      [NODE]
-        description=<descr>        id=<equipment id>
-                                   description=<descr>
-
-        [interface tcp]            [INTERFACE]
-        bindport=10769             uri=tcp://10769
-        bindto=0.0.0.0
-
-        [module temp]              [temp]
-        ramp=12                    ramp=12
+        Config file:
+        Format:                     Example:
+        Node('<equipment_id>',      Node('ex.frappy.demo',
+            <description>,              'short description\n\nlong descr.',
+            <main interface>,           'tcp://10769',
+            secondary=[                 secondary=['ws://10770'],  # optional
+              <interfaces>
+            ],
+        )                               )
+        Mod('<module name>',        Mod('temp',
+            <param config>              value = Param(unit='K'),
+        )                           )
         ...
         """
         self._testonly = testonly
@@ -108,9 +108,13 @@ class Server:
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
 
-    def signal_handler(self, _num, _frame):
-        if hasattr(self, 'interface') and self.interface:
+    def signal_handler(self, num, frame):
+        if hasattr(self, 'interfaces') and self.interfaces:
             self.shutdown()
+        else:
+            # TODO: we should probably clean up the already initialized modules
+            # when getting an interrupt while the server is starting
+            signal.default_int_handler(num, frame)
 
     def start(self):
         if not DaemonContext:
@@ -152,33 +156,55 @@ class Server:
                 print(formatException(verbose=True))
                 raise
 
-            opts = {'uri': self.node_cfg['interface']}
-            scheme, _, _ = opts['uri'].rpartition('://')
-            scheme = scheme or 'tcp'
-            cls = get_class(self.INTERFACES[scheme])
-            with cls(scheme, self.log.getChild(scheme), opts, self) as self.interface:
-                if opts:
-                    raise ConfigError(self.unknown_options(cls, opts))
-                self.log.info('startup done, handling transport messages')
-                if systemd:
-                    systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
-                t = mkthread(self.interface.serve_forever)
-                # we wait here on the thread finishing, which means we got a
-                # signal to shut down or an exception was raised
-                # TODO: get the exception (and re-raise?)
-                t.join()
-                self.interface = None  # fine due to the semantics of 'with'
-                # server_close() called by 'with'
+            self.interfaces = {}
+            iface_threads = []
+            # default_timeout 12 sec: TCPServer might need up to 10 sec to wait for Address no longer in use
+            interfaces_started = MultiEvent(default_timeout=12)
+            lock = threading.Lock()
+            failed = {}
+            interfaces = [self.node_cfg['interface']] + self.node_cfg.get('secondary', [])
+            # TODO: check if only one interface of each type is open?
+            for interface in interfaces:
+                opts = {'uri': interface}
+                t = mkthread(
+                    self._interfaceThread,
+                    opts,
+                    lock,
+                    failed,
+                    interfaces_started.get_trigger(),
+                )
+                iface_threads.append(t)
+            if not interfaces_started.wait():
+                for iface in interfaces:
+                    if iface not in failed and iface not in self.interfaces:
+                        self.log.error('timeout starting interface %s', iface)
+            while failed:
+                iface, err = failed.popitem()
+                self.log.error('starting interface %s failed with %r', iface, err)
+            if not self.interfaces:
+                self.log.error('no interface started')
+                return
+            self.log.info('startup done with interface(s) %s' % ', '.join(self.interfaces))
+            if systemd:
+                systemd.daemon.notify("READY=1\nSTATUS=accepting requests")
 
-            self.log.info(f'stopped listenning, cleaning up'
-                          f' {len(self.modules)} modules')
+            # we wait here on the thread finishing, which means we got a
+            # signal to shut down or an exception was raised
+            for t in iface_threads:
+                t.join()
+
+            while failed:
+                iface, err = failed.popitem()
+                self.log.error('interface %s failed with %r', iface, err)
+
+            self.log.info('stopped listening, cleaning up %d modules',
+                          len(self.secnode.modules))
             # if systemd:
             #     if self._restart:
             #         systemd.daemon.notify('RELOADING=1')
             #     else:
             #         systemd.daemon.notify('STOPPING=1')
-            for name in self._getSortedModules():
-                self.modules[name].shutdownModule()
+            self.secnode.shutdown_modules()
             if self._restart:
                 self.restart_hook()
                 self.log.info('restarting')
@@ -187,11 +213,34 @@ class Server:
     def restart(self):
         if not self._restart:
             self._restart = True
-            self.interface.shutdown()
+            for iface in self.interfaces.values():
+                iface.shutdown()
 
     def shutdown(self):
         self._restart = False
-        self.interface.shutdown()
+        for iface in self.interfaces.values():
+            iface.shutdown()
+
+    def _interfaceThread(self, opts, lock, failed, start_cb):
+        iface = opts['uri']
+        scheme, _, _ = iface.rpartition('://')
+        scheme = scheme or 'tcp'
+        cls = get_class(self.INTERFACES[scheme])
+        try:
+            with cls(scheme, self.log.getChild(scheme), opts, self) as interface:
+                if opts:
+                    raise ConfigError(self.unknown_options(cls, opts))
+                with lock:
+                    self.interfaces[iface] = interface
+                start_cb()
+                interface.serve_forever()
+                # server_close() called by 'with'
+        except Exception as e:
+            with lock:
+                failed[iface] = e
+            start_cb()
+            return
+        self.log.info(f'stopped {iface}')
 
     def _processCfg(self):
         """Processes the module configuration.
@@ -205,50 +254,27 @@ class Server:
         errors = []
         opts = dict(self.node_cfg)
         cls = get_class(opts.pop('cls'))
-        self.dispatcher = cls(opts.pop('name', self._cfgfiles),
-                              self.log.getChild('dispatcher'), opts, self)
+        name = opts.pop('name', self._cfgfiles)
+        # TODO: opts not in both
+        self.secnode = SecNode(name, self.log.getChild('secnode'), opts, self)
+        self.dispatcher = cls(name, self.log.getChild('dispatcher'), opts, self)
 
         if opts:
-            self.dispatcher.errors.append(self.unknown_options(cls, opts))
-        self.modules = OrderedDict()
+            self.secnode.errors.append(self.unknown_options(cls, opts))
 
-        # create and initialize modules
-        todos = list(self.module_cfg.items())
-        while todos:
-            modname, options = todos.pop(0)
-            if modname in self.modules:
-                # already created by Dispatcher (via Attached)
-                continue
-            # For Pinata modules: we need to access this in Dispatcher.get_module
-            self.module_cfg[modname] = dict(options)
-            modobj = self.dispatcher.get_module_instance(modname) # lazy
-            if modobj is None:
-                self.log.debug('Module %s returned None', modname)
-                continue
-            self.modules[modname] = modobj
-            if isinstance(modobj, Pinata):
-                # scan for dynamic devices
-                pinata = self.dispatcher.get_module(modname)
-                pinata_modules = list(pinata.scanModules())
-                for name, _cfg in pinata_modules:
-                    if name in self.module_cfg:
-                        self.log.error('Module %s, from pinata %s, already'
-                                       ' exists in config file!', name, modname)
-                self.log.info('Pinata %s found %d modules', modname, len(pinata_modules))
-                todos.extend(pinata_modules)
-
+        self.secnode.create_modules()
         # initialize all modules by getting them with Dispatcher.get_module,
         # which is done in the get_descriptive data
         # TODO: caching, to not make this extra work
-        self.dispatcher.get_descriptive_data('')
+        self.secnode.get_descriptive_data('')
         # =========== All modules are initialized ===========
 
         # all errors from initialization process
-        errors = self.dispatcher.errors
+        errors = self.secnode.errors
 
         if not self._testonly:
             start_events = MultiEvent(default_timeout=30)
-            for modname, modobj in self.modules.items():
+            for modname, modobj in self.secnode.modules.items():
                 # startModule must return either a timeout value or None (default 30 sec)
                 start_events.name = f'module {modname}'
                 modobj.startModule(start_events)
@@ -275,7 +301,8 @@ class Server:
         self.log.info('all modules started')
         history_path = os.environ.get('FRAPPY_HISTORY')
         if history_path:
-            from frappy_psi.historywriter import FrappyHistoryWriter  # pylint: disable=import-outside-toplevel
+            from frappy_psi.historywriter import \
+                FrappyHistoryWriter  # pylint: disable=import-outside-toplevel
             writer = FrappyHistoryWriter(history_path, PREDEFINED_ACCESSIBLES.keys(), self.dispatcher)
             # treat writer as a connection
             self.dispatcher.add_connection(writer)
@@ -288,41 +315,3 @@ class Server:
         #   history_path = os.environ.get('ALTERNATIVE_HISTORY')
         #   if history_path:
         #       from frappy_<xx>.historywriter import ... etc.
-
-    def _getSortedModules(self):
-        """Sort modules topologically by inverse dependency.
-
-        Example: if there is an IO device A and module B depends on it, then
-        the result will be [B, A].
-        Right now, if the dependency graph is not a DAG, we give up and return
-        the unvisited nodes to be dismantled at the end.
-        Taken from Introduction to Algorithms [CLRS].
-        """
-        def go(name):
-            if name in done:  # visiting a node
-                return True
-            if name in visited:
-                visited.add(name)
-                return False  # cycle in dependencies -> fail
-            visited.add(name)
-            if name in unmarked:
-                unmarked.remove(name)
-            for module in self.modules[name].attachedModules.values():
-                res = go(module.name)
-                if not res:
-                    return False
-            visited.remove(name)
-            done.add(name)
-            l.append(name)
-            return True
-
-        unmarked = set(self.modules.keys())  # unvisited nodes
-        visited = set()  # visited in DFS, but not completed
-        done = set()
-        l = []  # list of sorted modules
-
-        while unmarked:
-            if not go(unmarked.pop()):
-                self.log.error('cyclical dependency between modules!')
-                return l[::-1] + list(visited) + list(unmarked)
-        return l[::-1]

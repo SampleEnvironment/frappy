@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # MLZ Tango client tool
-# Copyright (c) 2015-2016 by the authors, see LICENSE
+# Copyright (c) 2015-2024 by the authors, see LICENSE
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -31,7 +30,9 @@ from setuptools import find_packages, setup
 
 import frappy.version
 
-scripts = glob(path.join('bin', 'frappy-*'))
+# cfg-editor is currently not functional
+scripts = [script for script in glob(path.join('bin', 'frappy-*'))
+           if not script.endswith('cfg-editor')]
 
 uidir = path.join(path.dirname(__file__), 'frappy', 'gui', 'ui')
 uis = [path.join('gui', 'ui', entry) for entry in listdir(uidir)]

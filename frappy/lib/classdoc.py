@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 #
 # This program is free software; you can redistribute it and/or modify it under
@@ -22,12 +21,14 @@
 
 from textwrap import indent
 
-from frappy.modules import Command, HasProperties, Module, Parameter, Property
+from frappy.modules import Command, Parameter, Property
+from frappy.modulebase import HasProperties, Module
 
 
 def indent_description(p):
     """indent lines except first one"""
-    return indent(p.description, '      ').replace('      ', '', 1)
+    space = ' ' * 6
+    return indent(p.description, space).replace(space, '', 1)
 
 
 def fmt_param(name, param):
