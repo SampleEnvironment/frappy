@@ -113,71 +113,71 @@ class MassSpectrometer(Readable):
                                 default = 70
                                 )
     emission = Parameter('The Emission current is the current which flows from the active filament to the Ion Source Cage. An increase in Emission Current causes an increase in peak intensity, can be used to increase/reduce the peak intensities.',
-                         FloatRange(minval=0),
+                         FloatRange(min=0),
                          unit = 'A',
                          group = 'global_residual_gas_analysis_parameters',
                          default = 250e-06)
     
     focus = Parameter('This is the voltage applied to the Focus plate. This is used to extract the positive Ions from the source and into the Mass Filter, and also to block the transmission of electrons.',
-                      FloatRange(minval=-1000,maxval=1000),
+                      FloatRange(min=-1000,max=1000),
                       unit = 'V',
                       group = 'global_residual_gas_analysis_parameters',
                       default = -90)
     
     multiplier = Parameter('The voltage applied to the SEM detector; with a PIC this should be set so the SEM operates in the Plateau Region. With an Analogue system this should be set to 1000 gain, i.e. a scan in Faraday should be equal height using the SEM detector.',
-                           FloatRange(minval=0),
+                           FloatRange(min=0),
                            unit = 'V',
                            group = 'global_residual_gas_analysis_parameters',
                            default = 910)
     
     cage = Parameter('This is the Ion Source Cage voltage which controls the Ion Energy. The higher the Ion Energy the faster the Ions travel through the Mass Filter to the Detector, this reduces the oscillation effect caused by the RF which is applied to the filter.',
-                     FloatRange(minval= 0),
+                     FloatRange(min= 0),
                      unit = 'V',
                      group = 'global_residual_gas_analysis_parameters',
                      default = 3)
     
     resolution = Parameter('The high mass peak width/valley adjustment used during set up and maintenance. Can also affect the low masses and should be adjusted in conjunction with the Delta-M.',
-                           FloatRange(minval= 0 ),
+                           FloatRange(min= 0 ),
                            unit = '%',
                            group = 'global_residual_gas_analysis_parameters',
                            default = 0)
     
     delta_m = Parameter('The low mass peak width/valley adjustment used during set up and maintenance. Can also affect the high masses and should be adjusted in conjunction with the Resolution',
-                        FloatRange(minval= 0 ),
+                        FloatRange(min= 0 ),
                         unit = '%',
                         group = 'global_residual_gas_analysis_parameters',
                         default = 0)
     
     start_range = Parameter('Contains the range used at the start of a scan.',
-                            FloatRange(minval=0),
+                            FloatRange(min=0),
                             unit = 'mbar',
                             group = 'acquisition_range',
                             readonly = True,
                             default = 1e-5)
     
     autorange_high = Parameter('The highest range to which the input device may autorange',
-                        FloatRange(minval=0),
+                        FloatRange(min=0),
                         unit = 'mbar',
                         group = 'acquisition_range',
                         readonly = True,
                         default = 1e-5)
     
     autorange_low = Parameter('The lowest range to which the input device may autorange',
-                        FloatRange(minval=0),
+                        FloatRange(min=0),
                         unit = 'mbar',
                         group = 'acquisition_range',
                         readonly = True,
                         default = 1e-10)
     
     settle = Parameter('Defines the time to allow the electronics to settle before the scan is started. Given as a percentage of the default settle time for the current range.',
-                        FloatRange(minval=0),
+                        FloatRange(min=0),
                         unit = '%',
                         group = 'acquisition_range',
                         readonly = True,
                         default = 100)
     
     dwell = Parameter('Defines the time used to acquire a single point in the scan. Given as a percentage of the default settle time for the current range.',
-                        FloatRange(minval=0),
+                        FloatRange(min=0),
                         unit = '%',
                         group = 'acquisition_range',
                         readonly = True,

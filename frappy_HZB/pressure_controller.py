@@ -22,9 +22,9 @@ class PressureController(Drivable):
         export=True,
         extname='meaning')
 
-    value   = Parameter("back pressure reactor section",FloatRange(minval=0,maxval=5000),default = 0,unit = "mbar" )
-    target  = Parameter("Desired back pressure",FloatRange(minval=0,maxval=5000),default = 0,unit = "mbar" )
-    ramp    = Parameter("desired ramp ",FloatRange(minval=0,maxval=1000),default = 0,unit = "mbar/min" ,readonly = False)
+    value   = Parameter("back pressure reactor section",FloatRange(min=0,max=5000),default = 0,unit = "mbar" )
+    target  = Parameter("Desired back pressure",FloatRange(min=0,max=5000),default = 0,unit = "mbar" )
+    ramp    = Parameter("desired ramp ",FloatRange(min=0,max=1000),default = 0,unit = "mbar/min" ,readonly = False)
     pollinterval = Parameter("polling interval",datatype=FloatRange(0), default=5)
     tolerance = Parameter("pressure range for stability checking",datatype=FloatRange(0,100),default = 5,unit = "mbar",readonly = False)
 
