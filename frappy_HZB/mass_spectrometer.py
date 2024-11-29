@@ -334,6 +334,8 @@ class MassSpectrometer(Readable):
                     self.go_flag = False
                 self.read_value()
                 
+            time.sleep(0.1)
+                
             
                 
             
