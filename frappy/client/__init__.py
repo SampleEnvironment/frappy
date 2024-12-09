@@ -22,8 +22,6 @@
 # *****************************************************************************
 """general SECoP client"""
 
-# pylint: disable=too-many-positional-arguments
-
 import json
 import queue
 import re
