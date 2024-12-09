@@ -188,10 +188,8 @@ class HasAccessibles(HasProperties):
                                 if new_value is Done:  # TODO: to be removed when all code using Done is updated
                                     return getattr(self, pname)
                                 new_value = value if new_value is None else validate(new_value)
-                        except Exception as e:
-                            if isinstance(e, SECoPError):
-                                e.raising_methods.append(f'{self.name}.write_{pname}')
-                            self.announceUpdate(pname, err=e)
+                        except SECoPError as e:
+                            e.raising_methods.append(f'{self.name}.write_{pname}')
                             raise
                         self.announceUpdate(pname, new_value, validate=False)
                         return new_value
@@ -516,13 +514,13 @@ class Module(HasAccessibles):
         with self.updateLock:
             pobj = self.parameters[pname]
             timestamp = timestamp or time.time()
+            changed = False
             if not err:
                 try:
                     if validate:
                         value = pobj.datatype(value)
                 except Exception as e:
                     err = e
-                    changed = False
                 else:
                     changed = pobj.value != value or pobj.readerror
                     # store the value even in case of error

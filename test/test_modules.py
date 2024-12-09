@@ -28,7 +28,7 @@ from glob import glob
 import pytest
 
 from frappy.datatypes import BoolType, FloatRange, StringType, IntRange, ScaledInteger
-from frappy.errors import ProgrammingError, ConfigError, RangeError
+from frappy.errors import ProgrammingError, ConfigError, RangeError, HardwareError
 from frappy.modules import Communicator, Drivable, Readable, Module, Writable
 from frappy.params import Command, Parameter, Limit
 from frappy.rwhandler import ReadHandler, WriteHandler, nopoll
@@ -941,3 +941,36 @@ def test_stop_doc(modcls):
     if (modcls.stop.description == Drivable.stop.description
             and modcls.stop.func != Drivable.stop.func):
         assert modcls.stop.func.__doc__  # stop method needs a doc string
+
+
+def test_write_error():
+    updates = {}
+    srv = ServerStub(updates)
+
+    class Mod(Module):
+        par = Parameter('', FloatRange(), readonly=False, default=0)
+
+        def read_par(self):
+            raise HardwareError('failure')
+
+        def write_par(self, value):
+            if value < 0:
+                raise RangeError('outside range')
+
+    a = Mod('a', LoggerStub(), {'description': 'test'}, srv)
+
+    # behaviour on read errors:
+    with pytest.raises(HardwareError):
+        a.read_par()
+    assert updates == {'a': {('error', 'par'): 'failure'}}
+    updates.clear()
+
+    # behaviour on normal write
+    a.write_par(1)
+    assert updates['a']['par'] == 1
+    updates.clear()
+
+    # behaviour when write failed
+    with pytest.raises(RangeError):
+        a.write_par(-1)
+    assert not updates # no error update!
