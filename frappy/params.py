@@ -267,7 +267,7 @@ class Parameter(Accessible):
             value = self.datatype(value)
         except Exception as e:
             raise ProgrammingError(f'{self.name} must be assigned to a Parameter '
-                                   f'or a value compatible with {type(self.datatype).name}') from e
+                                   f'or a value compatible with {type(self.datatype).__name__}') from e
         return self.clone(properties, value=value)
 
     def merge(self, merged_properties):
