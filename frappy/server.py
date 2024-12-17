@@ -176,6 +176,8 @@ class Server:
             lock = threading.Lock()
             failed = {}
             interfaces = [self.node_cfg['interface']] + self.node_cfg.get('secondary', [])
+            # allow missing "tcp://"
+            interfaces = [iface if '://' in iface else f'tcp://{iface}' for iface in interfaces]
             with lock:
                 for interface in interfaces:
                     opts = {'uri': interface}
@@ -258,8 +260,7 @@ class Server:
 
     def _interfaceThread(self, opts, lock, failed, interfaces, start_cb):
         iface = opts['uri']
-        scheme, _, _ = iface.rpartition('://')
-        scheme = scheme or 'tcp'
+        scheme = iface.split('://')[0]
         cls = get_class(self.INTERFACES[scheme])
         try:
             with cls(scheme, self.log.getChild(scheme), opts, self) as interface:
