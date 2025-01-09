@@ -108,7 +108,6 @@ class Server:
         self.node_cfg = merged_cfg.pop('node')
         self.module_cfg = merged_cfg
         if interface:
-            self.node_cfg['equipment_id'] = name
             self.node_cfg['interface'] = str(interface)
         elif not self.node_cfg.get('interface'):
             raise ConfigError('No interface specified in configuration or arguments!')
