@@ -319,6 +319,8 @@ class Module(HasAccessibles):
     slowinterval = Property('poll interval for other parameters', FloatRange(0.1, 120), default=15)
     omit_unchanged_within = Property('default for minimum time between updates of unchanged values',
                                      NoneOr(FloatRange(0)), export=False, default=None)
+    original_id = Property('original equipment_id\n\ngiven only if different from equipment_id of node',
+                           NoneOr(StringType()), default=None, export=True)  # exported as custom property _original_id
     enablePoll = True
 
     pollInfo = None

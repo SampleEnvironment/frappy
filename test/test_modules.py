@@ -243,7 +243,7 @@ def test_ModuleMagic():
         'export', 'group', 'description', 'features',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'slowinterval', 'b2',
-        'cmd2', 'value', 'a1', 'omit_unchanged_within'}
+        'cmd2', 'value', 'a1', 'omit_unchanged_within', 'original_id'}
     assert set(cfg['value'].keys()) == {
         'group', 'export', 'relative_resolution',
         'visibility', 'unit', 'default', 'value', 'datatype', 'fmtstr',

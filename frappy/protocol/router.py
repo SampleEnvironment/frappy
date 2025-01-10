@@ -77,26 +77,30 @@ class SecopClient(frappy.client.SecopClient):
 
 
 class Router(frappy.protocol.dispatcher.Dispatcher):
-    singlenode = None
-
     def __init__(self, name, logger, options, srv):
         """initialize router
 
         Use the option node = <uri> for a single node or
         nodes = ["<uri1>", "<uri2>" ...] for multiple nodes.
-        If a single node is given, the node properties are forwarded transparently,
+        If a single node is given, and no more additional modules are given,
+        the node properties are forwarded transparently,
         else the description property is a merge from all client node properties.
         """
         uri = options.pop('node', None)
         uris = options.pop('nodes', None)
-        if uri and uris:
-            raise frappy.errors.ConfigError('can not specify node _and_ nodes')
+        try:
+            if uris is not None:
+                if isinstance(uris, str) or not all(isinstance(v, str) for v in uris) or uri:
+                    raise TypeError()
+            elif isinstance(uri, str):
+                uris = [uri]
+            else:
+                raise TypeError()
+        except Exception as e:
+            raise frappy.errors.ConfigError("a router needs either 'node' as a string'"
+                                            "' or 'nodes' as a list of strings") from e
         super().__init__(name, logger, options, srv)
-        if uri:
-            self.nodes = [SecopClient(uri, logger.getChild('routed'), self)]
-            self.singlenode = self.nodes[0]
-        else:
-            self.nodes = [SecopClient(uri, logger.getChild(f'routed{i}'), self) for i, uri in enumerate(uris)]
+        self.nodes = [SecopClient(uri, logger.getChild(f'routed{i}'), self) for i, uri in enumerate(uris)]
         # register callbacks
         for node in self.nodes:
             node.register_callback(None, node.updateEvent, node.descriptiveDataChange, node.nodeStateChange)
@@ -127,8 +131,8 @@ class Router(frappy.protocol.dispatcher.Dispatcher):
                 logger.warning('can not connect to node %r', node.nodename)
 
     def handle_describe(self, conn, specifier, data):
-        if self.singlenode:
-            return DESCRIPTIONREPLY, specifier, self.singlenode.descriptive_data
+        if len(self.nodes) == 1 and not self.secnode.modules:
+            return DESCRIPTIONREPLY, specifier, self.nodes[0].descriptive_data
         reply = super().handle_describe(conn, specifier, data)
         result = reply[2]
         allmodules = result.get('modules', {})
@@ -144,6 +148,7 @@ class Router(frappy.protocol.dispatcher.Dispatcher):
                     self.log.info('module %r is already present', modname)
                 else:
                     allmodules[modname] = moddesc
+                    moddesc.setdefault('original_id', equipment_id)
         result['modules'] = allmodules
         result['description'] = '\n\n'.join(node_description)
         return DESCRIPTIONREPLY, specifier, result

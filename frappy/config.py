@@ -56,9 +56,11 @@ class Param(dict):
             kwds['value'] = value
         super().__init__(**kwds)
 
+
 class Group(tuple):
     def __new__(cls, *args):
         return super().__new__(cls, args)
+
 
 class Mod(dict):
     def __init__(self, name, cls, description, **kwds):
@@ -70,7 +72,8 @@ class Mod(dict):
 
         # matches name from spec
         if not re.match(r'^[a-zA-Z]\w{0,62}$', name, re.ASCII):
-            raise ConfigError(f'Not a valid SECoP Module name: "{name}". Does it only contain letters, numbers and underscores?')
+            raise ConfigError(f'Not a valid SECoP Module name: "{name}".'
+                              ' Does it only contain letters, numbers and underscores?')
         # Make parameters out of all keywords
         groups = {}
         for key, val in kwds.items():
@@ -84,6 +87,7 @@ class Mod(dict):
         for group, members in groups.items():
             for member in members:
                 self[member]['group'] = group
+
 
 class Collector:
     def __init__(self, cls):
@@ -120,12 +124,14 @@ class Config(dict):
     def merge_modules(self, other):
         """ merges only the modules from 'other' into 'self'"""
         self.ambiguous |= self.module_names & other.module_names
+        equipment_id = other['node']['equipment_id']
         for name, mod in other.items():
             if name == 'node':
                 continue
             if name not in self.module_names:
                 self.module_names.add(name)
                 self[name] = mod
+                mod['original_id'] = equipment_id
 
 
 def process_file(filename, log):
