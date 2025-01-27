@@ -47,6 +47,7 @@ class Accessible(HasProperties):
     """
 
     ownProperties = None
+    optional = False
 
     def init(self, kwds):
         # do not use self.propertyValues.update here, as no invalid values should be
@@ -96,6 +97,8 @@ class Accessible(HasProperties):
         props = []
         for k, v in sorted(self.propertyValues.items()):
             props.append(f'{k}={v!r}')
+        if self.optional:
+            props.append('optional=True')
         return f"{self.__class__.__name__}({', '.join(props)})"
 
     def fixExport(self):
@@ -191,8 +194,9 @@ class Parameter(Accessible):
     readerror = None
     omit_unchanged_within = 0
 
-    def __init__(self, description=None, datatype=None, inherit=True, **kwds):
+    def __init__(self, description=None, datatype=None, inherit=True, optional=False, **kwds):
         super().__init__()
+        self.optional = optional
         if 'poll' in kwds and generalConfig.tolerate_poll_property:
             kwds.pop('poll')
         if datatype is None:
@@ -226,10 +230,16 @@ class Parameter(Accessible):
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        return instance.parameters[self.name].value
+        try:
+            return instance.parameters[self.name].value
+        except KeyError:
+            raise ProgrammingError(f'optional parameter {self.name} it is not implemented') from None
 
     def __set__(self, obj, value):
-        obj.announceUpdate(self.name, value)
+        try:
+            obj.announceUpdate(self.name, value)
+        except KeyError:
+            raise ProgrammingError(f'optional parameter {self.name} it is not implemented') from None
 
     def __set_name__(self, owner, name):
         self.name = name
@@ -366,9 +376,6 @@ class Command(Accessible):
           * True: exported, name automatic.
           * a string: exported with custom name''', OrType(BoolType(), StringType()),
         export=False, default=True)
-    # optional = Property(
-    #     '[internal] is the command optional to implement? (vs. mandatory)', BoolType(),
-    #     export=False, default=False, settable=False)
     datatype = Property(
         "datatype of the command, auto generated from 'argument' and 'result'",
         DataTypeType(), extname='datainfo', export='always')
@@ -384,8 +391,9 @@ class Command(Accessible):
 
     func = None
 
-    def __init__(self, argument=False, *, result=None, inherit=True, **kwds):
+    def __init__(self, argument=False, *, result=None, inherit=True, optional=False, **kwds):
         super().__init__()
+        self.optional = optional
         if 'datatype' in kwds:
             # self.init will complain about invalid keywords except 'datatype', as this is a property
             raise ProgrammingError("Command() got an invalid keyword 'datatype'")
@@ -411,8 +419,8 @@ class Command(Accessible):
 
     def __set_name__(self, owner, name):
         self.name = name
-        if self.func is None:
-            raise ProgrammingError(f'Command {owner.__name__}.{name} must be used as a method decorator')
+        if self.func is None and not self.optional:
+            raise ProgrammingError(f'Command {owner.__name__}.{name} must be optional or used as a method decorator')
 
         self.fixExport()
         self.datatype = CommandType(self.argument, self.result)

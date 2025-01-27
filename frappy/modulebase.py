@@ -60,13 +60,14 @@ class HasAccessibles(HasProperties):
     (so the dispatcher will get notified of changed values)
     """
     isWrapped = False
-    checkedMethods = set()
+    checkedMethods = ()
 
     @classmethod
     def __init_subclass__(cls):  # pylint: disable=too-many-branches
         super().__init_subclass__()
         if cls.isWrapped:
             return
+        cls.checkedMethods = set(cls.checkedMethods)  # might be initial empty tuple
         # merge accessibles from all sub-classes, treat overrides
         # for now, allow to use also the old syntax (parameters/commands dict)
         accessibles = OrderedDict()  # dict of accessibles
@@ -114,8 +115,8 @@ class HasAccessibles(HasProperties):
         wrapped_name = '_' + cls.__name__
         for pname, pobj in accessibles.items():
             # wrap of reading/writing funcs
-            if not isinstance(pobj, Parameter):
-                # nothing to do for Commands
+            if not isinstance(pobj, Parameter) or pobj.optional:
+                # nothing to do for Commands and optional parameters
                 continue
 
             rname = 'read_' + pname
@@ -202,7 +203,7 @@ class HasAccessibles(HasProperties):
         cls.checkedMethods.update(cls.wrappedAttributes)
 
         # check for programming errors
-        for attrname in dir(cls):
+        for attrname in cls.__dict__:
             prefix, _, pname = attrname.partition('_')
             if not pname:
                 continue
@@ -390,6 +391,8 @@ class Module(HasAccessibles):
         accessibles = self.accessibles
         self.accessibles = {}
         for aname, aobj in accessibles.items():
+            if aobj.optional:
+                continue
             # make a copy of the Parameter/Command object
             aobj = aobj.copy()
             acfg = cfgdict.pop(aname, None)

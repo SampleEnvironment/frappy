@@ -102,7 +102,9 @@ class Handler:
         """create the wrapped read_* or write_* methods"""
         # at this point, this 'method_names' entry is no longer used -> delete
         self.method_names.discard((self.func.__module__, self.func.__qualname__))
-        owner.checkedMethods.add(name)
+        # avoid complain about read_<name> or write_<name> method without parameter <name>
+        # can not use .add() here, as owner.checkedMethods might be an empty tuple
+        owner.checkedMethods = set(owner.checkedMethods) | {name}
         for key in self.keys:
             wrapped = self.wrap(key)
             method_name = self.prefix + key

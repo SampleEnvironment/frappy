@@ -26,7 +26,7 @@ import pytest
 
 from frappy.datatypes import BoolType, FloatRange, IntRange, StructOf
 from frappy.errors import ProgrammingError
-from frappy.modulebase import HasAccessibles
+from frappy.modulebase import HasAccessibles, Module
 from frappy.params import Command, Parameter
 
 
@@ -149,3 +149,105 @@ def test_update_unchanged_ok(arg, value):
 def test_update_unchanged_fail(arg):
     with pytest.raises(ProgrammingError):
         Parameter('', datatype=FloatRange(), default=0, update_unchanged=arg)
+
+
+def make_module(cls):
+    class DispatcherStub:
+        def announce_update(self, moduleobj, pobj):
+            pass
+
+    class LoggerStub:
+        def debug(self, fmt, *args):
+            print(fmt % args)
+        info = warning = exception = error = debug
+        handlers = []
+
+    class ServerStub:
+        dispatcher = DispatcherStub()
+        secnode = None
+
+    return cls('test', LoggerStub(), {'description': 'test'}, ServerStub())
+
+
+def test_optional_parameters():
+    class Base(Module):
+        p1 = Parameter('overridden', datatype=FloatRange(),
+                       default=1, readonly=False, optional=True)
+        p2 = Parameter('not overridden', datatype=FloatRange(),
+                       default=2, readonly=False, optional=True)
+
+    class Mod(Base):
+        p1 = Parameter()
+
+        def read_p1(self):
+            return self.p1
+
+        def write_p1(self, value):
+            return value
+
+    assert Base.accessibles['p2'].optional
+
+    with pytest.raises(ProgrammingError):
+        class Mod2(Base):  # pylint: disable=unused-variable
+            def read_p2(self):
+                pass
+
+    with pytest.raises(ProgrammingError):
+        class Mod3(Base):  # pylint: disable=unused-variable
+            def write_p2(self):
+                pass
+
+    base = make_module(Base)
+    mod = make_module(Mod)
+
+    assert 'p1' not in base.accessibles
+    assert 'p1' not in base.parameters
+    assert 'p2' not in base.accessibles
+    assert 'p2' not in base.parameters
+
+    assert 'p1' in mod.accessibles
+    assert 'p1' in mod.parameters
+    assert 'p2' not in mod.accessibles
+    assert 'p2' not in mod.parameters
+
+    assert mod.p1 == 1
+    assert mod.read_p1() == 1
+    mod.p1 = 11
+    assert mod.read_p1() == 11
+
+    with pytest.raises(ProgrammingError):
+        assert mod.p2
+    with pytest.raises(AttributeError):
+        mod.read_p2()
+    with pytest.raises(ProgrammingError):
+        mod.p2 = 2
+    with pytest.raises(AttributeError):
+        mod.write_p2(2)
+
+
+def test_optional_commands():
+    class Base(Module):
+        c1 = Command(FloatRange(1), result=FloatRange(2), description='overridden', optional=True)
+        c2 = Command(description='not overridden', optional=True)
+
+    class Mod(Base):
+        def c1(self, value):
+            return value + 1
+
+    base = make_module(Base)
+    mod = make_module(Mod)
+
+    assert 'c1' not in base.accessibles
+    assert 'c1' not in base.commands
+    assert 'c2' not in base.accessibles
+    assert 'c2' not in base.commands
+
+    assert 'c1' in mod.accessibles
+    assert 'c1' in mod.commands
+    assert 'c2' not in mod.accessibles
+    assert 'c2' not in mod.commands
+
+    assert mod.c1(7) == 8
+
+    with pytest.raises(ProgrammingError):
+        mod.c2()
