@@ -142,4 +142,5 @@ class SimDrivable(SimReadable, Drivable):
 
     @Command
     def stop(self):
+        """set target to value"""
         self.target = self.value

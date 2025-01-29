@@ -60,14 +60,12 @@ class HasAccessibles(HasProperties):
     (so the dispatcher will get notified of changed values)
     """
     isWrapped = False
-    checkedMethods = ()
 
     @classmethod
     def __init_subclass__(cls):  # pylint: disable=too-many-branches
         super().__init_subclass__()
         if cls.isWrapped:
             return
-        cls.checkedMethods = set(cls.checkedMethods)  # might be initial empty tuple
         # merge accessibles from all sub-classes, treat overrides
         # for now, allow to use also the old syntax (parameters/commands dict)
         accessibles = OrderedDict()  # dict of accessibles
@@ -200,16 +198,15 @@ class HasAccessibles(HasProperties):
                 new_wfunc.__module__ = cls.__module__
                 cls.wrappedAttributes[wname] = new_wfunc
 
-        cls.checkedMethods.update(cls.wrappedAttributes)
-
         # check for programming errors
-        for attrname in cls.__dict__:
+        for attrname, func in cls.__dict__.items():
             prefix, _, pname = attrname.partition('_')
             if not pname:
                 continue
             if prefix == 'do':
                 raise ProgrammingError(f'{cls.__name__!r}: old style command {attrname!r} not supported anymore')
-            if prefix in ('read', 'write') and attrname not in cls.checkedMethods:
+            if (prefix in ('read', 'write') and attrname not in cls.wrappedAttributes
+                    and not hasattr(func, 'poll')):  # may be a handler, which always has a poll attribute
                 raise ProgrammingError(f'{cls.__name__}.{attrname} defined, but {pname!r} is no parameter')
 
         try:
