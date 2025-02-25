@@ -1,4 +1,4 @@
-frappy-core (0.20.4) jammy; urgency=medium
+frappy-core (0.20.4) stable; urgency=medium
 
   [ Georg Brandl ]
   * remove unused file
@@ -17,7 +17,7 @@ frappy-core (0.20.4) jammy; urgency=medium
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 14 Nov 2024 14:43:54 +0100
 
-frappy-core (0.20.3) jammy; urgency=medium
+frappy-core (0.20.3) stable; urgency=medium
 
   [ Georg Brandl ]
   * fixup test for cfg_editor utils to run from non-checkout, and fix names, and remove example code
@@ -27,7 +27,7 @@ frappy-core (0.20.3) jammy; urgency=medium
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 07 Nov 2024 10:57:11 +0100
 
-frappy-core (0.20.2) jammy; urgency=medium
+frappy-core (0.20.2) stable; urgency=medium
 
   [ Georg Brandl ]
   * pylint: do not try to infer too much
@@ -73,7 +73,7 @@ frappy-core (0.20.2) jammy; urgency=medium
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Wed, 06 Nov 2024 10:40:26 +0100
 
-frappy-core (0.20.1) jammy; urgency=medium
+frappy-core (0.20.1) stable; urgency=medium
 
   * gui: do not add a console logger when there is no sys.stdout
   * remove unused test class
@@ -83,7 +83,7 @@ frappy-core (0.20.1) jammy; urgency=medium
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 17 Oct 2024 16:31:27 +0200
 
-frappy-core (0.20.0) jammy; urgency=medium
+frappy-core (0.20.0) stable; urgency=medium
 
   [ Alexander Zaft ]
   * bin: remove make_doc
@@ -128,7 +128,7 @@ frappy-core (0.20.0) jammy; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Thu, 17 Oct 2024 14:24:29 +0200
 
-frappy-core (0.19.10) jammy; urgency=medium
+frappy-core (0.19.10) stable; urgency=medium
 
   [ Alexander Zaft ]
   * debian: let frappy-core replace frappy-demo
@@ -138,25 +138,25 @@ frappy-core (0.19.10) jammy; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 07 Aug 2024 17:00:06 +0200
 
-frappy-core (0.19.9) jammy; urgency=medium
+frappy-core (0.19.9) stable; urgency=medium
 
   * debian: fix missing install dir
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 06 Aug 2024 16:02:50 +0200
 
-frappy-core (0.19.8) jammy; urgency=medium
+frappy-core (0.19.8) stable; urgency=medium
 
   * debian: move demo into core
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 06 Aug 2024 15:58:20 +0200
 
-frappy-core (0.19.7) jammy; urgency=medium
+frappy-core (0.19.7) stable; urgency=medium
 
   * lib: GeneralConfig fix missing keys logic
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 06 Aug 2024 15:04:07 +0200
 
-frappy-core (0.19.6) jammy; urgency=medium
+frappy-core (0.19.6) stable; urgency=medium
 
   [ Jens Krüger ]
   * SINQ/SEA: Fix import error due to None value
@@ -170,7 +170,7 @@ frappy-core (0.19.6) jammy; urgency=medium
 
  -- Jens Krüger <jenkins@frm2.tum.de>  Tue, 06 Aug 2024 13:56:51 +0200
 
-frappy-core (0.19.5) jammy; urgency=medium
+frappy-core (0.19.5) stable; urgency=medium
 
   * client: fix how to raise error on wrong ident
   * add missing requirements to setup.py
@@ -179,13 +179,13 @@ frappy-core (0.19.5) jammy; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Mon, 05 Aug 2024 09:30:53 +0200
 
-frappy-core (0.19.4) jammy; urgency=medium
+frappy-core (0.19.4) stable; urgency=medium
 
   * actually exclude cfg-editor
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Fri, 26 Jul 2024 11:46:10 +0200
 
-frappy-core (0.19.3) jammy; urgency=medium
+frappy-core (0.19.3) stable; urgency=medium
 
   [ Markus Zolliker ]
   * frappy_psi.extparams.StructParam: fix doc + simplify
@@ -205,7 +205,7 @@ frappy-core (0.19.3) jammy; urgency=medium
 
  -- Markus Zolliker <jenkins@frm2.tum.de>  Fri, 26 Jul 2024 08:36:43 +0200
 
-frappy-core (0.19.2) jammy; urgency=medium
+frappy-core (0.19.2) stable; urgency=medium
 
   [ l_samenv ]
   * fix missing update after error on parameter
@@ -230,7 +230,7 @@ frappy-core (0.19.2) jammy; urgency=medium
 
  -- l_samenv <jenkins@frm2.tum.de>  Tue, 18 Jun 2024 15:21:43 +0200
 
-frappy-core (0.19.1) jammy; urgency=medium
+frappy-core (0.19.1) stable; urgency=medium
 
   [ Markus Zolliker ]
   * SecopClient.online must be True while activating
@@ -242,7 +242,7 @@ frappy-core (0.19.1) jammy; urgency=medium
 
  -- Markus Zolliker <jenkins@frm2.tum.de>  Fri, 07 Jun 2024 16:50:33 +0200
 
-frappy-core (0.19.0) jammy; urgency=medium
+frappy-core (0.19.0) stable; urgency=medium
 
   [ Markus Zolliker ]
   * simulation: extra_params might be a list
@@ -298,14 +298,14 @@ frappy-core (0.19.0) jammy; urgency=medium
 
  -- Markus Zolliker <jenkins@frm2.tum.de>  Thu, 16 May 2024 11:31:25 +0200
 
-frappy-core (0.18.1) focal; urgency=medium
+frappy-core (0.18.1) stable; urgency=medium
 
   * mlz: Zapf fix unit handling and small errors
   * mlz: entangle fix limit check
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 24 Jan 2024 14:59:21 +0100
 
-frappy-core (0.18.0) focal; urgency=medium
+frappy-core (0.18.0) stable; urgency=medium
 
   [ Alexander Zaft ]
   * Add shutdownModule function
@@ -416,7 +416,7 @@ frappy-core (0.18.0) focal; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 17 Jan 2024 12:35:00 +0100
 
-frappy-core (0.17.13) focal; urgency=medium
+frappy-core (0.17.13) stable; urgency=medium
 
   [ Alexander Zaft ]
   * add egg-info to gitignore
@@ -437,7 +437,7 @@ frappy-core (0.17.13) focal; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 20 Jun 2023 14:38:00 +0200
 
-frappy-core (0.17.12) focal; urgency=medium
+frappy-core (0.17.12) stable; urgency=medium
 
   [ Alexander Zaft ]
   * Warn about duplicate module definitions in a file
@@ -462,7 +462,7 @@ frappy-core (0.17.12) focal; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 13 Jun 2023 06:51:27 +0200
 
-frappy-core (0.17.11) focal; urgency=medium
+frappy-core (0.17.11) stable; urgency=medium
 
   [ Alexander Zaft ]
   * Add __format__ to EnumMember
@@ -535,7 +535,7 @@ frappy-core (0.17.11) focal; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Thu, 25 May 2023 09:38:24 +0200
 
-frappy-core (0.17.10) focal; urgency=medium
+frappy-core (0.17.10) stable; urgency=medium
 
   * Change leftover %-logging calls to lazy
   * Convert formatting automatically to f-strings
@@ -547,25 +547,25 @@ frappy-core (0.17.10) focal; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 19 Apr 2023 14:32:52 +0200
 
-frappy-core (0.17.9) focal; urgency=medium
+frappy-core (0.17.9) stable; urgency=medium
 
   * interactive client: avoid messing up the input line
 
  -- Markus Zolliker <jenkins@frm2.tum.de>  Tue, 11 Apr 2023 16:09:03 +0200
 
-frappy-core (0.17.8) focal; urgency=medium
+frappy-core (0.17.8) stable; urgency=medium
 
   * Debian: Fix typo
 
  -- Jens Krüger <jenkins@frm2.tum.de>  Wed, 05 Apr 2023 07:20:25 +0200
 
-frappy-core (0.17.7) focal; urgency=medium
+frappy-core (0.17.7) stable; urgency=medium
 
   * Debian: add pyqtgraph dependency
 
  -- Jens Krüger <jenkins@frm2.tum.de>  Wed, 05 Apr 2023 07:07:24 +0200
 
-frappy-core (0.17.6) focal; urgency=medium
+frappy-core (0.17.6) stable; urgency=medium
 
   [ Alexander Zaft ]
   * gui: show parameter properties again
@@ -585,25 +585,25 @@ frappy-core (0.17.6) focal; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 04 Apr 2023 08:42:26 +0200
 
-frappy-core (0.17.5) focal; urgency=medium
+frappy-core (0.17.5) stable; urgency=medium
 
   * Fix generator
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 22 Mar 2023 12:32:06 +0100
 
-frappy-core (0.17.4) focal; urgency=medium
+frappy-core (0.17.4) stable; urgency=medium
 
   * Fix entangle integration bugs
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Wed, 22 Mar 2023 11:44:34 +0100
 
-frappy-core (0.17.3) focal; urgency=medium
+frappy-core (0.17.3) stable; urgency=medium
 
   * UNRELEASED
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 21 Mar 2023 15:55:09 +0100
 
-frappy-core (0.17.2) focal; urgency=medium
+frappy-core (0.17.2) stable; urgency=medium
 
   [ Alexander Zaft ]
   * Fix Simulation and Proxy
@@ -740,7 +740,7 @@ frappy-core (0.17.2) focal; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 21 Mar 2023 15:49:06 +0100
 
-frappy-core (0.17.1) focal; urgency=medium
+frappy-core (0.17.1) stable; urgency=medium
 
   [ Georg Brandl ]
   * gitignore: ignore demo PID file
@@ -759,7 +759,7 @@ frappy-core (0.17.1) focal; urgency=medium
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 17:44:56 +0100
 
-frappy-core (0.17.0) focal; urgency=medium
+frappy-core (0.17.0) stable; urgency=medium
 
   [ Alexander Zaft ]
   * Rework GUI.
@@ -770,37 +770,37 @@ frappy-core (0.17.0) focal; urgency=medium
 
  -- Alexander Zaft <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 13:52:17 +0100
 
-frappy-core (0.16.1) focal; urgency=medium
+frappy-core (0.16.1) stable; urgency=medium
 
   * UNRELEASED
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 08:44:28 +0100
 
-frappy-core (0.16.4) focal; urgency=medium
+frappy-core (0.16.4) stable; urgency=medium
 
   * UNRELEASED
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 08:09:20 +0100
 
-frappy-core (0.16.3) focal; urgency=medium
+frappy-core (0.16.3) stable; urgency=medium
 
   * UNRELEASED
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 08:00:15 +0100
 
-frappy-core (0.16.2) focal; urgency=medium
+frappy-core (0.16.2) stable; urgency=medium
 
   * gui: move icon resources for the cfg editor to its subdirectory
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 21 Feb 2023 07:50:13 +0100
 
-frappy-core (0.16.1) focal; urgency=medium
+frappy-core (0.16.1) stable; urgency=medium
 
   * add frappy-cli to package
 
  -- Enrico Faulhaber <jenkins@frm2.tum.de>  Mon, 20 Feb 2023 17:17:23 +0100
 
-frappy-core (0.16.0) focal; urgency=medium
+frappy-core (0.16.0) stable; urgency=medium
 
   [ Enrico Faulhaber ]
   * fix sorce package name
@@ -862,7 +862,7 @@ frappy-core (0.16.0) focal; urgency=medium
 
  -- Enrico Faulhaber <jenkins@frm2.tum.de>  Mon, 20 Feb 2023 16:15:10 +0100
 
-frappy-core (0.15.0) focal; urgency=medium
+frappy-core (0.15.0) stable; urgency=medium
 
   [ Björn Pedersen ]
   * Remove iohandler left-overs from docs
@@ -892,7 +892,7 @@ frappy-core (0.15.0) focal; urgency=medium
 
  -- Björn Pedersen <jenkins@frm2.tum.de>  Thu, 10 Nov 2022 14:46:01 +0100
 
-secop-core (0.14.3) focal; urgency=medium
+secop-core (0.14.3) stable; urgency=medium
 
   [ Enrico Faulhaber ]
   * change repo to secop/frappy
@@ -908,13 +908,13 @@ secop-core (0.14.3) focal; urgency=medium
 
  -- Enrico Faulhaber <jenkins@frm2.tum.de>  Thu, 03 Nov 2022 13:51:52 +0100
 
-secop-core (0.14.2) focal; urgency=medium
+secop-core (0.14.2) stable; urgency=medium
 
   * systemd generator: adapt to changed config API
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 20 Oct 2022 15:38:45 +0200
 
-secop-core (0.14.1) focal; urgency=medium
+secop-core (0.14.1) stable; urgency=medium
 
   [ Markus Zolliker ]
   * secop_psi.entangle.AnalogInput: fix main value
@@ -926,7 +926,7 @@ secop-core (0.14.1) focal; urgency=medium
 
  -- Markus Zolliker <jenkins@frm2.tum.de>  Thu, 20 Oct 2022 14:04:07 +0200
 
-secop-core (0.14.0) focal; urgency=medium
+secop-core (0.14.0) stable; urgency=medium
 
   * add simple interactive python client
   * fix undefined status in softcal
@@ -940,7 +940,7 @@ secop-core (0.14.0) focal; urgency=medium
 
  -- Markus Zolliker <jenkins@frm2.tum.de>  Wed, 19 Oct 2022 11:31:50 +0200
 
-secop-core (0.13.1) focal; urgency=medium
+secop-core (0.13.1) stable; urgency=medium
 
   [ Markus Zolliker ]
   * an enum with value 0 should be interpreted as False
@@ -951,7 +951,7 @@ secop-core (0.13.1) focal; urgency=medium
 
  -- Markus Zolliker <jenkins@jenkins02.admin.frm2.tum.de>  Tue, 02 Aug 2022 15:31:52 +0200
 
-secop-core (0.13.0) focal; urgency=medium
+secop-core (0.13.0) stable; urgency=medium
 
   [ Georg Brandl ]
   * debian: fix email addresses in changelog
@@ -1014,13 +1014,13 @@ secop-core (0.13.0) focal; urgency=medium
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 02 Aug 2022 09:47:06 +0200
 
-secop-core (0.12.4) focal; urgency=medium
+secop-core (0.12.4) stable; urgency=medium
 
   * fix command inheritance
 
  -- Markus Zolliker <jenkins@jenkins01.admin.frm2.tum.de>  Thu, 11 Nov 2021 16:21:19 +0100
 
-secop-core (0.12.3) focal; urgency=medium
+secop-core (0.12.3) stable; urgency=medium
 
   [ Georg Brandl ]
   * Makefile: fix docker image
@@ -1043,7 +1043,7 @@ secop-core (0.12.3) focal; urgency=medium
 
  -- Georg Brandl <jenkins@jenkins01.admin.frm2.tum.de>  Wed, 10 Nov 2021 16:33:19 +0100
 
-secop-core (0.12.2) focal; urgency=medium
+secop-core (0.12.2) stable; urgency=medium
 
   [ Markus Zolliker ]
   * fix issue with new syntax in simulation
@@ -1055,13 +1055,13 @@ secop-core (0.12.2) focal; urgency=medium
 
  -- Markus Zolliker <jenkins@jenkins01.admin.frm2.tum.de>  Tue, 18 May 2021 10:29:17 +0200
 
-secop-core (0.12.1) focal; urgency=medium
+secop-core (0.12.1) stable; urgency=medium
 
   * remove secop-console from debian *.install file
 
  -- Enrico Faulhaber <jenkins@jenkins02.admin.frm2.tum.de>  Tue, 04 May 2021 09:42:53 +0200
 
-secop-core (0.12.0) focal; urgency=medium
+secop-core (0.12.0) stable; urgency=medium
 
   [ Markus Zolliker ]
   * make datatypes immutable
