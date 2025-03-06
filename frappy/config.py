@@ -95,7 +95,9 @@ class Collector:
         self.cls = cls
 
     def add(self, *args, **kwds):
-        self.list.append(self.cls(*args, **kwds))
+        result = self.cls(*args, **kwds)
+        self.list.append(result)
+        return result
 
     def append(self, mod):
         self.list.append(mod)
