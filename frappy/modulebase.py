@@ -450,9 +450,12 @@ class Module(HasAccessibles):
             self.parameters[name] = accessible
         if isinstance(accessible, Command):
             self.commands[name] = accessible
-        if cfg:
+        if cfg is not None:
             try:
                 for propname, propvalue in cfg.items():
+                    if propname in {'value', 'default', 'constant'}:
+                        # these properties have ValueType(), but should be checked for datatype
+                        accessible.datatype(cfg[propname])
                     accessible.setProperty(propname, propvalue)
             except KeyError:
                 self.errors.append(f"'{name}' has no property '{propname}'")
