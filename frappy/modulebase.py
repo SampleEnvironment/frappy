@@ -323,6 +323,7 @@ class Module(HasAccessibles):
 
     pollInfo = None
     triggerPoll = None  # trigger event for polls. used on io modules and modules without io
+    __poller = None  # the poller thread, if used
 
     def __init__(self, name, logger, cfgdict, srv):
         # remember the secnode for interacting with other modules and the
@@ -612,7 +613,7 @@ class Module(HasAccessibles):
         # we do not need self.errors any longer. should we delete it?
         # del self.errors
         if self.polledModules:
-            mkthread(self.__pollThread, self.polledModules, start_events.get_trigger())
+            self.__poller = mkthread(self.__pollThread, self.polledModules, start_events.get_trigger())
         self.startModuleDone = True
 
     def initialReads(self):
@@ -625,8 +626,28 @@ class Module(HasAccessibles):
         all parameters are polled once
         """
 
+    def stopPollThread(self):
+        """trigger the poll thread to stop
+
+        this is called on shutdown
+        """
+        if self.__poller:
+            self.polledModules.clear()
+            self.triggerPoll.set()
+
+    def joinPollThread(self, timeout):
+        """wait for poll thread to finish
+
+        if the wait time exceeds <timeout> seconds, return and log a warning
+        """
+        if self.__poller:
+            self.stopPollThread()
+            self.__poller.join(timeout)
+            if self.__poller.is_alive():
+                self.log.warning('can not stop poller')
+
     def shutdownModule(self):
-        """called when the sever shuts down
+        """called when the server shuts down
 
         any cleanup-work should be performed here, like closing threads and
         saving data.
@@ -729,13 +750,14 @@ class Module(HasAccessibles):
         if not polled_modules:  # no polls needed - exit thread
             return
         to_poll = ()
-        while True:
+        while modules:  # modules will be cleared on shutdown
             now = time.time()
             wait_time = 999
             for mobj in modules:
                 pinfo = mobj.pollInfo
-                wait_time = min(pinfo.last_main + pinfo.interval - now, wait_time,
-                                pinfo.last_slow + mobj.slowinterval - now)
+                if pinfo:
+                    wait_time = min(pinfo.last_main + pinfo.interval - now, wait_time,
+                                    pinfo.last_slow + mobj.slowinterval - now)
             if wait_time > 0 and not to_poll:
                 # nothing to do
                 self.triggerPoll.wait(wait_time)
@@ -744,7 +766,7 @@ class Module(HasAccessibles):
             # call doPoll of all modules where due
             for mobj in modules:
                 pinfo = mobj.pollInfo
-                if now > pinfo.last_main + pinfo.interval:
+                if pinfo and now > pinfo.last_main + pinfo.interval:
                     try:
                         pinfo.last_main = (now // pinfo.interval) * pinfo.interval
                     except ZeroDivisionError:
@@ -764,7 +786,7 @@ class Module(HasAccessibles):
                     # collect due slow polls
                     for mobj in modules:
                         pinfo = mobj.pollInfo
-                        if now > pinfo.last_slow + mobj.slowinterval:
+                        if pinfo and now > pinfo.last_slow + mobj.slowinterval:
                             to_poll.extend(pinfo.polled_parameters)
                             pinfo.last_slow = (now // mobj.slowinterval) * mobj.slowinterval
                     if to_poll:

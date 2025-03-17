@@ -19,6 +19,7 @@
 #
 # *****************************************************************************
 
+import time
 import traceback
 from collections import OrderedDict
 
@@ -255,6 +256,15 @@ class SecNode:
 
     def shutdown_modules(self):
         """Call 'shutdownModule' for all modules."""
+        # stop pollers
+        for mod in self.modules.values():
+            mod.stopPollThread()
+            # do not yet join here, as we want to wait in parallel
+        now = time.time()
+        deadline = now + 0.5  # should be long enough for most read functions to finish
+        for mod in self.modules.values():
+            mod.joinPollThread(max(0, deadline - now))
+            now = time.time()
         for name in self._getSortedModules():
             self.modules[name].shutdownModule()
 
