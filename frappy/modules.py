@@ -68,8 +68,8 @@ class Writable(Readable):
             target_dt.compatible(value_dt)
         except Exception:
             if type(value_dt) == type(target_dt):
-                raise ConfigError('the target range extends beyond the value range') from None
-            raise ProgrammingError('the datatypes of target and value are not compatible') from None
+                raise ConfigError(f'{name}: the target range extends beyond the value range') from None
+            raise ProgrammingError(f'{name}: the datatypes of target and value are not compatible') from None
 
 
 class Drivable(Writable):

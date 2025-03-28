@@ -27,6 +27,7 @@ from frappy.dynamic import Pinata
 from frappy.errors import ConfigError, NoSuchModuleError, NoSuchParameterError
 from frappy.lib import get_class
 from frappy.version import get_version
+from frappy.modules import Module
 
 
 class SecNode:
@@ -131,6 +132,9 @@ class SecNode:
                     # creation has failed already once, do not try again
                     return None
                 cls = classname
+            if not issubclass(cls, Module):
+                self.errors.append(f'{cls.__name__} is not a Module')
+                return None
         except Exception as e:
             if str(e) == 'no such class':
                 self.errors.append(f'{classname} not found')
