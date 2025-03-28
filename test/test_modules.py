@@ -31,6 +31,7 @@ from frappy.modules import Communicator, Drivable, Readable, Module, Writable
 from frappy.params import Command, Parameter, Limit
 from frappy.rwhandler import ReadHandler, WriteHandler, nopoll
 from frappy.lib import generalConfig
+from frappy.properties import Property
 
 
 class DispatcherStub:
@@ -444,6 +445,15 @@ def test_override():
 
     # inherit doc string
     assert Mod2.stop.description == Mod.stop.description
+
+    class Base(Module):
+        attr = Property('test property', FloatRange())
+
+    class Subclass(Base):
+        attr = Parameter('test parameter', FloatRange())
+
+    class SubSubclass(Subclass):  # pylint: disable=unused-variable
+        attr = 5.0
 
 
 def test_command_config():

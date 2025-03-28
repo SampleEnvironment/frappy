@@ -131,14 +131,16 @@ class HasProperties(HasDescriptors):
         properties = {}
         # using cls.__bases__ and base.propertyDict for this would fail on some multiple inheritance cases
         for base in reversed(cls.__mro__):
-            properties.update({k: v for k, v in base.__dict__.items() if isinstance(v, Property)})
+            for key, value in base.__dict__.items():
+                if isinstance(value, Property):
+                    properties[key] = value
+                elif isinstance(value, HasProperties):  # value is a Parameter. allow to override
+                    properties.pop(key, None)
         cls.propertyDict = properties
         # treat overriding properties with bare values
         for pn, po in list(properties.items()):
             value = getattr(cls, pn, po)
-            if isinstance(value, HasProperties):  # value is a Parameter, allow override
-                properties.pop(pn)
-            elif not isinstance(value, Property):  # attribute may be a bare value
+            if not isinstance(value, Property):  # attribute may be a bare value
                 po = po.copy()
                 try:
                     # try to apply bare value to Property
