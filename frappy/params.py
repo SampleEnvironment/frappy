@@ -26,7 +26,7 @@ import inspect
 
 from frappy.datatypes import ArrayOf, BoolType, CommandType, DataType, \
     DataTypeType, EnumType, FloatRange, NoneOr, OrType, StringType, StructOf, \
-    TextType, TupleOf, ValueType
+    TextType, TupleOf, ValueType, visibility_validator
 from frappy.errors import BadValueError, ProgrammingError, WrongTypeError
 from frappy.lib import generalConfig
 from frappy.properties import HasProperties, Property
@@ -152,8 +152,8 @@ class Parameter(Accessible):
         'optional parameter group this parameter belongs to', StringType(),
         extname='group', default='')
     visibility = Property(
-        'optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
-        extname='visibility', default=1)
+        'optional visibility hint', ValueType(visibility_validator),
+        extname='visibility', default='www')
     constant = Property(
         'optional constant value for constant parameters', ValueType(),
         extname='constant', default=None)
@@ -367,8 +367,8 @@ class Command(Accessible):
         'optional command group of the command.', StringType(),
         extname='group', export=True, default='')
     visibility = Property(
-        'optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
-        extname='visibility', export=True, default=1)
+        'optional visibility hint', ValueType(visibility_validator),
+        extname='visibility', export=True, default='www')
     export = Property(
         '''[internal] export settings
 

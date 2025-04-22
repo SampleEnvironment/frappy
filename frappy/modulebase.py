@@ -27,9 +27,9 @@ import time
 import threading
 from collections import OrderedDict
 
-from frappy.datatypes import ArrayOf, BoolType, EnumType, FloatRange, \
-    IntRange, StringType, TextType, TupleOf, \
-    NoneOr
+from frappy.datatypes import ArrayOf, BoolType, FloatRange, IntRange, NoneOr, \
+    StringType, TextType, TupleOf, ValueType, visibility_validator
+
 from frappy.errors import BadValueError, CommunicationFailedError, ConfigError, \
     ProgrammingError, SECoPError, secop_error, RangeError
 from frappy.lib import formatException, mkthread, UniqueObject
@@ -306,8 +306,8 @@ class Module(HasAccessibles):
     description = Property('description of the module', TextType(), extname='description', mandatory=True)
     meaning = Property('optional meaning indicator', TupleOf(StringType(), IntRange(0, 50)),
                        default=('', 0), extname='meaning')
-    visibility = Property('optional visibility hint', EnumType('visibility', user=1, advanced=2, expert=3),
-                          default='user', extname='visibility')
+    visibility = Property('optional visibility hint', ValueType(visibility_validator),
+                          default='www', extname='visibility')
     implementation = Property('internal name of the implementation class of the module', StringType(),
                               extname='implementation')
     interface_classes = Property('offical highest interface-class of the module', ArrayOf(StringType()),

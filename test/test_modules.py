@@ -318,17 +318,17 @@ def test_command_inheritance():
             """third"""
 
     assert Sub1.accessibles['cmd'].for_export() == {
-        'description': 'first', 'group': 'grp', 'visibility': 2,
+        'description': 'first', 'group': 'grp', 'visibility': 'ww-',
         'datainfo': {'type': 'command', 'argument': {'type': 'bool'}}
     }
 
     assert Sub2.accessibles['cmd'].for_export() == {
-        'description': 'second', 'group': 'grp', 'visibility': 2,
+        'description': 'second', 'group': 'grp', 'visibility': 'ww-',
         'datainfo': {'type': 'command', 'result': {'type': 'bool'}}
     }
 
     assert Sub3.accessibles['cmd'].for_export() == {
-        'description': 'third', 'visibility': 2,
+        'description': 'third', 'visibility': 'ww-',
         'datainfo': {'type': 'command', 'result': {'type': 'double'}}
     }
 
@@ -381,7 +381,7 @@ def test_command_check():
             'cmd': {'argument': {'type': 'double', 'min': 1, 'max': 0}},
         }, srv)
 
-    with pytest.raises(ProgrammingError):
+    with pytest.raises(ConfigError):
         BadDatatype('o', logger, {
             'description': '',
             'cmd': {'visibility': 'invalid'},

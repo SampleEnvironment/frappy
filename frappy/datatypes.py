@@ -1238,6 +1238,16 @@ class OrType(DataType):
         raise WrongTypeError(f"Invalid Value, must conform to one of {', '.join(str(t) for t in self.types)}")
 
 
+LEGACY_VISIBILITY = {'user': 'www', 1: 'www', 'advanced': 'ww-', 2: 'ww-', 'expert': 'w--', 3: 'w--'}
+
+
+def visibility_validator(value):
+    value = LEGACY_VISIBILITY.get(value, value)
+    if len(value) == 3 and set(value) <= set('wr-'):
+        return value
+    raise RangeError(f'{value!r} is not a valid visibility')
+
+
 Int8   = IntRange(-(1 << 7),  (1 << 7) - 1)
 Int16  = IntRange(-(1 << 15), (1 << 15) - 1)
 Int32  = IntRange(-(1 << 31), (1 << 31) - 1)
