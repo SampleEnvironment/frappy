@@ -44,8 +44,6 @@ class SecNode:
         self.nodeprops = {}
         # map ALL modulename -> moduleobj
         self.modules = {}
-        # list of EXPORTED modules
-        self.export = []
         self.log = logger
         self.srv = srv
         # set of modules that failed creation
@@ -193,60 +191,62 @@ class SecNode:
                               modname, len(pinata_modules))
                 todos.extend(pinata_modules)
 
-    def export_accessibles(self, modulename):
-        self.log.debug('export_accessibles(%r)', modulename)
-        if modulename in self.export:
-            # omit export=False params!
-            res = OrderedDict()
-            for aobj in self.get_module(modulename).accessibles.values():
-                if aobj.export:
-                    res[aobj.export] = aobj.for_export()
-            self.log.debug('list accessibles for module %s -> %r',
-                           modulename, res)
-            return res
-        self.log.debug('-> module is not to be exported!')
-        return OrderedDict()
+    def export_accessibles(self, modobj):
+        self.log.debug('export_accessibles(%r)', modobj.name)
+        # omit export=False params!
+        res = OrderedDict()
+        for aobj in modobj.accessibles.values():
+            if aobj.export:
+                res[aobj.export] = aobj.for_export()
+        self.log.debug('list accessibles for module %s -> %r',
+                       modobj.name, res)
+        return res
+
+    def build_descriptive_data(self):
+        modules = {}
+        result = {'modules': modules}
+        for modulename in self.modules:
+            modobj = self.get_module(modulename)
+            if not modobj.export:
+                continue
+            # some of these need rework !
+            mod_desc = {'accessibles': self.export_accessibles(modobj)}
+            mod_desc.update(modobj.exportProperties())
+            mod_desc.pop('export', None)
+            modules[modulename] = mod_desc
+        result['equipment_id'] = self.equipment_id
+        result['firmware'] = 'FRAPPY ' + get_version()
+        result['description'] = self.nodeprops['description']
+        for prop, propvalue in self.nodeprops.items():
+            if prop.startswith('_'):
+                result[prop] = propvalue
+        self.descriptive_data = result
 
     def get_descriptive_data(self, specifier):
         """returns a python object which upon serialisation results in the
         descriptive data"""
         specifier = specifier or ''
-        modules = {}
-        result = {'modules': modules}
-        for modulename in self.export:
-            module = self.get_module(modulename)
-            if not module.export:
-                continue
-            # some of these need rework !
-            mod_desc = {'accessibles': self.export_accessibles(modulename)}
-            mod_desc.update(module.exportProperties())
-            mod_desc.pop('export', False)
-            modules[modulename] = mod_desc
         modname, _, pname = specifier.partition(':')
+        modules = self.descriptive_data['modules']
         if modname in modules:  # extension to SECoP standard: description of a single module
             result = modules[modname]
             if pname in result['accessibles']:  # extension to SECoP standard: description of a single accessible
                 # command is also accepted
-                result = result['accessibles'][pname]
-            elif pname:
+                return result['accessibles'][pname]
+            if pname:
                 raise NoSuchParameterError(f'Module {modname!r} '
                                            f'has no parameter {pname!r}')
-        elif not modname or modname == '.':
-            result['equipment_id'] = self.equipment_id
-            result['firmware'] = 'FRAPPY ' + get_version()
-            result['description'] = self.nodeprops['description']
-            for prop, propvalue in self.nodeprops.items():
-                if prop.startswith('_'):
-                    result[prop] = propvalue
-        else:
-            raise NoSuchModuleError(f'Module {modname!r} does not exist')
-        return result
+            return result
+        if not modname or modname == '.':
+            return self.descriptive_data
+        raise NoSuchModuleError(f'Module {modname!r} does not exist')
+
+    def get_exported_modules(self):
+        return [m for m, o in self.modules.items() if o.export]
 
     def add_module(self, module, modulename):
         """Adds a named module object to this SecNode."""
         self.modules[modulename] = module
-        if module.export:
-            self.export.append(modulename)
 
     # def remove_module(self, modulename_or_obj):
     #     moduleobj = self.get_module(modulename_or_obj)

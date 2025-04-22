@@ -265,9 +265,9 @@ class Dispatcher:
             modulename, exportedname = specifier, None
             if ':' in specifier:
                 modulename, exportedname = specifier.split(':', 1)
-            if modulename not in self.secnode.export:
-                raise NoSuchModuleError(f'Module {modulename!r} does not exist')
             moduleobj = self.secnode.get_module(modulename)
+            if moduleobj is None or not moduleobj.export:
+                raise NoSuchModuleError(f'Module {modulename!r} does not exist')
             if exportedname is not None:
                 pname = moduleobj.accessiblename2attr.get(exportedname, True)
                 if pname and pname not in moduleobj.accessibles:
@@ -281,7 +281,7 @@ class Dispatcher:
         else:
             # activate all modules
             self._active_connections.add(conn)
-            modules = [(m, None) for m in self.secnode.export]
+            modules = [(m, None) for m in self.secnode.get_exported_modules()]
 
         # send updates for all subscribed values.
         # note: The initial poll already happend before the server is active

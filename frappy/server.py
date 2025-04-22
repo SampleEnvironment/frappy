@@ -289,7 +289,6 @@ class Server:
         If there are errors that occur, they will be collected and emitted
         together in the end.
         """
-        errors = []
         opts = dict(self.node_cfg)
         cls = get_class(opts.pop('cls'))
         self.secnode = SecNode(self.name, self.log.getChild('secnode'), opts, self)
@@ -301,10 +300,9 @@ class Server:
             self.secnode.add_secnode_property(k, opts.pop(k))
 
         self.secnode.create_modules()
-        # initialize all modules by getting them with Dispatcher.get_module,
-        # which is done in the get_descriptive data
-        # TODO: caching, to not make this extra work
-        self.secnode.get_descriptive_data('')
+        # initialize modules by calling self.secnode.get_module for all of them
+        # this is done in build_descriptive_data even for unexported modules
+        self.secnode.build_descriptive_data()
         # =========== All modules are initialized ===========
 
         # all errors from initialization process
