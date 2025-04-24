@@ -33,7 +33,7 @@ from frappy.io import HasIO
 DISCONNECTED = Readable.Status.ERROR, 'disconnected'
 
 
-class ProxyModule(HasIO, Module):
+class Proxy(HasIO, Module):
     module = Property('remote module name', datatype=StringType(), default='')
     status = Parameter('connection status', Readable.status.datatype)  # add status even when not a Readable
 
@@ -41,6 +41,17 @@ class ProxyModule(HasIO, Module):
     _connection_status = None  # status when not connected
     _secnode = None
     enablePoll = False
+
+    def __new__(cls, name, logger, cfgdict, srv):
+        """create a Proxy class based on remote_class"""
+        remote_class = cfgdict.pop('remote_class')
+        if isinstance(remote_class, dict):
+            remote_class = remote_class['value']
+        if 'description' not in cfgdict:
+            cfgdict['description'] = (f"remote module {cfgdict.get('module', name)} "
+                                      f"on {cfgdict.get('io', {'value:': '?'})['value']}")
+        proxycls = proxy_class(remote_class)
+        return super().__new__(proxycls, name, logger, cfgdict, srv)
 
     def ioClass(self, name, logger, opts, srv):
         opts['description'] = f"secnode {opts.get('module', name)} on {opts['uri']}"
@@ -131,19 +142,19 @@ class ProxyModule(HasIO, Module):
         pass  # skip
 
 
-class ProxyReadable(ProxyModule, Readable):
+class ProxyReadable(Proxy, Readable):
     pass
 
 
-class ProxyWritable(ProxyModule, Writable):
+class ProxyWritable(Proxy, Writable):
     pass
 
 
-class ProxyDrivable(ProxyModule, Drivable):
+class ProxyDrivable(Proxy, Drivable):
     pass
 
 
-PROXY_CLASSES = [ProxyDrivable, ProxyWritable, ProxyReadable, ProxyModule]
+PROXY_CLASSES = [ProxyDrivable, ProxyWritable, ProxyReadable, Proxy]
 
 
 class SecNode(Module):
@@ -169,7 +180,7 @@ def proxy_class(remote_class, name=None):
     """create a proxy class based on the definition of remote class
 
     remote class is <import path>.<class name> of a class used on the remote node
-    if name is not given, 'Proxy' + <class name> is used
+    if name is not given, <class name> is used
     """
     if isinstance(remote_class, type) and issubclass(remote_class, Module):
         rcls = remote_class
@@ -229,18 +240,3 @@ def proxy_class(remote_class, name=None):
             raise ConfigError(f'do not now about {aobj!r} in {remote_class}.accessibles')
 
     return type(name+"_", (proxycls,), attrs)
-
-
-def Proxy(name, logger, cfgdict, srv):
-    """create a Proxy object based on remote_class
-
-    title cased as it acts like a class
-    """
-    remote_class = cfgdict.pop('remote_class')
-    if isinstance(remote_class, dict):
-        remote_class = remote_class['value']
-
-    if 'description' not in cfgdict:
-        cfgdict['description'] = f"remote module {cfgdict.get('module', name)} on {cfgdict.get('io', {'value:': '?'})['value']}"
-
-    return proxy_class(remote_class)(name, logger, cfgdict, srv)
