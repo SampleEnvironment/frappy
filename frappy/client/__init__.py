@@ -734,7 +734,7 @@ class SecopClient(ProxyClient):
         """
         self.connect()  # make sure we are connected
         datatype = self.modules[module]['parameters'][parameter]['datatype']
-        value = datatype.from_string(formatted)
+        value = datatype.export_value(datatype.from_string(formatted))
         self.request(WRITEREQUEST, self.identifier[module, parameter], value)
         return self.cache[module, parameter]
 
