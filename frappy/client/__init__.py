@@ -753,6 +753,28 @@ class SecopClient(ProxyClient):
             data = datatype.import_value(data)
         return data, qualifiers
 
+    def execCommandFromString(self, module, command, formatted_argument=''):
+        """call command from string argument
+
+        return data as CacheItem which allows to get
+        - result.value  # the python value
+        - result.formatted()  # a string (incl. units)
+        - result.timestamp
+        """
+        self.connect()
+        datatype = self.modules[module]['commands'][command]['datatype'].argument
+        if datatype:
+            argument = datatype.from_string(formatted_argument)
+        else:
+            if formatted_argument:
+                raise WrongTypeError('command has no argument')
+            argument = None
+        # pylint: disable=unsubscriptable-object
+        data, qualifiers = self.request(COMMANDREQUEST, self.identifier[module, command], argument)[2]
+        datatype = self.modules[module]['commands'][command]['datatype'].result
+        value = datatype.import_value(data) if datatype else None
+        return CacheItem(value, qualifiers.get('t'), None, datatype)
+
     def updateValue(self, module, param, value, timestamp, readerror):
         datatype = self.modules[module]['parameters'][param]['datatype']
         if readerror:
