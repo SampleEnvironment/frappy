@@ -68,8 +68,8 @@ class LakeShoreIO(HasIO):
             args.insert(0, cmd)
         else:
             args[0] = cmd + args[0]
-        head = ','.join(args)
-        tail = cmd.replace(' ', '?')
+        tail = ','.join(args)
+        head = cmd.replace(' ', '?')
         reply = self.io.communicate(f'{head};{tail}')
         return parse_result(reply)
 
@@ -166,6 +166,7 @@ class Switcher(LakeShoreIO, ChannelSwitcher):
 
     def set_active_channel(self, chan):
         self.set_param('SCAN ', chan.channel, 0)
+        self.value = chan.channel
         chan._last_range_change = time.monotonic()
         self.set_delays(chan)
 
@@ -278,7 +279,12 @@ class ResChannel(LakeShoreIO, Channel):
         vexc = 0 if excoff or iscur else exc
         if (rng, iexc, vexc) != (self.range, self.iexc, self.vexc):
             self._last_range_change = time.monotonic()
-        self.range, self.iexc, self.vexc = rng, iexc, vexc
+        try:
+            self.range, self.iexc, self.vexc = rng, iexc, vexc
+        except Exception:
+            # avoid raising errors on disabled channel
+            if self.enabled:
+                raise
 
     @CommonWriteHandler(rdgrng_params)
     def write_rdgrng(self, change):
