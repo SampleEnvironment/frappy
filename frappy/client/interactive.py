@@ -143,7 +143,7 @@ class Module:
     def _isBusy(self):
         return self.status[0] // 100 == StatusType.BUSY // 100
 
-    def _status_value_update(self, m, p, status, t, e):
+    def _status_update(self, m, p, status, t, e):
         if self._is_driving and not self._isBusy():
             self._is_driving = False
         self._driving_event.set()
@@ -216,14 +216,17 @@ class Module:
     def __call__(self, target=None):
         if target is None:
             return self.read()
+        watch_params = ['value', 'status']
+        for pname in watch_params:
+            self._secnode.register_callback((self._name, pname),
+                                            updateEvent=self._watch_parameter,
+                                            callimmediately=False)
+
         self.target = target  # this sets self._is_driving
-        type(self).value.prev = None  # show at least one value
 
         def loop():
             while self._is_driving:
                 self._driving_event.wait()
-                self._watch_parameter(self._name, 'value', mininterval=self._secnode.mininterval)
-                self._watch_parameter(self._name, 'status')
                 self._driving_event.clear()
         try:
             loop()
@@ -237,9 +240,10 @@ class Module:
                 pass
             clientenv.raise_with_short_traceback(e)
         finally:
-            self._watch_parameter(self._name, 'status')
             self._secnode.readParameter(self._name, 'value')
-            self._watch_parameter(self._name, 'value', forced=True)
+            for pname in watch_params:
+                self._secnode.unregister_callback((self._name, pname),
+                                                  updateEvent=self._watch_parameter)
         return self.value
 
     def __repr__(self):
@@ -414,8 +418,7 @@ class Client(SecopClient):
                 attrs[cname] = Command(cname, modname, self)
             mobj = type(f'M_{modname}', (Module,), attrs)(modname, self)
             if 'status' in mobj._parameters:
-                self.register_callback((modname, 'status'), updateEvent=mobj._status_value_update)
-                self.register_callback((modname, 'value'), updateEvent=mobj._status_value_update)
+                self.register_callback((modname, 'status'), updateEvent=mobj._status_update)
             clientenv.namespace[modname] = mobj
         if removed_modules:
             self.log.info('removed modules: %s', ' '.join(removed_modules))

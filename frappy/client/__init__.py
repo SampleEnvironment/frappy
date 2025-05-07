@@ -209,16 +209,20 @@ class ProxyClient:
         # caches (module, parameter) = value, timestamp, readerror (internal names!)
         self.cache = Cache()  # dict returning Cache.undefined for missing keys
 
-    def register_callback(self, key, *args, **kwds):
+    def register_callback(self, key, *args, callimmediately=True, **kwds):
         """register callback functions
 
-        - key might be either:
+        several callbacks might be registered within one call.
+        ProxyClient.CALLBACK_NAMES contains all names of valid callbacks
+
+        :param key: might be either:
             1) None: general callback (all callbacks)
             2) <module name>: callbacks related to a module (not called for 'unhandledMessage')
-            3) (<module name>, <parameter name>): callback for specified parameter (only called for 'updateEvent')
-        - all the following arguments are callback functions. The callback name may be
-          given by the keyword, or, for non-keyworded arguments it is taken from the
-          __name__ attribute of the function
+            3) (<module name>, <parameter name>): callback for specified parameter
+               (only called for 'updateEvent' and 'updateItem')
+        :param args: callback functions. the callback name is taken from the the __name__ attribute of the function
+        :param callimmediately: True (default): call immediately for updateItem and updateEvent callbacks
+        :param kwds: callback functions. the callback name is taken from the key
         """
         for cbfunc in args:
             kwds[cbfunc.__name__] = cbfunc
@@ -226,8 +230,8 @@ class ProxyClient:
             if cbname not in self.CALLBACK_NAMES:
                 raise TypeError(f"unknown callback: {', '.join(kwds)}")
 
-            # immediately call for some callback types
-            if cbname in ('updateItem', 'updateEvent'):
+            #  call immediately for some callback types
+            if cbname in ('updateItem', 'updateEvent') and callimmediately:
                 if key is None:  # case generic callback
                     cbargs = [(m, p, d) for (m, p), d in self.cache.items()]
                 else:
