@@ -1,3 +1,47 @@
+frappy-core (0.20.5) stable; urgency=medium
+
+  [ Markus Zolliker ]
+  * add sim-server again based on socketserver
+  * fix bug when overriding a property with  bare value
+  * frappy.server bug fix: server name must not be a list
+  * frappy.server: use server name for SecNode name
+  * frappy.server: remove comment about opts in SecNode/Dispatcher
+  * follow up change for 'better order of accessibles' (34904)
+  * better message when a parameter is overridden by an invalid value
+  * pylint: increase max number of positional arguments
+  * an error on a write must not send an error update
+  * fix bug in change 35001 (better error message)
+  * make UPD listener work when 'tcp://' is omitted on interface
+  * config: do not override equipment_id with name
+  * equipment_id for merged configs and routed nodes
+  * core: alternative approach for optional accessibles
+  * core: simplify test for methods names
+
+  [ Georg Brandl ]
+  * debian: update compat
+  * remove wrong <weight> from fonts on Qt6
+
+  [ Markus Zolliker ]
+  * config: validate value and default of parameters
+  * config: Mod() should return config dict
+  * stop poller threads on shutdown
+  * fix overriding Parameter with value
+  * improve error messages on module creation
+  * make sure unexported modules are initialized
+  * change to new visibility spec
+  * follow-up change to 35931: make Proxy a Module
+
+  [ Konstantin Kholostov ]
+  * installer: add recipe to build macOS app bundle
+
+  [ Markus Zolliker ]
+  * frappy.client.SecopClient: fix setParameterFromString
+  * frappy_psi/ls370res: various bug fixes
+  * client: add SecopClient.execCommandFromString
+  * frappy.client.interactive: improve updates while driving
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Mon, 12 May 2025 14:03:22 +0200
+
 frappy-core (0.20.4) stable; urgency=medium
 
   [ Georg Brandl ]
