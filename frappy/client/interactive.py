@@ -449,7 +449,7 @@ def run(filepath):
         "__file__": filepath,
         "__name__": "__main__",
     })
-    with filepath.open('rb') as file:
+    with open(filepath, 'rb') as file:
         # pylint: disable=exec-used
         exec(compile(file.read(), filepath, 'exec'), clientenv.namespace, None)
 
