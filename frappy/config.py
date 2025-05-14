@@ -16,13 +16,13 @@
 #
 # Module authors:
 # Alexander Zaft <a.zaft@fz-juelich.de>
+# Markus Zolliker <markus.zolliker@psi.ch>
 #
 # *****************************************************************************
 
 import os
 from pathlib import Path
 import re
-from collections import Counter
 
 from frappy.errors import ConfigError
 from frappy.lib import generalConfig
@@ -88,19 +88,50 @@ class Mod(dict):
             for member in members:
                 self[member]['group'] = group
 
+    def override(self, **kwds):
+        name = self['name']
+        warnings = []
+        for key, ovr in kwds.items():
+            if isinstance(ovr, Group):
+                warnings.append(f'ignore Group when overriding module {name}')
+                continue
+            param = self.get(key)
+            if param is None:
+                self[key] = ovr if isinstance(ovr, Param) else Param(ovr)
+                continue
+            if isinstance(param, Param):
+                if isinstance(ovr, Param):
+                    param.update(ovr)
+                else:
+                    param['value'] = ovr
+            else:  # description or cls
+                self[key] = ovr
+        return warnings
+
 
 class Collector:
-    def __init__(self, cls):
-        self.list = []
-        self.cls = cls
+    def __init__(self):
+        self.modules = {}
+        self.warnings = []
 
     def add(self, *args, **kwds):
-        result = self.cls(*args, **kwds)
-        self.list.append(result)
-        return result
+        mod = Mod(*args, **kwds)
+        name = mod.pop('name')
+        if name in self.modules:
+            self.warnings.append(f'duplicate module {name} overrides previous')
+        self.modules[name] = mod
+        return mod
 
-    def append(self, mod):
-        self.list.append(mod)
+    def override(self, name, **kwds):
+        """override properties/parameters of previously configured modules
+
+        this is useful together with 'include'
+        """
+        mod = self.modules.get(name)
+        if mod is None:
+            self.warnings.append(f'try to override nonexisting module {name}')
+            return
+        self.warnings.extend(mod.override(**kwds))
 
 
 class NodeCollector:
@@ -113,14 +144,16 @@ class NodeCollector:
         else:
             raise ConfigError('Only one Node is allowed per file!')
 
+    def override(self, **kwds):
+        if self.node is None:
+            raise ConfigError('node must be defined before overriding')
+        self.node.update(kwds)
+
 
 class Config(dict):
     def __init__(self, node, modules):
-        super().__init__(
-            node=node.node,
-            **{mod['name']: mod for mod in modules.list}
-        )
-        self.module_names = {mod.pop('name') for mod in modules.list}
+        super().__init__(node=node.node, **modules.modules)
+        self.module_names = set(modules.modules)
         self.ambiguous = set()
 
     def merge_modules(self, other):
@@ -136,25 +169,35 @@ class Config(dict):
                 mod['original_id'] = equipment_id
 
 
+class Include:
+    def __init__(self, namespace, log):
+        self.namespace = namespace
+        self.log = log
+
+    def __call__(self, cfgfile):
+        filename = to_config_path(cfgfile, self.log, '')
+        # pylint: disable=exec-used
+        exec(compile(filename.read_bytes(), filename, 'exec'), self.namespace)
+
+
 def process_file(filename, log):
     config_text = filename.read_bytes()
     node = NodeCollector()
-    mods = Collector(Mod)
-    ns = {'Node': node.add, 'Mod': mods.add, 'Param': Param, 'Command': Param, 'Group': Group}
-
+    mods = Collector()
+    ns = {'Node': node.add, 'Mod': mods.add, 'Param': Param, 'Command': Param, 'Group': Group,
+          'override': mods.override, 'overrideNode': node.override}
+    ns['include'] = Include(ns, log)
     # pylint: disable=exec-used
     exec(compile(config_text, filename, 'exec'), ns)
 
-    # check for duplicates in the file itself. Between files comes later
-    duplicates = [name for name, count in Counter([mod['name']
-                    for mod in mods.list]).items() if count > 1]
-    if duplicates:
-        log.warning('Duplicate module name in file \'%s\': %s',
-                    filename, ','.join(duplicates))
+    if mods.warnings:
+        log.warning('warnings in %s', filename)
+        for text in mods.warnings:
+            log.warning(text)
     return Config(node, mods)
 
 
-def to_config_path(cfgfile, log):
+def to_config_path(cfgfile, log, check_end='_cfg.py'):
     candidates = [cfgfile + e for e in ['_cfg.py', '.py', '']]
     if os.sep in cfgfile:  # specified as full path
         file = Path(cfgfile) if Path(cfgfile).exists() else None
@@ -168,8 +211,8 @@ def to_config_path(cfgfile, log):
             file = None
     if file is None:
         raise ConfigError(f"Couldn't find cfg file {cfgfile!r} in {generalConfig.confdir}")
-    if not file.name.endswith('_cfg.py'):
-        log.warning("Config files should end in '_cfg.py': %s", file.name)
+    if not file.name.endswith(check_end):
+        log.warning("Config files should end in %r: %s", check_end, file.name)
     log.debug('Using config file %s for %s', file, cfgfile)
     return file
 
@@ -197,6 +240,8 @@ def load_config(cfgfiles, log):
             config.merge_modules(cfg)
         else:
             config = cfg
+            if config.get('node') is None:
+                raise ConfigError(f'missing Node in {filename}')
 
     if config.ambiguous:
         log.warning('ambiguous sections in %s: %r',

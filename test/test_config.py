@@ -92,8 +92,8 @@ def test_cfg_not_existing(direc, log):
 def collector_helper(node, mods):
     n = NodeCollector()
     n.add(*node)
-    m = Collector(Mod)
-    m.list = [Mod(module, '', '') for module in mods]
+    m = Collector()
+    m.modules = {module: Mod(module, '', '') for module in mods}
     return n, m
 
 
