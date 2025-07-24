@@ -35,7 +35,7 @@ def main():
     generalConfig.init()
     config_dir = generalConfig['confdir']
 
-    frappy_unit = '/lib/systemd/system/frappy@.service'
+    frappy_unit = '/usr/lib/systemd/system/frappy@.service'
     wants_dir = normal_dir + '/frappy.target.wants'
 
     all_servers = [base[:-4] if base.endswith('_cfg') else base for (base, ext) in

@@ -10,6 +10,6 @@ usr/lib/python3.*/dist-packages/frappy/protocol
 usr/lib/python3.*/dist-packages/frappy_core-*
 usr/lib/python3.*/dist-packages/frappy/RELEASE-VERSION
 usr/lib/python3.*/dist-packages/frappy_demo
-lib/systemd
+usr/lib/systemd
 var/log/frappy
-etc/frappy/generalConfig.cfg
+etc/generalConfig.cfg etc/frappy/generalConfig.cfg

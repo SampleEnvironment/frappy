@@ -60,10 +60,9 @@ setup(
     ],
 
     data_files=[
-        ('/lib/systemd/system-generators', ['etc/frappy-generator']),
-        ('/lib/systemd/system', ['etc/frappy@.service',
-                                 'etc/frappy.target',
-                                 ]),
+        ('/usr/lib/systemd/system-generators', ['etc/frappy-generator']),
+        ('/usr/lib/systemd/system', ['etc/frappy@.service',
+                                     'etc/frappy.target']),
         ('/var/log/frappy', []),
     ],
     scripts=scripts,

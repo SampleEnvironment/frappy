@@ -1,19 +1,13 @@
 #!/usr/bin/make -f
-# -*- makefile -*-
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-export PYBUILD_NAME=frappy
-export PYBUILD_TEST_PYTEST=1
-
-override_dh_install:
-	rmdir debian/tmp
-	mv debian/python3-frappy debian/tmp
-
-	install -m644 -Dt debian/tmp/etc/frappy etc/generalConfig.cfg
-	dh_install -i -O--buildsystem=pybuild
-	dh_missing --fail-missing
+# needed for bookworm compatibility!
+override_dh_installsystemd:
+	ln -s usr/lib debian/frappy-core/lib
+	dh_installsystemd
+	rm debian/frappy-core/lib
 
 %:
 	dh $@ --with python3 --buildsystem=pybuild
