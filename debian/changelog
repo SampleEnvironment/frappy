@@ -1,3 +1,14 @@
+frappy-core (0.20.6) stable; urgency=medium
+
+  [ Markus Zolliker ]
+  * config: add 'include' and 'override'
+  * frappy.client.interactive: no pathlib needed here
+
+  [ Georg Brandl ]
+  * install systemd units to /usr/lib
+
+ -- Markus Zolliker <jenkins@frm2.tum.de>  Thu, 24 Jul 2025 22:26:02 +0200
+
 frappy-core (0.20.5) stable; urgency=medium
 
   [ Markus Zolliker ]
