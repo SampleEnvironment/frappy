@@ -12,4 +12,4 @@ usr/lib/python3.*/dist-packages/frappy/RELEASE-VERSION
 usr/lib/python3.*/dist-packages/frappy_demo
 usr/lib/systemd
 var/log/frappy
-etc/generalConfig.cfg etc/frappy/generalConfig.cfg
+etc/generalConfig.cfg etc/frappy
