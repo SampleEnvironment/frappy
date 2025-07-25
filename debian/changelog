@@ -1,3 +1,9 @@
+frappy-core (0.20.7) stable; urgency=medium
+
+  * fix debian install
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Fri, 25 Jul 2025 13:22:54 +0200
+
 frappy-core (0.20.6) stable; urgency=medium
 
   [ Markus Zolliker ]
