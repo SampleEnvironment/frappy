@@ -240,6 +240,9 @@ class SampleTemp(Drivable):
         # note: setting self.target to the new value is done after this....
         # note: we may also return the read-back value from the hw here
 
+    def stop(self):
+        self.target = self.value
+
     def _thread(self):
         loopdelay = 1
         while True:
