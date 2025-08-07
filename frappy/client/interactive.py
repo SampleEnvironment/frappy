@@ -29,7 +29,7 @@ import os
 import traceback
 import threading
 import logging
-from os.path import expanduser
+from pathlib import Path
 from frappy.lib import delayed_import
 from frappy.client import SecopClient, UnregisterCallback
 from frappy.errors import SECoPError
@@ -497,7 +497,7 @@ class Console(code.InteractiveConsole):
         history = None
         if readline:
             try:
-                history = expanduser(f'~/.frappy-{name}-history')
+                history = Path(f'~/.local/state/frappy-{name}-history').expanduser()
                 readline.read_history_file(history)
             except FileNotFoundError:
                 pass
@@ -505,6 +505,7 @@ class Console(code.InteractiveConsole):
             self.interact('', '')
         finally:
             if history:
+                history.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                 readline.write_history_file(history)
 
     def raw_input(self, prompt=""):
@@ -537,10 +538,10 @@ def init(*nodes):
     return success
 
 
-def interact(usage_tail=''):
+def interact(usage_tail='', appname=None):
     empty = '_c0' not in clientenv.namespace
     print(USAGE.format(
         client_name='cli' if empty else '_c0',
         client_assign="\ncli = Client('localhost:5000')\n" if empty else '',
         tail=usage_tail))
-    Console()
+    Console(name=f'cli-{appname}' if appname else 'cli')
