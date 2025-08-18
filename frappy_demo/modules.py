@@ -241,6 +241,7 @@ class SampleTemp(Drivable):
         # note: we may also return the read-back value from the hw here
 
     def stop(self):
+        """Stop and keep temperature at current position."""
         self.target = self.value
 
     def _thread(self):
