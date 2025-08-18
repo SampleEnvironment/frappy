@@ -453,6 +453,10 @@ class Module(HasAccessibles):
             self.commands[name] = accessible
         if cfg is not None:
             try:
+                # apply datatype first
+                datatype = cfg.pop('datatype', None)
+                if datatype is not None:
+                    accessible.setProperty('datatype', datatype)
                 for propname, propvalue in cfg.items():
                     if propname in {'value', 'default', 'constant'}:
                         # these properties have ValueType(), but should be checked for datatype
