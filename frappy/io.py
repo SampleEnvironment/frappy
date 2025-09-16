@@ -30,7 +30,7 @@ import time
 from frappy.datatypes import ArrayOf, BLOBType, BoolType, FloatRange, \
     IntRange, StringType, StructOf, TupleOf, ValueType
 from frappy.errors import CommunicationFailedError, ConfigError, \
-    ProgrammingError, SilentCommunicationFailedError as SilentError
+    ProgrammingError, SECoPError, SilentCommunicationFailedError as SilentError
 from frappy.lib import generalConfig
 from frappy.lib.asynconn import AsynConn, ConnectionClosed
 from frappy.modules import Attached, Command, Communicator, Module, \
@@ -125,7 +125,7 @@ class IOBase(Communicator):
 
     _reconnectCallbacks = None
     _conn = None
-    _last_error = None
+    _last_error = None  # this is None only until the first connection success
     _lock = None
     _last_connect_attempt = 0
 
@@ -167,10 +167,10 @@ class IOBase(Communicator):
         try:
             self.connectStart()
             if self._last_error:
+                # we do not get here before the first connect success
                 self.log.info('connected')
-                self._last_error = 'connected'
                 self.callCallbacks()
-                return self.is_connected
+            self._last_error = 'connected'
         except Exception as e:
             if repr(e) != self._last_error:
                 self._last_error = repr(e)
@@ -309,6 +309,7 @@ class StringIO(IOBase):
         """
         command = command.encode(self.encoding)
         self.check_connection()
+        new_error = 'no error'  # in case of success (must not be None)
         try:
             with self._lock:
                 # read garbage and wait before send
@@ -337,12 +338,19 @@ class StringIO(IOBase):
                 self.comLog('< %s', reply)
                 return reply
         except Exception as e:
-            if self._conn is None:
-                raise SilentError('disconnected') from None
-            if repr(e) != self._last_error:
-                self._last_error = repr(e)
-                self.log.error(self._last_error)
-            raise SilentError(repr(e)) from e
+            new_error = 'disconnected' if self._conn is None else repr(e)
+            if new_error != self._last_error:
+                # suppress subsequent equal error messages
+                # this is in addition to the mechanism in Module.callPollFunc
+                # as the same error would appear potentially in a lot of
+                # methods
+                if isinstance(e, SECoPError):
+                    self.log.error(new_error)
+                else:
+                    self.log.exception(new_error)
+            raise SilentError(new_error) from e
+        finally:
+            self._last_error = new_error
 
     @Command(StringType())
     def writeline(self, command):
@@ -472,6 +480,7 @@ class BytesIO(IOBase):
     def communicate(self, request, replylen):  # pylint: disable=arguments-differ
         """send a request and receive (at least) <replylen> bytes as reply"""
         self.check_connection()
+        new_error = 'no error'  # in case of success (must not be None)
         try:
             with self._lock:
                 # read garbage and wait before send
@@ -490,12 +499,19 @@ class BytesIO(IOBase):
                 self.comLog('< %s', hexify(reply))
                 return self.getFullReply(request, reply)
         except Exception as e:
-            if self._conn is None:
-                raise SilentError('disconnected') from None
-            if repr(e) != self._last_error:
-                self._last_error = str(e)
-                self.log.error(self._last_error)
-            raise SilentError(repr(e)) from e
+            new_error = 'disconnected' if self._conn is None else repr(e)
+            if new_error != self._last_error:
+                # suppress subsequent equal error messages
+                # this is in addition to the mechanism in Module.callPollFunc
+                # as the same error would appear potentially in a lot of
+                # methods
+                if isinstance(e, SECoPError):
+                    self.log.error(new_error)
+                else:
+                    self.log.exception(new_error)
+            raise SilentError(new_error) from e
+        finally:
+            self._last_error = new_error
 
     @Command(StructOf(requests=ArrayOf(TupleOf(BLOBType(), IntRange(0), FloatRange(0, unit='s')))),
              result=ArrayOf(BLOBType()))

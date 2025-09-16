@@ -33,7 +33,6 @@ class SECoPError(RuntimeError):
     clsname2class = {}  # needed to convert error reports back to classes
     name = 'InternalError'
     name2class = {}
-    report_error = True
     raising_methods = None
 
     def __init_subclass__(cls):
@@ -76,7 +75,7 @@ class SECoPError(RuntimeError):
         if mlist and stripped:
             mlist = mlist[:-1]  # do not pop, as this would change self.raising_methods
         prefix = '' if self.name2class.get(self.name) == type(self) else type(self).__name__
-        prefix += ''.join(' in ' + m for m in mlist).strip()
+        prefix = (prefix + ''.join(' in ' + m for m in mlist)).strip()
         if prefix:
             return f'{prefix}: {super().__str__()}'
         return super().__str__()

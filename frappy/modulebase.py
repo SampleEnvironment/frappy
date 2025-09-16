@@ -244,7 +244,7 @@ class PollInfo:
         self.interval = pollinterval
         self.last_main = 0
         self.last_slow = 0
-        self.pending_errors = set()
+        self.pending_errors = {}
         self.polled_parameters = []
         self.fast_flag = False
         self.trigger_event = trigger_event
@@ -527,7 +527,6 @@ class Module(HasAccessibles):
                     pobj.value = value
             if err:
                 if secop_error(err) == pobj.readerror:
-                    err.report_error = False
                     return  # no updates for repeated errors
                 err = secop_error(err)
                 value_err = value, err
@@ -662,29 +661,31 @@ class Module(HasAccessibles):
             self.pollInfo.interval = fast_interval if flag else self.pollinterval
             self.pollInfo.trigger()
 
-    def callPollFunc(self, rfunc, raise_com_failed=False):
+    def callPollFunc(self, rfunc, pollname=None, raise_com_failed=False):
         """call read method with proper error handling"""
         try:
+            name = pollname or rfunc.__name__
             rfunc()
-            if rfunc.__name__ in self.pollInfo.pending_errors:
-                self.log.info('%s: o.k.', rfunc.__name__)
-                self.pollInfo.pending_errors.discard(rfunc.__name__)
+            if self.pollInfo.pending_errors.pop(name, None):
+                self.log.info('%s: o.k.', name)
         except Exception as e:
-            if getattr(e, 'report_error', True):
-                name = rfunc.__name__
-                self.pollInfo.pending_errors.add(name)  # trigger o.k. message after error is resolved
-                if isinstance(e, SECoPError):
-                    e.raising_methods.append(name)
-                    if e.silent:
-                        self.log.debug('%s', e.format(False))
-                    else:
-                        self.log.error('%s', e.format(False))
-                    if raise_com_failed and isinstance(e, CommunicationFailedError):
-                        raise
-                else:
-                    # not a SECoPError: this is proabably a programming error
+            prev = self.pollInfo.pending_errors.get(name)
+            if isinstance(e, SECoPError):
+                if pollname:
+                    e.raising_methods.append(pollname)
+                    self.log.debug('%s failed with %r', pollname, e)
+                if raise_com_failed and isinstance(e, CommunicationFailedError):
+                    raise
+                efmt = None if e.silent else e.format(False)
+                if efmt != prev:
+                    self.log.error('%s', efmt)
+            else:
+                # not a SECoPError: this is proabably a programming error
+                efmt = repr(e)
+                if efmt != prev:
                     # we want to log the traceback
-                    self.log.error('%s', formatException())
+                    self.log.exception('%s', efmt)
+            self.pollInfo.pending_errors[name] = efmt
 
     def __pollThread(self, modules, started_callback):
         """poll thread body
@@ -738,8 +739,19 @@ class Module(HasAccessibles):
         if not polled_modules:  # no polls needed - exit thread
             return
         to_poll = ()
+        report_day = time.localtime().tm_min
         while modules:  # modules will be cleared on shutdown
             now = time.time()
+            today = time.localtime().tm_min
+            if today != report_day:
+                report_day = today
+                for mobj in modules:
+                    pending = mobj.pollInfo.pending_errors
+                    if pending:
+                        self.log.info('%d pending errors', len(pending))
+                        # this will trigger again logging these errors
+                        # or logging o.k. on success
+                        pending.update((k, 'x') for k in pending)
             wait_time = 999
             for mobj in modules:
                 pinfo = mobj.pollInfo
@@ -759,7 +771,7 @@ class Module(HasAccessibles):
                         pinfo.last_main = (now // pinfo.interval) * pinfo.interval
                     except ZeroDivisionError:
                         pinfo.last_main = now
-                    mobj.callPollFunc(mobj.doPoll)
+                    mobj.callPollFunc(mobj.doPoll, f'{mobj.name}.doPoll')
                 now = time.time()
             # find ONE due slow poll and call it
             loop = True
