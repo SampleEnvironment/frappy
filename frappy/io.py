@@ -218,11 +218,20 @@ class IOBase(Communicator):
     def communicate(self, command):
         return NotImplementedError
 
+    @Command
+    def reconnect(self):
+        """close and open connection
+
+        sometimes a reconnect helps to heal a broken connection
+        """
+        self.closeConnection()
+        self.read_is_connected()  # this always tries to reconnect
+
 
 class StringIO(IOBase):
     """line oriented communicator
 
-    self healing is assured by polling the parameter 'is_connected'
+    self-healing is assured by polling the parameter 'is_connected'
     """
     end_of_line = Property('end_of_line character', datatype=ValueType(),
                            default='\n', settable=True)
