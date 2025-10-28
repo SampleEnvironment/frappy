@@ -25,8 +25,8 @@
 import inspect
 
 from frappy.datatypes import ArrayOf, BoolType, CommandType, DataType, \
-    DataTypeType, EnumType, FloatRange, NoneOr, OrType, StringType, StructOf, \
-    TextType, TupleOf, ValueType, visibility_validator
+    DataTypeType, DefaultType, EnumType, FloatRange, NoneOr, OrType, StringType, \
+    StructOf, TextType, TupleOf, ValueType, visibility_validator
 from frappy.errors import BadValueError, ProgrammingError, WrongTypeError
 from frappy.lib import generalConfig
 from frappy.properties import HasProperties, Property
@@ -144,7 +144,7 @@ class Parameter(Accessible):
         extname='description', mandatory=True, export='always')
     datatype = Property(
         'datatype of the Parameter (SECoP datainfo)', DataTypeType(),
-        extname='datainfo', mandatory=True, export='always', default=ValueType())
+        extname='datainfo', mandatory=True, export='always', default=DefaultType())
     readonly = Property(
         'not changeable via SECoP (default True)', BoolType(),
         extname='readonly', default=True, export='always')

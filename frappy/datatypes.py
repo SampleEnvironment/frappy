@@ -53,13 +53,9 @@ def shortrepr(value):
     return r
 
 
-# base class for all DataTypes
-class DataType(HasProperties):
-    """base class for all data types"""
-    IS_COMMAND = False
-    unit = ''
+class SimpleDataType(HasProperties):
+    """base class for simple datatypes, used in properties only"""
     default = None
-    client = False  # used on the client side
 
     def __call__(self, value):
         """convert given value to our datatype and validate
@@ -105,37 +101,9 @@ class DataType(HasProperties):
         """
         return self.format_value(value, False)
 
-    def export_datatype(self):
-        """return a python object which after jsonifying identifies this datatype"""
-        raise ProgrammingError(
-            f"{type(self).__name__} is not able to be exported to SECoP. "
-            f"It is intended for internal use only."
-        )
-
     def export_value(self, value):
         """if needed, reformat value for transport"""
         return value
-
-    def import_value(self, value):
-        """opposite of export_value, reformat from transport to internal repr
-
-        note: for importing from gui/configfile/commandline use :meth:`from_string`
-        instead.
-        """
-        return self(value)
-
-    def format_value(self, value, unit=True):
-        """format a value of this type into a string
-
-        This is intended for 'nice' formatting for humans and is NOT
-        the opposite of :meth:`from_string`
-
-        possible values of unit:
-        - True: use the string of the datatype
-        - False: return a value interpretable by ast.literal_eval (internal use only)
-        - any other string: use as unit (internal use only)
-        """
-        raise NotImplementedError
 
     def set_properties(self, **kwds):
         """init datatype properties"""
@@ -161,12 +129,44 @@ class DataType(HasProperties):
         # looks like the simplest way to make a deep copy
         return get_datatype(self.export_datatype())
 
+
+class DataType(SimpleDataType):
+    """base class for data types used in parameters and commands"""
+    IS_COMMAND = False
+    unit = ''
+    client = False  # used on the client side
+
+    def import_value(self, value):
+        """opposite of export_value, reformat from transport to internal repr
+
+        note: for importing from gui/configfile/commandline use :meth:`from_string`
+        instead.
+        """
+        return self(value)
+
+    def format_value(self, value, unit=True):
+        """format a value of this type into a string
+
+        This is intended for 'nice' formatting for humans and is NOT
+        the opposite of :meth:`from_string`
+
+        possible values of unit:
+        - True: use the string of the datatype
+        - False: return a value interpretable by ast.literal_eval (internal use only)
+        - any other string: use as unit (internal use only)
+        """
+        raise NotImplementedError
+
     def compatible(self, other):
         """check other for compatibility
 
         raise an exception if <other> is not compatible, i.e. there
         exists a value which is valid for ourselfs, but not for <other>
         """
+        raise NotImplementedError
+
+    def export_datatype(self):
+        """return a python object which after jsonifying identifies this datatype"""
         raise NotImplementedError
 
     def set_main_unit(self, unit):
@@ -1132,10 +1132,23 @@ class CommandType(DataType):
 
 # internally used datatypes (i.e. only for programming the SEC-node)
 
-class DataTypeType(DataType):
+class DefaultType(DataType):
+    """datatype used as default for parameters
+
+    needs some minimal interface to avoid errors when
+    the datatype of a parameter is not yet defined
+    """
+    def __call__(self, value):
+        return value
+
+    def setProperty(self, key, value):
+        """silently ignored"""
+
+
+class DataTypeType(SimpleDataType):
     def __call__(self, value):
         """accepts a datatype"""
-        if isinstance(value, DataType):
+        if isinstance(value, SimpleDataType):
             return value
         #TODO: not needed anymore?
         try:
@@ -1156,7 +1169,7 @@ class DataTypeType(DataType):
         raise NotImplementedError
 
 
-class ValueType(DataType):
+class ValueType(SimpleDataType):
     """Can take any python value.
 
     The optional (callable) validator can be used to restrict values to a
@@ -1189,23 +1202,8 @@ class ValueType(DataType):
         """if needed, reformat value for transport"""
         return value
 
-    def import_value(self, value):
-        """opposite of export_value, reformat from transport to internal repr
 
-        note: for importing from gui/configfile/commandline use :meth:`from_string`
-        instead.
-        """
-        raise NotImplementedError
-
-    def setProperty(self, key, value):
-        """silently ignored
-
-        as ValueType is used for the datatype default, this makes code
-        shorter for cases, where the datatype may not yet be defined
-        """
-
-
-class NoneOr(DataType):
+class NoneOr(SimpleDataType):
     """validates a None or smth. else"""
     default = None
 
@@ -1223,7 +1221,7 @@ class NoneOr(DataType):
         return self.other.export_value(value)
 
 
-class OrType(DataType):
+class OrType(SimpleDataType):
     def __init__(self, *types):
         super().__init__()
         self.types = types

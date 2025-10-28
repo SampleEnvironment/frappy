@@ -75,7 +75,7 @@ def out_of_range(dt, *args):
 
 def test_DataType():
     dt = DataType()
-    with pytest.raises(ProgrammingError):
+    with pytest.raises(NotImplementedError):
         dt.export_datatype()
     with pytest.raises(NotImplementedError):
         dt('')
