@@ -37,10 +37,6 @@ from frappy.params import Accessible, Command, Parameter, Limit, PREDEFINED_ACCE
 from frappy.properties import HasProperties, Property
 from frappy.logging import RemoteLogHandler
 
-# TODO: resolve cirular import
-# from .interfaces import SECoP_BASE_CLASSES
-# WORKAROUND:
-SECoP_BASE_CLASSES = ['Readable', 'Writable', 'Drivable', 'Communicator']
 PREDEF_ORDER = list(PREDEFINED_ACCESSIBLES)
 
 Done = UniqueObject('Done')
@@ -310,8 +306,8 @@ class Module(HasAccessibles):
                           default='www', extname='visibility')
     implementation = Property('internal name of the implementation class of the module', StringType(),
                               extname='implementation')
-    interface_classes = Property('offical highest interface-class of the module', ArrayOf(StringType()),
-                                 extname='interface_classes')
+    interface_classes = Property('offical interface-classes of the module', ArrayOf(StringType()),
+                                 extname='interface_classes', default=[])
     features = Property('list of features', ArrayOf(StringType()), extname='features')
     pollinterval = Property('poll interval for parameters handled by doPoll', FloatRange(0.1, 120), default=5)
     slowinterval = Property('poll interval for other parameters', FloatRange(0.1, 120), default=15)
@@ -373,10 +369,6 @@ class Module(HasAccessibles):
         mycls, = self.__class__.__bases__  # skip the wrapper class
         myclassname = f'{mycls.__module__}.{mycls.__name__}'
         self.implementation = myclassname
-
-        # list of only the 'highest' secop module class
-        self.interface_classes = [
-            b.__name__ for b in mycls.__mro__ if b.__name__ in SECoP_BASE_CLASSES][:1]
 
         # handle Features
         self.features = [b.__name__ for b in mycls.__mro__ if Feature in b.__bases__]

@@ -36,6 +36,7 @@ from .modulebase import Module
 
 class Readable(Module):
     """basic readable module"""
+    interface_classes = ['Readable']
     # pylint: disable=invalid-name
     Status = Enum('Status',
                   IDLE=StatusType.IDLE,
@@ -55,6 +56,7 @@ class Readable(Module):
 
 class Writable(Readable):
     """basic writable module"""
+    interface_classes = ['Writable']
     target = Parameter('target value of the module',
                        default=0, readonly=False, datatype=FloatRange(unit='$'))
 
@@ -74,7 +76,7 @@ class Writable(Readable):
 
 class Drivable(Writable):
     """basic drivable module"""
-
+    interface_classes = ['Drivable']
     status = Parameter(datatype=StatusType(Readable, 'BUSY'))  # extend Readable.status
 
     def isBusy(self, status=None):
@@ -98,6 +100,7 @@ class Drivable(Writable):
 
 class Communicator(HasComlog, Module):
     """basic abstract communication module"""
+    interface_classes = ['Communicator']
 
     @Command(StringType(), result=StringType())
     def communicate(self, command):
@@ -107,9 +110,6 @@ class Communicator(HasComlog, Module):
         :return: the reply
         """
         raise NotImplementedError()
-
-
-SECoP_BASE_CLASSES = {Readable, Writable, Drivable, Communicator}
 
 
 class Attached(Property):
