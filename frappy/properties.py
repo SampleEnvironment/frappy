@@ -141,6 +141,10 @@ class HasProperties(HasDescriptors):
         for pn, po in list(properties.items()):
             value = getattr(cls, pn, po)
             if not isinstance(value, Property):  # attribute may be a bare value
+                if value is None:
+                    # this allows to remove a property defined in a base class
+                    cls.propertyDict.pop(pn)
+                    continue
                 po = po.copy()
                 try:
                     # try to apply bare value to Property
