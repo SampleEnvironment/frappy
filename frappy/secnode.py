@@ -20,12 +20,12 @@
 # *****************************************************************************
 
 import time
-import traceback
 from collections import OrderedDict
 
 from frappy.dynamic import Pinata
-from frappy.errors import ConfigError, NoSuchModuleError, NoSuchParameterError
-from frappy.lib import get_class
+from frappy.errors import NoSuchModuleError, NoSuchParameterError, SECoPError, \
+    ConfigError, ProgrammingError
+from frappy.lib import get_class, generalConfig
 from frappy.version import get_version
 from frappy.modules import Module
 
@@ -38,6 +38,7 @@ class SecNode:
      - get_module(modulename) returns the requested module or None if there is
        no suitable configuration on the server
     """
+    raise_config_errors = False  # collect catchable errors instead of raising
 
     def __init__(self, name, logger, options, srv):
         self.equipment_id = options.pop('equipment_id', name)
@@ -46,17 +47,25 @@ class SecNode:
         self.modules = {}
         self.log = logger
         self.srv = srv
-        # set of modules that failed creation
-        self.failed_modules = set()
-        # list of errors that occured during initialization
-        self.errors = []
-        self.traceback_counter = 0
+        self.error_count = 0  # count catchable errors during initialization
         self.name = name
 
     def add_secnode_property(self, prop, value):
         """Add SECNode property. If starting with an underscore, it is exported
         in the description."""
         self.nodeprops[prop] = value
+
+    def logError(self, error):
+        """log error or raise, depending on generalConfig settings
+
+        :param error: an exception or a str (considered as ConfigError)
+
+        to be used during startup
+        """
+        if generalConfig.raise_config_errors:
+            raise ConfigError(error) if isinstance(error, str) else error
+        self.log.error(str(error))
+        self.error_count += 1
 
     def get_secnode_property(self, prop):
         """Get SECNode property.
@@ -76,20 +85,18 @@ class SecNode:
 
         # also call earlyInit on the modules
         self.log.debug('initializing module %r', modulename)
-        try:
-            modobj.earlyInit()
-            if not modobj.earlyInitDone:
-                self.errors.append(f'{modobj.earlyInit.__qualname__} was not '
-                                   f'called, probably missing super call')
-            modobj.initModule()
-            if not modobj.initModuleDone:
-                self.errors.append(f'{modobj.initModule.__qualname__} was not '
-                                   f'called, probably missing super call')
-        except Exception as e:
-            if self.traceback_counter == 0:
-                self.log.exception(traceback.format_exc())
-            self.traceback_counter += 1
-            self.errors.append(f'error initializing {modulename}: {e!r}')
+        modobj.earlyInit()
+        if not modobj.earlyInitDone:
+            self.logError(ProgrammingError(
+                f'module {modulename}: '
+                'Module.earlyInit was not called, probably missing super call'))
+            modobj.earlyInitDone = True
+        modobj.initModule()
+        if not modobj.initModuleDone:
+            self.logError(ProgrammingError(
+                f'module {modulename}: '
+                'Module.initModule was not called, probably missing super call'))
+            modobj.initModuleDone = True
         modobj._isinitialized = True
         self.log.debug('initialized module %r', modulename)
         return modobj
@@ -115,51 +122,22 @@ class SecNode:
             raise NoSuchModuleError(f'Module {modulename!r} does not exist on '
                                     f'this SEC-Node!')
         opts = dict(opts)
-        pymodule = None
-        try:  # pylint: disable=no-else-return
-            classname = opts.pop('cls')
+        classname = opts.pop('cls')
+        try:
             if isinstance(classname, str):
-                pymodule = classname.rpartition('.')[0]
-                if pymodule in self.failed_modules:
-                    # creation has failed already once, do not try again
-                    return None
                 cls = get_class(classname)
             else:
-                pymodule = classname.__module__
-                if pymodule in self.failed_modules:
-                    # creation has failed already once, do not try again
-                    return None
                 cls = classname
             if not issubclass(cls, Module):
-                self.errors.append(f'{cls.__name__} is not a Module')
+                self.logError(f'{cls.__name__} is not a Module')
                 return None
-        except Exception as e:
+        except AttributeError as e:
             if str(e) == 'no such class':
-                self.errors.append(f'{classname} not found')
-            else:
-                self.failed_modules.add(pymodule)
-                if self.traceback_counter == 0:
-                    self.log.exception(traceback.format_exc())
-                self.traceback_counter += 1
-                self.errors.append(f'error importing {classname}')
-            return None
-        else:
-            try:
-                modobj = cls(modulename, self.log.parent.getChild(modulename),
-                             opts, self.srv)
-            except ConfigError as e:
-                self.errors.append(f'error creating module {modulename}:')
-                for errtxt in e.args[0] if isinstance(e.args[0], list) else [e.args[0]]:
-                    self.errors.append('  ' + errtxt)
-                modobj = None
-            except Exception as e:
-                if self.traceback_counter == 0:
-                    self.log.exception(traceback.format_exc())
-                self.traceback_counter += 1
-                self.errors.append(f'error creating {modulename}')
-                modobj = None
-        if modobj:
-            self.add_module(modobj, modulename)
+                self.logError(f'{classname} not found')
+                return None
+            raise
+        modobj = cls(modulename, self.log.parent.getChild(modulename),
+                     opts, self.srv)
         return modobj
 
     def create_modules(self):
@@ -190,6 +168,19 @@ class SecNode:
                 self.log.info('Pinata %s found %d modules',
                               modname, len(pinata_modules))
                 todos.extend(pinata_modules)
+        # initialize all modules
+        for modname in self.modules:
+            modobj = self.get_module(modname)
+            # check attached modules for existence
+            # normal properties are retrieved too, but this does not harm
+            for prop in modobj.propertyDict:
+                try:
+                    getattr(modobj, prop)
+                except SECoPError as e:
+                    if self.raise_config_errors:
+                        raise
+                    self.error_count += 1
+                    modobj.logError(e)
 
     def export_accessibles(self, modobj):
         self.log.debug('export_accessibles(%r)', modobj.name)
@@ -267,7 +258,7 @@ class SecNode:
         now = time.time()
         deadline = now + 0.5  # should be long enough for most read functions to finish
         for mod in self.modules.values():
-            mod.joinPollThread(max(0, deadline - now))
+            mod.joinPollThread(max(0.0, deadline - now))
             now = time.time()
         for name in self._getSortedModules():
             self.modules[name].shutdownModule()

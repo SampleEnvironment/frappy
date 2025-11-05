@@ -175,6 +175,9 @@ class IOBase(Communicator):
             if repr(e) != self._last_error:
                 self._last_error = repr(e)
                 self.log.error(self._last_error)
+                if not isinstance(e, CommunicationFailedError):
+                    # when this happens on startup, assume it is not worth to continue
+                    self.secNode.error_count += 1
             raise SilentError(repr(e)) from e
         return self.is_connected
 

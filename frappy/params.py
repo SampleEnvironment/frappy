@@ -23,7 +23,6 @@
 
 
 import inspect
-
 from frappy.datatypes import ArrayOf, BoolType, CommandType, DataType, \
     DataTypeType, DefaultType, EnumType, FloatRange, NoneOr, OrType, StringType, \
     StructOf, TextType, TupleOf, ValueType, visibility_validator
@@ -342,7 +341,9 @@ class Parameter(Accessible):
                 try:
                     self.datatype.setProperty(key, value)
                 except KeyError:
-                    raise ProgrammingError(f'cannot set {key} on parameter with datatype {type(self.datatype).__name__}') from None
+                    raise ProgrammingError(
+                        f'cannot set {key} on parameter with datatype'
+                        f' {type(self.datatype).__name__}') from None
         except BadValueError as e:
             raise ProgrammingError(f'property {key}: {str(e)}') from None
 

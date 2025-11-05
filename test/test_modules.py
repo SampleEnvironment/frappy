@@ -41,7 +41,7 @@ class DispatcherStub:
     # -> we have to inhibit the 'omit unchanged update' feature
 
     def __init__(self, updates):
-        generalConfig.testinit(omit_unchanged_within=0)
+        generalConfig.testinit(omit_unchanged_within=0, raise_config_errors=True)
         self.updates = updates
 
     def announce_update(self, moduleobj, pobj):
@@ -66,7 +66,7 @@ logger = LoggerStub()
 class ServerStub:
     def __init__(self, updates):
         self.dispatcher = DispatcherStub(updates)
-        self.secnode = None
+        self.secnode = type('SecNodeStub', (), {'raise_config_errors': True})
 
 
 class DummyMultiEvent(threading.Event):

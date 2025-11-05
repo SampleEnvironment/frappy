@@ -32,7 +32,7 @@ from frappy.datatypes import ArrayOf, BoolType, FloatRange, IntRange, NoneOr, \
 
 from frappy.errors import BadValueError, CommunicationFailedError, ConfigError, \
     ProgrammingError, SECoPError, secop_error, RangeError
-from frappy.lib import formatException, mkthread, UniqueObject
+from frappy.lib import formatException, mkthread, UniqueObject, generalConfig
 from frappy.params import Accessible, Command, Parameter, Limit, PREDEFINED_ACCESSIBLES
 from frappy.properties import HasProperties, Property
 from frappy.logging import RemoteLogHandler
@@ -336,7 +336,6 @@ class Module(HasAccessibles):
         self.updateLock = threading.RLock()  # for announceUpdate
         self.polledModules = []  # modules polled by thread started in self.startModules
         self.attachedModules = {}
-        self.errors = []
         self._isinitialized = False
         self.updateCallback = srv.dispatcher.announce_update
 
@@ -363,7 +362,7 @@ class Module(HasAccessibles):
                     else:
                         self.setProperty(key, value)
                 except BadValueError:
-                    self.errors.append(f'{key}: value {value!r} does not match {self.propertyDict[key].datatype!r}!')
+                    self.logError(f'{key}: value {value!r} does not match {self.propertyDict[key].datatype!r}!')
 
         # 3) set automatic properties
         mycls, = self.__class__.__bases__  # skip the wrapper class
@@ -390,7 +389,7 @@ class Module(HasAccessibles):
 
         # 3) complain about names not found as accessible or property names
         if cfgdict:
-            self.errors.append(
+            self.logError(
                 f"{', '.join(cfgdict.keys())} does not exist (use one of"
                 f" {', '.join(list(self.accessibles) + list(self.propertyDict))})")
 
@@ -406,18 +405,17 @@ class Module(HasAccessibles):
                 self.applyMainUnit(mainunit)
 
         # 6) check complete configuration of * properties
-        if not self.errors:
+        try:
+            self.checkProperties()
+        except ProgrammingError:
+            raise
+        except SECoPError as e:
+            self.logError(str(e))
+        for aname, aobj in self.accessibles.items():
             try:
-                self.checkProperties()
-            except ConfigError as e:
-                self.errors.append(str(e))
-            for aname, aobj in self.accessibles.items():
-                try:
-                    aobj.checkProperties()
-                except (ConfigError, ProgrammingError) as e:
-                    self.errors.append(f'{aname}: {e}')
-        if self.errors:
-            raise ConfigError(self.errors)
+                aobj.checkProperties()
+            except SECoPError as e:
+                self.logError(f'{aname}: {e}')
 
     # helper cfg-editor
     def __iter__(self):
@@ -455,9 +453,9 @@ class Module(HasAccessibles):
                         accessible.datatype(cfg[propname])
                     accessible.setProperty(propname, propvalue)
             except KeyError:
-                self.errors.append(f"'{name}' has no property '{propname}'")
-            except BadValueError as e:
-                self.errors.append(f'{name}.{propname}: {str(e)}')
+                self.logError(f"'{name}' has no property '{propname}'")
+            except SECoPError as e:
+                self.logError(type(e)(f'{name}.{propname}: {e}'))
         if isinstance(accessible, Parameter):
             self._handle_writes(name, accessible)
 
@@ -471,17 +469,17 @@ class Module(HasAccessibles):
             basepname = pname.rpartition('_')[0]
             baseparam = self.parameters.get(basepname)
             if not baseparam:
-                self.errors.append(f'limit {pname!r} is given, but not {basepname!r}')
+                self.logError(f'limit {pname!r} is given, but not {basepname!r}')
                 return
             if baseparam.datatype is None:
                 return  # an error will be reported on baseparam
             pobj.set_datatype(baseparam.datatype)
         if not pobj.hasDatatype():
-            self.errors.append(f'{pname} needs a datatype')
+            self.logError(f'{pname} needs a datatype')
             return
         if pobj.value is None:
             if pobj.needscfg:
-                self.errors.append(f'{pname!r} has no default value and was not given in config!')
+                self.logError(f'{pname!r} has no default value and was not given in config!')
             if pobj.default is None:
                 # we do not want to call the setter for this parameter for now,
                 # this should happen on the first read
@@ -606,8 +604,6 @@ class Module(HasAccessibles):
         registers it in the server for waiting
         <timeout> defaults to 30 seconds
         """
-        # we do not need self.errors any longer. should we delete it?
-        # del self.errors
         if self.polledModules:
             self.__poller = mkthread(self.__pollThread, self.polledModules, start_events.get_trigger())
         self.startModuleDone = True
@@ -859,3 +855,15 @@ class Module(HasAccessibles):
             raise RangeError(f'{pname} below {pname}_min')
         if value > max_:
             raise RangeError(f'{pname} above {pname}_max')
+
+    def logError(self, error):
+        """log error or raise, depending on generalConfig settings
+
+        :param error: an exception or a str (considered as ConfigError)
+
+        to be used during startup
+        """
+        if generalConfig.raise_config_errors:
+            raise ConfigError(error) if isinstance(error, str) else error
+        self.log.error(str(error))
+        self.secNode.error_count += 1

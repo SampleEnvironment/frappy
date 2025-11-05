@@ -31,13 +31,15 @@ import time
 import mlzlog
 
 from frappy.config import load_config
-from frappy.errors import ConfigError
+from frappy.errors import ConfigError, ProgrammingError
 from frappy.lib import formatException, generalConfig, get_class, mkthread
 from frappy.lib.multievent import MultiEvent
 from frappy.logging import init_remote_logging
 from frappy.params import PREDEFINED_ACCESSIBLES
 from frappy.secnode import SecNode
 from frappy.protocol.discovery import UDPListener
+
+generalConfig.set_default('raise_config_errors', False)
 
 try:
     from daemon import DaemonContext
@@ -299,33 +301,35 @@ class Server:
         for k in list(opts):
             self.secnode.add_secnode_property(k, opts.pop(k))
 
-        self.secnode.create_modules()
-        # initialize modules by calling self.secnode.get_module for all of them
-        # this is done in build_descriptive_data even for unexported modules
-        self.secnode.build_descriptive_data()
-        # =========== All modules are initialized ===========
+        try:
+            self.secnode.create_modules()
+            # initialize modules by calling self.secnode.get_module for all of them
+            # this is done in build_descriptive_data even for unexported modules
+            self.secnode.build_descriptive_data()
+            # =========== All modules are initialized ===========
 
-        # all errors from initialization process
-        errors = self.secnode.errors
-
-        if not self._testonly:
-            start_events = MultiEvent(default_timeout=30)
-            for modname, modobj in self.secnode.modules.items():
-                # startModule must return either a timeout value or None (default 30 sec)
-                start_events.name = f'module {modname}'
-                modobj.startModule(start_events)
-                if not modobj.startModuleDone:
-                    errors.append(f'{modobj.startModule.__qualname__} was not called, probably missing super call')
-
-        if errors:
-            for errtxt in errors:
-                for line in errtxt.split('\n'):
-                    self.log.error(line)
-            # print a list of config errors to stderr
-            sys.stderr.write('\n'.join(errors))
-            sys.stderr.write('\n')
+            if not self._testonly:
+                start_events = MultiEvent(default_timeout=30)
+                for modname, modobj in self.secnode.modules.items():
+                    # startModule must return either a timeout value or None (default 30 sec)
+                    start_events.name = f'module {modname}'
+                    if self.secnode.error_count:
+                        # do not start poll thread. check for startModuleDone only
+                        modobj.polledModules = []
+                    modobj.startModule(start_events)
+                    if not modobj.startModuleDone:
+                        self.secnode.log_error(ProgrammingError(
+                            f'module {modname}: '
+                            'Module.startModule was not called, probably missing super call'))
+        except Exception as e:
+            if self.secnode.error_count:
+                raise type(e)(
+                    f'{e.args[0]} - see also {self.secnode.error_count}'
+                    ' errors logged above') from e
+            raise
+        if self.secnode.error_count:
+            self.log.error('%d errors during initialisation', self.secnode.error_count)
             sys.exit(1)
-
         if self._testonly:
             return
         self.log.info('waiting for modules being started')
@@ -334,6 +338,9 @@ class Server:
             # some timeout happened
             for name in start_events.waiting_for():
                 self.log.warning('timeout when starting %s', name)
+        if self.secnode.error_count:
+            self.log.error('%d errors during startup', self.secnode.error_count)
+            sys.exit(1)
         self.log.info('all modules started')
         history_path = os.environ.get('FRAPPY_HISTORY')
         if history_path:
