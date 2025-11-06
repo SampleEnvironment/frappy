@@ -159,7 +159,7 @@ class HasProperties(HasDescriptors):
     def checkProperties(self):
         """validates properties and checks for min... <= max..."""
         for pn, po in self.propertyDict.items():
-            if po.mandatory:
+            if po.mandatory or pn in self.propertyValues:
                 try:
                     self.propertyValues[pn] = po.datatype.validate(self.propertyValues[pn])
                 except (KeyError, BadValueError):
