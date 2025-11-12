@@ -587,10 +587,10 @@ class BLOBType(DataType):
         size = len(value)
         if size < self.minbytes:
             raise RangeError(
-                f'{value!r} must be at least {self.minbytes} bytes long!')
+                f'{shortrepr(value)!r} (length {size}) must be at least {self.minbytes} bytes long')
         if size > self.maxbytes:
             raise RangeError(
-                f'{value!r} must be at most {self.maxbytes} bytes long!')
+                f'{shortrepr(value)!r} (length {size}) must be at most {self.maxbytes} bytes long')
         return value
 
     def export_value(self, value):
