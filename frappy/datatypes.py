@@ -557,9 +557,9 @@ class BLOBType(DataType):
     internally treated as bytes
     """
 
-    minbytes = Property('minimum number of bytes', IntRange(0), extname='minbytes',
+    minbytes = Property('minimum number of bytes', IntRange(0, UNLIMITED), extname='minbytes',
                         default=0)
-    maxbytes = Property('maximum number of bytes', IntRange(0), extname='maxbytes',
+    maxbytes = Property('maximum number of bytes', IntRange(0, UNLIMITED), extname='maxbytes',
                         mandatory=True)
 
     def __init__(self, minbytes=0, maxbytes=None):
@@ -755,9 +755,9 @@ class ArrayOf(DataType):
 
     :param members: the datatype of the elements
     """
-    minlen = Property('minimum number of elements', IntRange(0), extname='minlen',
+    minlen = Property('minimum number of elements', IntRange(0, UNLIMITED), extname='minlen',
                       default=0)
-    maxlen = Property('maximum number of elements', IntRange(0), extname='maxlen',
+    maxlen = Property('maximum number of elements', IntRange(0, UNLIMITED), extname='maxlen',
                       mandatory=True)
 
     def __init__(self, members, minlen=0, maxlen=None):
