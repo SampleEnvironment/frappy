@@ -212,7 +212,7 @@ class AsynTcp(AsynConn):
         or bytes received within 1 sec
         """
         try:
-            data = self.connection.recv(8192)
+            data = self.connection.recv(1024*1024)
             if data:
                 return data
         except (socket.timeout, TimeoutError):
