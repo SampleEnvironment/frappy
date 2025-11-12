@@ -50,7 +50,7 @@ def format_address(addr):
 class TCPRequestHandler(RequestHandler):
     def setup(self):
         super().setup()
-        self.request.settimeout(1)
+        self.request.settimeout(60)
         self.data = b''
 
     def finish(self):
