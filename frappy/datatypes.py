@@ -238,7 +238,7 @@ class FloatRange(HasUnit, DataType):
         self.default = 0 if self.min <= 0 <= self.max else self.min
         super().checkProperties()
         if '%' not in self.fmtstr:
-            raise ConfigError('Invalid fmtstr!')
+            raise ConfigError('Invalid fmtstr')
 
     def export_datatype(self):
         return self.get_info(type='double')
@@ -411,7 +411,7 @@ class ScaledInteger(HasUnit, DataType):
 
         # check values
         if '%' not in self.fmtstr:
-            raise ConfigError('Invalid fmtstr!')
+            raise ConfigError('Invalid fmtstr')
         # Remark: Datatype.copy() will round min, max to a multiple of self.scale
         # this should be o.k.
 
@@ -646,22 +646,22 @@ class StringType(DataType):
     def __call__(self, value):
         """accepts strings only"""
         if not isinstance(value, str):
-            raise WrongTypeError(f'{shortrepr(value)} has the wrong type!')
+            raise WrongTypeError(f'{shortrepr(value)} has the wrong type')
         if not self.isUTF8:
             try:
                 value.encode('ascii')
             except UnicodeEncodeError:
-                raise RangeError(f'{shortrepr(value)} contains non-ascii character!') from None
+                raise RangeError(f'{shortrepr(value)} contains non-ascii character') from None
         size = len(value)
         if size < self.minchars:
             raise RangeError(
-                f'{shortrepr(value)} must be at least {self.minchars} chars long!')
+                f'{shortrepr(value)} must be at least {self.minchars} chars long')
         if size > self.maxchars:
             raise RangeError(
-                f'{shortrepr(value)} must be at most {self.maxchars} chars long!')
+                f'{shortrepr(value)} must be at most {self.maxchars} chars long')
         if '\0' in value:
             raise RangeError(
-                'Strings are not allowed to embed a \\0! Use a Blob instead!')
+                'Strings are not allowed to embed a \\0! Use a Blob instead')
         return value
 
     def export_value(self, value):
@@ -724,12 +724,12 @@ class BoolType(DataType):
             return False
         if value in ['1', 'True', 'true', 'yes', 'on']:
             return True
-        raise WrongTypeError(f'{shortrepr(value)} is not a boolean value!')
+        raise WrongTypeError(f'{shortrepr(value)} is not a boolean value')
 
     def __call__(self, value):
         if value in (0, 1):
             return bool(value)
-        raise WrongTypeError(f'{shortrepr(value)} is not a boolean value!')
+        raise WrongTypeError(f'{shortrepr(value)} is not a boolean value')
 
     def export_value(self, value):
         """returns a python object fit for serialisation"""
@@ -764,7 +764,7 @@ class ArrayOf(DataType):
         super().__init__()
         if not isinstance(members, DataType):
             raise ProgrammingError(
-                'ArrayOf only works with a DataType as first argument!')
+                'ArrayOf only works with a DataType as first argument')
         # one argument -> exactly that size
         # argument default to 100
         if maxlen is None:
@@ -810,12 +810,12 @@ class ArrayOf(DataType):
             # check number of elements
             if self.minlen is not None and len(value) < self.minlen:
                 raise RangeError(
-                    f'array too small, needs at least {self.minlen} elements!')
+                    f'array too small, needs at least {self.minlen} elements')
             if self.maxlen is not None and len(value) > self.maxlen:
                 raise RangeError(
-                    f'array too big, holds at most {self.maxlen} elements!')
+                    f'array too big, holds at most {self.maxlen} elements')
         except TypeError:
-            raise WrongTypeError(f'{type(value).__name__} can not be converted to ArrayOf DataType!') from None
+            raise WrongTypeError(f'{type(value).__name__} can not be converted to ArrayOf DataType') from None
 
     def __call__(self, value):
         """accepts any sequence, converts to tuple (immutable!)"""
@@ -881,11 +881,11 @@ class TupleOf(DataType):
     def __init__(self, *members):
         super().__init__()
         if not members:
-            raise ProgrammingError('Empty tuples are not allowed!')
+            raise ProgrammingError('Empty tuples are not allowed')
         for subtype in members:
             if not isinstance(subtype, DataType):
                 raise ProgrammingError(
-                    'TupleOf only works with DataType objs as arguments!')
+                    'TupleOf only works with DataType objs as arguments')
         self.members = members
         self.default = tuple(el.default for el in members)
 
@@ -904,7 +904,7 @@ class TupleOf(DataType):
             if len(value) == len(self.members):
                 return
         except TypeError:
-            raise WrongTypeError(f'{type(value).__name__} can not be converted to TupleOf DataType!') from None
+            raise WrongTypeError(f'{type(value).__name__} can not be converted to TupleOf DataType') from None
         raise WrongTypeError(f'tuple needs {len(self.members)} elements')
 
     def __call__(self, value):
@@ -969,16 +969,16 @@ class StructOf(DataType):
         super().__init__()
         self.members = members
         if not members:
-            raise ProgrammingError('Empty structs are not allowed!')
+            raise ProgrammingError('Empty structs are not allowed')
         self.optional = list(members if optional is None else optional)
         for name, subtype in list(members.items()):
             if not isinstance(subtype, DataType):
                 raise ProgrammingError(
-                    'StructOf only works with named DataType objs as keyworded arguments!')
+                    'StructOf only works with named DataType objs as keyworded arguments')
         for name in self.optional:
             if name not in members:
                 raise ProgrammingError(
-                    'Only members of StructOf may be declared as optional!')
+                    'Only members of StructOf may be declared as optional')
         self.default = dict((k, el.default) for k, el in members.items())
 
     def copy(self):
@@ -1082,10 +1082,10 @@ class CommandType(DataType):
         super().__init__()
         if argument is not None:
             if not isinstance(argument, DataType):
-                raise ProgrammingError('CommandType: Argument type must be a DataType!')
+                raise ProgrammingError('CommandType: Argument type must be a DataType')
         if result is not None:
             if not isinstance(result, DataType):
-                raise ProgrammingError('CommandType: Result type must be a DataType!')
+                raise ProgrammingError('CommandType: Result type must be a DataType')
         self.argument = argument
         self.result = result
 
@@ -1107,10 +1107,10 @@ class CommandType(DataType):
         raise ProgrammingError('commands can not be converted to a value')
 
     def export_value(self, value):
-        raise ProgrammingError('values of type command can not be transported!')
+        raise ProgrammingError('values of type command can not be transported')
 
     def import_value(self, value):
-        raise ProgrammingError('values of type command can not be transported!')
+        raise ProgrammingError('values of type command can not be transported')
 
     def from_string(self, text):
         raise ProgrammingError('a string can not be converted to a command')
