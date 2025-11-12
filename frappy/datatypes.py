@@ -587,10 +587,10 @@ class BLOBType(DataType):
         size = len(value)
         if size < self.minbytes:
             raise RangeError(
-                f'{shortrepr(value)!r} (length {size}) must be at least {self.minbytes} bytes long')
+                f'blob {shortrepr(value)!r} must be at least {self.minbytes} bytes long (got {size})')
         if size > self.maxbytes:
             raise RangeError(
-                f'{shortrepr(value)!r} (length {size}) must be at most {self.maxbytes} bytes long')
+                f'blob {shortrepr(value)!r} must be at most {self.maxbytes} bytes long (got {size})')
         return value
 
     def export_value(self, value):
@@ -655,13 +655,13 @@ class StringType(DataType):
         size = len(value)
         if size < self.minchars:
             raise RangeError(
-                f'{shortrepr(value)} must be at least {self.minchars} chars long')
+                f'string {shortrepr(value)} must be at least {self.minchars} chars long (got {size})')
         if size > self.maxchars:
             raise RangeError(
-                f'{shortrepr(value)} must be at most {self.maxchars} chars long')
+                f'string {shortrepr(value)} must be at most {self.maxchars} chars long (got {size})')
         if '\0' in value:
             raise RangeError(
-                'Strings are not allowed to embed a \\0! Use a Blob instead')
+                'strings are not allowed to embed a null byte, Use a Blob instead')
         return value
 
     def export_value(self, value):
@@ -807,13 +807,14 @@ class ArrayOf(DataType):
 
     def check_type(self, value):
         try:
+            size = len(value)
             # check number of elements
-            if self.minlen is not None and len(value) < self.minlen:
+            if self.minlen is not None and size < self.minlen:
                 raise RangeError(
-                    f'array too small, needs at least {self.minlen} elements')
-            if self.maxlen is not None and len(value) > self.maxlen:
+                    f'array must have at least {self.minlen} elements (has {size})')
+            if self.maxlen is not None and size > self.maxlen:
                 raise RangeError(
-                    f'array too big, holds at most {self.maxlen} elements')
+                    f'array must have at most {self.maxlen} elements (has {size})')
         except TypeError:
             raise WrongTypeError(f'{type(value).__name__} can not be converted to ArrayOf DataType') from None
 
@@ -1178,7 +1179,7 @@ class ValueType(DataType):
             try:
                 return self.validator(value)
             except Exception as e:
-                raise ConfigError(f'Validator {self.validator} raised {e!r} for value {value}') from e
+                raise ConfigError(f'Validator {self.validator} raised {e!r} for value {shortrepr(value)}') from e
         return value
 
     def copy(self):
@@ -1245,7 +1246,7 @@ def visibility_validator(value):
     value = LEGACY_VISIBILITY.get(value, value)
     if len(value) == 3 and set(value) <= set('wr-'):
         return value
-    raise RangeError(f'{value!r} is not a valid visibility')
+    raise RangeError(f'{shortrepr(value)!r} is not a valid visibility')
 
 
 Int8   = IntRange(-(1 << 7),  (1 << 7) - 1)
