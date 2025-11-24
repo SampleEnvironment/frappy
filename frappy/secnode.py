@@ -38,8 +38,6 @@ class SecNode:
      - get_module(modulename) returns the requested module or None if there is
        no suitable configuration on the server
     """
-    raise_config_errors = False  # collect catchable errors instead of raising
-
     def __init__(self, name, logger, options, srv):
         self.equipment_id = options.pop('equipment_id', name)
         self.nodeprops = {}
@@ -177,7 +175,7 @@ class SecNode:
                 try:
                     getattr(modobj, prop)
                 except SECoPError as e:
-                    if self.raise_config_errors:
+                    if generalConfig.raise_config_errors:
                         raise
                     self.error_count += 1
                     modobj.logError(e)
