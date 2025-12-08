@@ -3,9 +3,13 @@ Configuration File
 
 .. _node configuration:
 
-:Node(equipment_id, description, interface, \*\*kwds):
+:Node:
 
     Specify the SEC-node properties.
+
+    .. code::
+
+        Node(equipment_id, description, interface, **kwds):
 
     The arguments are SECoP node properties and additional internal node configurations
 
@@ -18,9 +22,14 @@ Configuration File
 
 .. _mod configuration:
 
-:Mod(name, cls, description, \*\*kwds):
+:Mod:
 
     Create a SECoP module.
+
+    .. code::
+
+        Mod(name, cls, description, **kwds)
+
     Keyworded argument matching a parameter name are used to configure
     the initial value of a parameter. For configuring the parameter properties
     the value must be an instance of **Param**, using the keyworded arguments
@@ -37,9 +46,13 @@ Configuration File
 
 .. _param configuration:
 
-:Param(value=<undef>, \*\*kwds):
+:Param:
 
     Configure a parameter
+
+    .. code::
+
+        Param(value=<undef>, **kwds):
 
     :Parameters:
 
@@ -47,11 +60,45 @@ Configuration File
         - **kwds** - parameter or datatype SECoP properties (see :class:`frappy.param.Parameter`
           and :class:`frappy.datatypes.Datatypes`)
 
+.. _io configuration:
+
+:IO:
+
+    Configure IO modules (communicators)
+
+    .. code::
+
+        IO(<io name>, <uri>, ...)
+
+
+    It is recommended that the class of the needed IO is specified as class
+    attribute ioClass on the modules class. In this case, for the configuration
+    of the IO modules only their name and URI is needed, for example:
+
+    .. code::
+
+        IO('io_T', 'tcp://192.168.1.1:7777', export=False)
+        IO('io_C', 'serial:///dev/tty_USB0&baudrate=9600', export=False)
+
+        Mod('T_sample', 'frappy_psi.lakeshore.TemperatureSensor', 'the sample T',
+            io='io_T', channel='C')
+        Mod('T_main', 'frappy_psi.lakeshore.TemperatureLoop', 'the main T',
+            io='io_T', channel='A')
+        Mod('C_sample', 'frappy_psi.ah2700.Capacitance', 'the sample capacitance',
+            io='io_C')
+
+    The ``export=False`` argument tells Frappy to hide both communicators.
+
+
 .. _command configuration:
 
-:Command(\*\*kwds):
+:Command:
 
     Configure a command
+
+    .. code::
+
+        Command(**kwds)
 
     :Parameters:
 

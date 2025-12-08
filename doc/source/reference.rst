@@ -140,4 +140,4 @@ Exception classes
 .. automodule:: frappy.errors
     :members:
 
-.. include:: configuration.rst
+.. include:: configuration.inc

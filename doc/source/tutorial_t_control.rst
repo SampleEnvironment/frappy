@@ -99,16 +99,11 @@ We choose the name *example_cryo* and create therefore a configuration file
     Node('example_cryo.psi.ch',  # a globally unique identification
          'this is an example cryostat for the Frappy tutorial',  # describes the node
           interface='tcp://10767')  # you might choose any port number > 1024
-    Mod('io',  # the name of the module
-        'frappy_psi.lakeshore.LakeshoreIO',  # the class used for communication
-        'communication to main controller',  # a description
-        # the serial connection, including serial settings (see frappy.io.IOBase):
-        uri='serial://COM6:?baudrate=57600+parity=odd+bytesize=7',
-       )
+    IO('io', 'serial://COM6:?baudrate=57600+parity=odd+bytesize=7')
     Mod('T',
         'frappy_psi.lakeshore.TemperatureSensor',
         'Sample Temperature',
-        io='io',  # refers to above defined module 'io'
+        io='io',  # refers to above defined io module called 'io'
         channel='A',  # the channel on the LakeShore for this module
         value=Param(max=470),  # alter the maximum expected T
        )
@@ -120,8 +115,8 @@ Usually the only important value in the server address is the TCP port under whi
 server will be accessible. Currently only the tcp scheme is supported.
 
 Then for each module a :ref:`Mod <mod configuration>` section follows.
-We have to create the ``io`` module for communication first, with
-the ``uri`` as its most important argument.
+But first we have to create the ``io`` module for communication.
+For this we use an :ref:`IO <io configuration>` section.
 In case of a serial connection the prefix is ``serial://``. On a Windows machine, the full
 uri is something like ``serial://COM6:?baudrate=9600`` on a linux system it might be
 ``serial:///dev/ttyUSB0?baudrate=9600``. In case of a LAN connection, the uri should

@@ -234,22 +234,37 @@ def clamp(_min, value, _max):
     i.e. value if min <= value <= max, else min or max depending on which side
     value lies outside the [min..max] interval. This works even when min > max!
     """
-    # return median, i.e. clamp the the value between min and max
+    # return median, i.e. clamp the value between min and max
     return sorted([_min, value, _max])[1]
 
 
 def get_class(spec):
-    """loads a class given by string in dotted notation (as python would do)"""
-    modname, classname = spec.rsplit('.', 1)
-    if modname.startswith('frappy'):
-        module = importlib.import_module(modname)
-    else:
-        # rarely needed by now....
-        module = importlib.import_module('frappy.' + modname)
-    try:
-        return getattr(module, classname)
-    except AttributeError:
-        raise AttributeError('no such class') from None
+    """loads an object given by string in dotted notation (as python would do)
+
+    import the specified module and get the specified item from it
+    examples: 'frappy_demo.lakeshore.TemperatureSensor', 'frappy.modules.Readable.Status'
+
+    :param spec: a dot-separated list of module names followed by the name of
+       a class (or any object) and optionally names of attributes
+    :return: the object
+    """
+    for maxsplit in range(1, len(spec)):
+        # len(spec) is high enough for all cases
+        module, *attrs = spec.rsplit('.', maxsplit)
+        try:
+            obj = importlib.import_module(module)
+            break
+        except ImportError:
+            if '.' in module:
+                continue
+            raise
+    for na, attr in enumerate(attrs):
+        try:
+            obj = getattr(obj, attr)
+        except AttributeError:
+            print(na, attrs)
+            raise AttributeError(f'{".".join(attrs[:na+1])!r} not found in {module!r}') from None
+    return obj
 
 
 def mkthread(func, *args, **kwds):

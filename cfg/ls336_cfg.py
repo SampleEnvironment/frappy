@@ -6,11 +6,7 @@ lakeshore_uri = environ.get('LS_URI', 'tcp://<host>:7777')
 Node('example_cryo.psi.ch',  # a globally unique identification
      'this is an example cryostat for the Frappy tutorial',  # describes the node
       interface='tcp://10767')  # you might choose any port number > 1024
-Mod('io',  # the name of the module
-    'frappy_demo.lakeshore.LakeshoreIO',  # the class used for communication
-    'communication to main controller',  # a description
-    uri=lakeshore_uri,  # the serial connection
-    )
+IO('io', lakeshore_uri)  # the communicator (its class will be detected automatically)
 Mod('T',
     'frappy_demo.lakeshore.TemperatureLoop',
     'Sample Temperature',

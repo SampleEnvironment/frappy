@@ -114,13 +114,17 @@ class Collector:
         self.modules = {}
         self.warnings = []
 
-    def add(self, *args, **kwds):
-        mod = Mod(*args, **kwds)
+    def add(self, name, cls, description, **kwds):
+        mod = Mod(name, cls, description, **kwds)
         name = mod.pop('name')
         if name in self.modules:
             self.warnings.append(f'duplicate module {name} overrides previous')
         self.modules[name] = mod
         return mod
+
+    def add_io(self, name, uri, **kwds):
+        mod = Mod(name, cls='<auto>', description='', uri=uri, **kwds)
+        self.modules[mod.pop('name')] = mod
 
     def override(self, name, **kwds):
         """override properties/parameters of previously configured modules
@@ -180,12 +184,37 @@ class Include:
         exec(compile(filename.read_bytes(), filename, 'exec'), self.namespace)
 
 
-def process_file(filename, log):
-    config_text = filename.read_bytes()
+def fix_io_modules(cfgdict, log):
+    node = cfgdict.pop('node')
+    io_modules = {k: [] for k, v in cfgdict.items() if v.get('cls') == '<auto>'}
+    for modname, modcfg in cfgdict.items():
+        ioname = modcfg.get('io', {}).get('value')
+        if ioname:
+            iocfg = cfgdict.get(ioname)
+            if iocfg:
+                referring_modules = io_modules.get(ioname)
+                if referring_modules is not None:
+                    iocfg['cls'] = f"{modcfg['cls']}.ioClass"
+                    referring_modules.append(modname)
+
+    # fix description:
+    for ioname, referring_modules in io_modules.items():
+        if referring_modules:
+            if not cfgdict[ioname]['description']:
+                cfgdict[ioname]['description'] = f"communicator for {', '.join(k for k in referring_modules)}"
+        else:
+            log.warning('remove unused io module %r', ioname)
+            cfgdict.pop(ioname)
+    cfgdict['node'] = node
+
+
+def process_file(filename, log, config_text=None):
+    if config_text is None:
+        config_text = filename.read_bytes()
     node = NodeCollector()
     mods = Collector()
     ns = {'Node': node.add, 'Mod': mods.add, 'Param': Param, 'Command': Param, 'Group': Group,
-          'override': mods.override, 'overrideNode': node.override}
+          'override': mods.override, 'overrideNode': node.override, 'IO': mods.add_io}
     ns['include'] = Include(ns, log)
     # pylint: disable=exec-used
     exec(compile(config_text, filename, 'exec'), ns)
@@ -236,6 +265,7 @@ def load_config(cfgfiles, log):
         filename = to_config_path(str(cfgfile), log)
         log.debug('Parsing config file %s...', filename)
         cfg = process_file(filename, log)
+        fix_io_modules(cfg, log)
         if config:
             config.merge_modules(cfg)
         else:

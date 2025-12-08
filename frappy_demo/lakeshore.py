@@ -36,6 +36,7 @@ class LakeshoreIO(StringIO):
 
 class TemperatureSensor(HasIO, Readable):
     """a temperature sensor (generic for different models)"""
+    ioClass = LakeshoreIO
     # internal property to configure the channel
     channel = Property('the Lakeshore channel', datatype=StringType())
     # 0, 1500 is the allowed range by the LakeShore controller
@@ -66,6 +67,7 @@ class TemperatureSensor(HasIO, Readable):
 
 
 class TemperatureLoop(TemperatureSensor, Drivable):
+    ioClass = LakeshoreIO
     # lakeshore loop number to be used for this module
     loop = Property('lakeshore loop', IntRange(1, 2), default=1)
     target = Parameter(datatype=FloatRange(unit='K', min=0, max=1500))
