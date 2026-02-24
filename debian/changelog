@@ -1,3 +1,44 @@
+frappy-core (0.20.8) stable; urgency=medium
+
+  [ Georg Brandl ]
+  * demo sample temp: allow stopping
+
+  [ Markus Zolliker ]
+  * interactive client: change command history location
+
+  [ Alexander Zaft ]
+  * demo: add docstring to stop method of sampletemp
+  * module: apply datatype first
+
+  [ Markus Zolliker ]
+  * io: add reconnect command
+  * frappy.modulebase: remove unneeded while loop
+  * allow to remove a property defined in a base class
+  * specify interface_classes property explicitly on SECoP base classes
+
+  [ Georg Brandl ]
+  * client: increase read buffer size
+  * datatypes: do not arbitrarily restrict maxlen of arrays/blobs to 2**16
+  * remove passive aggressiveness from error messages
+  * do not put entire blob value into error message, it might be megabytes
+  * datatypes: make length checks more consistent
+
+  [ Markus Zolliker ]
+  * datatypes: split base classes for internal and SECoP datatypes
+  * improve error handling on startup
+  * improve error handling during polls
+  * add missing property check
+
+  [ Alexander Zaft ]
+  * core: Add Acquisition Interface
+
+  [ Markus Zolliker ]
+  * followup fix for 37776: remove Secnode.raise_config_errors
+  * simplify configuration of IO modules
+  * followup fix to 38071: class missing 'frappy.' prefix
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Tue, 24 Feb 2026 11:33:00 +0100
+
 frappy-core (0.20.7) stable; urgency=medium
 
   * fix debian install
