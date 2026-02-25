@@ -99,7 +99,7 @@ class SimpleDataType(HasProperties):
         - StringType: the bare string is returned
         - EnumType: the name of the enum is returned
         """
-        return self.format_value(value, False)
+        return value if isinstance(value, str) else repr(value)
 
     def export_value(self, value):
         """if needed, reformat value for transport"""
@@ -156,6 +156,20 @@ class DataType(SimpleDataType):
         - any other string: use as unit (internal use only)
         """
         raise NotImplementedError
+
+    def to_string(self, value):
+        """convert a value of this type into a string
+
+        This is intended for a GUI text input and is the opposite of
+        :meth:`from_string`
+        - no units are shown
+        - value is not checked before formatting
+
+        typically the output is a stringified value in python syntax except for
+        - StringType: the bare string is returned
+        - EnumType: the name of the enum is returned
+        """
+        return self.format_value(value, False)
 
     def compatible(self, other):
         """check other for compatibility
@@ -1132,7 +1146,7 @@ class CommandType(DataType):
 
 # internally used datatypes (i.e. only for programming the SEC-node)
 
-class DefaultType(DataType):
+class DefaultType(SimpleDataType):
     """datatype used as default for parameters
 
     needs some minimal interface to avoid errors when
