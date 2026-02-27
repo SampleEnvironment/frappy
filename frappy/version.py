@@ -55,8 +55,11 @@ def read_release_version():
 
 
 def write_release_version(version):
-    with RELEASE_VERSION_FILE.open('w', encoding='utf-8') as f:
-        f.write(f'{version}\n')
+    try:
+        with RELEASE_VERSION_FILE.open('w', encoding='utf-8') as f:
+            f.write(f'{version}\n')
+    except OSError:
+        pass  # no write permission?
 
 
 def get_version(abbrev=4):
