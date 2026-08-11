@@ -24,6 +24,8 @@ import os
 import json
 import socket
 
+import psutil
+
 from frappy.lib import closeSocket
 from frappy.protocol.interface.tcp import format_address
 from frappy.version import get_version
@@ -79,12 +81,25 @@ class UDPListener:
             'description': self.description,
         }, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
 
+    def _broadcastAddresses(self):
+        addresses = []
+        for addrs in psutil.net_if_addrs().values():
+            for addr in addrs:
+                if addr.family == socket.AF_INET and addr.broadcast:
+                    addresses.append(addr.broadcast)
+        return addresses or ['255.255.255.255']
+
     def run(self):
         if self.startup_broadcast:
             self.log.debug('Sending startup UDP broadcast.')
-            for port in self.ports:
-                self.sock.sendto(self._getMessage(port),
-                                 ('255.255.255.255', UDP_PORT))
+            for address in self._broadcastAddresses():
+                for port in self.ports:
+                    try:
+                        self.sock.sendto(self._getMessage(port),
+                                         (address, UDP_PORT))
+                    except OSError as e:
+                        self.log.debug('could not broadcast to %s: %s',
+                                       address, e)
         self.running = True
         while self.running and self.is_enabled:
             try:
