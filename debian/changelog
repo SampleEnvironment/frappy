@@ -1,3 +1,20 @@
+frappy-core (0.20.9) stable; urgency=medium
+
+  [ Georg Brandl ]
+  * a fix for sending large replies
+
+  [ Markus Zolliker ]
+  * allow frappy to run in readonly repo
+  * datatypes: fixes with SimpleDataType
+
+  [ Jens Krüger ]
+  * Simulation: Fix 'extra_params' handling
+
+  [ Konstantin Kholostov ]
+  * change how to send broadcast
+
+ -- Georg Brandl <jenkins@frm2.tum.de>  Thu, 13 Aug 2026 11:55:05 +0200
+
 frappy-core (0.20.8) stable; urgency=medium
 
   [ Georg Brandl ]
