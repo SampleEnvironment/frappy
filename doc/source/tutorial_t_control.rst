@@ -61,7 +61,8 @@ See :ref:`lsc_manual_extract` for details of the needed commands.
 
     class TemperatureSensor(HasIO, Readable):
         """a temperature sensor (generic for different models)"""
-        # internal property to configure the channel
+        ioClass = LakeshoreIO  # class to be used for communication
+       # internal property to configure the channel
         # see below for the difference of 'Property' and 'Parameter'
         channel = Property('the Lakeshore channel', datatype=StringType())
         # 0, 1500 is the allowed range by the LakeShore controller
@@ -308,11 +309,7 @@ Finally, the config file would be:
     Node('example_cryo.psi.ch',  # a globally unique identification
          'this is an example cryostat for the Frappy tutorial',  # describes the node
           interface='tcp://10767')  # you might choose any port number > 1024
-    Mod('io',  # the name of the module
-        'frappy_psi.lakeshore.LakeshoreIO',  # the class used for communication
-        'communication to main controller',  # a description
-        uri='serial://COM6:?baudrate=57600+parity=odd+bytesize=7',  # the serial connection
-        )
+    IO('io', 'serial://COM6:?baudrate=57600+parity=odd+bytesize=7')  # the serial connection
     Mod('T',
         'frappy_psi.lakeshore.TemperatureLoop',
         'Sample Temperature',

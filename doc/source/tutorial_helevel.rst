@@ -39,7 +39,7 @@ CCU4 luckily has a very simple and logical protocol:
     class HeLevel(HasIO, Readable):
         """He Level channel of CCU4"""
 
-        # define the communication class for automatic creation of the IO module
+        # the class needed for the communication module
         ioClass = CCU4IO
 
         # define or alter the parameters
@@ -214,10 +214,11 @@ We choose the name *example_cryo* and create therefore a configuration file
     Node('example_cryo.psi.ch',
          'this is an example cryostat for the Frappy tutorial',
           interface='tcp://5000')
+    IO('helev_io', 'linse-moxa-4.psi.ch:3001')
     Mod('helev',
         'frappy_psi.ccu4.HeLevel',
         'He level of the cryostat He reservoir',
-        uri='linse-moxa-4.psi.ch:3001',
+        io='helev_io',
         empty_length=380,
         full_length=0)
 
@@ -234,8 +235,8 @@ All the other sections define the SECoP modules to be used. This first arguments
 * the python class to be used for the creation of the module
 * a human readable description is its
 
-Other properties or parameter values may follow, in this case the *uri* for the communication
-with the He level monitor and the values for configuring the He Level sensor.
+Other properties or parameter values may follow, in this case the name of the *io* module for
+the communication with the He level monitor and the values for configuring the He Level sensor.
 We might also alter parameter properties, for example we may hide
 the parameters *empty_length* and *full_length* from the client by defining:
 
@@ -244,11 +245,16 @@ the parameters *empty_length* and *full_length* from the client by defining:
     Mod('helev',
         'frappy_psi.ccu4.HeLevel',
         'He level of the cryostat He reservoir',
-        uri='linse-moxa-4.psi.ch:3001',
+        io='helev_io',
         empty_length=Param(380, export=False),
         full_length=Param(0, export=False))
 
 As we configure more than just an initial value, we have to call *Param* and give the
 value as the first argument, and additional properties as keyworded arguments.
+
+*IO(* is a special case of a module. It defines the name and the uri for a
+communication module. Its class is determined when its name if assigned to
+the io property of a module, using the *ioClass* attribute of this modules
+class.
 
 *to be continued*
