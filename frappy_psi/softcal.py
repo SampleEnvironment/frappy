@@ -61,7 +61,7 @@ class StdParser:
             self.ydata.append(float(row[self.ycol]))
         except (IndexError, ValueError):
             # skip bad lines
-            return
+            pass
 
 
 class Parser340(StdParser):
@@ -175,10 +175,10 @@ class CalCurve:
 
 class Sensor(Readable):
     rawsensor = Attached()
-
+    unit = 'K'
     calib = Parameter('calibration name', datatype=StringType(), readonly=False)
     abs = Parameter('True: take abs(raw) before calib', datatype=BoolType(), readonly=False, default=True)
-    value = Parameter(datatype=FloatRange(unit='K'))
+    value = Parameter(datatype=FloatRange(unit='$'))
     pollinterval = Parameter(export=False)
     status = Parameter(default=(Readable.Status.ERROR, 'unintialized'), update_unchanged='never')
 

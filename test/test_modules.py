@@ -229,8 +229,13 @@ def test_ModuleMagic():
     assert not updates
 
     o1 = Newclass1('o1', logger, {'description':''}, srv)
+    # check $ works properly
     o2 = Newclass2('o2', logger, {'description':''}, srv)
     assert o2.parameters['a1'].datatype.unit == 'deg/s'
+    o2 = Newclass2('o2', logger, {'description':'', 'unit': 'm'}, srv)
+    assert o2.parameters['a1'].datatype.unit == 'm/s'
+    o2 = Newclass2('o2', logger, {'description':'', 'value': {'unit':'cm'}}, srv)
+    assert o2.parameters['a1'].datatype.unit == 'cm/s'
     o2 = Newclass2('o2', logger, {'description':'', 'value':{'unit':'mm'},'param2':{'unit':'mm'}}, srv)
     # check datatype is not shared
     assert o1.parameters['param2'].datatype.unit == 'Ohm'
@@ -242,7 +247,7 @@ def test_ModuleMagic():
         'export', 'group', 'description', 'features',
         'meaning', 'visibility', 'implementation', 'interface_classes', 'target', 'stop',
         'status', 'param1', 'param2', 'cmd', 'a2', 'pollinterval', 'slowinterval', 'b2',
-        'cmd2', 'value', 'a1', 'omit_unchanged_within', 'original_id'}
+        'cmd2', 'value', 'a1', 'omit_unchanged_within', 'original_id', 'unit'}
     assert set(cfg['value'].keys()) == {
         'group', 'export', 'relative_resolution',
         'visibility', 'unit', 'default', 'value', 'datatype', 'fmtstr',

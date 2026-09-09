@@ -398,11 +398,13 @@ class Module(HasAccessibles):
             aobj.finish(self)
 
         # Modify units AFTER applying the cfgdict
-        mainvalue = self.parameters.get('value')
-        if mainvalue:
-            mainunit = mainvalue.datatype.unit
-            if mainunit:
-                self.applyMainUnit(mainunit)
+        mainunit = getattr(self, 'unit', None)
+        if mainunit is None:
+            mainvalue = self.parameters.get('value')
+            if mainvalue:
+                mainunit = mainvalue.datatype.unit or None
+        if mainunit is not None:
+            self.applyMainUnit(mainunit)
 
         # 6) check complete configuration of * properties
         try:

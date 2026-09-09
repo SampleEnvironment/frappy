@@ -22,7 +22,7 @@
 # *****************************************************************************
 """Define base classes for real Modules implemented in the server"""
 
-from frappy.datatypes import BoolType, FloatRange, StatusType, StringType
+from frappy.datatypes import BoolType, FloatRange, StatusType, StringType, NoneOr
 from frappy.errors import ConfigError, ProgrammingError
 from frappy.lib.enum import Enum
 from frappy.logging import HasComlog
@@ -46,6 +46,7 @@ class Readable(Module):
                   WARN=StatusType.WARN,
                   ERROR=StatusType.ERROR,
                   )  #: status code Enum: extended automatically in inherited modules
+    unit = Property('main unit, applied where unit contains "$"', NoneOr(StringType()), default=None)
     value = Parameter('current value of the module', FloatRange())
     status = Parameter('current status of the module', StatusType(Status),
                        default=(StatusType.IDLE, ''))
