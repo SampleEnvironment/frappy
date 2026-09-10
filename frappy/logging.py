@@ -21,6 +21,7 @@
 # *****************************************************************************
 
 
+import sys
 import os
 from os.path import dirname, join
 from logging import DEBUG, INFO, addLevelName
@@ -161,7 +162,13 @@ class MainLogger:
         self.log = mlzlog.log = mlzlog.MLZLogger(self.rootname)
 
         self.log.setLevel(DEBUG)
-        self.log.addHandler(mlzlog.ColoredConsoleHandler())
+        colorize = None
+        try:
+            if sys.stdout.isatty():
+                colorize = mlzlog.colors.colorize
+        except Exception:
+            pass
+        self.log.addHandler(mlzlog.ColoredConsoleHandler(colorize))
 
         self.logdir = generalConfig.get('logdir', '/tmp/log')
         if self.logdir:
