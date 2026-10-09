@@ -21,7 +21,7 @@
 
 import pytest
 
-from frappy.lib import parse_host_port, merge_status
+from frappy.lib import parse_host_port, merge_status, get_class
 
 
 @pytest.mark.parametrize('hostport, defaultport, result', [
@@ -61,3 +61,43 @@ def test_parse_host(hostport, defaultport, result):
 ])
 def test_merge_status(args, result):
     assert merge_status(*args) == result
+
+
+def test_get_class():
+    assert isinstance(get_class('frappy.modules.Readable'), type)
+    # frappy_demo.lakeshore is not yet loaded here
+    with pytest.raises(AttributeError) as e:
+        get_class('frappy_demo.lakeshore')
+        errormsg = str(e)
+    assert isinstance(get_class('frappy_demo.lakeshore.TemperatureSensor'), type)
+    # frappy_demo.lakeshore is now loaded, check that we get the same error message
+    with pytest.raises(AttributeError) as e:
+        get_class('frappy_demo.lakeshore')
+        assert str(e) == errormsg
+
+
+@pytest.mark.parametrize('spec, exc', [
+    ('frappy.bad',
+     AttributeError("No class 'bad' found in 'frappy'")),
+    ('frappy.bad.Bad',
+     AttributeError("'bad' not found in 'frappy'")),
+    ('frappy.modules.Bad',
+     AttributeError("No class 'Bad' found in 'frappy.modules'")),
+    ('bad.modules',
+     ModuleNotFoundError("No module named 'bad'")),
+    ('frappy.modules.Readable.bad',
+     AttributeError("No class 'bad' found in 'frappy.modules.Readable'" )),
+    ('cfg.demo_cfg.Mod',
+     NameError("name 'Node' is not defined")),
+    ('bad.Class',
+     ModuleNotFoundError("No module named 'bad'")),
+    ('bad',
+     ValueError("'bad' needs a dot")),
+    ('frappy',
+     ValueError("'frappy' needs a dot")),
+])
+def test_get_class_failed(spec, exc):
+    with pytest.raises(Exception) as e:
+        get_class(spec)
+    assert e.type == type(exc)
+    assert repr(e.value) == repr(exc)

@@ -248,23 +248,33 @@ def get_class(spec):
        a class (or any object) and optionally names of attributes
     :return: the object
     """
-    for maxsplit in range(1, len(spec)):
-        # len(spec) is high enough for all cases
+    for maxsplit in range(1, 999):
         module, *attrs = spec.rsplit('.', maxsplit)
+        if not attrs:
+            raise ValueError(f'{spec!r} needs a dot')
         try:
             obj = importlib.import_module(module)
             break
-        except ImportError:
+        except ModuleNotFoundError:
             if '.' in module:
                 continue
             raise
-    for na, attr in enumerate(attrs):
-        try:
+    try:
+        for na, attr in enumerate(attrs):
             obj = getattr(obj, attr)
-        except AttributeError:
-            print(na, attrs)
-            raise AttributeError(f'{".".join(attrs[:na+1])!r} not found in {module!r}') from None
-    return obj
+        if isinstance(obj, type):
+            return obj
+    except AttributeError:
+        pass
+    base = '.'.join([module] + attrs[:na])
+    if na + 1 == len(attrs):
+        # when attr is a module, there are 2 cases:
+        # - the module is not yet loaded (AttributeError caught above)
+        # - the type check failed
+        # we should raise the same error in both cases
+        raise AttributeError(f'No class {attr!r} found in {base!r}')
+    # we do not know if attr was meant to be a module or an object
+    raise AttributeError(f'{attr!r} not found in {base!r}')
 
 
 def mkthread(func, *args, **kwds):
