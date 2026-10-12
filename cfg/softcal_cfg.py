@@ -16,5 +16,5 @@ Mod('T2',
     '',
     value = Param(unit = 'K'),
     rawsensor = 'r2',
-    calib = 'X131346',
+    calcurve = 'X131346',
 )

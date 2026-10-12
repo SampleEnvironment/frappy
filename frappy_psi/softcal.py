@@ -176,7 +176,7 @@ class CalCurve:
 class Sensor(Readable):
     rawsensor = Attached()
     unit = 'K'
-    calib = Parameter('calibration name', datatype=StringType(), readonly=False)
+    calcurve = Parameter('calibration name', datatype=StringType(), readonly=False)
     abs = Parameter('True: take abs(raw) before calib', datatype=BoolType(), readonly=False, default=True)
     value = Parameter(datatype=FloatRange(unit='$'))
     pollinterval = Parameter(export=False)
@@ -193,18 +193,18 @@ class Sensor(Readable):
     def initModule(self):
         super().initModule()
         self.rawsensor.registerCallbacks(self, ['status'])  # auto update status
-        self._calib = CalCurve(self.calib)
+        self._calcurve = CalCurve(self.calcurve)
         if self.description == '_':
-            self.description = f'{self.rawsensor!r} calibrated with curve {self.calib!r}'
+            self.description = f'{self.rawsensor!r} calibrated with curve {self.calcurve!r}'
 
-    def write_calib(self, value):
-        self._calib = CalCurve(value)
+    def write_calcurve(self, value):
+        self._calcurve = CalCurve(value)
         return value
 
     def _get_value(self, rawvalue):
         if self.abs:
             rawvalue = abs(float(rawvalue))
-        return self._calib(rawvalue)
+        return self._calcurve(rawvalue)
 
     def _get_status(self, rawstatus):
         return rawstatus if self._value_error is None else (self.Status.ERROR, self._value_error)
