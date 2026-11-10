@@ -54,6 +54,31 @@ def make_update(modulename, pobj):
              {'t': pobj.timestamp} if pobj.timestamp else {}])
 
 
+def fill_from_previous(value, previous, datatype=None):
+    """helper function to implement the specialities of the optional struct
+
+    :param value: the value
+    :param previous: take missing values of optional structs from here
+    :param datatype: if given, check result for datatype
+    :return: a filled and checked return value
+    """
+    if isinstance(value, dict) and isinstance(previous, dict):
+        result = {}
+        for key, prev in previous.items():
+            if key in value:
+                result[key] = fill_from_previous(value[key], prev)
+            else:
+                result[key] = prev
+    elif isinstance(value, tuple) and isinstance(previous, tuple):
+        first = tuple(fill_from_previous(v, d) for v, d in zip(value, previous))
+        result = first + value[len(previous):]
+    else:
+        return value
+    if datatype:
+        return datatype(result)
+    return result
+
+
 class Dispatcher:
     def __init__(self, name, logger, options, srv):
 
@@ -162,7 +187,9 @@ class Dispatcher:
         # convert transported value to internal value
         value = pobj.datatype.import_value(value)
         # verify range
-        value = pobj.datatype.validate(value, previous=pobj.value)
+        value = pobj.datatype.validate(value)
+        # handle optional structs
+        value = fill_from_previous(value, pobj.value, pobj.datatype)
         # note: exceptions are handled in handle_request, not here!
         getattr(moduleobj, 'write_' + pname)(value)
         # return value is ignored here, as already handled

@@ -30,6 +30,9 @@ from frappy.datatypes import ArrayOf, BLOBType, BoolType, CommandType, \
     StructOf, TextType, TupleOf, ValueType, get_datatype
 from frappy.errors import BadValueError, RangeError, WrongTypeError
 from frappy.lib import generalConfig
+from frappy.protocol.dispatcher import fill_from_previous
+
+
 
 
 def copytest(dt):
@@ -713,3 +716,130 @@ def test_value_type_rejecting(validator, value):
     assert t(value) == value
     with pytest.raises(ConfigError):
         tv(value)
+
+
+# === optional struct stuff ====================================================
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def S(**kwargs):
+    """Shorthand: StructOf with all-optional members for fill tests."""
+    dt = StructOf(**kwargs)
+    dt.optional = list(kwargs.keys())
+    return dt
+
+
+# ── fill_from_previous() with Frappy types ──────────────────────────────────────────────────
+
+class TestFillWithStructOf:
+    def test_missing_optional_restored(self):
+        dt = S(x=IntRange(), y=IntRange())
+        validated = dt.validate(dict(x=5))   # y absent → not in result
+        previous = dt(dict(x=1, y=2))               # full previous value
+        result = fill_from_previous(validated, previous)
+        assert result['x'] == 5     # new value kept
+        assert result['y'] == 2     # restored from previous
+
+    def test_all_keys_present_nothing_filled(self):
+        dt = S(x=IntRange(), y=IntRange())
+        validated = dt.validate(dict(x=5, y=9))
+        previous = dt(dict(x=1, y=2))
+        result = fill_from_previous(validated, previous)
+        assert result == {'x': 5, 'y': 9}
+
+
+class TestFillWithArrayOf:
+    def test_array_of_structs_missing_keys_filled(self):
+        dt = ArrayOf(S(x=IntRange(), y=IntRange()))
+        validated = dt.validate((dict(x=10), dict(x=20)))
+        previous = (dict(x=1, y=100), dict(x=2, y=200))
+        result = fill_from_previous(validated, previous)
+        assert result[0]['y'] == 100
+        assert result[1]['y'] == 200
+
+    def test_array_longer_than_previous(self):
+        dt = ArrayOf(S(x=IntRange(), y=IntRange()))
+        validated = dt.validate((dict(x=1), dict(x=2), dict(x=3)))
+        previous  = (dict(x=0, y=9), dict(x=0, y=8))
+        result = fill_from_previous(validated, previous)
+        # first two items get y filled; third has no previous → unchanged
+        assert result[0]['y'] == 9
+        assert result[1]['y'] == 8
+        assert 'y' not in result[2]
+
+    def test_scalar_array_unchanged(self):
+        dt = ArrayOf(IntRange())
+        validated = dt.validate((3, 1, 4, 1, 5))
+        previous = (0, 0, 0)
+        result = fill_from_previous(validated, previous)
+        assert result == (3, 1, 4, 1, 5)
+
+
+class TestFillWithTupleOf:
+    def test_tuple_of_structs_miss_keys_filled(self):
+        dt = TupleOf(S(a=IntRange(), b=IntRange()), S(c=FloatRange(), d=FloatRange()))
+        validated = dt.validate((dict(a=1), dict(c=3.0)))
+        previous = (dict(a=0, b=99), dict(c=0.0, d=7.5))
+        result = fill_from_previous(validated, previous)
+        assert result[0]['b'] == 99
+        assert result[1]['d'] == 7.5
+
+    def test_tuple_of_scalars_unchanged(self):
+        dt = TupleOf(IntRange(), FloatRange())
+        validated = dt.validate((42, 3.14))
+        previous  = (0, 0.0)
+        result = fill_from_previous(validated, previous)
+        assert result == (42, 3.14)
+
+
+class TestFillWithNestedStructs:
+    def test_nested_struct_miss_inner_key_filled(self):
+        inner = S(p=IntRange(), q=IntRange())
+        outer = S(name=StringType(), cfg=inner)
+        validated = outer.validate(dict(
+            name='dev1',
+            cfg=dict(p=5),   # q missing
+        ))
+        previous = outer(dict(name='dev0', cfg=dict(p=0, q=42)))
+        result = fill_from_previous(validated, previous)
+        assert result['cfg']['q'] == 42
+        assert result['cfg']['p'] == 5
+        assert result['name'] == 'dev1'
+
+
+# ── dispatcher pattern (integration) ─────────────────────────────────────────
+
+class TestDispatcherPattern:
+    """Mirrors exactly what dispatcher.py does after the refactor."""
+
+    def test_full_dispatcher_flow(self):
+        dt = S(x=IntRange(), y=IntRange(), z=IntRange())
+        pobj_value = dt(dict(x=1, y=2, z=3))   # simulate pobj.value
+
+        # Incoming partial update (only x changed)
+        incoming = dict(x=99)
+        validated = dt.validate(incoming)        # pobj.datatype.validate(value)
+        result = fill_from_previous(validated, pobj_value, dt)  # fill_from_previous(value, pobj.value)
+
+        assert result['x'] == 99   # updated
+        assert result['y'] == 2    # kept from previous
+        assert result['z'] == 3    # kept from previous
+
+    def test_none_value_treated_as_missing(self):
+        """The existing None-means-missing goodie still works via validate."""
+        dt = S(x=IntRange(), y=IntRange())
+        pobj_value = dt(dict(x=1, y=2))
+
+        incoming = dict(x=5, y=None)   # None → omitted by validate
+        validated = dt.validate(incoming)
+        result = fill_from_previous(validated, pobj_value, dt)
+
+        assert result['x'] == 5
+        assert result['y'] == 2    # None was dropped by validate, fill restores it
+
+    def test_struct_item_beyond_default_raises(self):
+        dt = ArrayOf(S(x=IntRange(), y=IntRange()))
+        pobj_value = (dict(x=0, y=9),)  # only covers index 0
+        incoming = dt.validate((dict(x=1), dict(x=2), dict(x=3)))
+        with pytest.raises(WrongTypeError):  # raised by dt(filled)
+            fill_from_previous(incoming, pobj_value, dt)

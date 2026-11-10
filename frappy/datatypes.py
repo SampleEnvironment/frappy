@@ -67,12 +67,11 @@ class SimpleDataType(HasProperties):
         """
         raise NotImplementedError
 
-    def validate(self, value, previous=None):
+    def validate(self, value):
         """convert value to datatype and check for limits
 
-        :param value: the value to be converted
-        :param previous: previous value (used for optional struct members)
-        """
+        :param value: the value to be validated and converted
+         """
         # default: no limits to check
         return self(value)
 
@@ -272,7 +271,7 @@ class FloatRange(HasUnit, DataType):
         # map +/-infty to +/-max possible number
         return clamp(-sys.float_info.max, value, sys.float_info.max)
 
-    def validate(self, value, previous=None):
+    def validate(self, value):
         # convert
         value = self(value)
         # check the limits
@@ -349,7 +348,7 @@ class IntRange(DataType):
             raise WrongTypeError(f'{value} should be an int')
         return value
 
-    def validate(self, value, previous=None):
+    def validate(self, value):
         # convert
         value = self(value)
         # check the limits
@@ -461,7 +460,7 @@ class ScaledInteger(HasUnit, DataType):
         intval = int(round(value / self.scale))
         return float(intval * self.scale)   # return 'actual' value (which is more discrete than a float)
 
-    def validate(self, value, previous=None):
+    def validate(self, value):
         # convert
         result = self(value)
         if self.min - self.scale < value < self.max + self.scale:
@@ -841,11 +840,9 @@ class ArrayOf(DataType):
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
             raise errcls(f'can not convert some array elements: {e!r}') from e
 
-    def validate(self, value, previous=None):
+    def validate(self, value):
         self.check_type(value)
         try:
-            if previous:
-                return tuple(self.members.validate(v, p) for v, p in zip(value, previous))
             return tuple(self.members.validate(v) for v in value)
         except Exception as e:
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
@@ -931,12 +928,10 @@ class TupleOf(DataType):
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
             raise errcls(f'can not convert some tuple elements: {e!r}') from e
 
-    def validate(self, value, previous=None):
+    def validate(self, value):
         self.check_type(value)
         try:
-            if previous is None:
-                return tuple(sub.validate(elem) for sub, elem in zip(self.members, value))
-            return tuple(sub.validate(v, p) for sub, v, p in zip(self.members, value, previous))
+            return tuple(sub.validate(elem) for sub, elem in zip(self.members, value))
         except Exception as e:
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
             raise errcls(f'some tuple elements are invalid: {e!r}') from e
@@ -1025,10 +1020,10 @@ class StructOf(DataType):
             errcls = RangeError if isinstance(e, RangeError) else WrongTypeError
             raise errcls('can not convert struct element %s' % key) from e
 
-    def validate(self, value, previous=None):
+    def validate(self, value):
         self.check_type(value, True)
         try:
-            result = dict(previous or {})
+            result = {}
             for key, val in value.items():
                 if val is not None:  # goodie: allow None instead of missing key
                     result[key] = self.members[key].validate(val)
@@ -1276,9 +1271,9 @@ class LimitsType(TupleOf):
     def __init__(self, member):
         super().__init__(member, member)
 
-    def validate(self, value, previous=None):
+    def validate(self, value):
         """accepts an ordered tuple of numeric member types"""
-        limits = TupleOf.validate(self, value, previous)
+        limits = TupleOf.validate(self, value)
         if limits[1] < limits[0]:
             raise RangeError(f'maximum value {limits[1]} must be greater than '
                              f'minimum value {limits[0]}')
